@@ -34,7 +34,6 @@ impl Encoding {
 }
 
 /// Result of a (potentially partial) decode operation.
-#[repr(C)]
 pub enum DecoderResult {
    /// The input was exhausted.
    ///
@@ -55,7 +54,11 @@ pub enum DecoderResult {
    /// The caller must either treat this as a fatal error or must append one
    /// REPLACEMENT CHARACTER (U+FFFD) to the output and then re-push the
    /// the remaining input to the decoder.
-   Malformed,
+   ///
+   /// The wrapped integer indicates the length of the malformed byte sequence.
+   /// The last byte that was consumed is the last byte of the malformed
+   /// sequence.
+   Malformed(u8), // u8 instead of usize to avoid uselessly bloating the enum
 }
 
 /// A converter that decodes a byte stream into Unicode according to a
