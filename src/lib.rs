@@ -57,7 +57,8 @@ pub enum DecoderResult {
    ///
    /// The wrapped integer indicates the length of the malformed byte sequence.
    /// The last byte that was consumed is the last byte of the malformed
-   /// sequence.
+   /// sequence. Note that the earlier bytes may have been part of an earlier
+   /// input buffer.
    Malformed(u8), // u8 instead of usize to avoid uselessly bloating the enum
 }
 
