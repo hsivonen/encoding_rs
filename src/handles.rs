@@ -7,14 +7,14 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-pub struct BmpHandle<'a, 'b> where 'b: 'a {
-    dest: &'a mut Destination<'b>,
+pub struct Utf16BmpHandle<'a, 'b> where 'b: 'a {
+    dest: &'a mut Utf16Destination<'b>,
 }
 
-impl<'a, 'b> BmpHandle<'a, 'b> where 'b: 'a {
+impl<'a, 'b> Utf16BmpHandle<'a, 'b> where 'b: 'a {
     #[inline(always)]
-    fn new(dst: &'a mut Destination<'b>) -> BmpHandle<'a, 'b> {
-        BmpHandle { dest: dst }
+    fn new(dst: &'a mut Utf16Destination<'b>) -> Utf16BmpHandle<'a, 'b> {
+        Utf16BmpHandle { dest: dst }
     }
     #[inline(always)]
     pub fn write_ascii(self, ascii: u8) {
@@ -26,14 +26,14 @@ impl<'a, 'b> BmpHandle<'a, 'b> where 'b: 'a {
     }
 }
 
-pub struct AstralHandle<'a, 'b> where 'b: 'a {
-    dest: &'a mut Destination<'b>,
+pub struct Utf16AstralHandle<'a, 'b> where 'b: 'a {
+    dest: &'a mut Utf16Destination<'b>,
 }
 
-impl<'a, 'b> AstralHandle<'a, 'b> where 'b: 'a {
+impl<'a, 'b> Utf16AstralHandle<'a, 'b> where 'b: 'a {
     #[inline(always)]
-    fn new(dst: &'a mut Destination<'b>) -> AstralHandle<'a, 'b> {
-        AstralHandle { dest: dst }
+    fn new(dst: &'a mut Utf16Destination<'b>) -> Utf16AstralHandle<'a, 'b> {
+        Utf16AstralHandle { dest: dst }
     }
     #[inline(always)]
     pub fn write_char(self, c: char) {
@@ -54,12 +54,12 @@ impl<'a, 'b> AstralHandle<'a, 'b> where 'b: 'a {
 }
 
 pub struct Big5Handle<'a, 'b> where 'b: 'a {
-    dest: &'a mut Destination<'b>,
+    dest: &'a mut Utf16Destination<'b>,
 }
 
 impl<'a, 'b> Big5Handle<'a, 'b> where 'b: 'a {
     #[inline(always)]
-    fn new(dst: &'a mut Destination<'b>) -> Big5Handle<'a, 'b> {
+    fn new(dst: &'a mut Utf16Destination<'b>) -> Big5Handle<'a, 'b> {
         Big5Handle { dest: dst }
     }
     #[inline(always)]
@@ -84,28 +84,28 @@ impl<'a, 'b> Big5Handle<'a, 'b> where 'b: 'a {
     }
 }
 
-pub struct Destination<'a> {
+pub struct Utf16Destination<'a> {
     slice: &'a mut [u16],
     pos: usize,
 }
 
-impl<'a> Destination<'a> {
+impl<'a> Utf16Destination<'a> {
     #[inline(always)]
-    pub fn new(dst: &mut [u16]) -> Destination {
-        Destination { slice: dst, pos: 0 }
+    pub fn new(dst: &mut [u16]) -> Utf16Destination {
+        Utf16Destination { slice: dst, pos: 0 }
     }
     #[inline(always)]
-    pub fn check_space_bmp<'b>(&'b mut self) -> Option<BmpHandle<'b, 'a>> {
+    pub fn check_space_bmp<'b>(&'b mut self) -> Option<Utf16BmpHandle<'b, 'a>> {
         if self.pos < self.slice.len() {
-            Some(BmpHandle::new(self))
+            Some(Utf16BmpHandle::new(self))
         } else {
             None
         }
     }
     #[inline(always)]
-    pub fn check_space_astral<'b>(&'b mut self) -> Option<AstralHandle<'b, 'a>> {
+    pub fn check_space_astral<'b>(&'b mut self) -> Option<Utf16AstralHandle<'b, 'a>> {
         if self.pos + 1 < self.slice.len() {
-            Some(AstralHandle::new(self))
+            Some(Utf16AstralHandle::new(self))
         } else {
             None
         }
