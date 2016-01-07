@@ -26,9 +26,7 @@ impl Encoding {
     }
 // new_decoder
 // new_encoder
-// encode
 // decode
-// encode_with_replacement
 // decode_with_replacement
 }
 
