@@ -8,6 +8,7 @@
 // except according to those terms.
 
 mod handles;
+mod big5;
 
 static TEST: Encoding = Encoding {
     name: "foo",

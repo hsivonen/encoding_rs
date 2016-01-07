@@ -7,27 +7,32 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
+pub enum Space<T> {
+    Available(T),
+    Full(usize),
+}
+
 // Byte source
 
 pub struct ByteSource<'a> {
-    slice: &'a mut [u8],
+    slice: &'a [u8],
     pos: usize,
 }
 
 impl<'a> ByteSource<'a> {
     #[inline(always)]
-    pub fn new(src: &mut [u8]) -> ByteSource {
+    pub fn new(src: &[u8]) -> ByteSource {
         ByteSource {
             slice: src,
             pos: 0,
         }
     }
     #[inline(always)]
-    pub fn check_available<'b>(&'b mut self) -> Option<ByteReadHandle<'b, 'a>> {
+    pub fn check_available<'b>(&'b mut self) -> Space<ByteReadHandle<'b, 'a>> {
         if self.pos < self.slice.len() {
-            Some(ByteReadHandle::new(self))
+            Space::Available(ByteReadHandle::new(self))
         } else {
-            None
+            Space::Full(self.consumed())
         }
     }
     #[inline(always)]
@@ -37,8 +42,13 @@ impl<'a> ByteSource<'a> {
         ret
     }
     #[inline(always)]
-    fn unread(&mut self) {
+    fn unread(&mut self) -> usize {
         self.pos -= 1;
+        self.pos
+    }
+    #[inline(always)]
+    fn consumed(&self) -> usize {
+        self.pos
     }
 }
 
@@ -60,6 +70,10 @@ impl<'a, 'b> ByteReadHandle<'a, 'b> where 'b: 'a
         let handle = ByteUnreadHandle::new(self.source);
         (byte, handle)
     }
+    #[inline(always)]
+    pub fn consumed(&self) -> usize {
+        self.source.consumed()
+    }
 }
 
 pub struct ByteUnreadHandle<'a, 'b>
@@ -75,7 +89,13 @@ impl<'a, 'b> ByteUnreadHandle<'a, 'b> where 'b: 'a
         ByteUnreadHandle { source: src }
     }
     #[inline(always)]
-    pub fn unread(self) {}
+    pub fn unread(self) -> usize {
+        self.source.unread()
+    }
+    #[inline(always)]
+    pub fn consumed(&self) -> usize {
+        self.source.consumed()
+    }
 }
 
 // UTF-16 destination
@@ -91,6 +111,10 @@ impl<'a, 'b> Utf16BmpHandle<'a, 'b> where 'b: 'a
     #[inline(always)]
     fn new(dst: &'a mut Utf16Destination<'b>) -> Utf16BmpHandle<'a, 'b> {
         Utf16BmpHandle { dest: dst }
+    }
+    #[inline(always)]
+    pub fn written(&self) -> usize {
+        self.dest.written()
     }
     #[inline(always)]
     pub fn write_ascii(self, ascii: u8) {
@@ -113,6 +137,10 @@ impl<'a, 'b> Utf16AstralHandle<'a, 'b> where 'b: 'a
     #[inline(always)]
     fn new(dst: &'a mut Utf16Destination<'b>) -> Utf16AstralHandle<'a, 'b> {
         Utf16AstralHandle { dest: dst }
+    }
+    #[inline(always)]
+    pub fn written(&self) -> usize {
+        self.dest.written()
     }
     #[inline(always)]
     pub fn write_char(self, c: char) {
@@ -143,6 +171,10 @@ impl<'a, 'b> Big5Handle<'a, 'b> where 'b: 'a
     #[inline(always)]
     fn new(dst: &'a mut Utf16Destination<'b>) -> Big5Handle<'a, 'b> {
         Big5Handle { dest: dst }
+    }
+    #[inline(always)]
+    pub fn written(&self) -> usize {
+        self.dest.written()
     }
     #[inline(always)]
     pub fn write_char(self, c: char) {
@@ -180,28 +212,32 @@ impl<'a> Utf16Destination<'a> {
         }
     }
     #[inline(always)]
-    pub fn check_space_bmp<'b>(&'b mut self) -> Option<Utf16BmpHandle<'b, 'a>> {
+    pub fn check_space_bmp<'b>(&'b mut self) -> Space<Utf16BmpHandle<'b, 'a>> {
         if self.pos < self.slice.len() {
-            Some(Utf16BmpHandle::new(self))
+            Space::Available(Utf16BmpHandle::new(self))
         } else {
-            None
+            Space::Full(self.written())
         }
     }
     #[inline(always)]
-    pub fn check_space_astral<'b>(&'b mut self) -> Option<Utf16AstralHandle<'b, 'a>> {
+    pub fn check_space_astral<'b>(&'b mut self) -> Space<Utf16AstralHandle<'b, 'a>> {
         if self.pos + 1 < self.slice.len() {
-            Some(Utf16AstralHandle::new(self))
+            Space::Available(Utf16AstralHandle::new(self))
         } else {
-            None
+            Space::Full(self.written())
         }
     }
     #[inline(always)]
-    pub fn check_space_big5<'b>(&'b mut self) -> Option<Big5Handle<'b, 'a>> {
+    pub fn check_space_big5<'b>(&'b mut self) -> Space<Big5Handle<'b, 'a>> {
         if self.pos + 1 < self.slice.len() {
-            Some(Big5Handle::new(self))
+            Space::Available(Big5Handle::new(self))
         } else {
-            None
+            Space::Full(self.written())
         }
+    }
+    #[inline(always)]
+    pub fn written(&self) -> usize {
+        self.pos
     }
     #[inline(always)]
     fn write_char(&mut self, c: char) {
