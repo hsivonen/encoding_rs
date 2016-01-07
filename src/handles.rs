@@ -7,11 +7,87 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-pub struct Utf16BmpHandle<'a, 'b> where 'b: 'a {
+// Byte source
+
+pub struct ByteSource<'a> {
+    slice: &'a mut [u8],
+    pos: usize,
+}
+
+impl<'a> ByteSource<'a> {
+    #[inline(always)]
+    pub fn new(src: &mut [u8]) -> ByteSource {
+        ByteSource {
+            slice: src,
+            pos: 0,
+        }
+    }
+    #[inline(always)]
+    pub fn check_available<'b>(&'b mut self) -> Option<ByteReadHandle<'b, 'a>> {
+        if self.pos < self.slice.len() {
+            Some(ByteReadHandle::new(self))
+        } else {
+            None
+        }
+    }
+    #[inline(always)]
+    fn read(&mut self) -> u8 {
+        let ret = self.slice[self.pos];
+        self.pos += 1;
+        ret
+    }
+    #[inline(always)]
+    fn unread(&mut self) {
+        self.pos -= 1;
+    }
+}
+
+pub struct ByteReadHandle<'a, 'b>
+    where 'b: 'a
+{
+    source: &'a mut ByteSource<'b>,
+}
+
+impl<'a, 'b> ByteReadHandle<'a, 'b> where 'b: 'a
+{
+    #[inline(always)]
+    fn new(src: &'a mut ByteSource<'b>) -> ByteReadHandle<'a, 'b> {
+        ByteReadHandle { source: src }
+    }
+    #[inline(always)]
+    pub fn read(self) -> (u8, ByteUnreadHandle<'a, 'b>) {
+        let byte = self.source.read();
+        let handle = ByteUnreadHandle::new(self.source);
+        (byte, handle)
+    }
+}
+
+pub struct ByteUnreadHandle<'a, 'b>
+    where 'b: 'a
+{
+    source: &'a mut ByteSource<'b>,
+}
+
+impl<'a, 'b> ByteUnreadHandle<'a, 'b> where 'b: 'a
+{
+    #[inline(always)]
+    fn new(src: &'a mut ByteSource<'b>) -> ByteUnreadHandle<'a, 'b> {
+        ByteUnreadHandle { source: src }
+    }
+    #[inline(always)]
+    pub fn unread(self) {}
+}
+
+// UTF-16 destination
+
+pub struct Utf16BmpHandle<'a, 'b>
+    where 'b: 'a
+{
     dest: &'a mut Utf16Destination<'b>,
 }
 
-impl<'a, 'b> Utf16BmpHandle<'a, 'b> where 'b: 'a {
+impl<'a, 'b> Utf16BmpHandle<'a, 'b> where 'b: 'a
+{
     #[inline(always)]
     fn new(dst: &'a mut Utf16Destination<'b>) -> Utf16BmpHandle<'a, 'b> {
         Utf16BmpHandle { dest: dst }
@@ -26,11 +102,14 @@ impl<'a, 'b> Utf16BmpHandle<'a, 'b> where 'b: 'a {
     }
 }
 
-pub struct Utf16AstralHandle<'a, 'b> where 'b: 'a {
+pub struct Utf16AstralHandle<'a, 'b>
+    where 'b: 'a
+{
     dest: &'a mut Utf16Destination<'b>,
 }
 
-impl<'a, 'b> Utf16AstralHandle<'a, 'b> where 'b: 'a {
+impl<'a, 'b> Utf16AstralHandle<'a, 'b> where 'b: 'a
+{
     #[inline(always)]
     fn new(dst: &'a mut Utf16Destination<'b>) -> Utf16AstralHandle<'a, 'b> {
         Utf16AstralHandle { dest: dst }
@@ -53,11 +132,14 @@ impl<'a, 'b> Utf16AstralHandle<'a, 'b> where 'b: 'a {
     }
 }
 
-pub struct Big5Handle<'a, 'b> where 'b: 'a {
+pub struct Big5Handle<'a, 'b>
+    where 'b: 'a
+{
     dest: &'a mut Utf16Destination<'b>,
 }
 
-impl<'a, 'b> Big5Handle<'a, 'b> where 'b: 'a {
+impl<'a, 'b> Big5Handle<'a, 'b> where 'b: 'a
+{
     #[inline(always)]
     fn new(dst: &'a mut Utf16Destination<'b>) -> Big5Handle<'a, 'b> {
         Big5Handle { dest: dst }
@@ -92,7 +174,10 @@ pub struct Utf16Destination<'a> {
 impl<'a> Utf16Destination<'a> {
     #[inline(always)]
     pub fn new(dst: &mut [u16]) -> Utf16Destination {
-        Utf16Destination { slice: dst, pos: 0 }
+        Utf16Destination {
+            slice: dst,
+            pos: 0,
+        }
     }
     #[inline(always)]
     pub fn check_space_bmp<'b>(&'b mut self) -> Option<Utf16BmpHandle<'b, 'a>> {
