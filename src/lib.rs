@@ -9,6 +9,7 @@
 
 mod handles;
 mod big5;
+mod data;
 
 static TEST: Encoding = Encoding {
     name: "foo",

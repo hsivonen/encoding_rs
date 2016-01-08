@@ -10,6 +10,7 @@
 use Decoder;
 use DecoderResult;
 use handles::*;
+use data::*;
 
 struct Big5Decoder {
     lead: u8,
@@ -126,7 +127,7 @@ impl Decoder for Big5Decoder {
                                             continue;
                                         }
                                         _ => {
-                                            let low_bits = 0; // XXX Big5Data.low_bits(pointer)
+                                            let low_bits = big5_low_bits(pointer);
                                             if low_bits == 0 {
                                                 if b <= 0x7F {
                                                     return (DecoderResult::Malformed(1),
@@ -137,8 +138,7 @@ impl Decoder for Big5Decoder {
                                                         unread_handle.consumed(),
                                                         destination_handle.written());
                                             }
-                                            if true {
-                                                // XXX Big5Data.is_astral(pointer)
+                                            if big5_is_astral(pointer) {
                                                 destination_handle.write_astral(low_bits as u32 |
                                                                                 0x20000u32);
                                                 continue;
