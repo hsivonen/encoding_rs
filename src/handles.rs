@@ -169,17 +169,17 @@ impl<'a, 'b> Utf16AstralHandle<'a, 'b> where 'b: 'a
     }
 }
 
-pub struct Big5Handle<'a, 'b>
+pub struct Utf16Big5Handle<'a, 'b>
     where 'b: 'a
 {
     dest: &'a mut Utf16Destination<'b>,
 }
 
-impl<'a, 'b> Big5Handle<'a, 'b> where 'b: 'a
+impl<'a, 'b> Utf16Big5Handle<'a, 'b> where 'b: 'a
 {
     #[inline(always)]
-    fn new(dst: &'a mut Utf16Destination<'b>) -> Big5Handle<'a, 'b> {
-        Big5Handle { dest: dst }
+    fn new(dst: &'a mut Utf16Destination<'b>) -> Utf16Big5Handle<'a, 'b> {
+        Utf16Big5Handle { dest: dst }
     }
     #[inline(always)]
     pub fn written(&self) -> usize {
@@ -237,9 +237,9 @@ impl<'a> Utf16Destination<'a> {
         }
     }
     #[inline(always)]
-    pub fn check_space_big5<'b>(&'b mut self) -> Space<Big5Handle<'b, 'a>> {
+    pub fn check_space_big5<'b>(&'b mut self) -> Space<Utf16Big5Handle<'b, 'a>> {
         if self.pos + 1 < self.slice.len() {
-            Space::Available(Big5Handle::new(self))
+            Space::Available(Utf16Big5Handle::new(self))
         } else {
             Space::Full(self.written())
         }

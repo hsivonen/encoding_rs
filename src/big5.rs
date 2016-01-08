@@ -12,11 +12,15 @@ use DecoderResult;
 use handles::*;
 use data::*;
 
-struct Big5Decoder {
+pub struct Big5Decoder {
     lead: u8,
 }
 
 impl Big5Decoder {
+    pub fn new() -> Big5Decoder {
+        Big5Decoder { lead: 0 }
+    }
+
     fn plus_one_if_lead(&self, byte_length: usize) -> usize {
         byte_length +
         if self.lead == 0 {
@@ -33,16 +37,16 @@ impl Decoder for Big5Decoder {
     }
 
     fn max_utf16_buffer_length(&self, byte_length: usize) -> usize {
-        self.plus_one_if_lead(byte_length)
+        self.plus_one_if_lead(byte_length) + 1
     }
 
     fn max_utf8_buffer_length(&self, byte_length: usize) -> usize {
         let len = self.plus_one_if_lead(byte_length);
-        (len * 2) + (len / 2)
+        (len * 2) + (len / 2) // XXX tail
     }
 
     fn max_utf8_buffer_length_with_replacement(&self, byte_length: usize) -> usize {
-        3 * self.plus_one_if_lead(byte_length)
+        3 * self.plus_one_if_lead(byte_length) // XXX tail
     }
 
     fn decode_to_utf16(&mut self,
@@ -173,5 +177,33 @@ impl Decoder for Big5Decoder {
                       last: bool)
                       -> (DecoderResult, usize, usize) {
         (DecoderResult::Overflow, 0, 0)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use super::super::*;
+
+    fn decode_big5_to_utf16(bytes: &[u8], expect: &[u16]) {
+        let mut decoder = Big5Decoder::new();
+        let mut dest: Vec<u16> = Vec::with_capacity(decoder.max_utf16_buffer_length(expect.len()));
+        let capacity = dest.capacity();
+        dest.resize(capacity, 0u16);
+        let (complete, read, written, _) = decoder.decode_to_utf16_with_replacement(bytes,
+                                                                                    &mut dest,
+                                                                                    true);
+        println!("FOO");
+        println!("complete: {}, read: {}, written: {}", complete, read, written);
+        assert!(complete);
+        assert_eq!(read, bytes.len());
+        assert_eq!(written, expect.len());
+        dest.truncate(written);
+        assert_eq!(&dest[..], expect);
+    }
+
+    #[test]
+    fn test_big5_decode() {
+        decode_big5_to_utf16(&[0x61u8, 0x62u8], &[0x0061u16, 0x0062u16]);
     }
 }

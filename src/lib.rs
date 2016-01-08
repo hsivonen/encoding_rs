@@ -283,8 +283,31 @@ pub trait Decoder {
                                         dst: &mut [u16],
                                         last: bool)
                                         -> (bool, usize, usize, bool) {
-        // XXX
-        (true, 0, 0, false)
+        let mut had_errors = false;
+        let mut total_read = 0usize;
+        let mut total_written = 0usize;
+        loop {
+            let (result, read, written) = self.decode_to_utf16(&src[total_read..],
+                                                               &mut dst[total_written..],
+                                                               last);
+            total_read += read;
+            total_written += written;
+            match result {
+                DecoderResult::Underflow => {
+                    return (true, total_read, total_written, had_errors);
+                }
+                DecoderResult::Overflow => {
+                    return (false, total_read, total_written, had_errors);
+                }
+                DecoderResult::Malformed(_) => {
+                    had_errors = true;
+                    // There should always be space for the U+FFFD, because
+                    // otherwise we'd have gotten Overflow already.
+                    dst[total_written] = 0xFFFD;
+                    total_written += 1;
+                }
+            }
+        }
     }
 
     /// Incrementally decode a byte stream into UTF-8 with malformed sequences
