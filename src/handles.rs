@@ -7,6 +7,15 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
+//! This module provides structs that use lifetimes to couple bounds checking
+//! and space availability checking and deteching those from actual slice
+//! reading/writing.
+//!
+//! At present, the internals of the implementation are safe code, so the
+//! bound checks currently also happen on read/write. Once this code works,
+//! the plan is to replace the internals with unsafe code that omits the
+//! bound check at the read/write time.
+
 pub enum Space<T> {
     Available(T),
     Full(usize),
