@@ -203,7 +203,7 @@ impl DecoderResult {
 /// the caller must call `reset()` before starting processing the new stream.
 ///
 /// When the decoder returns `OutputFull` or the decoder returns `Malformed` and
-/// the caller does not wish to treat it as a fatal error, the input buffer 
+/// the caller does not wish to treat it as a fatal error, the input buffer
 /// `src` may not have been completely consumed. In that case, the caller must
 /// pass the unconsumed contents of `src` to `decode_*` again upon the next
 /// call.
