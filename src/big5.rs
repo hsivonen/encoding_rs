@@ -194,8 +194,11 @@ mod tests {
                                                                                     &mut dest,
                                                                                     true);
         println!("FOO");
-        println!("complete: {}, read: {}, written: {}", complete, read, written);
-        assert!(complete);
+        println!("complete: {}, read: {}, written: {}",
+                 complete.as_u32(),
+                 read,
+                 written);
+        assert_eq!(complete, WithReplacementResult::Underflow);
         assert_eq!(read, bytes.len());
         assert_eq!(written, expect.len());
         dest.truncate(written);

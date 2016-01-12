@@ -37,6 +37,57 @@ impl Encoding {
     // decode_with_replacement
 }
 
+const UNDERFLOW: u32 = 0xFFFFFFFF;
+
+const OVERFLOW: u32 = 0xFFFFFFFE;
+
+/// Result of a (potentially partial) decode or operation with replacement.
+#[derive(Debug)]
+pub enum WithReplacementResult {
+    /// The input was exhausted.
+    ///
+    /// If this result was returned from a call where `last` was `true`, the
+    /// conversion process has completed. Otherwise, the caller should call a
+    /// decode or encode method again with more input.
+    Underflow,
+
+    /// The converter cannot produce another unit of output, because the output
+    /// buffer does not have enough space left.
+    ///
+    /// The caller must provide more output space upon the next call and re-push
+    /// the remaining input to the converter.
+    Overflow,
+}
+
+impl PartialEq for WithReplacementResult {
+    fn eq(&self, other: &WithReplacementResult) -> bool {
+        // TODO: There has to be a simpler way to implement this.
+        match *self {
+            WithReplacementResult::Underflow => {
+                match *other {
+                    WithReplacementResult::Underflow => true,
+                    WithReplacementResult::Overflow => false,
+                }
+            }
+            WithReplacementResult::Overflow => {
+                match *other {
+                    WithReplacementResult::Underflow => false,
+                    WithReplacementResult::Overflow => true,
+                }
+            }
+        }
+    }
+}
+
+impl WithReplacementResult {
+    fn as_u32(&self) -> u32 {
+        match *self {
+            WithReplacementResult::Underflow => UNDERFLOW,
+            WithReplacementResult::Overflow => OVERFLOW,
+        }
+    }
+}
+
 /// Result of a (potentially partial) decode operation.
 pub enum DecoderResult {
     /// The input was exhausted.
@@ -64,6 +115,16 @@ pub enum DecoderResult {
     /// sequence. Note that the earlier bytes may have been part of an earlier
     /// input buffer.
     Malformed(u8), // u8 instead of usize to avoid uselessly bloating the enum
+}
+
+impl DecoderResult {
+    fn as_u32(&self) -> u32 {
+        match *self {
+            DecoderResult::Underflow => UNDERFLOW,
+            DecoderResult::Overflow => OVERFLOW,
+            DecoderResult::Malformed(num) => num as u32,
+        }
+    }
 }
 
 /// A converter that decodes a byte stream into Unicode according to a
@@ -99,9 +160,7 @@ pub enum DecoderResult {
 ///
 /// In the case of methods whose name ends with `*_with_replacement`, malformed
 /// sequences are automatically replaced with the REPLACEMENT CHARACTER and
-/// errors do not cause the methods to return early. The return value `true`
-/// signals that all input has been processed and `false` signals that more
-/// output space is needed.
+/// errors do not cause the methods to return early.
 ///
 /// When decodering to UTF-8, the output buffer must have at least 5 bytes of
 /// space. (Yes, 5, not 4, because Big5 is special.) When decoding to UTF-16,
@@ -132,19 +191,17 @@ pub enum DecoderResult {
 ///
 /// During the processing of a single stream, the caller must call `decode_*`
 /// zero or more times with `last` set to `false` and then call `decode_*` at
-/// least once with `last` set to `true`. If `decode_*` returns `Underflow`
-/// (`true` in the `*_with_replacement` case), the processing of the stream
+/// least once with `last` set to `true`. If `decode_*` returns `Underflow`, the processing of the stream
 /// has ended. Otherwise, the caller must call `decode_*` again with `last`
 /// set to `true` (or treat a `Malformed` result as a fatal error).
 ///
 /// The decoder is ready to start processing a new stream when it has
-/// returned `Underflow` (`true` in the `*_with_replacement` case) from a call
+/// returned `Underflow` from a call
 /// where `last` was set to `true`. In other cases, if the caller wishes to
 /// stop processing the current stream and to start processing a new stream,
 /// the caller must call `reset()` before starting processing the new stream.
 ///
-/// When the decoder returns `Overflow` (`false` in the `*_with_replacement`
-/// case) or the decoder returns `Malformed` and the caller does not wish to
+/// When the decoder returns `Overflow` or the decoder returns `Malformed` and the caller does not wish to
 /// treat it as a fatal error, the input buffer `src` may not have been
 /// completely consumed. In that case, the caller must pass the unconsumed
 /// contents of `src` to `decode_*` again upon the next call.
@@ -282,7 +339,7 @@ pub trait Decoder {
                                         src: &[u8],
                                         dst: &mut [u16],
                                         last: bool)
-                                        -> (bool, usize, usize, bool) {
+                                        -> (WithReplacementResult, usize, usize, bool) {
         let mut had_errors = false;
         let mut total_read = 0usize;
         let mut total_written = 0usize;
@@ -294,10 +351,16 @@ pub trait Decoder {
             total_written += written;
             match result {
                 DecoderResult::Underflow => {
-                    return (true, total_read, total_written, had_errors);
+                    return (WithReplacementResult::Underflow,
+                            total_read,
+                            total_written,
+                            had_errors);
                 }
                 DecoderResult::Overflow => {
-                    return (false, total_read, total_written, had_errors);
+                    return (WithReplacementResult::Overflow,
+                            total_read,
+                            total_written,
+                            had_errors);
                 }
                 DecoderResult::Malformed(_) => {
                     had_errors = true;
@@ -321,9 +384,9 @@ pub trait Decoder {
                                        src: &[u8],
                                        dst: &mut [u8],
                                        last: bool)
-                                       -> (bool, usize, usize, bool) {
+                                       -> (WithReplacementResult, usize, usize, bool) {
         // XXX
-        (true, 0, 0, false)
+        (WithReplacementResult::Underflow, 0, 0, false)
     }
 
     /// Incrementally decode a byte stream into UTF-8 with malformed sequences
@@ -342,7 +405,7 @@ pub trait Decoder {
                                       src: &[u8],
                                       dst: &mut str,
                                       last: bool)
-                                      -> (bool, usize, usize, bool) {
+                                      -> (WithReplacementResult, usize, usize, bool) {
         let bytes: &mut [u8] = unsafe { std::mem::transmute(dst) };
         let (result, read, written, replaced) = self.decode_to_utf8_with_replacement(src,
                                                                                      bytes,
@@ -377,7 +440,7 @@ pub trait Decoder {
                                          src: &[u8],
                                          dst: &mut String,
                                          last: bool)
-                                         -> (bool, usize, bool) {
+                                         -> (WithReplacementResult, usize, bool) {
         unsafe {
             let vec = dst.as_mut_vec();
             let old_len = vec.len();
@@ -416,6 +479,16 @@ pub enum EncoderResult {
     Unmappable(char),
 }
 
+impl EncoderResult {
+    fn as_u32(&self) -> u32 {
+        match *self {
+            EncoderResult::Underflow => UNDERFLOW,
+            EncoderResult::Overflow => OVERFLOW,
+            EncoderResult::Unmappable(c) => c as u32,
+        }
+    }
+}
+
 /// A converter that encodes a Unicode stream into bytes according to a
 /// character encoding.
 ///
@@ -450,8 +523,7 @@ pub enum EncoderResult {
 /// In the case of methods whose name ends with `*_with_replacement`, unmappable
 /// characters are automatically replaced with the corresponding numeric
 /// character references and unmappable characters do not cause the methods to
-/// return early. The return value `true` signals that all input has been
-/// processed and `false` signals that more output space is needed.
+/// return early.
 ///
 /// XXX: When decoding to UTF-8 without replacement, the methods are guaranteed
 /// not to return indicating that more output space is needed if the length
@@ -487,23 +559,21 @@ pub enum EncoderResult {
 ///
 /// During the processing of a single stream, the caller must call `encode_*`
 /// zero or more times with `last` set to `false` and then call `encode_*` at
-/// least once with `last` set to `true`. If `encode_*` returns `Underflow`
-/// (`true` in the `*_with_replacement` case), the processing of the stream
+/// least once with `last` set to `true`. If `encode_*` returns `Underflow`, the processing of the stream
 /// has ended. Otherwise, the caller must call `encode_*` again with `last`
 /// set to `true` (or treat an `Unmappable` result as a fatal error). (If you
 /// know that the encoder is not an ISO-2022-JP encoder, you may ignore this
 /// paragraph and treat the encoder as stateless.)
 ///
 /// The encoder is ready to start processing a new stream when it has
-/// returned `Underflow` (`true` in the `*_with_replacement` case) from a call
+/// returned `Underflow` from a call
 /// where `last` was set to `true`. In other cases, if the caller wishes to
 /// stop processing the current stream and to start processing a new stream,
 /// the caller must call `reset()` before starting processing the new stream.
 /// (If you know that the encoder is not an ISO-2022-JP encoder, you may ignore
 /// this paragraph and treat the encoder as stateless.)
 ///
-/// When the encoder returns `Overflow` (`false` in the `*_with_replacement`
-/// case) or the encoder returns `Unmappable` and the caller does not wish to
+/// When the encoder returns `Overflow` or the encoder returns `Unmappable` and the caller does not wish to
 /// treat it as a fatal error, the input buffer `src` may not have been
 /// completely consumed. In that case, the caller must pass the unconsumed
 /// contents of `src` to `encode_*` again upon the next call.
@@ -586,9 +656,9 @@ pub trait Encoder {
                                           src: &[u16],
                                           dst: &mut [u8],
                                           last: bool)
-                                          -> (bool, usize, usize, bool) {
+                                          -> (WithReplacementResult, usize, usize, bool) {
         // XXX
-        (true, 0, 0, false)
+        (WithReplacementResult::Underflow, 0, 0, false)
     }
 
     /// Incrementally encode into byte stream from UTF-8 with replacement.
@@ -601,9 +671,9 @@ pub trait Encoder {
                                          src: &str,
                                          dst: &mut [u8],
                                          last: bool)
-                                         -> (bool, usize, usize, bool) {
+                                         -> (WithReplacementResult, usize, usize, bool) {
         // XXX
-        (true, 0, 0, false)
+        (WithReplacementResult::Underflow, 0, 0, false)
     }
 
 // XXX: _to_vec variants for all these?
@@ -619,13 +689,13 @@ pub unsafe extern "C" fn decoder_decode_to_utf16(decoder: &mut Decoder,
                                                  dst: *mut u16,
                                                  dst_len: *mut usize,
                                                  last: bool)
-                                                 -> DecoderResult {
+                                                 -> u32 {
     let src_slice = std::slice::from_raw_parts(src, *src_len);
     let dst_slice = std::slice::from_raw_parts_mut(dst, *dst_len);
     let (result, read, written) = decoder.decode_to_utf16(src_slice, dst_slice, last);
     *src_len = read;
     *dst_len = written;
-    result
+    result.as_u32()
 }
 
 #[no_mangle]
@@ -635,13 +705,13 @@ pub unsafe extern "C" fn decoder_decode_to_utf8(decoder: &mut Decoder,
                                                 dst: *mut u8,
                                                 dst_len: *mut usize,
                                                 last: bool)
-                                                -> DecoderResult {
+                                                -> u32 {
     let src_slice = std::slice::from_raw_parts(src, *src_len);
     let dst_slice = std::slice::from_raw_parts_mut(dst, *dst_len);
     let (result, read, written) = decoder.decode_to_utf8(src_slice, dst_slice, last);
     *src_len = read;
     *dst_len = written;
-    result
+    result.as_u32()
 }
 
 #[no_mangle]
@@ -652,7 +722,7 @@ pub unsafe extern "C" fn decoder_decode_to_utf16_with_replacement(decoder: &mut 
                                                                   dst_len: *mut usize,
                                                                   last: bool,
                                                                   had_replacements: *mut bool)
-                                                                  -> bool {
+                                                                  -> u32 {
     let src_slice = std::slice::from_raw_parts(src, *src_len);
     let dst_slice = std::slice::from_raw_parts_mut(dst, *dst_len);
     let (result, read, written, replaced) = decoder.decode_to_utf16_with_replacement(src_slice,
@@ -661,7 +731,7 @@ pub unsafe extern "C" fn decoder_decode_to_utf16_with_replacement(decoder: &mut 
     *src_len = read;
     *dst_len = written;
     *had_replacements = replaced;
-    result
+    result.as_u32()
 }
 
 #[no_mangle]
@@ -672,7 +742,7 @@ pub unsafe extern "C" fn decoder_decode_to_utf8_with_replacement(decoder: &mut D
                                                                  dst_len: *mut usize,
                                                                  last: bool,
                                                                  had_replacements: *mut bool)
-                                                                 -> bool {
+                                                                 -> u32 {
     let src_slice = std::slice::from_raw_parts(src, *src_len);
     let dst_slice = std::slice::from_raw_parts_mut(dst, *dst_len);
     let (result, read, written, replaced) = decoder.decode_to_utf8_with_replacement(src_slice,
@@ -681,7 +751,7 @@ pub unsafe extern "C" fn decoder_decode_to_utf8_with_replacement(decoder: &mut D
     *src_len = read;
     *dst_len = written;
     *had_replacements = replaced;
-    result
+    result.as_u32()
 }
 
 #[no_mangle]
