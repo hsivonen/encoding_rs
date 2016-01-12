@@ -73,12 +73,12 @@ impl Decoder for Big5Decoder {
                             }
                             // End non-boilerplate
                         }
-                        return (DecoderResult::Underflow, src_consumed, dest.written());
+                        return (DecoderResult::InputEmpty, src_consumed, dest.written());
                     }
                     Space::Available(source_handle) => {
                         match dest.check_space_big5() {
                             Space::Full(dst_written) => {
-                                return (DecoderResult::Overflow,
+                                return (DecoderResult::OutputFull,
                                         source_handle.consumed(),
                                         dst_written);
                             }
@@ -176,7 +176,7 @@ impl Decoder for Big5Decoder {
                       dst: &mut [u8],
                       last: bool)
                       -> (DecoderResult, usize, usize) {
-        (DecoderResult::Overflow, 0, 0)
+        (DecoderResult::OutputFull, 0, 0)
     }
 }
 
@@ -198,7 +198,7 @@ mod tests {
                  complete.as_u32(),
                  read,
                  written);
-        assert_eq!(complete, WithReplacementResult::Underflow);
+        assert_eq!(complete, WithReplacementResult::InputEmpty);
         assert_eq!(read, bytes.len());
         assert_eq!(written, expect.len());
         dest.truncate(written);

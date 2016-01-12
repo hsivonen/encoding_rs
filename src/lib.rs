@@ -37,9 +37,9 @@ impl Encoding {
     // decode_with_replacement
 }
 
-const UNDERFLOW: u32 = 0xFFFFFFFF;
+const INPUT_EMPTY: u32 = 0xFFFFFFFF;
 
-const OVERFLOW: u32 = 0xFFFFFFFE;
+const OUTPUT_FULL: u32 = 0xFFFFFFFE;
 
 /// Result of a (potentially partial) decode or operation with replacement.
 #[derive(Debug)]
@@ -49,30 +49,30 @@ pub enum WithReplacementResult {
     /// If this result was returned from a call where `last` was `true`, the
     /// conversion process has completed. Otherwise, the caller should call a
     /// decode or encode method again with more input.
-    Underflow,
+    InputEmpty,
 
     /// The converter cannot produce another unit of output, because the output
     /// buffer does not have enough space left.
     ///
     /// The caller must provide more output space upon the next call and re-push
     /// the remaining input to the converter.
-    Overflow,
+    OutputFull,
 }
 
 impl PartialEq for WithReplacementResult {
     fn eq(&self, other: &WithReplacementResult) -> bool {
         // TODO: There has to be a simpler way to implement this.
         match *self {
-            WithReplacementResult::Underflow => {
+            WithReplacementResult::InputEmpty => {
                 match *other {
-                    WithReplacementResult::Underflow => true,
-                    WithReplacementResult::Overflow => false,
+                    WithReplacementResult::InputEmpty => true,
+                    WithReplacementResult::OutputFull => false,
                 }
             }
-            WithReplacementResult::Overflow => {
+            WithReplacementResult::OutputFull => {
                 match *other {
-                    WithReplacementResult::Underflow => false,
-                    WithReplacementResult::Overflow => true,
+                    WithReplacementResult::InputEmpty => false,
+                    WithReplacementResult::OutputFull => true,
                 }
             }
         }
@@ -82,8 +82,8 @@ impl PartialEq for WithReplacementResult {
 impl WithReplacementResult {
     fn as_u32(&self) -> u32 {
         match *self {
-            WithReplacementResult::Underflow => UNDERFLOW,
-            WithReplacementResult::Overflow => OVERFLOW,
+            WithReplacementResult::InputEmpty => INPUT_EMPTY,
+            WithReplacementResult::OutputFull => OUTPUT_FULL,
         }
     }
 }
@@ -95,14 +95,14 @@ pub enum DecoderResult {
     /// If this result was returned from a call where `last` was `true`, the
     /// decoding process has completed. Otherwise, the caller should call a
     /// decode method again with more input.
-    Underflow,
+    InputEmpty,
 
     /// The decoder cannot produce another unit of output, because the output
     /// buffer does not have enough space left.
     ///
     /// The caller must provide more output space upon the next call and re-push
     /// the remaining input to the decoder.
-    Overflow,
+    OutputFull,
 
     /// The decoder encountered a malformed byte sequence.
     ///
@@ -120,8 +120,8 @@ pub enum DecoderResult {
 impl DecoderResult {
     fn as_u32(&self) -> u32 {
         match *self {
-            DecoderResult::Underflow => UNDERFLOW,
-            DecoderResult::Overflow => OVERFLOW,
+            DecoderResult::InputEmpty => INPUT_EMPTY,
+            DecoderResult::OutputFull => OUTPUT_FULL,
             DecoderResult::Malformed(num) => num as u32,
         }
     }
@@ -155,7 +155,7 @@ impl DecoderResult {
 ///
 /// In the case of the methods whose name does not end with
 /// `*_with_replacement`, the status is a `DecoderResult` enumeration
-/// (possibilities `Malformed`, `Overflow` and `Underflow` corresponding to the
+/// (possibilities `Malformed`, `OutputFull` and `InputEmpty` corresponding to the
 /// three cases listed above).
 ///
 /// In the case of methods whose name ends with `*_with_replacement`, malformed
@@ -191,20 +191,22 @@ impl DecoderResult {
 ///
 /// During the processing of a single stream, the caller must call `decode_*`
 /// zero or more times with `last` set to `false` and then call `decode_*` at
-/// least once with `last` set to `true`. If `decode_*` returns `Underflow`, the processing of the stream
-/// has ended. Otherwise, the caller must call `decode_*` again with `last`
-/// set to `true` (or treat a `Malformed` result as a fatal error).
+/// least once with `last` set to `true`. If `decode_*` returns `InputEmpty`,
+/// the processing of the stream has ended. Otherwise, the caller must call
+/// `decode_*` again with `last` set to `true` (or treat a `Malformed` result as
+///  a fatal error).
 ///
 /// The decoder is ready to start processing a new stream when it has
-/// returned `Underflow` from a call
+/// returned `InputEmpty` from a call
 /// where `last` was set to `true`. In other cases, if the caller wishes to
 /// stop processing the current stream and to start processing a new stream,
 /// the caller must call `reset()` before starting processing the new stream.
 ///
-/// When the decoder returns `Overflow` or the decoder returns `Malformed` and the caller does not wish to
-/// treat it as a fatal error, the input buffer `src` may not have been
-/// completely consumed. In that case, the caller must pass the unconsumed
-/// contents of `src` to `decode_*` again upon the next call.
+/// When the decoder returns `OutputFull` or the decoder returns `Malformed` and
+/// the caller does not wish to treat it as a fatal error, the input buffer 
+/// `src` may not have been completely consumed. In that case, the caller must
+/// pass the unconsumed contents of `src` to `decode_*` again upon the next
+/// call.
 pub trait Decoder {
     /// Make the decoder ready to process a new stream.
     fn reset(&mut self);
@@ -350,14 +352,14 @@ pub trait Decoder {
             total_read += read;
             total_written += written;
             match result {
-                DecoderResult::Underflow => {
-                    return (WithReplacementResult::Underflow,
+                DecoderResult::InputEmpty => {
+                    return (WithReplacementResult::InputEmpty,
                             total_read,
                             total_written,
                             had_errors);
                 }
-                DecoderResult::Overflow => {
-                    return (WithReplacementResult::Overflow,
+                DecoderResult::OutputFull => {
+                    return (WithReplacementResult::OutputFull,
                             total_read,
                             total_written,
                             had_errors);
@@ -365,7 +367,7 @@ pub trait Decoder {
                 DecoderResult::Malformed(_) => {
                     had_errors = true;
                     // There should always be space for the U+FFFD, because
-                    // otherwise we'd have gotten Overflow already.
+                    // otherwise we'd have gotten OutputFull already.
                     dst[total_written] = 0xFFFD;
                     total_written += 1;
                 }
@@ -386,7 +388,7 @@ pub trait Decoder {
                                        last: bool)
                                        -> (WithReplacementResult, usize, usize, bool) {
         // XXX
-        (WithReplacementResult::Underflow, 0, 0, false)
+        (WithReplacementResult::InputEmpty, 0, 0, false)
     }
 
     /// Incrementally decode a byte stream into UTF-8 with malformed sequences
@@ -462,14 +464,14 @@ pub enum EncoderResult {
     /// If this result was returned from a call where `last` was `true`, the
     /// decoding process has completed. Otherwise, the caller should call a
     /// decode method again with more input.
-    Underflow,
+    InputEmpty,
 
     /// The encoder cannot produce another unit of output, because the output
     /// buffer does not have enough space left.
     ///
     /// The caller must provide more output space upon the next call and re-push
     /// the remaining input to the decoder.
-    Overflow,
+    OutputFull,
 
     /// The encoder encountered an unmappable character.
     ///
@@ -482,8 +484,8 @@ pub enum EncoderResult {
 impl EncoderResult {
     fn as_u32(&self) -> u32 {
         match *self {
-            EncoderResult::Underflow => UNDERFLOW,
-            EncoderResult::Overflow => OVERFLOW,
+            EncoderResult::InputEmpty => INPUT_EMPTY,
+            EncoderResult::OutputFull => OUTPUT_FULL,
             EncoderResult::Unmappable(c) => c as u32,
         }
     }
@@ -517,8 +519,8 @@ impl EncoderResult {
 ///
 /// In the case of the methods whose name does not end with
 /// `*_with_replacement`, the status is an `EncoderResult` enumeration
-/// (possibilities `Unmappable`, `Overflow` and `Underflow` corresponding to the
-/// three cases listed above).
+/// (possibilities `Unmappable`, `OutputFull` and `InputEmpty` corresponding to
+/// the three cases listed above).
 ///
 /// In the case of methods whose name ends with `*_with_replacement`, unmappable
 /// characters are automatically replaced with the corresponding numeric
@@ -559,24 +561,25 @@ impl EncoderResult {
 ///
 /// During the processing of a single stream, the caller must call `encode_*`
 /// zero or more times with `last` set to `false` and then call `encode_*` at
-/// least once with `last` set to `true`. If `encode_*` returns `Underflow`, the processing of the stream
-/// has ended. Otherwise, the caller must call `encode_*` again with `last`
-/// set to `true` (or treat an `Unmappable` result as a fatal error). (If you
-/// know that the encoder is not an ISO-2022-JP encoder, you may ignore this
-/// paragraph and treat the encoder as stateless.)
+/// least once with `last` set to `true`. If `encode_*` returns `InputEmpty`,
+/// the processing of the stream has ended. Otherwise, the caller must call
+/// `encode_*` again with `last` set to `true` (or treat an `Unmappable` result
+/// as a fatal error). (If you know that the encoder is not an ISO-2022-JP
+/// encoder, you may ignore this paragraph and treat the encoder as stateless.)
 ///
 /// The encoder is ready to start processing a new stream when it has
-/// returned `Underflow` from a call
+/// returned `InputEmpty` from a call
 /// where `last` was set to `true`. In other cases, if the caller wishes to
 /// stop processing the current stream and to start processing a new stream,
 /// the caller must call `reset()` before starting processing the new stream.
 /// (If you know that the encoder is not an ISO-2022-JP encoder, you may ignore
 /// this paragraph and treat the encoder as stateless.)
 ///
-/// When the encoder returns `Overflow` or the encoder returns `Unmappable` and the caller does not wish to
-/// treat it as a fatal error, the input buffer `src` may not have been
-/// completely consumed. In that case, the caller must pass the unconsumed
-/// contents of `src` to `encode_*` again upon the next call.
+/// When the encoder returns `OutputFull` or the encoder returns `Unmappable`
+/// and the caller does not wish to treat it as a fatal error, the input buffer
+/// `src` may not have been completely consumed. In that case, the caller must
+/// pass the unconsumed contents of `src` to `encode_*` again upon the next
+/// call.
 pub trait Encoder {
     /// Make the encoder ready to process a new stream. (No-op for all encoders
     /// other than the ISO-2022-JP encoder.)
@@ -658,7 +661,7 @@ pub trait Encoder {
                                           last: bool)
                                           -> (WithReplacementResult, usize, usize, bool) {
         // XXX
-        (WithReplacementResult::Underflow, 0, 0, false)
+        (WithReplacementResult::InputEmpty, 0, 0, false)
     }
 
     /// Incrementally encode into byte stream from UTF-8 with replacement.
@@ -673,7 +676,7 @@ pub trait Encoder {
                                          last: bool)
                                          -> (WithReplacementResult, usize, usize, bool) {
         // XXX
-        (WithReplacementResult::Underflow, 0, 0, false)
+        (WithReplacementResult::InputEmpty, 0, 0, false)
     }
 
 // XXX: _to_vec variants for all these?
