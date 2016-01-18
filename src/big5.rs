@@ -88,6 +88,18 @@ macro_rules! decoder_functions {
                       $b,
                       $destination_handle,
                       $unread_handle,
+                      decode_to_utf8,
+                      u8,
+                      Utf8Destination);
+    decoder_function!($preamble,
+                      $eof,
+                      $body,
+                      $slf,
+                      $src_consumed,
+                      $dest,
+                      $b,
+                      $destination_handle,
+                      $unread_handle,
                       decode_to_utf16,
                       u16,
                       Utf16Destination);
@@ -223,14 +235,6 @@ impl Decoder for Big5Decoder {
                        b,
                        destination_handle,
                        unread_handle);
-
-    fn decode_to_utf8(&mut self,
-                      src: &[u8],
-                      dst: &mut [u8],
-                      last: bool)
-                      -> (DecoderResult, usize, usize) {
-        (DecoderResult::OutputFull, 0, 0)
-    }
 }
 
 #[cfg(test)]

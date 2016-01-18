@@ -255,30 +255,233 @@ impl<'a> Utf16Destination<'a> {
     }
     #[inline(always)]
     fn write_char(&mut self, c: char) {
-        if c <= '\u{7F}' {
-            self.write_ascii(c as u8);
-        } else if c <= '\u{FFFF}' {
-            self.write_bmp_excl_ascii(c as u16);
+        if c <= '\u{FFFF}' {
+            self.write_code_unit(c as u16);
         } else {
             self.write_astral(c as u32);
         }
     }
     #[inline(always)]
     fn write_ascii(&mut self, ascii: u8) {
+        debug_assert!(ascii < 0x80);
         self.write_code_unit(ascii as u16);
     }
     #[inline(always)]
     fn write_bmp_excl_ascii(&mut self, bmp: u16) {
+        debug_assert!(bmp >= 0x80);
         self.write_code_unit(bmp);
     }
     #[inline(always)]
     fn write_astral(&mut self, astral: u32) {
+        debug_assert!(astral > 0xFFFF);
+        debug_assert!(astral <= 0x10FFFF);
         self.write_code_unit((0xD7C0 + (astral >> 10)) as u16);
         self.write_code_unit((0xDC00 + (astral & 0x3FF)) as u16);
     }
     #[inline(always)]
     fn write_big5_combination(&mut self, combined: u16, combining: u16) {
-        self.write_code_unit(combined);
-        self.write_code_unit(combining);
+        self.write_bmp_excl_ascii(combined);
+        self.write_bmp_excl_ascii(combining);
+    }
+}
+
+// UTF-8 destination
+
+pub struct Utf8BmpHandle<'a, 'b>
+    where 'b: 'a
+{
+    dest: &'a mut Utf8Destination<'b>,
+}
+
+impl<'a, 'b> Utf8BmpHandle<'a, 'b> where 'b: 'a
+{
+    #[inline(always)]
+    fn new(dst: &'a mut Utf8Destination<'b>) -> Utf8BmpHandle<'a, 'b> {
+        Utf8BmpHandle { dest: dst }
+    }
+    #[inline(always)]
+    pub fn written(&self) -> usize {
+        self.dest.written()
+    }
+    #[inline(always)]
+    pub fn write_ascii(self, ascii: u8) {
+        self.dest.write_ascii(ascii);
+    }
+    #[inline(always)]
+    pub fn write_bmp_excl_ascii(self, bmp: u16) {
+        self.dest.write_bmp_excl_ascii(bmp);
+    }
+}
+
+pub struct Utf8AstralHandle<'a, 'b>
+    where 'b: 'a
+{
+    dest: &'a mut Utf8Destination<'b>,
+}
+
+impl<'a, 'b> Utf8AstralHandle<'a, 'b> where 'b: 'a
+{
+    #[inline(always)]
+    fn new(dst: &'a mut Utf8Destination<'b>) -> Utf8AstralHandle<'a, 'b> {
+        Utf8AstralHandle { dest: dst }
+    }
+    #[inline(always)]
+    pub fn written(&self) -> usize {
+        self.dest.written()
+    }
+    #[inline(always)]
+    pub fn write_char(self, c: char) {
+        self.dest.write_char(c);
+    }
+    #[inline(always)]
+    pub fn write_ascii(self, ascii: u8) {
+        self.dest.write_ascii(ascii);
+    }
+    #[inline(always)]
+    pub fn write_bmp_excl_ascii(self, bmp: u16) {
+        self.dest.write_bmp_excl_ascii(bmp);
+    }
+    #[inline(always)]
+    pub fn write_astral(self, astral: u32) {
+        self.dest.write_astral(astral);
+    }
+}
+
+pub struct Utf8Big5Handle<'a, 'b>
+    where 'b: 'a
+{
+    dest: &'a mut Utf8Destination<'b>,
+}
+
+impl<'a, 'b> Utf8Big5Handle<'a, 'b> where 'b: 'a
+{
+    #[inline(always)]
+    fn new(dst: &'a mut Utf8Destination<'b>) -> Utf8Big5Handle<'a, 'b> {
+        Utf8Big5Handle { dest: dst }
+    }
+    #[inline(always)]
+    pub fn written(&self) -> usize {
+        self.dest.written()
+    }
+    #[inline(always)]
+    pub fn write_char(self, c: char) {
+        self.dest.write_char(c);
+    }
+    #[inline(always)]
+    pub fn write_ascii(self, ascii: u8) {
+        self.dest.write_ascii(ascii);
+    }
+    #[inline(always)]
+    pub fn write_bmp_excl_ascii(self, bmp: u16) {
+        self.dest.write_bmp_excl_ascii(bmp);
+    }
+    #[inline(always)]
+    pub fn write_astral(self, astral: u32) {
+        self.dest.write_astral(astral);
+    }
+    #[inline(always)]
+    pub fn write_big5_combination(self, combined: u16, combining: u16) {
+        self.dest.write_big5_combination(combined, combining);
+    }
+}
+
+pub struct Utf8Destination<'a> {
+    slice: &'a mut [u8],
+    pos: usize,
+}
+
+impl<'a> Utf8Destination<'a> {
+    #[inline(always)]
+    pub fn new(dst: &mut [u8]) -> Utf8Destination {
+        Utf8Destination {
+            slice: dst,
+            pos: 0,
+        }
+    }
+    #[inline(always)]
+    pub fn check_space_bmp<'b>(&'b mut self) -> Space<Utf8BmpHandle<'b, 'a>> {
+        if self.pos < self.slice.len() {
+            Space::Available(Utf8BmpHandle::new(self))
+        } else {
+            Space::Full(self.written())
+        }
+    }
+    #[inline(always)]
+    pub fn check_space_astral<'b>(&'b mut self) -> Space<Utf8AstralHandle<'b, 'a>> {
+        if self.pos + 1 < self.slice.len() {
+            Space::Available(Utf8AstralHandle::new(self))
+        } else {
+            Space::Full(self.written())
+        }
+    }
+    #[inline(always)]
+    pub fn check_space_big5<'b>(&'b mut self) -> Space<Utf8Big5Handle<'b, 'a>> {
+        if self.pos + 1 < self.slice.len() {
+            Space::Available(Utf8Big5Handle::new(self))
+        } else {
+            Space::Full(self.written())
+        }
+    }
+    #[inline(always)]
+    pub fn written(&self) -> usize {
+        self.pos
+    }
+    #[inline(always)]
+    fn write_code_unit(&mut self, u: u8) {
+        self.slice[self.pos] = u;
+        self.pos += 1;
+    }
+    #[inline(always)]
+    fn write_char(&mut self, c: char) {
+        if c <= '\u{7F}' {
+            self.write_ascii(c as u8);
+        } else if c <= '\u{0800}' {
+            self.write_mid_bmp(c as u16);
+        } else if c <= '\u{FFFF}' {
+            self.write_upper_bmp(c as u16);
+        } else {
+            self.write_astral(c as u32);
+        }
+    }
+    #[inline(always)]
+    fn write_ascii(&mut self, ascii: u8) {
+        debug_assert!(ascii < 0x80);
+        self.write_code_unit(ascii);
+    }
+    #[inline(always)]
+    fn write_mid_bmp(&mut self, mid_bmp: u16) {
+        debug_assert!(mid_bmp >= 0x80);
+        debug_assert!(mid_bmp < 0x800);
+        self.write_code_unit(((mid_bmp as u32 >> 6) | 0xC0u32) as u8);
+        self.write_code_unit(((mid_bmp as u32 & 0x3Fu32) | 0x80u32) as u8);
+    }
+    #[inline(always)]
+    fn write_upper_bmp(&mut self, upper_bmp: u16) {
+        debug_assert!(upper_bmp >= 0x800);
+        self.write_code_unit(((upper_bmp as u32 >> 12) | 0xE0u32) as u8);
+        self.write_code_unit((((upper_bmp as u32 & 0xFC0u32) >> 6) | 0x80u32) as u8);
+        self.write_code_unit(((upper_bmp as u32 & 0x3Fu32) | 0x80u32) as u8);
+    }
+    #[inline(always)]
+    fn write_bmp_excl_ascii(&mut self, bmp: u16) {
+        if bmp < 0x800u16 {
+            self.write_mid_bmp(bmp);
+        } else {
+            self.write_upper_bmp(bmp);
+        }
+    }
+    #[inline(always)]
+    fn write_astral(&mut self, astral: u32) {
+        debug_assert!(astral > 0xFFFF);
+        debug_assert!(astral <= 0x10FFFF);
+        self.write_code_unit(((astral >> 18) | 0xF0u32) as u8);
+        self.write_code_unit((((astral & 0x3F000u32) >> 12) | 0x80u32) as u8);
+        self.write_code_unit((((astral & 0xFC0u32) >> 6) | 0x80u32) as u8);
+        self.write_code_unit(((astral & 0x3Fu32) | 0x80u32) as u8);
+    }
+    #[inline(always)]
+    fn write_big5_combination(&mut self, combined: u16, combining: u16) {
+        self.write_mid_bmp(combined);
+        self.write_upper_bmp(combining);
     }
 }
