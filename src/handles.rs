@@ -203,7 +203,7 @@ impl<'a, 'b> Utf16Big5Handle<'a, 'b> where 'b: 'a
     }
     #[inline(always)]
     pub fn write_big5_combination(self, combined: u16, combining: u16) {
-        self.write_big5_combination(combined, combining);
+        self.dest.write_big5_combination(combined, combining);
     }
 }
 

@@ -208,5 +208,52 @@ mod tests {
     #[test]
     fn test_big5_decode() {
         decode_big5_to_utf16(&[0x61u8, 0x62u8], &[0x0061u16, 0x0062u16]);
+        // ASCII
+        decode_big5_to_utf16(&[0x61u8, 0x62u8], &[0x0061u16, 0x0062u16]);
+        // Edge cases
+        decode_big5_to_utf16(&[0x87u8, 0x40u8], &[0x43F0u16]);
+        decode_big5_to_utf16(&[0xFEu8, 0xFEu8], &[0x79D4u16]);
+        decode_big5_to_utf16(&[0xFEu8, 0xFDu8], &[0xD864u16, 0xDD0Du16]);
+        decode_big5_to_utf16(&[0x88u8, 0x62u8], &[0x00CAu16, 0x0304u16]);
+        decode_big5_to_utf16(&[0x88u8, 0x64u8], &[0x00CAu16, 0x030Cu16]);
+        decode_big5_to_utf16(&[0x88u8, 0x66u8], &[0x00CAu16]);
+        decode_big5_to_utf16(&[0x88u8, 0xA3u8], &[0x00EAu16, 0x0304u16]);
+        decode_big5_to_utf16(&[0x88u8, 0xA5u8], &[0x00EAu16, 0x030Cu16]);
+        decode_big5_to_utf16(&[0x88u8, 0xA7u8], &[0x00EAu16]);
+        decode_big5_to_utf16(&[0x99u8, 0xD4u8], &[0x8991u16]);
+        decode_big5_to_utf16(&[0x99u8, 0xD5u8], &[0xD85Eu16, 0xDD67u16]);
+        decode_big5_to_utf16(&[0x99u8, 0xD6u8], &[0x8A29u16]);
+        // Edge cases surrounded with ASCII
+        decode_big5_to_utf16(&[0x61u8, 0x87u8, 0x40u8, 0x62u8],
+                             &[0x0061u16, 0x43F0u16, 0x0062u16]);
+        decode_big5_to_utf16(&[0x61u8, 0xFEu8, 0xFEu8, 0x62u8],
+                             &[0x0061u16, 0x79D4u16, 0x0062u16]);
+        decode_big5_to_utf16(&[0x61u8, 0xFEu8, 0xFDu8, 0x62u8],
+                             &[0x0061u16, 0xD864u16, 0xDD0Du16, 0x0062u16]);
+        decode_big5_to_utf16(&[0x61u8, 0x88u8, 0x62u8, 0x62u8],
+                             &[0x0061u16, 0x00CAu16, 0x0304u16, 0x0062u16]);
+        decode_big5_to_utf16(&[0x61u8, 0x88u8, 0x64u8, 0x62u8],
+                             &[0x0061u16, 0x00CAu16, 0x030Cu16, 0x0062u16]);
+        decode_big5_to_utf16(&[0x61u8, 0x88u8, 0x66u8, 0x62u8],
+                             &[0x0061u16, 0x00CAu16, 0x0062u16]);
+        decode_big5_to_utf16(&[0x61u8, 0x88u8, 0xA3u8, 0x62u8],
+                             &[0x0061u16, 0x00EAu16, 0x0304u16, 0x0062u16]);
+        decode_big5_to_utf16(&[0x61u8, 0x88u8, 0xA5u8, 0x62u8],
+                             &[0x0061u16, 0x00EAu16, 0x030Cu16, 0x0062u16]);
+        decode_big5_to_utf16(&[0x61u8, 0x88u8, 0xA7u8, 0x62u8],
+                             &[0x0061u16, 0x00EAu16, 0x0062u16]);
+        decode_big5_to_utf16(&[0x61u8, 0x99u8, 0xD4u8, 0x62u8],
+                             &[0x0061u16, 0x8991u16, 0x0062u16]);
+        decode_big5_to_utf16(&[0x61u8, 0x99u8, 0xD5u8, 0x62u8],
+                             &[0x0061u16, 0xD85Eu16, 0xDD67u16, 0x0062u16]);
+        decode_big5_to_utf16(&[0x61u8, 0x99u8, 0xD6u8, 0x62u8],
+                             &[0x0061u16, 0x8A29u16, 0x0062u16]);
+        // Bad sequences
+        decode_big5_to_utf16(&[0x80u8, 0x61u8], &[0xFFFDu16, 0x0061u16]);
+        decode_big5_to_utf16(&[0xFFu8, 0x61u8], &[0xFFFDu16, 0x0061u16]);
+        decode_big5_to_utf16(&[0xFEu8, 0x39u8], &[0xFFFDu16, 0x0039u16]);
+        decode_big5_to_utf16(&[0x87u8, 0x66u8], &[0xFFFDu16, 0x0066u16]);
+        decode_big5_to_utf16(&[0x81u8, 0x40u8], &[0xFFFDu16, 0x0040u16]);
+        decode_big5_to_utf16(&[0x61u8, 0x81u8], &[0x0061u16, 0xFFFDu16]);
     }
 }
