@@ -193,11 +193,6 @@ mod tests {
         let (complete, read, written, _) = decoder.decode_to_utf16_with_replacement(bytes,
                                                                                     &mut dest,
                                                                                     true);
-        println!("FOO");
-        println!("complete: {:?}, read: {}, written: {}",
-                 complete,
-                 read,
-                 written);
         assert_eq!(complete, WithReplacementResult::InputEmpty);
         assert_eq!(read, bytes.len());
         assert_eq!(written, expect.len());
