@@ -366,8 +366,43 @@ pub trait Decoder {
                                        dst: &mut [u8],
                                        last: bool)
                                        -> (WithReplacementResult, usize, usize, bool) {
-        // XXX
-        (WithReplacementResult::InputEmpty, 0, 0, false)
+        let mut had_errors = false;
+        let mut total_read = 0usize;
+        let mut total_written = 0usize;
+        loop {
+            let (result, read, written) = self.decode_to_utf8(&src[total_read..],
+                                                              &mut dst[total_written..],
+                                                              last);
+            total_read += read;
+            total_written += written;
+            match result {
+                DecoderResult::InputEmpty => {
+                    return (WithReplacementResult::InputEmpty,
+                            total_read,
+                            total_written,
+                            had_errors);
+                }
+                DecoderResult::OutputFull => {
+                    return (WithReplacementResult::OutputFull,
+                            total_read,
+                            total_written,
+                            had_errors);
+                }
+                DecoderResult::Malformed(_) => {
+                    had_errors = true;
+                    // There should always be space for the U+FFFD, because
+                    // otherwise we'd have gotten OutputFull already.
+                    // XXX: is the above comment actually true for UTF-8 itself?
+                    // TODO: Consider having fewer bound checks here.
+                    dst[total_written] = 0xEFu8;
+                    total_written += 1;
+                    dst[total_written] = 0xBFu8;
+                    total_written += 1;
+                    dst[total_written] = 0xBDu8;
+                    total_written += 1;
+                }
+            }
+        }
     }
 
     /// Incrementally decode a byte stream into UTF-8 with malformed sequences
