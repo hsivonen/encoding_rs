@@ -249,6 +249,11 @@ impl<'a> Utf16Destination<'a> {
         self.pos
     }
     #[inline(always)]
+    fn write_code_unit(&mut self, u: u16) {
+        self.slice[self.pos] = u;
+        self.pos += 1;
+    }
+    #[inline(always)]
     fn write_char(&mut self, c: char) {
         if c <= '\u{7F}' {
             self.write_ascii(c as u8);
@@ -260,24 +265,20 @@ impl<'a> Utf16Destination<'a> {
     }
     #[inline(always)]
     fn write_ascii(&mut self, ascii: u8) {
-        self.slice[self.pos] = ascii as u16;
-        self.pos += 1;
+        self.write_code_unit(ascii as u16);
     }
     #[inline(always)]
     fn write_bmp_excl_ascii(&mut self, bmp: u16) {
-        self.slice[self.pos] = bmp;
-        self.pos += 1;
+        self.write_code_unit(bmp);
     }
     #[inline(always)]
     fn write_astral(&mut self, astral: u32) {
-        self.slice[self.pos] = (0xD7C0 + (astral >> 10)) as u16;
-        self.slice[self.pos + 1] = (0xDC00 + (astral & 0x3FF)) as u16;
-        self.pos += 2;
+        self.write_code_unit((0xD7C0 + (astral >> 10)) as u16);
+        self.write_code_unit((0xDC00 + (astral & 0x3FF)) as u16);
     }
     #[inline(always)]
     fn write_big5_combination(&mut self, combined: u16, combining: u16) {
-        self.slice[self.pos] = combined;
-        self.slice[self.pos + 1] = combining;
-        self.pos += 2;
+        self.write_code_unit(combined);
+        self.write_code_unit(combining);
     }
 }
