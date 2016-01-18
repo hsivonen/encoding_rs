@@ -194,8 +194,8 @@ mod tests {
                                                                                     &mut dest,
                                                                                     true);
         println!("FOO");
-        println!("complete: {}, read: {}, written: {}",
-                 complete.as_u32(),
+        println!("complete: {:?}, read: {}, written: {}",
+                 complete,
                  read,
                  written);
         assert_eq!(complete, WithReplacementResult::InputEmpty);

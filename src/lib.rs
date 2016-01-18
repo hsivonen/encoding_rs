@@ -10,6 +10,7 @@
 mod handles;
 mod big5;
 mod data;
+pub mod ffi;
 
 static TEST: Encoding = Encoding {
     name: "foo",
@@ -36,10 +37,6 @@ impl Encoding {
     // decode
     // decode_with_replacement
 }
-
-const INPUT_EMPTY: u32 = 0xFFFFFFFF;
-
-const OUTPUT_FULL: u32 = 0xFFFFFFFE;
 
 /// Result of a (potentially partial) decode or operation with replacement.
 #[derive(Debug)]
@@ -79,16 +76,8 @@ impl PartialEq for WithReplacementResult {
     }
 }
 
-impl WithReplacementResult {
-    fn as_u32(&self) -> u32 {
-        match *self {
-            WithReplacementResult::InputEmpty => INPUT_EMPTY,
-            WithReplacementResult::OutputFull => OUTPUT_FULL,
-        }
-    }
-}
-
 /// Result of a (potentially partial) decode operation.
+#[derive(Debug)]
 pub enum DecoderResult {
     /// The input was exhausted.
     ///
@@ -115,16 +104,6 @@ pub enum DecoderResult {
     /// sequence. Note that the earlier bytes may have been part of an earlier
     /// input buffer.
     Malformed(u8), // u8 instead of usize to avoid uselessly bloating the enum
-}
-
-impl DecoderResult {
-    fn as_u32(&self) -> u32 {
-        match *self {
-            DecoderResult::InputEmpty => INPUT_EMPTY,
-            DecoderResult::OutputFull => OUTPUT_FULL,
-            DecoderResult::Malformed(num) => num as u32,
-        }
-    }
 }
 
 /// A converter that decodes a byte stream into Unicode according to a
@@ -458,6 +437,7 @@ pub trait Decoder {
 }
 
 /// Result of a (potentially partial) encode operation.
+#[derive(Debug)]
 pub enum EncoderResult {
     /// The input was exhausted.
     ///
@@ -479,16 +459,6 @@ pub enum EncoderResult {
     /// a placeholder to the output and then re-push the the remaining input to
     /// the encoder.
     Unmappable(char),
-}
-
-impl EncoderResult {
-    fn as_u32(&self) -> u32 {
-        match *self {
-            EncoderResult::InputEmpty => INPUT_EMPTY,
-            EncoderResult::OutputFull => OUTPUT_FULL,
-            EncoderResult::Unmappable(c) => c as u32,
-        }
-    }
 }
 
 /// A converter that encodes a Unicode stream into bytes according to a
@@ -680,98 +650,6 @@ pub trait Encoder {
     }
 
 // XXX: _to_vec variants for all these?
-}
-
-
-// ############## C API ###############
-
-#[no_mangle]
-pub unsafe extern "C" fn decoder_decode_to_utf16(decoder: &mut Decoder,
-                                                 src: *const u8,
-                                                 src_len: *mut usize,
-                                                 dst: *mut u16,
-                                                 dst_len: *mut usize,
-                                                 last: bool)
-                                                 -> u32 {
-    let src_slice = std::slice::from_raw_parts(src, *src_len);
-    let dst_slice = std::slice::from_raw_parts_mut(dst, *dst_len);
-    let (result, read, written) = decoder.decode_to_utf16(src_slice, dst_slice, last);
-    *src_len = read;
-    *dst_len = written;
-    result.as_u32()
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn decoder_decode_to_utf8(decoder: &mut Decoder,
-                                                src: *const u8,
-                                                src_len: *mut usize,
-                                                dst: *mut u8,
-                                                dst_len: *mut usize,
-                                                last: bool)
-                                                -> u32 {
-    let src_slice = std::slice::from_raw_parts(src, *src_len);
-    let dst_slice = std::slice::from_raw_parts_mut(dst, *dst_len);
-    let (result, read, written) = decoder.decode_to_utf8(src_slice, dst_slice, last);
-    *src_len = read;
-    *dst_len = written;
-    result.as_u32()
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn decoder_decode_to_utf16_with_replacement(decoder: &mut Decoder,
-                                                                  src: *const u8,
-                                                                  src_len: *mut usize,
-                                                                  dst: *mut u16,
-                                                                  dst_len: *mut usize,
-                                                                  last: bool,
-                                                                  had_replacements: *mut bool)
-                                                                  -> u32 {
-    let src_slice = std::slice::from_raw_parts(src, *src_len);
-    let dst_slice = std::slice::from_raw_parts_mut(dst, *dst_len);
-    let (result, read, written, replaced) = decoder.decode_to_utf16_with_replacement(src_slice,
-                                                                                     dst_slice,
-                                                                                     last);
-    *src_len = read;
-    *dst_len = written;
-    *had_replacements = replaced;
-    result.as_u32()
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn decoder_decode_to_utf8_with_replacement(decoder: &mut Decoder,
-                                                                 src: *const u8,
-                                                                 src_len: *mut usize,
-                                                                 dst: *mut u8,
-                                                                 dst_len: *mut usize,
-                                                                 last: bool,
-                                                                 had_replacements: *mut bool)
-                                                                 -> u32 {
-    let src_slice = std::slice::from_raw_parts(src, *src_len);
-    let dst_slice = std::slice::from_raw_parts_mut(dst, *dst_len);
-    let (result, read, written, replaced) = decoder.decode_to_utf8_with_replacement(src_slice,
-                                                                                    dst_slice,
-                                                                                    last);
-    *src_len = read;
-    *dst_len = written;
-    *had_replacements = replaced;
-    result.as_u32()
-}
-
-#[no_mangle]
-pub extern "C" fn decoder_max_utf16_length(decoder: &Decoder, byte_length: usize) -> usize {
-    decoder.max_utf16_buffer_length(byte_length)
-}
-
-#[no_mangle]
-pub extern "C" fn decoder_max_utf8_length(decoder: &Decoder, byte_length: usize) -> usize {
-    decoder.max_utf8_buffer_length(byte_length)
-}
-
-#[no_mangle]
-pub extern "C" fn decoder_max_utf8_length_with_replacement(decoder: &Decoder,
-                                                           byte_length: usize)
-                                                           -> usize {
-    decoder.max_utf8_buffer_length_with_replacement(byte_length)
 }
 
 // ############## TESTS ###############
