@@ -70,15 +70,11 @@ impl Encoding {
         let (result, read) = decoder.decode_to_string(bytes, &mut string, true);
         match result {
             DecoderResult::InputEmpty => {
-        debug_assert_eq!(read, bytes.len());
+                debug_assert_eq!(read, bytes.len());
                 Some(string)
-            },
-            DecoderResult::Malformed(_) => {
-                None
-            },
-            DecoderResult::OutputFull => {
-                unreachable!()
             }
+            DecoderResult::Malformed(_) => None,
+            DecoderResult::OutputFull => unreachable!(),
         }
     }
     // decode
