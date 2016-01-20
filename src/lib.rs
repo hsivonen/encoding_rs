@@ -7,6 +7,9 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
+#[macro_use]
+mod macros;
+
 mod handles;
 mod big5;
 mod data;
