@@ -11,14 +11,15 @@ use Decoder;
 use DecoderResult;
 use handles::*;
 use data::*;
+use variant::*;
 
 pub struct Big5Decoder {
     lead: u8,
 }
 
 impl Big5Decoder {
-    pub fn new() -> Big5Decoder {
-        Big5Decoder { lead: 0 }
+    pub fn new() -> Decoder {
+        Decoder::new(VariantDecoder::Big5(Big5Decoder { lead: 0 }))
     }
 
     fn plus_one_if_lead(&self, byte_length: usize) -> usize {
@@ -29,14 +30,12 @@ impl Big5Decoder {
             1
         }
     }
-}
 
-impl Decoder for Big5Decoder {
-    fn reset(&mut self) {
+    pub fn reset(&mut self) {
         self.lead = 0u8;
     }
 
-    fn max_utf16_buffer_length(&self, byte_length: usize) -> usize {
+    pub fn max_utf16_buffer_length(&self, byte_length: usize) -> usize {
         // If there is a lead but the next byte isn't a valid trail, an
         // error is generated for the lead (+1). Then another iteration checks
         // space, which needs +1 to account for the possibility of astral
@@ -44,7 +43,7 @@ impl Decoder for Big5Decoder {
         self.plus_one_if_lead(byte_length) + 1
     }
 
-    fn max_utf8_buffer_length(&self, byte_length: usize) -> usize {
+    pub fn max_utf8_buffer_length(&self, byte_length: usize) -> usize {
         // No need to account for REPLACEMENT CHARACTERS.
         // Cases:
         // ASCII: 1 to 1
@@ -64,7 +63,7 @@ impl Decoder for Big5Decoder {
         (len * 2)
     }
 
-    fn max_utf8_buffer_length_with_replacement(&self, byte_length: usize) -> usize {
+    pub fn max_utf8_buffer_length_with_replacement(&self, byte_length: usize) -> usize {
         // If there is a lead but the next byte isn't a valid trail, an
         // error is generated for the lead (+(1*3)). Then another iteration
         // checks space, which needs +3 to account for the possibility of astral

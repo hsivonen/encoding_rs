@@ -20,11 +20,11 @@ macro_rules! decoder_function {
      $name:ident,
      $code_unit:ty,
      $dest_struct:ident) => (
-    fn $name(&mut $slf,
-             src: &[u8],
-             dst: &mut [$code_unit],
-             last: bool)
-             -> (DecoderResult, usize, usize) {
+    pub fn $name(&mut $slf,
+                 src: &[u8],
+                 dst: &mut [$code_unit],
+                 last: bool)
+                 -> (DecoderResult, usize, usize) {
         let mut source = ByteSource::new(src);
         let mut $dest = $dest_struct::new(dst);
         loop {

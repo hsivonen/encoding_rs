@@ -13,7 +13,10 @@ mod macros;
 mod handles;
 mod big5;
 mod data;
+mod variant;
 pub mod ffi;
+
+use variant::*;
 
 static TEST: Encoding = Encoding {
     name: "foo",
@@ -189,9 +192,19 @@ pub enum DecoderResult {
 /// `src` may not have been completely consumed. In that case, the caller must
 /// pass the unconsumed contents of `src` to `decode_*` again upon the next
 /// call.
-pub trait Decoder {
+pub struct Decoder {
+    variant: VariantDecoder,
+}
+
+impl Decoder {
+    fn new(decoder: VariantDecoder) -> Decoder {
+        Decoder { variant: decoder }
+    }
+
     /// Make the decoder ready to process a new stream.
-    fn reset(&mut self);
+    pub fn reset(&mut self) {
+        self.variant.reset();
+    }
 
     /// Query the worst-case UTF-16 output size (with or without replacement).
     ///
@@ -204,7 +217,9 @@ pub trait Decoder {
     /// `_with_replacement` case.
     ///
     /// Available via the C wrapper.
-    fn max_utf16_buffer_length(&self, byte_length: usize) -> usize;
+    pub fn max_utf16_buffer_length(&self, byte_length: usize) -> usize {
+        self.variant.max_utf16_buffer_length(byte_length)
+    }
 
     /// Query the worst-case UTF-8 output size _without replacement_.
     ///
@@ -217,7 +232,9 @@ pub trait Decoder {
     /// Use `max_utf8_buffer_length_with_replacement` for that case.
     ///
     /// Available via the C wrapper.
-    fn max_utf8_buffer_length(&self, byte_length: usize) -> usize;
+    pub fn max_utf8_buffer_length(&self, byte_length: usize) -> usize {
+        self.variant.max_utf8_buffer_length(byte_length)
+    }
 
     /// Query the worst-case UTF-8 output size _with replacement_.
     ///
@@ -228,7 +245,9 @@ pub trait Decoder {
     /// sequence.
     ///
     /// Available via the C wrapper.
-    fn max_utf8_buffer_length_with_replacement(&self, byte_length: usize) -> usize;
+    pub fn max_utf8_buffer_length_with_replacement(&self, byte_length: usize) -> usize {
+        self.variant.max_utf8_buffer_length_with_replacement(byte_length)
+    }
 
     /// Incrementally decode a byte stream into UTF-16.
     ///
@@ -236,11 +255,13 @@ pub trait Decoder {
     /// methods collectively.
     ///
     /// Available via the C wrapper.
-    fn decode_to_utf16(&mut self,
-                       src: &[u8],
-                       dst: &mut [u16],
-                       last: bool)
-                       -> (DecoderResult, usize, usize);
+    pub fn decode_to_utf16(&mut self,
+                           src: &[u8],
+                           dst: &mut [u16],
+                           last: bool)
+                           -> (DecoderResult, usize, usize) {
+        self.variant.decode_to_utf16(src, dst, last)
+    }
 
     /// Incrementally decode a byte stream into UTF-8.
     ///
@@ -248,11 +269,13 @@ pub trait Decoder {
     /// methods collectively.
     ///
     /// Available via the C wrapper.
-    fn decode_to_utf8(&mut self,
-                      src: &[u8],
-                      dst: &mut [u8],
-                      last: bool)
-                      -> (DecoderResult, usize, usize);
+    pub fn decode_to_utf8(&mut self,
+                          src: &[u8],
+                          dst: &mut [u8],
+                          last: bool)
+                          -> (DecoderResult, usize, usize) {
+        self.variant.decode_to_utf8(src, dst, last)
+    }
 
     /// Incrementally decode a byte stream into UTF-8 with type system signaling
     /// of UTF-8 validity.
@@ -265,11 +288,11 @@ pub trait Decoder {
     /// methods collectively.
     ///
     /// Available to Rust only.
-    fn decode_to_str(&mut self,
-                     src: &[u8],
-                     dst: &mut str,
-                     last: bool)
-                     -> (DecoderResult, usize, usize) {
+    pub fn decode_to_str(&mut self,
+                         src: &[u8],
+                         dst: &mut str,
+                         last: bool)
+                         -> (DecoderResult, usize, usize) {
         let bytes: &mut [u8] = unsafe { std::mem::transmute(dst) };
         let (result, read, written) = self.decode_to_utf8(src, bytes, last);
         let len = bytes.len();
@@ -296,11 +319,11 @@ pub trait Decoder {
     /// methods collectively.
     ///
     /// Available to Rust only.
-    fn decode_to_string(&mut self,
-                        src: &[u8],
-                        dst: &mut String,
-                        last: bool)
-                        -> (DecoderResult, usize) {
+    pub fn decode_to_string(&mut self,
+                            src: &[u8],
+                            dst: &mut String,
+                            last: bool)
+                            -> (DecoderResult, usize) {
         unsafe {
             let vec = dst.as_mut_vec();
             let old_len = vec.len();
@@ -319,11 +342,11 @@ pub trait Decoder {
     /// methods collectively.
     ///
     /// Available via the C wrapper.
-    fn decode_to_utf16_with_replacement(&mut self,
-                                        src: &[u8],
-                                        dst: &mut [u16],
-                                        last: bool)
-                                        -> (WithReplacementResult, usize, usize, bool) {
+    pub fn decode_to_utf16_with_replacement(&mut self,
+                                            src: &[u8],
+                                            dst: &mut [u16],
+                                            last: bool)
+                                            -> (WithReplacementResult, usize, usize, bool) {
         let mut had_errors = false;
         let mut total_read = 0usize;
         let mut total_written = 0usize;
@@ -364,11 +387,11 @@ pub trait Decoder {
     /// methods collectively.
     ///
     /// Available via the C wrapper.
-    fn decode_to_utf8_with_replacement(&mut self,
-                                       src: &[u8],
-                                       dst: &mut [u8],
-                                       last: bool)
-                                       -> (WithReplacementResult, usize, usize, bool) {
+    pub fn decode_to_utf8_with_replacement(&mut self,
+                                           src: &[u8],
+                                           dst: &mut [u8],
+                                           last: bool)
+                                           -> (WithReplacementResult, usize, usize, bool) {
         let mut had_errors = false;
         let mut total_read = 0usize;
         let mut total_written = 0usize;
@@ -420,11 +443,11 @@ pub trait Decoder {
     /// methods collectively.
     ///
     /// Available to Rust only.
-    fn decode_to_str_with_replacement(&mut self,
-                                      src: &[u8],
-                                      dst: &mut str,
-                                      last: bool)
-                                      -> (WithReplacementResult, usize, usize, bool) {
+    pub fn decode_to_str_with_replacement(&mut self,
+                                          src: &[u8],
+                                          dst: &mut str,
+                                          last: bool)
+                                          -> (WithReplacementResult, usize, usize, bool) {
         let bytes: &mut [u8] = unsafe { std::mem::transmute(dst) };
         let (result, read, written, replaced) = self.decode_to_utf8_with_replacement(src,
                                                                                      bytes,
@@ -455,11 +478,11 @@ pub trait Decoder {
     /// methods collectively.
     ///
     /// Available to Rust only.
-    fn decode_to_string_with_replacement(&mut self,
-                                         src: &[u8],
-                                         dst: &mut String,
-                                         last: bool)
-                                         -> (WithReplacementResult, usize, bool) {
+    pub fn decode_to_string_with_replacement(&mut self,
+                                             src: &[u8],
+                                             dst: &mut String,
+                                             last: bool)
+                                             -> (WithReplacementResult, usize, bool) {
         unsafe {
             let vec = dst.as_mut_vec();
             let old_len = vec.len();
@@ -471,7 +494,6 @@ pub trait Decoder {
             (result, read, replaced)
         }
     }
-
 }
 
 /// Result of a (potentially partial) encode operation.
