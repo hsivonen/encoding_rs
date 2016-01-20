@@ -18,25 +18,45 @@ pub mod ffi;
 
 use variant::*;
 
-static TEST: Encoding = Encoding {
-    name: "foo",
-    dom_name: "Foo",
+static BIG5: Encoding = Encoding {
+    name: "big5",
+    dom_name: "Big5",
+    variant: VariantEncoding::MultiByte,
+};
+static REPLACEMENT: Encoding = Encoding {
+    name: "replacement",
+    dom_name: "replacement",
+    variant: VariantEncoding::MultiByte,
 };
 
 pub struct Encoding {
     name: &'static str,
     dom_name: &'static str,
+    variant: VariantEncoding,
 }
 
 impl Encoding {
-    fn for_label(label: &[u8]) -> Option<&'static Encoding> {
-        Some(&TEST)
+    pub fn for_label(label: &[u8]) -> Option<&'static Encoding> {
+        Some(&BIG5)
     }
-    fn for_label_no_replacement(label: &[u8]) -> Option<&'static Encoding> {
-        Some(&TEST)
+    
+    pub fn for_label_no_replacement(label: &[u8]) -> Option<&'static Encoding> {
+        match Encoding::for_label(label) {
+            None => None,
+            Some(encoding) => {
+                if (encoding as *const Encoding) == (&REPLACEMENT as *const Encoding) {
+                    None
+                } else {
+                    Some(encoding)
+                }
+            },
+        }
     }
-    fn for_dom_name(dom_name: &[u8]) -> Option<&'static Encoding> {
-        Some(&TEST)
+    
+    pub fn for_dom_name(dom_name: &[u8]) -> Option<&'static Encoding> {
+        // Instead of returning an Option, should this method panic if the
+        // argument is bogus?
+        Some(&BIG5)
     }
     // new_decoder
     // new_encoder
