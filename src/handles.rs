@@ -8,7 +8,7 @@
 // except according to those terms.
 
 //! This module provides structs that use lifetimes to couple bounds checking
-//! and space availability checking and deteching those from actual slice
+//! and space availability checking and detaching those from actual slice
 //! reading/writing.
 //!
 //! At present, the internals of the implementation are safe code, so the
