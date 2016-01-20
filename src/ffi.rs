@@ -15,29 +15,29 @@ const OUTPUT_FULL: u32 = 0xFFFFFFFE;
 
 impl WithReplacementResult {
     fn as_u32(&self) -> u32 {
-        match *self {
-            WithReplacementResult::InputEmpty => INPUT_EMPTY,
-            WithReplacementResult::OutputFull => OUTPUT_FULL,
+        match self {
+            &WithReplacementResult::InputEmpty => INPUT_EMPTY,
+            &WithReplacementResult::OutputFull => OUTPUT_FULL,
         }
     }
 }
 
 impl DecoderResult {
     fn as_u32(&self) -> u32 {
-        match *self {
-            DecoderResult::InputEmpty => INPUT_EMPTY,
-            DecoderResult::OutputFull => OUTPUT_FULL,
-            DecoderResult::Malformed(num) => num as u32,
+        match self {
+            &DecoderResult::InputEmpty => INPUT_EMPTY,
+            &DecoderResult::OutputFull => OUTPUT_FULL,
+            &DecoderResult::Malformed(num) => num as u32,
         }
     }
 }
 
 impl EncoderResult {
     fn as_u32(&self) -> u32 {
-        match *self {
-            EncoderResult::InputEmpty => INPUT_EMPTY,
-            EncoderResult::OutputFull => OUTPUT_FULL,
-            EncoderResult::Unmappable(c) => c as u32,
+        match self {
+            &EncoderResult::InputEmpty => INPUT_EMPTY,
+            &EncoderResult::OutputFull => OUTPUT_FULL,
+            &EncoderResult::Unmappable(c) => c as u32,
         }
     }
 }
