@@ -131,16 +131,40 @@ impl Decoder for Big5Decoder {
     }
 
     fn max_utf16_buffer_length(&self, byte_length: usize) -> usize {
+        // If there is a lead but the next byte isn't a valid trail, an
+        // error is generated for the lead (+1). Then another iteration checks
+        // space, which needs +1 to account for the possibility of astral
+        // output or combining pair.
         self.plus_one_if_lead(byte_length) + 1
     }
 
     fn max_utf8_buffer_length(&self, byte_length: usize) -> usize {
+        // No need to account for REPLACEMENT CHARACTERS.
+        // Cases:
+        // ASCII: 1 to 1
+        // Valid pair: 2 to 2, 2 to 3 or 2 to 4, i.e. worst case 2 to 4
+        // lead set and first byte is trail: 1 to 4 worst case
+        //
+        // When checking for space for the last byte:
+        // no lead: the last byte must be ASCII (or fatal error): 1 to 1
+        // lead set: space for 4 bytes was already checked when reading the
+        // lead, hence the last lead and the last trail together are worst
+        // case 2 to 4.
+        //
+        // If lead set and the input is a single trail byte, the worst-case
+        // output is 4, so we need to add one before multiplying if lead is
+        // set.
         let len = self.plus_one_if_lead(byte_length);
-        (len * 2) + (len / 2) + 4 // XXX tail
+        (len * 2)
     }
 
     fn max_utf8_buffer_length_with_replacement(&self, byte_length: usize) -> usize {
-        3 * self.plus_one_if_lead(byte_length) + 4 // XXX tail
+        // If there is a lead but the next byte isn't a valid trail, an
+        // error is generated for the lead (+(1*3)). Then another iteration
+        // checks space, which needs +3 to account for the possibility of astral
+        // output or combining pair. In between start and end, the worst case
+        // is that every byte is bad: *3.
+        3 * self.plus_one_if_lead(byte_length) + 3
     }
 
     decoder_functions!({},
@@ -259,7 +283,8 @@ mod tests {
 
     fn decode_big5_to_utf8(bytes: &[u8], expect: &str) {
         let mut decoder = Big5Decoder::new();
-        let mut dest: Vec<u8> = Vec::with_capacity(decoder.max_utf8_buffer_length(expect.len()));
+        let mut dest: Vec<u8> =
+            Vec::with_capacity(decoder.max_utf8_buffer_length_with_replacement(expect.len()));
         let capacity = dest.capacity();
         dest.resize(capacity, 0u8);
         let (complete, read, written, _) = decoder.decode_to_utf8_with_replacement(bytes,
@@ -338,18 +363,30 @@ mod tests {
         decode_big5_to_utf8(&[0x99u8, 0xD5u8], &"\u{27967}");
         decode_big5_to_utf8(&[0x99u8, 0xD6u8], &"\u{8A29}");
         // Edge cases surrounded with ASCII
-        decode_big5_to_utf8(&[0x61u8, 0x87u8, 0x40u8, 0x62u8], &"\u{0061}\u{43F0}\u{0062}");
-        decode_big5_to_utf8(&[0x61u8, 0xFEu8, 0xFEu8, 0x62u8], &"\u{0061}\u{79D4}\u{0062}");
-        decode_big5_to_utf8(&[0x61u8, 0xFEu8, 0xFDu8, 0x62u8], &"\u{0061}\u{2910D}\u{0062}");
-        decode_big5_to_utf8(&[0x61u8, 0x88u8, 0x62u8, 0x62u8], &"\u{0061}\u{00CA}\u{0304}\u{0062}");
-        decode_big5_to_utf8(&[0x61u8, 0x88u8, 0x64u8, 0x62u8], &"\u{0061}\u{00CA}\u{030C}\u{0062}");
-        decode_big5_to_utf8(&[0x61u8, 0x88u8, 0x66u8, 0x62u8], &"\u{0061}\u{00CA}\u{0062}");
-        decode_big5_to_utf8(&[0x61u8, 0x88u8, 0xA3u8, 0x62u8], &"\u{0061}\u{00EA}\u{0304}\u{0062}");
-        decode_big5_to_utf8(&[0x61u8, 0x88u8, 0xA5u8, 0x62u8], &"\u{0061}\u{00EA}\u{030C}\u{0062}");
-        decode_big5_to_utf8(&[0x61u8, 0x88u8, 0xA7u8, 0x62u8], &"\u{0061}\u{00EA}\u{0062}");
-        decode_big5_to_utf8(&[0x61u8, 0x99u8, 0xD4u8, 0x62u8], &"\u{0061}\u{8991}\u{0062}");
-        decode_big5_to_utf8(&[0x61u8, 0x99u8, 0xD5u8, 0x62u8], &"\u{0061}\u{27967}\u{0062}");
-        decode_big5_to_utf8(&[0x61u8, 0x99u8, 0xD6u8, 0x62u8], &"\u{0061}\u{8A29}\u{0062}");
+        decode_big5_to_utf8(&[0x61u8, 0x87u8, 0x40u8, 0x62u8],
+                            &"\u{0061}\u{43F0}\u{0062}");
+        decode_big5_to_utf8(&[0x61u8, 0xFEu8, 0xFEu8, 0x62u8],
+                            &"\u{0061}\u{79D4}\u{0062}");
+        decode_big5_to_utf8(&[0x61u8, 0xFEu8, 0xFDu8, 0x62u8],
+                            &"\u{0061}\u{2910D}\u{0062}");
+        decode_big5_to_utf8(&[0x61u8, 0x88u8, 0x62u8, 0x62u8],
+                            &"\u{0061}\u{00CA}\u{0304}\u{0062}");
+        decode_big5_to_utf8(&[0x61u8, 0x88u8, 0x64u8, 0x62u8],
+                            &"\u{0061}\u{00CA}\u{030C}\u{0062}");
+        decode_big5_to_utf8(&[0x61u8, 0x88u8, 0x66u8, 0x62u8],
+                            &"\u{0061}\u{00CA}\u{0062}");
+        decode_big5_to_utf8(&[0x61u8, 0x88u8, 0xA3u8, 0x62u8],
+                            &"\u{0061}\u{00EA}\u{0304}\u{0062}");
+        decode_big5_to_utf8(&[0x61u8, 0x88u8, 0xA5u8, 0x62u8],
+                            &"\u{0061}\u{00EA}\u{030C}\u{0062}");
+        decode_big5_to_utf8(&[0x61u8, 0x88u8, 0xA7u8, 0x62u8],
+                            &"\u{0061}\u{00EA}\u{0062}");
+        decode_big5_to_utf8(&[0x61u8, 0x99u8, 0xD4u8, 0x62u8],
+                            &"\u{0061}\u{8991}\u{0062}");
+        decode_big5_to_utf8(&[0x61u8, 0x99u8, 0xD5u8, 0x62u8],
+                            &"\u{0061}\u{27967}\u{0062}");
+        decode_big5_to_utf8(&[0x61u8, 0x99u8, 0xD6u8, 0x62u8],
+                            &"\u{0061}\u{8A29}\u{0062}");
         // Bad sequences
         decode_big5_to_utf8(&[0x80u8, 0x61u8], &"\u{FFFD}\u{0061}");
         decode_big5_to_utf8(&[0xFFu8, 0x61u8], &"\u{FFFD}\u{0061}");
