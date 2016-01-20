@@ -167,40 +167,6 @@ impl<'a, 'b> Utf16AstralHandle<'a, 'b> where 'b: 'a
     pub fn write_astral(self, astral: u32) {
         self.dest.write_astral(astral);
     }
-}
-
-pub struct Utf16Big5Handle<'a, 'b>
-    where 'b: 'a
-{
-    dest: &'a mut Utf16Destination<'b>,
-}
-
-impl<'a, 'b> Utf16Big5Handle<'a, 'b> where 'b: 'a
-{
-    #[inline(always)]
-    fn new(dst: &'a mut Utf16Destination<'b>) -> Utf16Big5Handle<'a, 'b> {
-        Utf16Big5Handle { dest: dst }
-    }
-    #[inline(always)]
-    pub fn written(&self) -> usize {
-        self.dest.written()
-    }
-    #[inline(always)]
-    pub fn write_char(self, c: char) {
-        self.dest.write_char(c);
-    }
-    #[inline(always)]
-    pub fn write_ascii(self, ascii: u8) {
-        self.dest.write_ascii(ascii);
-    }
-    #[inline(always)]
-    pub fn write_bmp_excl_ascii(self, bmp: u16) {
-        self.dest.write_bmp_excl_ascii(bmp);
-    }
-    #[inline(always)]
-    pub fn write_astral(self, astral: u32) {
-        self.dest.write_astral(astral);
-    }
     #[inline(always)]
     pub fn write_big5_combination(self, combined: u16, combining: u16) {
         self.dest.write_big5_combination(combined, combining);
@@ -232,14 +198,6 @@ impl<'a> Utf16Destination<'a> {
     pub fn check_space_astral<'b>(&'b mut self) -> Space<Utf16AstralHandle<'b, 'a>> {
         if self.pos + 1 < self.slice.len() {
             Space::Available(Utf16AstralHandle::new(self))
-        } else {
-            Space::Full(self.written())
-        }
-    }
-    #[inline(always)]
-    pub fn check_space_big5<'b>(&'b mut self) -> Space<Utf16Big5Handle<'b, 'a>> {
-        if self.pos + 1 < self.slice.len() {
-            Space::Available(Utf16Big5Handle::new(self))
         } else {
             Space::Full(self.written())
         }
@@ -345,40 +303,6 @@ impl<'a, 'b> Utf8AstralHandle<'a, 'b> where 'b: 'a
     pub fn write_astral(self, astral: u32) {
         self.dest.write_astral(astral);
     }
-}
-
-pub struct Utf8Big5Handle<'a, 'b>
-    where 'b: 'a
-{
-    dest: &'a mut Utf8Destination<'b>,
-}
-
-impl<'a, 'b> Utf8Big5Handle<'a, 'b> where 'b: 'a
-{
-    #[inline(always)]
-    fn new(dst: &'a mut Utf8Destination<'b>) -> Utf8Big5Handle<'a, 'b> {
-        Utf8Big5Handle { dest: dst }
-    }
-    #[inline(always)]
-    pub fn written(&self) -> usize {
-        self.dest.written()
-    }
-    #[inline(always)]
-    pub fn write_char(self, c: char) {
-        self.dest.write_char(c);
-    }
-    #[inline(always)]
-    pub fn write_ascii(self, ascii: u8) {
-        self.dest.write_ascii(ascii);
-    }
-    #[inline(always)]
-    pub fn write_bmp_excl_ascii(self, bmp: u16) {
-        self.dest.write_bmp_excl_ascii(bmp);
-    }
-    #[inline(always)]
-    pub fn write_astral(self, astral: u32) {
-        self.dest.write_astral(astral);
-    }
     #[inline(always)]
     pub fn write_big5_combination(self, combined: u16, combining: u16) {
         self.dest.write_big5_combination(combined, combining);
@@ -400,7 +324,7 @@ impl<'a> Utf8Destination<'a> {
     }
     #[inline(always)]
     pub fn check_space_bmp<'b>(&'b mut self) -> Space<Utf8BmpHandle<'b, 'a>> {
-        if self.pos < self.slice.len() {
+        if self.pos + 2 < self.slice.len() {
             Space::Available(Utf8BmpHandle::new(self))
         } else {
             Space::Full(self.written())
@@ -408,16 +332,8 @@ impl<'a> Utf8Destination<'a> {
     }
     #[inline(always)]
     pub fn check_space_astral<'b>(&'b mut self) -> Space<Utf8AstralHandle<'b, 'a>> {
-        if self.pos + 1 < self.slice.len() {
+        if self.pos + 3 < self.slice.len() {
             Space::Available(Utf8AstralHandle::new(self))
-        } else {
-            Space::Full(self.written())
-        }
-    }
-    #[inline(always)]
-    pub fn check_space_big5<'b>(&'b mut self) -> Space<Utf8Big5Handle<'b, 'a>> {
-        if self.pos + 1 < self.slice.len() {
-            Space::Available(Utf8Big5Handle::new(self))
         } else {
             Space::Full(self.written())
         }
@@ -482,6 +398,6 @@ impl<'a> Utf8Destination<'a> {
     #[inline(always)]
     fn write_big5_combination(&mut self, combined: u16, combining: u16) {
         self.write_mid_bmp(combined);
-        self.write_upper_bmp(combining);
+        self.write_mid_bmp(combining);
     }
 }

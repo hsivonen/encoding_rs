@@ -141,9 +141,9 @@ pub enum DecoderResult {
 /// sequences are automatically replaced with the REPLACEMENT CHARACTER and
 /// errors do not cause the methods to return early.
 ///
-/// When decodering to UTF-8, the output buffer must have at least 5 bytes of
-/// space. (Yes, 5, not 4, because Big5 is special.) When decoding to UTF-16,
-/// the output buffer must have at least two UTF-16 code units (`u16`) of space.
+/// When decodering to UTF-8, the output buffer must have at least 4 bytes of
+/// space. When decoding to UTF-16, the output buffer must have at least two
+/// UTF-16 code units (`u16`) of space.
 ///
 /// When decoding to UTF-8 without replacement, the methods are guaranteed
 /// not to return indicating that more output space is needed if the length
