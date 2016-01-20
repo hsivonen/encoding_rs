@@ -70,3 +70,59 @@ impl VariantDecoder {
         }
     }
 }
+
+pub enum VariantEncoder {
+    Big5(Big5Encoder),
+}
+
+impl VariantEncoder {
+    pub fn reset(&mut self) {}
+
+    pub fn max_buffer_length_from_utf16(&self, u16_length: usize) -> usize {
+        match self {
+            &VariantEncoder::Big5(ref e) => e.max_buffer_length_from_utf16(u16_length),
+        }
+    }
+
+    pub fn max_buffer_length_from_utf8(&self, byte_length: usize) -> usize {
+        match self {
+            &VariantEncoder::Big5(ref e) => e.max_buffer_length_from_utf8(byte_length),
+        }
+    }
+
+    pub fn max_buffer_length_from_utf16_with_replacement(&self, u16_length: usize) -> usize {
+        match self {
+            &VariantEncoder::Big5(ref e) => {
+                e.max_buffer_length_from_utf16_with_replacement(u16_length)
+            }
+        }
+    }
+
+    pub fn max_buffer_length_from_utf8_with_replacement(&self, byte_length: usize) -> usize {
+        match self {
+            &VariantEncoder::Big5(ref e) => {
+                e.max_buffer_length_from_utf8_with_replacement(byte_length)
+            }
+        }
+    }
+
+    pub fn encode_from_utf16(&mut self,
+                             src: &[u16],
+                             dst: &mut [u8],
+                             last: bool)
+                             -> (EncoderResult, usize, usize) {
+        match self {
+            &mut VariantEncoder::Big5(ref mut e) => e.encode_from_utf16(src, dst, last),
+        }
+    }
+
+    pub fn encode_from_utf8(&mut self,
+                            src: &str,
+                            dst: &mut [u8],
+                            last: bool)
+                            -> (EncoderResult, usize, usize) {
+        match self {
+            &mut VariantEncoder::Big5(ref mut e) => e.encode_from_utf8(src, dst, last),
+        }
+    }
+}

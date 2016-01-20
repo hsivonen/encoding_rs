@@ -610,10 +610,20 @@ pub enum EncoderResult {
 /// `src` may not have been completely consumed. In that case, the caller must
 /// pass the unconsumed contents of `src` to `encode_*` again upon the next
 /// call.
-pub trait Encoder {
+pub struct Encoder {
+    variant: VariantEncoder,
+}
+
+impl Encoder {
+    fn new(encoder: VariantEncoder) -> Encoder {
+        Encoder { variant: encoder }
+    }
+
     /// Make the encoder ready to process a new stream. (No-op for all encoders
     /// other than the ISO-2022-JP encoder.)
-    fn reset(&mut self) {}
+    pub fn reset(&mut self) {
+        self.variant.reset();
+    }
 
     /// Query the worst-case output size when encoding from UTF-16 without
     /// replacement.
@@ -623,7 +633,9 @@ pub trait Encoder {
     /// additional input code units.
     ///
     /// Available via the C wrapper.
-    fn max_buffer_length_from_utf16(&self, u16_length: usize) -> usize;
+    pub fn max_buffer_length_from_utf16(&self, u16_length: usize) -> usize {
+        self.variant.max_buffer_length_from_utf16(u16_length)
+    }
 
     /// Query the worst-case output size when encoding from UTF-8 without
     /// replacement.
@@ -633,7 +645,9 @@ pub trait Encoder {
     /// additional input code units.
     ///
     /// Available via the C wrapper.
-    fn max_buffer_length_from_utf8(&self, byte_length: usize) -> usize;
+    pub fn max_buffer_length_from_utf8(&self, byte_length: usize) -> usize {
+        self.variant.max_buffer_length_from_utf8(byte_length)
+    }
 
     /// Query the worst-case output size when encoding from UTF-16 with
     /// replacement.
@@ -643,7 +657,9 @@ pub trait Encoder {
     /// additional input code units.
     ///
     /// Available via the C wrapper.
-    fn max_buffer_length_from_utf16_with_replacement(&self, u16_length: usize) -> usize;
+    pub fn max_buffer_length_from_utf16_with_replacement(&self, u16_length: usize) -> usize {
+        self.variant.max_buffer_length_from_utf16_with_replacement(u16_length)
+    }
 
     /// Query the worst-case output size when encoding from UTF-8 with
     /// replacement.
@@ -653,7 +669,9 @@ pub trait Encoder {
     /// additional input code units.
     ///
     /// Available via the C wrapper.
-    fn max_buffer_length_from_utf8_with_replacement(&self, byte_length: usize) -> usize;
+    pub fn max_buffer_length_from_utf8_with_replacement(&self, byte_length: usize) -> usize {
+        self.variant.max_buffer_length_from_utf8_with_replacement(byte_length)
+    }
 
     /// Incrementally encode into byte stream from UTF-16.
     ///
@@ -661,11 +679,13 @@ pub trait Encoder {
     /// methods collectively.
     ///
     /// Available via the C wrapper.
-    fn encode_from_utf16(&mut self,
-                         src: &[u16],
-                         dst: &mut [u8],
-                         last: bool)
-                         -> (EncoderResult, usize, usize);
+    pub fn encode_from_utf16(&mut self,
+                             src: &[u16],
+                             dst: &mut [u8],
+                             last: bool)
+                             -> (EncoderResult, usize, usize) {
+        self.variant.encode_from_utf16(src, dst, last)
+    }
 
     /// Incrementally encode into byte stream from UTF-8.
     ///
@@ -673,11 +693,13 @@ pub trait Encoder {
     /// methods collectively.
     ///
     /// Available via the C wrapper.
-    fn encode_from_utf8(&mut self,
-                        src: &str,
-                        dst: &mut [u8],
-                        last: bool)
-                        -> (EncoderResult, usize, usize);
+    pub fn encode_from_utf8(&mut self,
+                            src: &str,
+                            dst: &mut [u8],
+                            last: bool)
+                            -> (EncoderResult, usize, usize) {
+        self.variant.encode_from_utf8(src, dst, last)
+    }
 
     /// Incrementally encode into byte stream from UTF-16 with replacement.
     ///
@@ -685,11 +707,11 @@ pub trait Encoder {
     /// methods collectively.
     ///
     /// Available via the C wrapper.
-    fn encode_from_utf16_with_replacement(&mut self,
-                                          src: &[u16],
-                                          dst: &mut [u8],
-                                          last: bool)
-                                          -> (WithReplacementResult, usize, usize, bool) {
+    pub fn encode_from_utf16_with_replacement(&mut self,
+                                              src: &[u16],
+                                              dst: &mut [u8],
+                                              last: bool)
+                                              -> (WithReplacementResult, usize, usize, bool) {
         // XXX
         (WithReplacementResult::InputEmpty, 0, 0, false)
     }
@@ -700,16 +722,16 @@ pub trait Encoder {
     /// methods collectively.
     ///
     /// Available via the C wrapper.
-    fn encode_from_utf8_with_replacement(&mut self,
-                                         src: &str,
-                                         dst: &mut [u8],
-                                         last: bool)
-                                         -> (WithReplacementResult, usize, usize, bool) {
+    pub fn encode_from_utf8_with_replacement(&mut self,
+                                             src: &str,
+                                             dst: &mut [u8],
+                                             last: bool)
+                                             -> (WithReplacementResult, usize, usize, bool) {
         // XXX
         (WithReplacementResult::InputEmpty, 0, 0, false)
     }
 
-// XXX: _to_vec variants for all these?
+    // XXX: _to_vec variants for all these?
 }
 
 // ############## TESTS ###############

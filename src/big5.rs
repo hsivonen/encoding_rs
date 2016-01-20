@@ -7,11 +7,10 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-use Decoder;
-use DecoderResult;
 use handles::*;
 use data::*;
 use variant::*;
+use super::*;
 
 pub struct Big5Decoder {
     lead: u8,
@@ -164,6 +163,44 @@ impl Big5Decoder {
                        b,
                        destination_handle,
                        unread_handle);
+}
+
+pub struct Big5Encoder;
+
+impl Big5Encoder {
+    pub fn max_buffer_length_from_utf16(&self, u16_length: usize) -> usize {
+        0 // TODO
+    }
+
+    pub fn max_buffer_length_from_utf8(&self, byte_length: usize) -> usize {
+        0 // TODO
+    }
+
+    pub fn max_buffer_length_from_utf16_with_replacement(&self, u16_length: usize) -> usize {
+        0 // TODO
+    }
+
+    pub fn max_buffer_length_from_utf8_with_replacement(&self, byte_length: usize) -> usize {
+        0 // TODO
+    }
+
+    pub fn encode_from_utf16(&mut self,
+                             src: &[u16],
+                             dst: &mut [u8],
+                             last: bool)
+                             -> (EncoderResult, usize, usize) {
+        // XXX
+        (EncoderResult::InputEmpty, 0, 0)
+    }
+
+    pub fn encode_from_utf8(&mut self,
+                            src: &str,
+                            dst: &mut [u8],
+                            last: bool)
+                            -> (EncoderResult, usize, usize) {
+        // XXX
+        (EncoderResult::InputEmpty, 0, 0)
+    }
 }
 
 #[cfg(test)]
