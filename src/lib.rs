@@ -58,8 +58,29 @@ impl Encoding {
         // argument is bogus?
         Some(&BIG5)
     }
-    // new_decoder
-    // new_encoder
+    pub fn new_decoder(&self) -> Decoder {
+        self.variant.new_decoder()
+    }
+    pub fn new_encoder(&self) -> Encoder {
+        self.variant.new_encoder()
+    }
+    pub fn decode(&self, bytes: &[u8]) -> Option<String> {
+        let mut decoder = self.new_decoder();
+        let mut string = String::with_capacity(decoder.max_utf8_buffer_length(bytes.len()));
+        let (result, read) = decoder.decode_to_string(bytes, &mut string, true);
+        match result {
+            DecoderResult::InputEmpty => {
+        debug_assert_eq!(read, bytes.len());
+                Some(string)
+            },
+            DecoderResult::Malformed(_) => {
+                None
+            },
+            DecoderResult::OutputFull => {
+                unreachable!()
+            }
+        }
+    }
     // decode
     // decode_with_replacement
 }

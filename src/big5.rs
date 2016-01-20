@@ -168,6 +168,10 @@ impl Big5Decoder {
 pub struct Big5Encoder;
 
 impl Big5Encoder {
+    pub fn new() -> Encoder {
+        Encoder::new(VariantEncoder::Big5(Big5Encoder))
+    }
+
     pub fn max_buffer_length_from_utf16(&self, u16_length: usize) -> usize {
         0 // TODO
     }

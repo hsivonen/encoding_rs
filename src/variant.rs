@@ -131,3 +131,14 @@ pub enum VariantEncoding {
     MultiByte,
     SingleByte(&'static [u16; 128]),
 }
+
+impl VariantEncoding {
+    pub fn new_decoder(&self) -> Decoder {
+        // XXX
+        Big5Decoder::new()
+    }
+    pub fn new_encoder(&self) -> Encoder {
+        // XXX
+        Big5Encoder::new()
+    }
+}
