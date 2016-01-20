@@ -76,20 +76,6 @@ for i in xrange(len(index)):
     break
 
 dataFile = open("src/data.rs", "w")
-dataFile.write('''// Copyright 2015-2016 Mozilla Foundation. See the COPYRIGHT
-// file at the top-level directory of this distribution.
-//
-// Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
-// http://www.apache.org/licenses/LICENSE-2.0> or the MIT license
-// <LICENSE-MIT or http://opensource.org/licenses/MIT>, at your
-// option. This file may not be copied, modified, or distributed
-// except according to those terms.
-
-// THIS IS A GENERATED FILE. PLEASE DO NOT EDIT.
-// Instead, please regenerate using generate-encoding-data.py
-
-const ASTRALNESS: &'static [u32] = &[
-''')
 
 bits = []
 for codePoint in index:
@@ -107,6 +93,21 @@ for i in xrange(len(bits)):
 for j in xrange(32 - ((len(bits) - bitsFirst) % 32)):
   bits.append(0)
 
+dataFile.write('''// Copyright 2015-2016 Mozilla Foundation. See the COPYRIGHT
+// file at the top-level directory of this distribution.
+//
+// Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
+// http://www.apache.org/licenses/LICENSE-2.0> or the MIT license
+// <LICENSE-MIT or http://opensource.org/licenses/MIT>, at your
+// option. This file may not be copied, modified, or distributed
+// except according to those terms.
+
+// THIS IS A GENERATED FILE. PLEASE DO NOT EDIT.
+// Instead, please regenerate using generate-encoding-data.py
+
+static ASTRALNESS: [u32; %d] = [
+''' % ((len(bits) - bitsFirst) / 32))
+
 i = bitsFirst
 while i < len(bits):
   accu = 0
@@ -117,8 +118,8 @@ while i < len(bits):
 
 dataFile.write('''];
 
-const LOW_BITS: &'static [u16] = &[
-''')
+static LOW_BITS: [u16; %d] = [
+''' % (len(index) - indexFirst))
 
 for i in xrange(indexFirst, len(index)):
   dataFile.write('0x%04X,\n' % (index[i] & 0xFFFF))
