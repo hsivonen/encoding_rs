@@ -39,7 +39,7 @@ impl Encoding {
     pub fn for_label(label: &[u8]) -> Option<&'static Encoding> {
         Some(&BIG5)
     }
-    
+
     pub fn for_label_no_replacement(label: &[u8]) -> Option<&'static Encoding> {
         match Encoding::for_label(label) {
             None => None,
@@ -49,10 +49,10 @@ impl Encoding {
                 } else {
                     Some(encoding)
                 }
-            },
+            }
         }
     }
-    
+
     pub fn for_dom_name(dom_name: &[u8]) -> Option<&'static Encoding> {
         // Instead of returning an Option, should this method panic if the
         // argument is bogus?

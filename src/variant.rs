@@ -129,5 +129,5 @@ impl VariantEncoder {
 
 pub enum VariantEncoding {
     MultiByte,
-    SingleByte(&'static [u16; 128])
+    SingleByte(&'static [u16; 128]),
 }
