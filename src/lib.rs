@@ -88,7 +88,7 @@ impl Encoding {
     ///
     /// This method is useful in scenarios where a fatal error is required
     /// upon invalid label, because in those cases the caller typically wishes
-    /// to treat the labels that map to the replacement encoding is fatal
+    /// to treat the labels that map to the replacement encoding as fatal
     /// errors, too.
     pub fn for_label_no_replacement(label: &[u8]) -> Option<&'static Encoding> {
         match Encoding::for_label(label) {
@@ -103,6 +103,17 @@ impl Encoding {
         }
     }
 
+    /// If the argument matches exactly (case-sensitively; no whitespace
+    /// removal performed) the DOM name of an encoding, returns
+    /// `Some(&'static Encoding)` representing that encoding. Otherwise,
+    /// return `None`.
+    ///
+    /// The motivating use case for this method is interoperability with
+    /// legacy Gecko code that represents encodings as DOM name string instead
+    /// of type-safe `Encoding` objects. Using this method for other purposes
+    /// is most likely the wrong thing to do.
+    ///
+    /// XXX: Should this method be made FFI-only to discourage Rust callers?
     pub fn for_dom_name(dom_name: &[u8]) -> Option<&'static Encoding> {
         // Instead of returning an Option, should this method panic if the
         // argument is bogus?
