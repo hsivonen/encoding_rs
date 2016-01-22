@@ -29,6 +29,36 @@ static REPLACEMENT: Encoding = Encoding {
     variant: VariantEncoding::MultiByte,
 };
 
+/// An encoding as defined in the
+/// [Encoding Standard](https://encoding.spec.whatwg.org/).
+///
+/// An _encoding_ defines a mapping from a `char` sequence to a `u8` sequence
+/// (and vice versa). Each encoding has a name, a DOM name, a submission
+/// encoding, and one or more labels and an output encoding.
+///
+/// _Labels_ are ASCII-case-insensitive strings that are used to identify an
+/// encoding in formats and protocols. The _name_ of the encoding is the
+/// lower-case form of one of the labels (i.e. the preferred label), except for
+/// the replacement encoding whose name is not one of its labels. The _DOM
+/// name_ is a potentially mixed-case case-sensitive variant of the name for
+/// historical reasons. If the DOM name differs from the name, it differs only
+/// in terms of some letters being in upper case instead of being in lower case.
+/// DOM names are defined in the "Compatibility name" column of the mapping
+/// table in the
+/// [DOM Standard](https://dom.spec.whatwg.org/#dom-document-characterset).
+///
+/// The _submission encoding_ is the encoding using for form submission and URL
+/// parsing. This is utf-8 for the replacement, utf-16le and utf-16be encodings
+/// and the encoding itself for other encodings.
+///
+/// When you have the entire input in a single buffer, you can use the
+/// convenience methods `decode()`, `decode_with_replacement()`, `encode()` and
+/// `encode_with_replacement()`. (These methods are available to Rust callers
+/// only and are not available in the C API.) Unlike the rest of the API
+/// available to Rust, these methods perform heap allocations. You should
+/// the `Decoder` and `Encoder` objects obtained by calling `new_decoder()` and
+/// `new_encoder()` repectively when your input is split into multiple buffers
+/// or when you want to control the allocation of the output buffers.
 pub struct Encoding {
     name: &'static str,
     dom_name: &'static str,
@@ -36,10 +66,31 @@ pub struct Encoding {
 }
 
 impl Encoding {
+	
+	/// Implements the
+	/// [_get an encoding_](https://encoding.spec.whatwg.org/#concept-encoding-get)
+	/// algorithm.
+	///
+	/// If, after ASCII-lowercasing and removing leading and trailing
+	/// whitespace, the argument matches a label defined in the Encoding
+	/// Standard, `Some(&'static Encoding)` representing the corresponding
+	/// encoding is returned. If there is no match, `None` is returned.
+	///
+	/// The argument is of type `&[u8]` instead of `&str` to save callers
+	/// that are extracting the label from a non-UTF-8 protocol the trouble
+	/// of conversion to UTF-8. (If you have a `&str`, just call `.as_bytes()`
+	/// on it.)
     pub fn for_label(label: &[u8]) -> Option<&'static Encoding> {
         Some(&BIG5)
     }
 
+    /// This method behaves the same as `for_label()`, except when `for_label()`
+    /// would return `Some(REPLACEMENT)`, this method returns `None` instead.
+    ///
+    /// This method is useful in scenarios where a fatal error is required
+    /// upon invalid label, because in those cases the caller typically wishes
+    /// to treat the labels that map to the replacement encoding is fatal
+    /// errors, too.
     pub fn for_label_no_replacement(label: &[u8]) -> Option<&'static Encoding> {
         match Encoding::for_label(label) {
             None => None,
