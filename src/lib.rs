@@ -66,20 +66,19 @@ pub struct Encoding {
 }
 
 impl Encoding {
-	
-	/// Implements the
-	/// [_get an encoding_](https://encoding.spec.whatwg.org/#concept-encoding-get)
-	/// algorithm.
-	///
-	/// If, after ASCII-lowercasing and removing leading and trailing
-	/// whitespace, the argument matches a label defined in the Encoding
-	/// Standard, `Some(&'static Encoding)` representing the corresponding
-	/// encoding is returned. If there is no match, `None` is returned.
-	///
-	/// The argument is of type `&[u8]` instead of `&str` to save callers
-	/// that are extracting the label from a non-UTF-8 protocol the trouble
-	/// of conversion to UTF-8. (If you have a `&str`, just call `.as_bytes()`
-	/// on it.)
+    /// Implements the
+    /// [_get an encoding_](https://encoding.spec.whatwg.org/#concept-encoding-get)
+    /// algorithm.
+    ///
+    /// If, after ASCII-lowercasing and removing leading and trailing
+    /// whitespace, the argument matches a label defined in the Encoding
+    /// Standard, `Some(&'static Encoding)` representing the corresponding
+    /// encoding is returned. If there is no match, `None` is returned.
+    ///
+    /// The argument is of type `&[u8]` instead of `&str` to save callers
+    /// that are extracting the label from a non-UTF-8 protocol the trouble
+    /// of conversion to UTF-8. (If you have a `&str`, just call `.as_bytes()`
+    /// on it.)
     pub fn for_label(label: &[u8]) -> Option<&'static Encoding> {
         Some(&BIG5)
     }
@@ -95,7 +94,7 @@ impl Encoding {
         match Encoding::for_label(label) {
             None => None,
             Some(encoding) => {
-                if (encoding as *const Encoding) == (&REPLACEMENT as *const Encoding) {
+                if encoding == &REPLACEMENT {
                     None
                 } else {
                     Some(encoding)
@@ -131,6 +130,14 @@ impl Encoding {
     // decode
     // decode_with_replacement
 }
+
+impl PartialEq for Encoding {
+    fn eq(&self, other: &Encoding) -> bool {
+        (self as *const Encoding) == (other as *const Encoding)
+    }
+}
+
+impl Eq for Encoding {}
 
 /// Result of a (potentially partial) decode or operation with replacement.
 #[derive(Debug)]
