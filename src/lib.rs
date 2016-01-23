@@ -18,16 +18,24 @@ pub mod ffi;
 
 use variant::*;
 
-static BIG5: Encoding = Encoding {
+const LONGEST_LABEL_LENGTH: usize = 32;
+
+pub const BIG5: &'static Encoding = &Encoding {
     name: "big5",
     dom_name: "Big5",
     variant: VariantEncoding::MultiByte,
 };
-static REPLACEMENT: Encoding = Encoding {
+pub const REPLACEMENT: &'static Encoding = &Encoding {
     name: "replacement",
     dom_name: "replacement",
     variant: VariantEncoding::MultiByte,
 };
+
+static ENCODINGS_SORTED_BY_DOM_NAME: [&'static Encoding; 2] = [BIG5, REPLACEMENT];
+
+static LABELS_SORTED: [&'static str; 2] = ["big5", "replacement"];
+
+static ENCODINGS_IN_LABEL_SORT: [&'static Encoding; 2] = [BIG5, REPLACEMENT];
 
 /// An encoding as defined in the
 /// [Encoding Standard](https://encoding.spec.whatwg.org/).
@@ -80,7 +88,98 @@ impl Encoding {
     /// of conversion to UTF-8. (If you have a `&str`, just call `.as_bytes()`
     /// on it.)
     pub fn for_label(label: &[u8]) -> Option<&'static Encoding> {
-        Some(&BIG5)
+        let mut trimmed = [0u8; LONGEST_LABEL_LENGTH];
+        let mut trimmed_pos = 0usize;
+        let mut iter = label.into_iter();
+        // before
+        loop {
+            match iter.next() {
+                None => {
+                    return None;
+                }
+                Some(byte) => {
+                    match *byte {
+                        0x09u8 | 0x0Au8 | 0x0Cu8 | 0x0Du8 | 0x20u8 => {
+                            continue;
+                        }
+                        b'A'...b'Z' => {
+                            trimmed[trimmed_pos] = *byte + 0x20u8;
+                            trimmed_pos = 1usize;
+                            break;
+                        }
+                        _ => {
+                            trimmed[trimmed_pos] = *byte;
+                            trimmed_pos = 1usize;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        // inside
+        loop {
+            match iter.next() {
+                None => {
+                    break;
+                }
+                Some(byte) => {
+                    match *byte {
+                        0x09u8 | 0x0Au8 | 0x0Cu8 | 0x0Du8 | 0x20u8 => {
+                            break;
+                        }
+                        b'A'...b'Z' => {
+                            trimmed[trimmed_pos] = *byte + 0x20u8;
+                            trimmed_pos += 1usize;
+                            if trimmed_pos > LONGEST_LABEL_LENGTH {
+                                // There's no encoding with a label this long
+                                return None;
+                            }
+                            continue;
+                        }
+                        _ => {
+                            trimmed[trimmed_pos] = *byte;
+                            trimmed_pos += 1usize;
+                            if trimmed_pos > LONGEST_LABEL_LENGTH {
+                                // There's no encoding with a label this long
+                                return None;
+                            }
+                            continue;
+                        }
+                    }
+                }
+            }
+
+        }
+        // after
+        loop {
+            match iter.next() {
+                None => {
+                    break;
+                }
+                Some(byte) => {
+                    match *byte {
+                        0x09u8 | 0x0Au8 | 0x0Cu8 | 0x0Du8 | 0x20u8 => {
+                            continue;
+                        }
+                        _ => {
+                            // There's no label with space in the middle
+                            return None;
+                        }
+                    }
+                }
+            }
+
+        }
+        let candidate = &trimmed[..trimmed_pos];
+        // XXX optimize this to binary search, potentially with a comparator
+        // that reads the name from the end to start.
+        for i in 0..LABELS_SORTED.len() {
+            let l = LABELS_SORTED[i];
+            if candidate == l.as_bytes() {
+                return Some(ENCODINGS_IN_LABEL_SORT[i]);
+            }
+        }
+        return None;
     }
 
     /// This method behaves the same as `for_label()`, except when `for_label()`
@@ -94,7 +193,7 @@ impl Encoding {
         match Encoding::for_label(label) {
             None => None,
             Some(encoding) => {
-                if encoding == &REPLACEMENT {
+                if encoding == REPLACEMENT {
                     None
                 } else {
                     Some(encoding)
@@ -115,15 +214,27 @@ impl Encoding {
     ///
     /// XXX: Should this method be made FFI-only to discourage Rust callers?
     pub fn for_dom_name(dom_name: &[u8]) -> Option<&'static Encoding> {
-        // Instead of returning an Option, should this method panic if the
-        // argument is bogus?
-        Some(&BIG5)
+        // XXX optimize this to binary search, potentially with a comparator
+        // that reads the name from the end to start.
+        for i in 0..ENCODINGS_SORTED_BY_DOM_NAME.len() {
+            let encoding = ENCODINGS_SORTED_BY_DOM_NAME[i];
+            if dom_name == encoding.dom_name().as_bytes() {
+                return Some(ENCODINGS_IN_LABEL_SORT[i]);
+            }
+        }
+        return None;
     }
     pub fn new_decoder(&self) -> Decoder {
         self.variant.new_decoder()
     }
     pub fn new_encoder(&self) -> Encoder {
         self.variant.new_encoder()
+    }
+    pub fn name(&self) -> &'static str {
+        self.name
+    }
+    pub fn dom_name(&self) -> &'static str {
+        self.dom_name
     }
     pub fn decode(&self, bytes: &[u8]) -> Option<String> {
         let mut decoder = self.new_decoder();
@@ -138,8 +249,19 @@ impl Encoding {
             DecoderResult::OutputFull => unreachable!(),
         }
     }
-    // decode
-    // decode_with_replacement
+    pub fn decode_with_replacement(&self, bytes: &[u8]) -> String {
+        let mut decoder = self.new_decoder();
+        let mut string =
+            String::with_capacity(decoder.max_utf8_buffer_length_with_replacement(bytes.len()));
+        let (result, read, _) = decoder.decode_to_string_with_replacement(bytes, &mut string, true);
+        match result {
+            WithReplacementResult::InputEmpty => {
+                debug_assert_eq!(read, bytes.len());
+                string
+            }
+            WithReplacementResult::OutputFull => unreachable!(),
+        }
+    }
 }
 
 impl PartialEq for Encoding {
