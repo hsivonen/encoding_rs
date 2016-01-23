@@ -18,24 +18,771 @@ pub mod ffi;
 
 use variant::*;
 
-const LONGEST_LABEL_LENGTH: usize = 32;
+// BEGIN GENERATED CODE. PLEASE DO NOT EDIT.
+// Instead, please regenerate using generate-encoding-data.py
 
+const LONGEST_LABEL_LENGTH: usize = 19; // cseucpkdfmtjapanese
+
+/// The big5 encoding.
 pub const BIG5: &'static Encoding = &Encoding {
     name: "big5",
     dom_name: "Big5",
-    variant: VariantEncoding::MultiByte,
+    variant: VariantEncoding::Big5,
 };
+
+/// The euc-jp encoding.
+pub const EUC_JP: &'static Encoding = &Encoding {
+    name: "euc-jp",
+    dom_name: "euc-jp",
+    variant: VariantEncoding::EucJp,
+};
+
+/// The euc-kr encoding.
+pub const EUC_KR: &'static Encoding = &Encoding {
+    name: "euc-kr",
+    dom_name: "euc-kr",
+    variant: VariantEncoding::EucKr,
+};
+
+/// The gb18030 encoding.
+pub const GB18030: &'static Encoding = &Encoding {
+    name: "gb18030",
+    dom_name: "gb18030",
+    variant: VariantEncoding::Gb18030,
+};
+
+/// The gbk encoding.
+pub const GBK: &'static Encoding = &Encoding {
+    name: "gbk",
+    dom_name: "GBK",
+    variant: VariantEncoding::Gbk,
+};
+
+/// The ibm866 encoding.
+pub const IBM866: &'static Encoding = &Encoding {
+    name: "ibm866",
+    dom_name: "IBM866",
+    variant: VariantEncoding::SingleByte(data::IBM866_DATA),
+};
+
+/// The iso-2022-jp encoding.
+pub const ISO_2022_JP: &'static Encoding = &Encoding {
+    name: "iso-2022-jp",
+    dom_name: "ISO-2022-JP",
+    variant: VariantEncoding::Iso2022Jp,
+};
+
+/// The iso-8859-10 encoding.
+pub const ISO_8859_10: &'static Encoding = &Encoding {
+    name: "iso-8859-10",
+    dom_name: "ISO-8859-10",
+    variant: VariantEncoding::SingleByte(data::ISO_8859_10_DATA),
+};
+
+/// The iso-8859-13 encoding.
+pub const ISO_8859_13: &'static Encoding = &Encoding {
+    name: "iso-8859-13",
+    dom_name: "ISO-8859-13",
+    variant: VariantEncoding::SingleByte(data::ISO_8859_13_DATA),
+};
+
+/// The iso-8859-14 encoding.
+pub const ISO_8859_14: &'static Encoding = &Encoding {
+    name: "iso-8859-14",
+    dom_name: "ISO-8859-14",
+    variant: VariantEncoding::SingleByte(data::ISO_8859_14_DATA),
+};
+
+/// The iso-8859-15 encoding.
+pub const ISO_8859_15: &'static Encoding = &Encoding {
+    name: "iso-8859-15",
+    dom_name: "ISO-8859-15",
+    variant: VariantEncoding::SingleByte(data::ISO_8859_15_DATA),
+};
+
+/// The iso-8859-16 encoding.
+pub const ISO_8859_16: &'static Encoding = &Encoding {
+    name: "iso-8859-16",
+    dom_name: "ISO-8859-16",
+    variant: VariantEncoding::SingleByte(data::ISO_8859_16_DATA),
+};
+
+/// The iso-8859-2 encoding.
+pub const ISO_8859_2: &'static Encoding = &Encoding {
+    name: "iso-8859-2",
+    dom_name: "ISO-8859-2",
+    variant: VariantEncoding::SingleByte(data::ISO_8859_2_DATA),
+};
+
+/// The iso-8859-3 encoding.
+pub const ISO_8859_3: &'static Encoding = &Encoding {
+    name: "iso-8859-3",
+    dom_name: "ISO-8859-3",
+    variant: VariantEncoding::SingleByte(data::ISO_8859_3_DATA),
+};
+
+/// The iso-8859-4 encoding.
+pub const ISO_8859_4: &'static Encoding = &Encoding {
+    name: "iso-8859-4",
+    dom_name: "ISO-8859-4",
+    variant: VariantEncoding::SingleByte(data::ISO_8859_4_DATA),
+};
+
+/// The iso-8859-5 encoding.
+pub const ISO_8859_5: &'static Encoding = &Encoding {
+    name: "iso-8859-5",
+    dom_name: "ISO-8859-5",
+    variant: VariantEncoding::SingleByte(data::ISO_8859_5_DATA),
+};
+
+/// The iso-8859-6 encoding.
+pub const ISO_8859_6: &'static Encoding = &Encoding {
+    name: "iso-8859-6",
+    dom_name: "ISO-8859-6",
+    variant: VariantEncoding::SingleByte(data::ISO_8859_6_DATA),
+};
+
+/// The iso-8859-7 encoding.
+pub const ISO_8859_7: &'static Encoding = &Encoding {
+    name: "iso-8859-7",
+    dom_name: "ISO-8859-7",
+    variant: VariantEncoding::SingleByte(data::ISO_8859_7_DATA),
+};
+
+/// The iso-8859-8 encoding.
+pub const ISO_8859_8: &'static Encoding = &Encoding {
+    name: "iso-8859-8",
+    dom_name: "ISO-8859-8",
+    variant: VariantEncoding::SingleByte(data::ISO_8859_8_DATA),
+};
+
+/// The iso-8859-8-i encoding.
+pub const ISO_8859_8_I: &'static Encoding = &Encoding {
+    name: "iso-8859-8-i",
+    dom_name: "ISO-8859-8-I",
+    variant: VariantEncoding::SingleByte(data::ISO_8859_8_DATA),
+};
+
+/// The koi8-r encoding.
+pub const KOI8_R: &'static Encoding = &Encoding {
+    name: "koi8-r",
+    dom_name: "KOI8-R",
+    variant: VariantEncoding::SingleByte(data::KOI8_R_DATA),
+};
+
+/// The koi8-u encoding.
+pub const KOI8_U: &'static Encoding = &Encoding {
+    name: "koi8-u",
+    dom_name: "KOI8-U",
+    variant: VariantEncoding::SingleByte(data::KOI8_U_DATA),
+};
+
+/// The macintosh encoding.
+pub const MACINTOSH: &'static Encoding = &Encoding {
+    name: "macintosh",
+    dom_name: "macintosh",
+    variant: VariantEncoding::SingleByte(data::MACINTOSH_DATA),
+};
+
+/// The replacement encoding.
 pub const REPLACEMENT: &'static Encoding = &Encoding {
     name: "replacement",
     dom_name: "replacement",
-    variant: VariantEncoding::MultiByte,
+    variant: VariantEncoding::Replacement,
 };
 
-static ENCODINGS_SORTED_BY_DOM_NAME: [&'static Encoding; 2] = [BIG5, REPLACEMENT];
+/// The shift_jis encoding.
+pub const SHIFT_JIS: &'static Encoding = &Encoding {
+    name: "shift_jis",
+    dom_name: "Shift_JIS",
+    variant: VariantEncoding::ShiftJis,
+};
 
-static LABELS_SORTED: [&'static str; 2] = ["big5", "replacement"];
+/// The utf-16be encoding.
+pub const UTF_16BE: &'static Encoding = &Encoding {
+    name: "utf-16be",
+    dom_name: "UTF-16BE",
+    variant: VariantEncoding::Utf16Be,
+};
 
-static ENCODINGS_IN_LABEL_SORT: [&'static Encoding; 2] = [BIG5, REPLACEMENT];
+/// The utf-16le encoding.
+pub const UTF_16LE: &'static Encoding = &Encoding {
+    name: "utf-16le",
+    dom_name: "UTF-16LE",
+    variant: VariantEncoding::Utf16Le,
+};
+
+/// The utf-8 encoding.
+pub const UTF_8: &'static Encoding = &Encoding {
+    name: "utf-8",
+    dom_name: "UTF-8",
+    variant: VariantEncoding::Utf8,
+};
+
+/// The windows-1250 encoding.
+pub const WINDOWS_1250: &'static Encoding = &Encoding {
+    name: "windows-1250",
+    dom_name: "windows-1250",
+    variant: VariantEncoding::SingleByte(data::WINDOWS_1250_DATA),
+};
+
+/// The windows-1251 encoding.
+pub const WINDOWS_1251: &'static Encoding = &Encoding {
+    name: "windows-1251",
+    dom_name: "windows-1251",
+    variant: VariantEncoding::SingleByte(data::WINDOWS_1251_DATA),
+};
+
+/// The windows-1252 encoding.
+pub const WINDOWS_1252: &'static Encoding = &Encoding {
+    name: "windows-1252",
+    dom_name: "windows-1252",
+    variant: VariantEncoding::SingleByte(data::WINDOWS_1252_DATA),
+};
+
+/// The windows-1253 encoding.
+pub const WINDOWS_1253: &'static Encoding = &Encoding {
+    name: "windows-1253",
+    dom_name: "windows-1253",
+    variant: VariantEncoding::SingleByte(data::WINDOWS_1253_DATA),
+};
+
+/// The windows-1254 encoding.
+pub const WINDOWS_1254: &'static Encoding = &Encoding {
+    name: "windows-1254",
+    dom_name: "windows-1254",
+    variant: VariantEncoding::SingleByte(data::WINDOWS_1254_DATA),
+};
+
+/// The windows-1255 encoding.
+pub const WINDOWS_1255: &'static Encoding = &Encoding {
+    name: "windows-1255",
+    dom_name: "windows-1255",
+    variant: VariantEncoding::SingleByte(data::WINDOWS_1255_DATA),
+};
+
+/// The windows-1256 encoding.
+pub const WINDOWS_1256: &'static Encoding = &Encoding {
+    name: "windows-1256",
+    dom_name: "windows-1256",
+    variant: VariantEncoding::SingleByte(data::WINDOWS_1256_DATA),
+};
+
+/// The windows-1257 encoding.
+pub const WINDOWS_1257: &'static Encoding = &Encoding {
+    name: "windows-1257",
+    dom_name: "windows-1257",
+    variant: VariantEncoding::SingleByte(data::WINDOWS_1257_DATA),
+};
+
+/// The windows-1258 encoding.
+pub const WINDOWS_1258: &'static Encoding = &Encoding {
+    name: "windows-1258",
+    dom_name: "windows-1258",
+    variant: VariantEncoding::SingleByte(data::WINDOWS_1258_DATA),
+};
+
+/// The windows-874 encoding.
+pub const WINDOWS_874: &'static Encoding = &Encoding {
+    name: "windows-874",
+    dom_name: "windows-874",
+    variant: VariantEncoding::SingleByte(data::WINDOWS_874_DATA),
+};
+
+/// The x-mac-cyrillic encoding.
+pub const X_MAC_CYRILLIC: &'static Encoding = &Encoding {
+    name: "x-mac-cyrillic",
+    dom_name: "x-mac-cyrillic",
+    variant: VariantEncoding::SingleByte(data::X_MAC_CYRILLIC_DATA),
+};
+
+/// The x-user-defined encoding.
+pub const X_USER_DEFINED: &'static Encoding = &Encoding {
+    name: "x-user-defined",
+    dom_name: "x-user-defined",
+    variant: VariantEncoding::UserDefined,
+};
+
+static ENCODINGS_SORTED_BY_DOM_NAME: [&'static Encoding; 40] = [BIG5,
+                                                                GBK,
+                                                                IBM866,
+                                                                ISO_2022_JP,
+                                                                ISO_8859_10,
+                                                                ISO_8859_13,
+                                                                ISO_8859_14,
+                                                                ISO_8859_15,
+                                                                ISO_8859_16,
+                                                                ISO_8859_2,
+                                                                ISO_8859_3,
+                                                                ISO_8859_4,
+                                                                ISO_8859_5,
+                                                                ISO_8859_6,
+                                                                ISO_8859_7,
+                                                                ISO_8859_8,
+                                                                ISO_8859_8_I,
+                                                                KOI8_R,
+                                                                KOI8_U,
+                                                                SHIFT_JIS,
+                                                                UTF_16BE,
+                                                                UTF_16LE,
+                                                                UTF_8,
+                                                                EUC_JP,
+                                                                EUC_KR,
+                                                                GB18030,
+                                                                MACINTOSH,
+                                                                REPLACEMENT,
+                                                                WINDOWS_1250,
+                                                                WINDOWS_1251,
+                                                                WINDOWS_1252,
+                                                                WINDOWS_1253,
+                                                                WINDOWS_1254,
+                                                                WINDOWS_1255,
+                                                                WINDOWS_1256,
+                                                                WINDOWS_1257,
+                                                                WINDOWS_1258,
+                                                                WINDOWS_874,
+                                                                X_MAC_CYRILLIC,
+                                                                X_USER_DEFINED];
+
+static LABELS_SORTED: [&'static str; 218] = ["866",
+                                             "ansi_x3.4-1968",
+                                             "arabic",
+                                             "ascii",
+                                             "asmo-708",
+                                             "big5",
+                                             "big5-hkscs",
+                                             "chinese",
+                                             "cn-big5",
+                                             "cp1250",
+                                             "cp1251",
+                                             "cp1252",
+                                             "cp1253",
+                                             "cp1254",
+                                             "cp1255",
+                                             "cp1256",
+                                             "cp1257",
+                                             "cp1258",
+                                             "cp819",
+                                             "cp866",
+                                             "csbig5",
+                                             "cseuckr",
+                                             "cseucpkdfmtjapanese",
+                                             "csgb2312",
+                                             "csibm866",
+                                             "csiso2022jp",
+                                             "csiso2022kr",
+                                             "csiso58gb231280",
+                                             "csiso88596e",
+                                             "csiso88596i",
+                                             "csiso88598e",
+                                             "csiso88598i",
+                                             "csisolatin1",
+                                             "csisolatin2",
+                                             "csisolatin3",
+                                             "csisolatin4",
+                                             "csisolatin5",
+                                             "csisolatin6",
+                                             "csisolatin9",
+                                             "csisolatinarabic",
+                                             "csisolatincyrillic",
+                                             "csisolatingreek",
+                                             "csisolatinhebrew",
+                                             "cskoi8r",
+                                             "csksc56011987",
+                                             "csmacintosh",
+                                             "csshiftjis",
+                                             "cyrillic",
+                                             "dos-874",
+                                             "ecma-114",
+                                             "ecma-118",
+                                             "elot_928",
+                                             "euc-jp",
+                                             "euc-kr",
+                                             "gb18030",
+                                             "gb2312",
+                                             "gb_2312",
+                                             "gb_2312-80",
+                                             "gbk",
+                                             "greek",
+                                             "greek8",
+                                             "hebrew",
+                                             "hz-gb-2312",
+                                             "ibm819",
+                                             "ibm866",
+                                             "iso-2022-cn",
+                                             "iso-2022-cn-ext",
+                                             "iso-2022-jp",
+                                             "iso-2022-kr",
+                                             "iso-8859-1",
+                                             "iso-8859-10",
+                                             "iso-8859-11",
+                                             "iso-8859-13",
+                                             "iso-8859-14",
+                                             "iso-8859-15",
+                                             "iso-8859-16",
+                                             "iso-8859-2",
+                                             "iso-8859-3",
+                                             "iso-8859-4",
+                                             "iso-8859-5",
+                                             "iso-8859-6",
+                                             "iso-8859-6-e",
+                                             "iso-8859-6-i",
+                                             "iso-8859-7",
+                                             "iso-8859-8",
+                                             "iso-8859-8-e",
+                                             "iso-8859-8-i",
+                                             "iso-8859-9",
+                                             "iso-ir-100",
+                                             "iso-ir-101",
+                                             "iso-ir-109",
+                                             "iso-ir-110",
+                                             "iso-ir-126",
+                                             "iso-ir-127",
+                                             "iso-ir-138",
+                                             "iso-ir-144",
+                                             "iso-ir-148",
+                                             "iso-ir-149",
+                                             "iso-ir-157",
+                                             "iso-ir-58",
+                                             "iso8859-1",
+                                             "iso8859-10",
+                                             "iso8859-11",
+                                             "iso8859-13",
+                                             "iso8859-14",
+                                             "iso8859-15",
+                                             "iso8859-2",
+                                             "iso8859-3",
+                                             "iso8859-4",
+                                             "iso8859-5",
+                                             "iso8859-6",
+                                             "iso8859-7",
+                                             "iso8859-8",
+                                             "iso8859-9",
+                                             "iso88591",
+                                             "iso885910",
+                                             "iso885911",
+                                             "iso885913",
+                                             "iso885914",
+                                             "iso885915",
+                                             "iso88592",
+                                             "iso88593",
+                                             "iso88594",
+                                             "iso88595",
+                                             "iso88596",
+                                             "iso88597",
+                                             "iso88598",
+                                             "iso88599",
+                                             "iso_8859-1",
+                                             "iso_8859-15",
+                                             "iso_8859-1:1987",
+                                             "iso_8859-2",
+                                             "iso_8859-2:1987",
+                                             "iso_8859-3",
+                                             "iso_8859-3:1988",
+                                             "iso_8859-4",
+                                             "iso_8859-4:1988",
+                                             "iso_8859-5",
+                                             "iso_8859-5:1988",
+                                             "iso_8859-6",
+                                             "iso_8859-6:1987",
+                                             "iso_8859-7",
+                                             "iso_8859-7:1987",
+                                             "iso_8859-8",
+                                             "iso_8859-8:1988",
+                                             "iso_8859-9",
+                                             "iso_8859-9:1989",
+                                             "koi",
+                                             "koi8",
+                                             "koi8-r",
+                                             "koi8-ru",
+                                             "koi8-u",
+                                             "koi8_r",
+                                             "korean",
+                                             "ks_c_5601-1987",
+                                             "ks_c_5601-1989",
+                                             "ksc5601",
+                                             "ksc_5601",
+                                             "l1",
+                                             "l2",
+                                             "l3",
+                                             "l4",
+                                             "l5",
+                                             "l6",
+                                             "l9",
+                                             "latin1",
+                                             "latin2",
+                                             "latin3",
+                                             "latin4",
+                                             "latin5",
+                                             "latin6",
+                                             "logical",
+                                             "mac",
+                                             "macintosh",
+                                             "ms932",
+                                             "ms_kanji",
+                                             "shift-jis",
+                                             "shift_jis",
+                                             "sjis",
+                                             "sun_eu_greek",
+                                             "tis-620",
+                                             "unicode-1-1-utf-8",
+                                             "us-ascii",
+                                             "utf-16",
+                                             "utf-16be",
+                                             "utf-16le",
+                                             "utf-8",
+                                             "utf8",
+                                             "visual",
+                                             "windows-1250",
+                                             "windows-1251",
+                                             "windows-1252",
+                                             "windows-1253",
+                                             "windows-1254",
+                                             "windows-1255",
+                                             "windows-1256",
+                                             "windows-1257",
+                                             "windows-1258",
+                                             "windows-31j",
+                                             "windows-874",
+                                             "windows-949",
+                                             "x-cp1250",
+                                             "x-cp1251",
+                                             "x-cp1252",
+                                             "x-cp1253",
+                                             "x-cp1254",
+                                             "x-cp1255",
+                                             "x-cp1256",
+                                             "x-cp1257",
+                                             "x-cp1258",
+                                             "x-euc-jp",
+                                             "x-gbk",
+                                             "x-mac-cyrillic",
+                                             "x-mac-roman",
+                                             "x-mac-ukrainian",
+                                             "x-sjis",
+                                             "x-user-defined",
+                                             "x-x-big5"];
+
+static ENCODINGS_IN_LABEL_SORT: [&'static Encoding; 218] = [IBM866,
+                                                            WINDOWS_1252,
+                                                            ISO_8859_6,
+                                                            WINDOWS_1252,
+                                                            ISO_8859_6,
+                                                            BIG5,
+                                                            BIG5,
+                                                            GBK,
+                                                            BIG5,
+                                                            WINDOWS_1250,
+                                                            WINDOWS_1251,
+                                                            WINDOWS_1252,
+                                                            WINDOWS_1253,
+                                                            WINDOWS_1254,
+                                                            WINDOWS_1255,
+                                                            WINDOWS_1256,
+                                                            WINDOWS_1257,
+                                                            WINDOWS_1258,
+                                                            WINDOWS_1252,
+                                                            IBM866,
+                                                            BIG5,
+                                                            EUC_KR,
+                                                            EUC_JP,
+                                                            GBK,
+                                                            IBM866,
+                                                            ISO_2022_JP,
+                                                            REPLACEMENT,
+                                                            GBK,
+                                                            ISO_8859_6,
+                                                            ISO_8859_6,
+                                                            ISO_8859_8,
+                                                            ISO_8859_8_I,
+                                                            WINDOWS_1252,
+                                                            ISO_8859_2,
+                                                            ISO_8859_3,
+                                                            ISO_8859_4,
+                                                            WINDOWS_1254,
+                                                            ISO_8859_10,
+                                                            ISO_8859_15,
+                                                            ISO_8859_6,
+                                                            ISO_8859_5,
+                                                            ISO_8859_7,
+                                                            ISO_8859_8,
+                                                            KOI8_R,
+                                                            EUC_KR,
+                                                            MACINTOSH,
+                                                            SHIFT_JIS,
+                                                            ISO_8859_5,
+                                                            WINDOWS_874,
+                                                            ISO_8859_6,
+                                                            ISO_8859_7,
+                                                            ISO_8859_7,
+                                                            EUC_JP,
+                                                            EUC_KR,
+                                                            GB18030,
+                                                            GBK,
+                                                            GBK,
+                                                            GBK,
+                                                            GBK,
+                                                            ISO_8859_7,
+                                                            ISO_8859_7,
+                                                            ISO_8859_8,
+                                                            REPLACEMENT,
+                                                            WINDOWS_1252,
+                                                            IBM866,
+                                                            REPLACEMENT,
+                                                            REPLACEMENT,
+                                                            ISO_2022_JP,
+                                                            REPLACEMENT,
+                                                            WINDOWS_1252,
+                                                            ISO_8859_10,
+                                                            WINDOWS_874,
+                                                            ISO_8859_13,
+                                                            ISO_8859_14,
+                                                            ISO_8859_15,
+                                                            ISO_8859_16,
+                                                            ISO_8859_2,
+                                                            ISO_8859_3,
+                                                            ISO_8859_4,
+                                                            ISO_8859_5,
+                                                            ISO_8859_6,
+                                                            ISO_8859_6,
+                                                            ISO_8859_6,
+                                                            ISO_8859_7,
+                                                            ISO_8859_8,
+                                                            ISO_8859_8,
+                                                            ISO_8859_8_I,
+                                                            WINDOWS_1254,
+                                                            WINDOWS_1252,
+                                                            ISO_8859_2,
+                                                            ISO_8859_3,
+                                                            ISO_8859_4,
+                                                            ISO_8859_7,
+                                                            ISO_8859_6,
+                                                            ISO_8859_8,
+                                                            ISO_8859_5,
+                                                            WINDOWS_1254,
+                                                            EUC_KR,
+                                                            ISO_8859_10,
+                                                            GBK,
+                                                            WINDOWS_1252,
+                                                            ISO_8859_10,
+                                                            WINDOWS_874,
+                                                            ISO_8859_13,
+                                                            ISO_8859_14,
+                                                            ISO_8859_15,
+                                                            ISO_8859_2,
+                                                            ISO_8859_3,
+                                                            ISO_8859_4,
+                                                            ISO_8859_5,
+                                                            ISO_8859_6,
+                                                            ISO_8859_7,
+                                                            ISO_8859_8,
+                                                            WINDOWS_1254,
+                                                            WINDOWS_1252,
+                                                            ISO_8859_10,
+                                                            WINDOWS_874,
+                                                            ISO_8859_13,
+                                                            ISO_8859_14,
+                                                            ISO_8859_15,
+                                                            ISO_8859_2,
+                                                            ISO_8859_3,
+                                                            ISO_8859_4,
+                                                            ISO_8859_5,
+                                                            ISO_8859_6,
+                                                            ISO_8859_7,
+                                                            ISO_8859_8,
+                                                            WINDOWS_1254,
+                                                            WINDOWS_1252,
+                                                            ISO_8859_15,
+                                                            WINDOWS_1252,
+                                                            ISO_8859_2,
+                                                            ISO_8859_2,
+                                                            ISO_8859_3,
+                                                            ISO_8859_3,
+                                                            ISO_8859_4,
+                                                            ISO_8859_4,
+                                                            ISO_8859_5,
+                                                            ISO_8859_5,
+                                                            ISO_8859_6,
+                                                            ISO_8859_6,
+                                                            ISO_8859_7,
+                                                            ISO_8859_7,
+                                                            ISO_8859_8,
+                                                            ISO_8859_8,
+                                                            WINDOWS_1254,
+                                                            WINDOWS_1254,
+                                                            KOI8_R,
+                                                            KOI8_R,
+                                                            KOI8_R,
+                                                            KOI8_U,
+                                                            KOI8_U,
+                                                            KOI8_R,
+                                                            EUC_KR,
+                                                            EUC_KR,
+                                                            EUC_KR,
+                                                            EUC_KR,
+                                                            EUC_KR,
+                                                            WINDOWS_1252,
+                                                            ISO_8859_2,
+                                                            ISO_8859_3,
+                                                            ISO_8859_4,
+                                                            WINDOWS_1254,
+                                                            ISO_8859_10,
+                                                            ISO_8859_15,
+                                                            WINDOWS_1252,
+                                                            ISO_8859_2,
+                                                            ISO_8859_3,
+                                                            ISO_8859_4,
+                                                            WINDOWS_1254,
+                                                            ISO_8859_10,
+                                                            ISO_8859_8_I,
+                                                            MACINTOSH,
+                                                            MACINTOSH,
+                                                            SHIFT_JIS,
+                                                            SHIFT_JIS,
+                                                            SHIFT_JIS,
+                                                            SHIFT_JIS,
+                                                            SHIFT_JIS,
+                                                            ISO_8859_7,
+                                                            WINDOWS_874,
+                                                            UTF_8,
+                                                            WINDOWS_1252,
+                                                            UTF_16LE,
+                                                            UTF_16BE,
+                                                            UTF_16LE,
+                                                            UTF_8,
+                                                            UTF_8,
+                                                            ISO_8859_8,
+                                                            WINDOWS_1250,
+                                                            WINDOWS_1251,
+                                                            WINDOWS_1252,
+                                                            WINDOWS_1253,
+                                                            WINDOWS_1254,
+                                                            WINDOWS_1255,
+                                                            WINDOWS_1256,
+                                                            WINDOWS_1257,
+                                                            WINDOWS_1258,
+                                                            SHIFT_JIS,
+                                                            WINDOWS_874,
+                                                            EUC_KR,
+                                                            WINDOWS_1250,
+                                                            WINDOWS_1251,
+                                                            WINDOWS_1252,
+                                                            WINDOWS_1253,
+                                                            WINDOWS_1254,
+                                                            WINDOWS_1255,
+                                                            WINDOWS_1256,
+                                                            WINDOWS_1257,
+                                                            WINDOWS_1258,
+                                                            EUC_JP,
+                                                            GBK,
+                                                            X_MAC_CYRILLIC,
+                                                            MACINTOSH,
+                                                            X_MAC_CYRILLIC,
+                                                            SHIFT_JIS,
+                                                            X_USER_DEFINED,
+                                                            BIG5];
+
+// END GENERATED CODE
 
 /// An encoding as defined in the
 /// [Encoding Standard](https://encoding.spec.whatwg.org/).
@@ -885,8 +1632,10 @@ impl Encoder {
     /// additional input code units.
     ///
     /// Available via the C wrapper.
-    pub fn max_buffer_length_from_utf16_with_replacement(&self, u16_length: usize) -> usize {
-        self.variant.max_buffer_length_from_utf16_with_replacement(u16_length)
+    pub fn max_buffer_length_from_utf16_with_replacement_if_no_unmappables(&self,
+                                                                           u16_length: usize)
+                                                                           -> usize {
+        self.variant.max_buffer_length_from_utf16_with_replacement_if_no_unmappables(u16_length)
     }
 
     /// Query the worst-case output size when encoding from UTF-8 with
@@ -897,8 +1646,10 @@ impl Encoder {
     /// additional input code units.
     ///
     /// Available via the C wrapper.
-    pub fn max_buffer_length_from_utf8_with_replacement(&self, byte_length: usize) -> usize {
-        self.variant.max_buffer_length_from_utf8_with_replacement(byte_length)
+    pub fn max_buffer_length_from_utf8_with_replacement_if_no_unmappables(&self,
+                                                                          byte_length: usize)
+                                                                          -> usize {
+        self.variant.max_buffer_length_from_utf8_with_replacement_if_no_unmappables(byte_length)
     }
 
     /// Incrementally encode into byte stream from UTF-16.

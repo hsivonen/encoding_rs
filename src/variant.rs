@@ -7,6 +7,9 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
+// THIS IS A GENERATED FILE. PLEASE DO NOT EDIT.
+// Instead, please regenerate using generate-encoding-data.py
+
 //! This module provides enums that wrap the various decoders and encoders.
 //! The purpose is to make `Decoder` and `Encoder` `Sized` by writing the
 //! dispatch explicitly for a finite set of specialized decoders and encoders.
@@ -90,18 +93,22 @@ impl VariantEncoder {
         }
     }
 
-    pub fn max_buffer_length_from_utf16_with_replacement(&self, u16_length: usize) -> usize {
+    pub fn max_buffer_length_from_utf16_with_replacement_if_no_unmappables(&self,
+                                                                           u16_length: usize)
+                                                                           -> usize {
         match self {
             &VariantEncoder::Big5(ref e) => {
-                e.max_buffer_length_from_utf16_with_replacement(u16_length)
+                e.max_buffer_length_from_utf16_with_replacement_if_no_unmappables(u16_length)
             }
         }
     }
 
-    pub fn max_buffer_length_from_utf8_with_replacement(&self, byte_length: usize) -> usize {
+    pub fn max_buffer_length_from_utf8_with_replacement_if_no_unmappables(&self,
+                                                                          byte_length: usize)
+                                                                          -> usize {
         match self {
             &VariantEncoder::Big5(ref e) => {
-                e.max_buffer_length_from_utf8_with_replacement(byte_length)
+                e.max_buffer_length_from_utf8_with_replacement_if_no_unmappables(byte_length)
             }
         }
     }
@@ -128,7 +135,18 @@ impl VariantEncoder {
 }
 
 pub enum VariantEncoding {
-    MultiByte,
+    Utf8,
+    Gbk,
+    Gb18030,
+    Big5,
+    EucJp,
+    Iso2022Jp,
+    ShiftJis,
+    EucKr,
+    Replacement,
+    Utf16Be,
+    Utf16Le,
+    UserDefined,
     SingleByte(&'static [u16; 128]),
 }
 

@@ -19,7 +19,15 @@ class Label:
   def __cmp__(self, other):
     return cmp(self.label, other.label)
 
+# If a multi-byte encoding is on this list, it is assumed to have a
+# non-generated implementation class
+MULTI_BYTE_IMPLEMENTED = [
+  u"big5",
+]
+
 preferred = []
+
+dom = []
 
 labels = []
 
@@ -41,6 +49,26 @@ def to_camel_name(name):
 def to_constant_name(name):
   return name.replace(u"-", u"_").upper()
 
+def to_snake_name(name):
+  return name.replace(u"-", u"_").lower()
+
+def to_dom_name(name):
+  if name == u"big5":
+    return u"Big5"
+  if name == u"shift_jis":
+    return u"Shift_JIS"
+  if name == u"gbk":
+    return u"GBK"
+  if name.startswith(u"iso-"):
+    return name.upper()
+  if name.startswith(u"utf-"):
+    return name.upper()
+  if name.startswith(u"koi"):
+    return name.upper()
+  if name.startswith(u"ibm"):
+    return name.upper()
+  return name
+
 # 
 
 for group in data:
@@ -53,15 +81,135 @@ for group in data:
     for label in encoding["labels"]:
       labels.append(Label(label, encoding["name"]))
 
+for name in preferred:
+  dom.append(to_dom_name(name))
+
 preferred.sort()
 labels.sort()
+dom.sort()
 
-# Big5
+longest_label_length = 0
+longest_name_length = 0
+longest_label = None
+longest_name = None
+
+for name in preferred:
+  if len(name) > longest_name_length:
+    longest_name_length = len(name)
+    longest_name = name
+
+for label in labels:
+  if len(label.label) > longest_label_length:
+    longest_label_length = len(label.label)
+    longest_label = label.label
+
+def is_single_byte(name):
+  for encoding in single_byte:
+    if name == encoding["name"]:
+      return True
+  return False
+
+label_file = open("src/labels.rs", "w")
+
+label_file.write("""// Copyright 2015-2016 Mozilla Foundation. See the COPYRIGHT
+// file at the top-level directory of this distribution.
+//
+// Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
+// http://www.apache.org/licenses/LICENSE-2.0> or the MIT license
+// <LICENSE-MIT or http://opensource.org/licenses/MIT>, at your
+// option. This file may not be copied, modified, or distributed
+// except according to those terms.
+
+// BEGIN GENERATED CODE. PLEASE DO NOT EDIT.
+// Instead, please regenerate using generate-encoding-data.py
+
+const LONGEST_LABEL_LENGTH: usize = %d; // %s
+
+""" % (longest_label_length, longest_label))
+
+for name in preferred:
+  variant = None
+  if is_single_byte(name):
+    variant = "SingleByte(data::%s_DATA)" % to_constant_name(u"iso-8859-8" if name == u"iso-8859-8-i" else name)
+  else:
+    variant = to_camel_name(name)
+
+  label_file.write('''/// The %s encoding.
+pub const %s: &'static Encoding = &Encoding {
+    name: "%s",
+    dom_name: "%s",
+    variant: VariantEncoding::%s,
+};
+
+''' % (name, to_constant_name(name), name, to_dom_name(name), variant))
+
+label_file.write("""static ENCODINGS_SORTED_BY_DOM_NAME: [&'static Encoding; %d] = [
+""" % len(dom))
+
+for dom_name in dom:
+  label_file.write("%s,\n" % to_constant_name(dom_name))
+
+label_file.write("""];
+
+static LABELS_SORTED: [&'static str; %d] = [
+""" % len(labels))
+
+for label in labels:
+  label_file.write('''"%s",\n''' % label.label)
+  
+label_file.write("""];
+
+static ENCODINGS_IN_LABEL_SORT: [&'static Encoding; %d] = [
+""" % len(labels))
+
+for label in labels:
+  label_file.write('''%s,\n''' % to_constant_name(label.preferred))
+  
+label_file.write('''];
+
+// END GENERATED CODE
+''')
+
+label_file.close()
 
 def null_to_zero(code_point):
   if not code_point:
     code_point = 0
   return code_point
+
+data_file = open("src/data.rs", "w")
+data_file.write('''// Copyright 2015-2016 Mozilla Foundation. See the COPYRIGHT
+// file at the top-level directory of this distribution.
+//
+// Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
+// http://www.apache.org/licenses/LICENSE-2.0> or the MIT license
+// <LICENSE-MIT or http://opensource.org/licenses/MIT>, at your
+// option. This file may not be copied, modified, or distributed
+// except according to those terms.
+
+// THIS IS A GENERATED FILE. PLEASE DO NOT EDIT.
+// Instead, please regenerate using generate-encoding-data.py
+
+''')
+
+# Single-byte
+
+for encoding in single_byte:
+  name = encoding["name"]
+  if name == u"iso-8859-8-i":
+    continue
+
+  data_file.write('''pub const %s_DATA: &'static [u16; 128] = &[
+''' % to_constant_name(name))
+
+  for code_point in indexes[name]:
+    data_file.write('0x%04X,\n' % null_to_zero(code_point))
+
+  data_file.write('''];
+
+''')
+
+# Big5
 
 index = []
 
@@ -74,8 +222,6 @@ for i in xrange(len(index)):
   if index[i]:
     index_first = i
     break
-
-data_file = open("src/data.rs", "w")
 
 bits = []
 for code_point in index:
@@ -93,19 +239,7 @@ for i in xrange(len(bits)):
 for j in xrange(32 - ((len(bits) - bits_first) % 32)):
   bits.append(0)
 
-data_file.write('''// Copyright 2015-2016 Mozilla Foundation. See the COPYRIGHT
-// file at the top-level directory of this distribution.
-//
-// Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
-// http://www.apache.org/licenses/LICENSE-2.0> or the MIT license
-// <LICENSE-MIT or http://opensource.org/licenses/MIT>, at your
-// option. This file may not be copied, modified, or distributed
-// except according to those terms.
-
-// THIS IS A GENERATED FILE. PLEASE DO NOT EDIT.
-// Instead, please regenerate using generate-encoding-data.py
-
-static ASTRALNESS: [u32; %d] = [
+data_file.write('''static ASTRALNESS: [u32; %d] = [
 ''' % ((len(bits) - bits_first) / 32))
 
 i = bits_first
@@ -201,5 +335,162 @@ data_file.write('''_ => {},
 }
 ''' % (hkscs_start_index, hkscs_bound))
 data_file.close()
+
+# Variant
+
+variant_file = open("src/variant.rs", "w")
+variant_file.write('''// Copyright 2015-2016 Mozilla Foundation. See the COPYRIGHT
+// file at the top-level directory of this distribution.
+//
+// Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
+// http://www.apache.org/licenses/LICENSE-2.0> or the MIT license
+// <LICENSE-MIT or http://opensource.org/licenses/MIT>, at your
+// option. This file may not be copied, modified, or distributed
+// except according to those terms.
+
+// THIS IS A GENERATED FILE. PLEASE DO NOT EDIT.
+// Instead, please regenerate using generate-encoding-data.py
+
+//! This module provides enums that wrap the various decoders and encoders.
+//! The purpose is to make `Decoder` and `Encoder` `Sized` by writing the
+//! dispatch explicitly for a finite set of specialized decoders and encoders.
+//! Unfortunately, this means the compiler doesn't generate the dispatch code
+//! and it has to be written here instead.
+//!
+//! The purpose of making `Decoder` and `Encoder` `Sized` is to allow stack
+//! allocation in Rust code, including the convenience methods on `Encoding`.
+
+use big5::*;
+use super::*;
+
+pub enum VariantDecoder {
+    Big5(Big5Decoder),
+}
+
+impl VariantDecoder {
+    pub fn reset(&mut self) {
+        match self {
+            &mut VariantDecoder::Big5(ref mut d) => {
+                d.reset();
+            }
+        }
+    }
+
+    pub fn max_utf16_buffer_length(&self, byte_length: usize) -> usize {
+        match self {
+            &VariantDecoder::Big5(ref d) => d.max_utf16_buffer_length(byte_length),
+        }
+    }
+
+    pub fn max_utf8_buffer_length(&self, byte_length: usize) -> usize {
+        match self {
+            &VariantDecoder::Big5(ref d) => d.max_utf8_buffer_length(byte_length),
+        }
+    }
+
+    pub fn max_utf8_buffer_length_with_replacement(&self, byte_length: usize) -> usize {
+        match self {
+            &VariantDecoder::Big5(ref d) => d.max_utf8_buffer_length_with_replacement(byte_length),
+        }
+    }
+
+    pub fn decode_to_utf16(&mut self,
+                           src: &[u8],
+                           dst: &mut [u16],
+                           last: bool)
+                           -> (DecoderResult, usize, usize) {
+        match self {
+            &mut VariantDecoder::Big5(ref mut d) => d.decode_to_utf16(src, dst, last),
+        }
+    }
+
+    pub fn decode_to_utf8(&mut self,
+                          src: &[u8],
+                          dst: &mut [u8],
+                          last: bool)
+                          -> (DecoderResult, usize, usize) {
+        match self {
+            &mut VariantDecoder::Big5(ref mut d) => d.decode_to_utf8(src, dst, last),
+        }
+    }
+}
+
+pub enum VariantEncoder {
+    Big5(Big5Encoder),
+}
+
+impl VariantEncoder {
+    pub fn reset(&mut self) {}
+
+    pub fn max_buffer_length_from_utf16(&self, u16_length: usize) -> usize {
+        match self {
+            &VariantEncoder::Big5(ref e) => e.max_buffer_length_from_utf16(u16_length),
+        }
+    }
+
+    pub fn max_buffer_length_from_utf8(&self, byte_length: usize) -> usize {
+        match self {
+            &VariantEncoder::Big5(ref e) => e.max_buffer_length_from_utf8(byte_length),
+        }
+    }
+
+    pub fn max_buffer_length_from_utf16_with_replacement_if_no_unmappables(&self, u16_length: usize) -> usize {
+        match self {
+            &VariantEncoder::Big5(ref e) => {
+                e.max_buffer_length_from_utf16_with_replacement_if_no_unmappables(u16_length)
+            }
+        }
+    }
+
+    pub fn max_buffer_length_from_utf8_with_replacement_if_no_unmappables(&self, byte_length: usize) -> usize {
+        match self {
+            &VariantEncoder::Big5(ref e) => {
+                e.max_buffer_length_from_utf8_with_replacement_if_no_unmappables(byte_length)
+            }
+        }
+    }
+
+    pub fn encode_from_utf16(&mut self,
+                             src: &[u16],
+                             dst: &mut [u8],
+                             last: bool)
+                             -> (EncoderResult, usize, usize) {
+        match self {
+            &mut VariantEncoder::Big5(ref mut e) => e.encode_from_utf16(src, dst, last),
+        }
+    }
+
+    pub fn encode_from_utf8(&mut self,
+                            src: &str,
+                            dst: &mut [u8],
+                            last: bool)
+                            -> (EncoderResult, usize, usize) {
+        match self {
+            &mut VariantEncoder::Big5(ref mut e) => e.encode_from_utf8(src, dst, last),
+        }
+    }
+}
+
+pub enum VariantEncoding {''')
+
+for encoding in multi_byte:
+  variant_file.write("%s,\n" % to_camel_name(encoding["name"]))
+
+variant_file.write('''    SingleByte(&'static [u16; 128]),
+}
+
+impl VariantEncoding {
+    pub fn new_decoder(&self) -> Decoder {
+        // XXX
+        Big5Decoder::new()
+    }
+    pub fn new_encoder(&self) -> Encoder {
+        // XXX
+        Big5Encoder::new()
+    }
+}
+''')
+
+variant_file.close()
 
 subprocess.call(["cargo", "fmt"])
