@@ -1060,6 +1060,50 @@ impl Encoding {
             WithReplacementResult::OutputFull => unreachable!(),
         }
     }
+
+    /// Convenience method for encoding to `Vec<u8>` with unmappable characters
+    /// replaced with decimal numeric character references when the entire input
+    /// is available as a single buffer (i.e. the end of the buffer marks the
+    /// end of the stream).
+    ///
+    /// _Note:_ It is wrong to use this when the input buffer represents only
+    /// a segment of the input instead of the whole input. Use `new_encoder()`
+    /// when parsing segmented input.
+    ///
+    /// This method performs a single heap allocation for the backing buffer
+    /// of the `Vec<u8>` if there are no unmappable characters and potentially
+    /// multiple heap allocations if there are. These allocations are tuned
+    /// for jemalloc and may not be optimal when using a different allocator
+    /// that doesn't use power-of-two buckets.
+    ///
+    /// Available to Rust only.
+    pub fn encode_with_replacement(&'static self, string: &str) -> Vec<u8> {
+        let mut encoder = self.new_encoder();
+        let mut total_read = 0usize;
+        let mut vec: Vec<u8> =
+            Vec::with_capacity(encoder.max_buffer_length_from_utf8_with_replacement_if_no_unmappables(string.len()).next_power_of_two());
+        loop {
+            let (result, read, _) =
+                encoder.encode_from_utf8_to_vec_with_replacement(&string[total_read..],
+                                                                 &mut vec,
+                                                                 true);
+            total_read += read;
+            match result {
+                WithReplacementResult::InputEmpty => {
+                    debug_assert_eq!(total_read, string.len());
+                    return vec;
+                }
+                WithReplacementResult::OutputFull => {
+                    // reserve_exact wants to know how much more on top of current
+                    // length--not current capacity.
+                    let needed = encoder.max_buffer_length_from_utf8_with_replacement_if_no_unmappables(string.len() - total_read);
+                    let rounded = (vec.capacity() + needed).next_power_of_two();
+                    let additional = rounded - vec.len();
+                    vec.reserve_exact(additional);
+                }
+            }
+        }
+    }
 }
 
 impl PartialEq for Encoding {
@@ -1769,7 +1813,27 @@ impl Encoder {
         (WithReplacementResult::InputEmpty, 0, 0, false)
     }
 
-    // XXX: _to_vec variants for all these?
+    /// Incrementally encode into byte stream from UTF-8 with replacement.
+    ///
+    /// See the documentation of the trait for documentation for `encode_*`
+    /// methods collectively.
+    ///
+    /// Available via the C wrapper.
+    pub fn encode_from_utf8_to_vec_with_replacement(&mut self,
+                                                    src: &str,
+                                                    dst: &mut Vec<u8>,
+                                                    last: bool)
+                                                    -> (WithReplacementResult, usize, bool) {
+        unsafe {
+            let old_len = dst.len();
+            let capacity = dst.capacity();
+            dst.set_len(capacity);
+            let (result, read, written, replaced) =
+                self.encode_from_utf8_with_replacement(src, &mut dst[old_len..], last);
+            dst.set_len(old_len + written);
+            (result, read, replaced)
+        }
+    }
 }
 
 // ############## TESTS ###############
