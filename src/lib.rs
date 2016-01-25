@@ -982,18 +982,44 @@ impl Encoding {
         }
         return None;
     }
+
+    /// Instantiates a new decoder for this encoding.
     pub fn new_decoder(&'static self) -> Decoder {
         self.variant.new_decoder(self)
     }
+
+    /// Instantiates a new encoder for this encoding, except if this encoding
+    /// is replacement a new decoder for UTF-8 is instantiated (and that
+    /// decoder reports `UTF_8` as its encoding).
     pub fn new_encoder(&'static self) -> Encoder {
         self.variant.new_encoder(self)
     }
+
+    /// XXX https://github.com/whatwg/encoding/issues/32
     pub fn name(&'static self) -> &'static str {
         self.name
     }
+
+    /// XXX get rid of this https://github.com/whatwg/encoding/issues/32
     pub fn dom_name(&'static self) -> &'static str {
         self.dom_name
     }
+
+    /// Convenience method for decoding to `String` with malformed sequences
+    /// treated as fatal when the entire input is available as a single buffer
+    /// (i.e. the end of the buffer marks the end of the stream).
+    ///
+    /// Returns `None` if a malformed sequence was encountered and the result
+    /// of the decode as `Some(String)` otherwise.
+    ///
+    /// _Note:_ It is wrong to use this when the input buffer represents only
+    /// a segment of the input instead of the whole input. Use `new_decoder()`
+    /// when parsing segmented input.
+    ///
+    /// This method performs a single heap allocation for the backing buffer
+    /// of the `String`.
+    ///
+    /// Available to Rust only.
     pub fn decode(&'static self, bytes: &[u8]) -> Option<String> {
         let mut decoder = self.new_decoder();
         let mut string = String::with_capacity(decoder.max_utf8_buffer_length(bytes.len()));
@@ -1007,6 +1033,20 @@ impl Encoding {
             DecoderResult::OutputFull => unreachable!(),
         }
     }
+
+    /// Convenience method for decoding to `String` with malformed sequences
+    /// replaced with the REPLACEMENT CHARACTER when the entire input is
+    /// available as a single buffer (i.e. the end of the buffer marks the end
+    /// of the stream).
+    ///
+    /// _Note:_ It is wrong to use this when the input buffer represents only
+    /// a segment of the input instead of the whole input. Use `new_decoder()`
+    /// when parsing segmented input.
+    ///
+    /// This method performs a single heap allocation for the backing buffer
+    /// of the `String`.
+    ///
+    /// Available to Rust only.
     pub fn decode_with_replacement(&'static self, bytes: &[u8]) -> String {
         let mut decoder = self.new_decoder();
         let mut string =
