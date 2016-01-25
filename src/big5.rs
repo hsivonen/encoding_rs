@@ -214,15 +214,15 @@ impl Big5Encoder {
 
 #[cfg(test)]
 mod tests {
-	use super::super::testing::*;
+    use super::super::testing::*;
     use super::super::*;
 
     fn decode_big5_to_utf16(bytes: &[u8], expect: &[u16]) {
-    	decode_to_utf16(BIG5, bytes, expect);
+        decode_to_utf16(BIG5, bytes, expect);
     }
 
     fn decode_big5_to_utf8(bytes: &[u8], expect: &str) {
-    	decode_to_utf8(BIG5, bytes, expect);
+        decode_to_utf8(BIG5, bytes, expect);
     }
 
     #[test]

@@ -401,3 +401,117 @@ impl<'a> Utf8Destination<'a> {
         self.write_mid_bmp(combining);
     }
 }
+
+// UTF-16 source
+
+pub struct Utf16Source<'a> {
+    slice: &'a [u16],
+    pos: usize,
+    old_pos: usize,
+}
+
+impl<'a> Utf16Source<'a> {
+    #[inline(always)]
+    pub fn new(src: &[u16]) -> Utf16Source {
+        Utf16Source {
+            slice: src,
+            pos: 0,
+            old_pos: 0,
+        }
+    }
+    #[inline(always)]
+    pub fn check_available<'b>(&'b mut self) -> Space<Utf16ReadHandle<'b, 'a>> {
+        if self.pos < self.slice.len() {
+            Space::Available(Utf16ReadHandle::new(self))
+        } else {
+            Space::Full(self.consumed())
+        }
+    }
+    #[inline(always)]
+    fn read(&mut self) -> char {
+        self.old_pos = self.pos;
+        let unit = self.slice[self.pos] as u32;
+        self.pos += 1;
+        let high_bits = unit & 0xFC00u32;
+        if high_bits == 0xD800u32 {
+            // high surrogate
+            if self.pos < self.slice.len() {
+                let second = self.slice[self.pos] as u32;
+                if second & 0xFC00u32 != 0xDC00u32 {
+                    // The next code unit is not a low surrogate. Don't advance
+                    // position and treat the high surrogate as unpaired.
+                    return '\u{FFFD}';
+                }
+                // The next code unit is a low surrogate. Advance position.
+                self.pos += 1;
+                return unsafe {
+                    ::std::mem::transmute((unit << 10) + second -
+                                          (((0xD800u32 << 10) - 0x10000u32) + 0xDC00u32))
+                };
+            } else {
+                // End of buffer. This surrogate is unpaired.
+                return '\u{FFFD}';
+            }
+        }
+        if high_bits == 0xDC00u32 {
+            // Unpaired low surrogate
+            return '\u{FFFD}';
+        }
+        return unsafe { ::std::mem::transmute(unit) };
+    }
+    #[inline(always)]
+    fn unread(&mut self) -> usize {
+        self.pos = self.old_pos;
+        self.pos
+    }
+    #[inline(always)]
+    fn consumed(&self) -> usize {
+        self.pos
+    }
+}
+
+pub struct Utf16ReadHandle<'a, 'b>
+    where 'b: 'a
+{
+    source: &'a mut Utf16Source<'b>,
+}
+
+impl<'a, 'b> Utf16ReadHandle<'a, 'b> where 'b: 'a
+{
+    #[inline(always)]
+    fn new(src: &'a mut Utf16Source<'b>) -> Utf16ReadHandle<'a, 'b> {
+        Utf16ReadHandle { source: src }
+    }
+    #[inline(always)]
+    pub fn read(self) -> (char, Utf16UnreadHandle<'a, 'b>) {
+        let character = self.source.read();
+        let handle = Utf16UnreadHandle::new(self.source);
+        (character, handle)
+    }
+    #[inline(always)]
+    pub fn consumed(&self) -> usize {
+        self.source.consumed()
+    }
+}
+
+pub struct Utf16UnreadHandle<'a, 'b>
+    where 'b: 'a
+{
+    source: &'a mut Utf16Source<'b>,
+}
+
+impl<'a, 'b> Utf16UnreadHandle<'a, 'b> where 'b: 'a
+{
+    #[inline(always)]
+    fn new(src: &'a mut Utf16Source<'b>) -> Utf16UnreadHandle<'a, 'b> {
+        Utf16UnreadHandle { source: src }
+    }
+    #[inline(always)]
+    pub fn unread(self) -> usize {
+        self.source.unread()
+    }
+    #[inline(always)]
+    pub fn consumed(&self) -> usize {
+        self.source.consumed()
+    }
+}
