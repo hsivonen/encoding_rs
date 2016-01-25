@@ -214,38 +214,15 @@ impl Big5Encoder {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+	use super::super::testing::*;
     use super::super::*;
 
     fn decode_big5_to_utf16(bytes: &[u8], expect: &[u16]) {
-        let mut decoder = BIG5.new_decoder();
-        let mut dest: Vec<u16> = Vec::with_capacity(decoder.max_utf16_buffer_length(expect.len()));
-        let capacity = dest.capacity();
-        dest.resize(capacity, 0u16);
-        let (complete, read, written, _) = decoder.decode_to_utf16_with_replacement(bytes,
-                                                                                    &mut dest,
-                                                                                    true);
-        assert_eq!(complete, WithReplacementResult::InputEmpty);
-        assert_eq!(read, bytes.len());
-        assert_eq!(written, expect.len());
-        dest.truncate(written);
-        assert_eq!(&dest[..], expect);
+    	decode_to_utf16(BIG5, bytes, expect);
     }
 
     fn decode_big5_to_utf8(bytes: &[u8], expect: &str) {
-        let mut decoder = BIG5.new_decoder();
-        let mut dest: Vec<u8> =
-            Vec::with_capacity(decoder.max_utf8_buffer_length_with_replacement(expect.len()));
-        let capacity = dest.capacity();
-        dest.resize(capacity, 0u8);
-        let (complete, read, written, _) = decoder.decode_to_utf8_with_replacement(bytes,
-                                                                                   &mut dest,
-                                                                                   true);
-        assert_eq!(complete, WithReplacementResult::InputEmpty);
-        assert_eq!(read, bytes.len());
-        assert_eq!(written, expect.len());
-        dest.truncate(written);
-        assert_eq!(&dest[..], expect.as_bytes());
+    	decode_to_utf8(BIG5, bytes, expect);
     }
 
     #[test]

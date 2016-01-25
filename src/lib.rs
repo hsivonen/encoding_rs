@@ -10,6 +10,9 @@
 #[macro_use]
 mod macros;
 
+#[cfg(test)]
+mod testing;
+
 mod single_byte;
 mod utf_8;
 mod gb18030;
