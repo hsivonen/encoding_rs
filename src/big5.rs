@@ -17,8 +17,8 @@ pub struct Big5Decoder {
 }
 
 impl Big5Decoder {
-    pub fn new() -> Decoder {
-        Decoder::new(VariantDecoder::Big5(Big5Decoder { lead: 0 }))
+    pub fn new(encoding: &'static Encoding) -> Decoder {
+        Decoder::new(encoding, VariantDecoder::Big5(Big5Decoder { lead: 0 }))
     }
 
     fn plus_one_if_lead(&self, byte_length: usize) -> usize {
@@ -162,14 +162,15 @@ impl Big5Decoder {
                        dest,
                        b,
                        destination_handle,
-                       unread_handle);
+                       unread_handle,
+                       check_space_astral);
 }
 
 pub struct Big5Encoder;
 
 impl Big5Encoder {
-    pub fn new() -> Encoder {
-        Encoder::new(VariantEncoder::Big5(Big5Encoder))
+    pub fn new(encoding: &'static Encoding) -> Encoder {
+        Encoder::new(encoding, VariantEncoder::Big5(Big5Encoder))
     }
 
     pub fn max_buffer_length_from_utf16(&self, u16_length: usize) -> usize {
@@ -217,7 +218,7 @@ mod tests {
     use super::super::*;
 
     fn decode_big5_to_utf16(bytes: &[u8], expect: &[u16]) {
-        let mut decoder = Big5Decoder::new();
+        let mut decoder = BIG5.new_decoder();
         let mut dest: Vec<u16> = Vec::with_capacity(decoder.max_utf16_buffer_length(expect.len()));
         let capacity = dest.capacity();
         dest.resize(capacity, 0u16);
@@ -232,7 +233,7 @@ mod tests {
     }
 
     fn decode_big5_to_utf8(bytes: &[u8], expect: &str) {
-        let mut decoder = Big5Decoder::new();
+        let mut decoder = BIG5.new_decoder();
         let mut dest: Vec<u8> =
             Vec::with_capacity(decoder.max_utf8_buffer_length_with_replacement(expect.len()));
         let capacity = dest.capacity();

@@ -360,133 +360,168 @@ variant_file.write('''// Copyright 2015-2016 Mozilla Foundation. See the COPYRIG
 //! The purpose of making `Decoder` and `Encoder` `Sized` is to allow stack
 //! allocation in Rust code, including the convenience methods on `Encoding`.
 
-use big5::*;
-use super::*;
+''')
+
+encoding_variants = [u"single-byte",]
+for encoding in multi_byte:
+  if encoding["name"] in [u"utf-16le", u"utf-16be"]:
+    continue
+  else:
+    encoding_variants.append(encoding["name"])
+encoding_variants.append(u"utf-16")
+
+decoder_variants = []
+for variant in encoding_variants:
+  if variant == u"gbk":
+    continue
+  decoder_variants.append(variant)
+
+encoder_variants = []
+for variant in encoding_variants:
+  if variant in [u"replacement", u"gbk"]:
+    continue
+  encoder_variants.append(variant)
+
+for variant in decoder_variants:
+  variant_file.write("use %s::*;\n" % to_snake_name(variant))
+
+variant_file.write('''use super::*;
 
 pub enum VariantDecoder {
-    Big5(Big5Decoder),
-}
+''')
+
+for variant in decoder_variants:
+  variant_file.write("   %s(%sDecoder),\n" % (to_camel_name(variant), to_camel_name(variant)))
+
+variant_file.write('''}
 
 impl VariantDecoder {
-    pub fn reset(&mut self) {
-        match self {
-            &mut VariantDecoder::Big5(ref mut d) => {
-                d.reset();
-            }
-        }
-    }
+''')
 
-    pub fn max_utf16_buffer_length(&self, byte_length: usize) -> usize {
-        match self {
-            &VariantDecoder::Big5(ref d) => d.max_utf16_buffer_length(byte_length),
-        }
-    }
+def write_variant_method(name, mut, arg_list, ret, variants, excludes, kind):
+  variant_file.write('''pub fn %s(&''' % name)
+  if mut:
+    variant_file.write('''mut ''')
+  variant_file.write('''self''')
+  for arg in arg_list:
+    variant_file.write(''', %s: %s''' % (arg[0], arg[1]))
+  variant_file.write(''')''')
+  if ret:
+    variant_file.write(''' -> %s''' % ret)  
+  variant_file.write(''' {\nmatch self {\n''')
+  for variant in variants:
+    variant_file.write('''&''')
+    if mut:
+      variant_file.write('''mut ''')
+    variant_file.write('''Variant%s::%s(ref ''' % (kind, to_camel_name(variant)))
+    if mut:
+      variant_file.write('''mut ''')
+    if variant in excludes:
+      variant_file.write('''v) => (),''')
+      continue
+    variant_file.write('''v) => v.%s(''' % name)
+    first = True
+    for arg in arg_list:
+      if not first:
+        variant_file.write(''', ''')
+      first = False
+      variant_file.write(arg[0])
+    variant_file.write('''),\n''')
+  variant_file.write('''}\n}\n\n''')
 
-    pub fn max_utf8_buffer_length(&self, byte_length: usize) -> usize {
-        match self {
-            &VariantDecoder::Big5(ref d) => d.max_utf8_buffer_length(byte_length),
-        }
-    }
+write_variant_method("reset", True, [], None, decoder_variants, [u"single-byte"], "Decoder")
 
-    pub fn max_utf8_buffer_length_with_replacement(&self, byte_length: usize) -> usize {
-        match self {
-            &VariantDecoder::Big5(ref d) => d.max_utf8_buffer_length_with_replacement(byte_length),
-        }
-    }
+write_variant_method("max_utf16_buffer_length", False, [("byte_length", "usize")], "usize", decoder_variants, [], "Decoder")
 
-    pub fn decode_to_utf16(&mut self,
-                           src: &[u8],
-                           dst: &mut [u16],
-                           last: bool)
-                           -> (DecoderResult, usize, usize) {
-        match self {
-            &mut VariantDecoder::Big5(ref mut d) => d.decode_to_utf16(src, dst, last),
-        }
-    }
+write_variant_method("max_utf8_buffer_length", False, [("byte_length", "usize")], "usize", decoder_variants, [], "Decoder")
 
-    pub fn decode_to_utf8(&mut self,
-                          src: &[u8],
-                          dst: &mut [u8],
-                          last: bool)
-                          -> (DecoderResult, usize, usize) {
-        match self {
-            &mut VariantDecoder::Big5(ref mut d) => d.decode_to_utf8(src, dst, last),
-        }
-    }
+write_variant_method("max_utf8_buffer_length_with_replacement", False, [("byte_length", "usize")], "usize", decoder_variants, [], "Decoder")
+
+write_variant_method("decode_to_utf16", True, [("src", "&[u8]"),
+                           ("dst", "&mut [u16]"),
+                           ("last", "bool")], "(DecoderResult, usize, usize)", decoder_variants, [], "Decoder")
+
+write_variant_method("decode_to_utf8", True, [("src", "&[u8]"),
+                           ("dst", "&mut [u8]"),
+                           ("last", "bool")], "(DecoderResult, usize, usize)", decoder_variants, [], "Decoder")
+
+variant_file.write('''
 }
 
 pub enum VariantEncoder {
-    Big5(Big5Encoder),
-}
+''')
+
+for variant in encoder_variants:
+  variant_file.write("   %s(%sEncoder),\n" % (to_camel_name(variant), to_camel_name(variant)))
+
+variant_file.write('''}
 
 impl VariantEncoder {
     pub fn reset(&mut self) {}
 
-    pub fn max_buffer_length_from_utf16(&self, u16_length: usize) -> usize {
-        match self {
-            &VariantEncoder::Big5(ref e) => e.max_buffer_length_from_utf16(u16_length),
-        }
-    }
+''')
 
-    pub fn max_buffer_length_from_utf8(&self, byte_length: usize) -> usize {
-        match self {
-            &VariantEncoder::Big5(ref e) => e.max_buffer_length_from_utf8(byte_length),
-        }
-    }
+write_variant_method("max_buffer_length_from_utf16", False, [("u16_length", "usize")], "usize", encoder_variants, [], "Encoder")
 
-    pub fn max_buffer_length_from_utf16_with_replacement_if_no_unmappables(&self, u16_length: usize) -> usize {
-        match self {
-            &VariantEncoder::Big5(ref e) => {
-                e.max_buffer_length_from_utf16_with_replacement_if_no_unmappables(u16_length)
-            }
-        }
-    }
+write_variant_method("max_buffer_length_from_utf8", False, [("byte_length", "usize")], "usize", encoder_variants, [], "Encoder")
 
-    pub fn max_buffer_length_from_utf8_with_replacement_if_no_unmappables(&self, byte_length: usize) -> usize {
-        match self {
-            &VariantEncoder::Big5(ref e) => {
-                e.max_buffer_length_from_utf8_with_replacement_if_no_unmappables(byte_length)
-            }
-        }
-    }
+write_variant_method("max_buffer_length_from_utf16_with_replacement_if_no_unmappables", False, [("u16_length", "usize")], "usize", encoder_variants, [], "Encoder")
 
-    pub fn encode_from_utf16(&mut self,
-                             src: &[u16],
-                             dst: &mut [u8],
-                             last: bool)
-                             -> (EncoderResult, usize, usize) {
-        match self {
-            &mut VariantEncoder::Big5(ref mut e) => e.encode_from_utf16(src, dst, last),
-        }
-    }
+write_variant_method("max_buffer_length_from_utf8_with_replacement_if_no_unmappables", False, [("byte_length", "usize")], "usize", encoder_variants, [], "Encoder")
 
-    pub fn encode_from_utf8(&mut self,
-                            src: &str,
-                            dst: &mut [u8],
-                            last: bool)
-                            -> (EncoderResult, usize, usize) {
-        match self {
-            &mut VariantEncoder::Big5(ref mut e) => e.encode_from_utf8(src, dst, last),
-        }
-    }
-}
+write_variant_method("encode_from_utf16", True, [("src", "&[u16]"),
+                           ("dst", "&mut [u8]"),
+                           ("last", "bool")], "(EncoderResult, usize, usize)", encoder_variants, [], "Encoder")
 
-pub enum VariantEncoding {''')
+write_variant_method("encode_from_utf8", True, [("src", "&str"),
+                           ("dst", "&mut [u8]"),
+                           ("last", "bool")], "(EncoderResult, usize, usize)", encoder_variants, [], "Encoder")
+
+
+variant_file.write('''}
+
+pub enum VariantEncoding {
+    SingleByte(&'static [u16; 128]),''')
 
 for encoding in multi_byte:
   variant_file.write("%s,\n" % to_camel_name(encoding["name"]))
 
-variant_file.write('''    SingleByte(&'static [u16; 128]),
-}
+variant_file.write('''}
 
 impl VariantEncoding {
-    pub fn new_decoder(&self) -> Decoder {
-        // XXX
-        Big5Decoder::new()
+    pub fn new_decoder(&self, encoding: &'static Encoding) -> Decoder {
+        match self {
+            &VariantEncoding::SingleByte(table) => SingleByteDecoder::new(encoding, table),
+            &VariantEncoding::Utf8 => Utf8Decoder::new(encoding),
+            &VariantEncoding::Gbk | &VariantEncoding::Gb18030 => Gb18030Decoder::new(encoding),
+            &VariantEncoding::Big5 => Big5Decoder::new(encoding),
+            &VariantEncoding::EucJp => EucJpDecoder::new(encoding),
+            &VariantEncoding::Iso2022Jp => Iso2022JpDecoder::new(encoding),
+            &VariantEncoding::ShiftJis => ShiftJisDecoder::new(encoding),
+            &VariantEncoding::EucKr => EucKrDecoder::new(encoding),
+            &VariantEncoding::Replacement => ReplacementDecoder::new(encoding),
+            &VariantEncoding::UserDefined => UserDefinedDecoder::new(encoding),
+            &VariantEncoding::Utf16Be => Utf16Decoder::new(encoding, true),
+            &VariantEncoding::Utf16Le => Utf16Decoder::new(encoding, false),
+        }
     }
-    pub fn new_encoder(&self) -> Encoder {
-        // XXX
-        Big5Encoder::new()
+
+    pub fn new_encoder(&self, encoding: &'static Encoding) -> Encoder {
+        match self {
+            &VariantEncoding::SingleByte(table) => SingleByteEncoder::new(encoding, table),
+            &VariantEncoding::Utf8 => Utf8Encoder::new(encoding),
+            &VariantEncoding::Gbk => Gb18030Encoder::new(encoding, false),
+            &VariantEncoding::Gb18030 => Gb18030Encoder::new(encoding, true),
+            &VariantEncoding::Big5 => Big5Encoder::new(encoding),
+            &VariantEncoding::EucJp => EucJpEncoder::new(encoding),
+            &VariantEncoding::Iso2022Jp => Iso2022JpEncoder::new(encoding),
+            &VariantEncoding::ShiftJis => ShiftJisEncoder::new(encoding),
+            &VariantEncoding::EucKr => EucKrEncoder::new(encoding),
+            &VariantEncoding::Replacement => Utf8Encoder::new(UTF_8),
+            &VariantEncoding::UserDefined => UserDefinedEncoder::new(encoding),
+            &VariantEncoding::Utf16Be => Utf16Encoder::new(encoding, true),
+            &VariantEncoding::Utf16Le => Utf16Encoder::new(encoding, false),
+        }
     }
 }
 ''')

@@ -10,8 +10,19 @@
 #[macro_use]
 mod macros;
 
-mod handles;
+mod single_byte;
+mod utf_8;
+mod gb18030;
 mod big5;
+mod euc_jp;
+mod iso_2022_jp;
+mod shift_jis;
+mod euc_kr;
+mod replacement;
+mod x_user_defined;
+mod utf_16;
+
+mod handles;
 mod data;
 mod variant;
 pub mod ffi;
@@ -971,19 +982,19 @@ impl Encoding {
         }
         return None;
     }
-    pub fn new_decoder(&self) -> Decoder {
-        self.variant.new_decoder()
+    pub fn new_decoder(&'static self) -> Decoder {
+        self.variant.new_decoder(self)
     }
-    pub fn new_encoder(&self) -> Encoder {
-        self.variant.new_encoder()
+    pub fn new_encoder(&'static self) -> Encoder {
+        self.variant.new_encoder(self)
     }
-    pub fn name(&self) -> &'static str {
+    pub fn name(&'static self) -> &'static str {
         self.name
     }
-    pub fn dom_name(&self) -> &'static str {
+    pub fn dom_name(&'static self) -> &'static str {
         self.dom_name
     }
-    pub fn decode(&self, bytes: &[u8]) -> Option<String> {
+    pub fn decode(&'static self, bytes: &[u8]) -> Option<String> {
         let mut decoder = self.new_decoder();
         let mut string = String::with_capacity(decoder.max_utf8_buffer_length(bytes.len()));
         let (result, read) = decoder.decode_to_string(bytes, &mut string, true);
@@ -996,7 +1007,7 @@ impl Encoding {
             DecoderResult::OutputFull => unreachable!(),
         }
     }
-    pub fn decode_with_replacement(&self, bytes: &[u8]) -> String {
+    pub fn decode_with_replacement(&'static self, bytes: &[u8]) -> String {
         let mut decoder = self.new_decoder();
         let mut string =
             String::with_capacity(decoder.max_utf8_buffer_length_with_replacement(bytes.len()));
@@ -1168,12 +1179,16 @@ pub enum DecoderResult {
 /// pass the unconsumed contents of `src` to `decode_*` again upon the next
 /// call.
 pub struct Decoder {
+    encoding: &'static Encoding,
     variant: VariantDecoder,
 }
 
 impl Decoder {
-    fn new(decoder: VariantDecoder) -> Decoder {
-        Decoder { variant: decoder }
+    fn new(enc: &'static Encoding, decoder: VariantDecoder) -> Decoder {
+        Decoder {
+            encoding: enc,
+            variant: decoder,
+        }
     }
 
     /// Make the decoder ready to process a new stream.
@@ -1586,12 +1601,16 @@ pub enum EncoderResult {
 /// pass the unconsumed contents of `src` to `encode_*` again upon the next
 /// call.
 pub struct Encoder {
+    encoding: &'static Encoding,
     variant: VariantEncoder,
 }
 
 impl Encoder {
-    fn new(encoder: VariantEncoder) -> Encoder {
-        Encoder { variant: encoder }
+    fn new(enc: &'static Encoding, encoder: VariantEncoder) -> Encoder {
+        Encoder {
+            encoding: enc,
+            variant: encoder,
+        }
     }
 
     /// Make the encoder ready to process a new stream. (No-op for all encoders

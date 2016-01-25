@@ -17,6 +17,7 @@ macro_rules! decoder_function {
      $b:ident,
      $destination_handle:ident,
      $unread_handle:ident,
+     $destination_check:ident,
      $name:ident,
      $code_unit:ty,
      $dest_struct:ident) => (
@@ -44,7 +45,7 @@ macro_rules! decoder_function {
                         return (DecoderResult::InputEmpty, $src_consumed, $dest.written());
                     }
                     Space::Available(source_handle) => {
-                        match $dest.check_space_astral() {
+                        match $dest.$destination_check() {
                             Space::Full(dst_written) => {
                                 return (DecoderResult::OutputFull,
                                         source_handle.consumed(),
@@ -73,7 +74,8 @@ macro_rules! decoder_functions {
      $dest:ident,
      $b:ident,
      $destination_handle:ident,
-     $unread_handle:ident) => (
+     $unread_handle:ident,
+     $destination_check:ident) => (
     decoder_function!($preamble,
                       $eof,
                       $body,
@@ -83,6 +85,7 @@ macro_rules! decoder_functions {
                       $b,
                       $destination_handle,
                       $unread_handle,
+                      $destination_check,
                       decode_to_utf8,
                       u8,
                       Utf8Destination);
@@ -95,6 +98,7 @@ macro_rules! decoder_functions {
                       $b,
                       $destination_handle,
                       $unread_handle,
+                      $destination_check,
                       decode_to_utf16,
                       u16,
                       Utf16Destination);
