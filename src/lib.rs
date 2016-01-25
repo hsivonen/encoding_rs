@@ -1853,6 +1853,10 @@ impl Encoder {
                 EncoderResult::Unmappable(unmappable) => {
                     had_unmappables = true;
                     debug_assert!(dst.len() - total_written >= NCR_EXTRA + 1);
+                    debug_assert!(self.encoding() != UTF_16BE);
+                    debug_assert!(self.encoding() != UTF_16LE);
+                    // Additionally, Iso2022JpEncoder is responsible for
+                    // transitioning to ASCII when returning with Unmappable.
                     total_written += write_ncr(unmappable, &mut dst[total_written..]);
                 }
             }
@@ -1897,8 +1901,43 @@ impl Encoder {
     }
 }
 
-fn write_ncr(unmappable: char, dst: &[u8]) -> usize {
-    0 // TODO
+fn write_ncr(unmappable: char, dst: &mut [u8]) -> usize {
+    // len is the number of decimal digits needed to represent unmappable plus
+    // 3 (the length of "&#" and ";").
+    let mut number = unmappable as u32;
+    let len = if number >= 1000000u32 {
+        10usize
+    } else if number >= 100000u32 {
+        9usize
+    } else if number >= 10000u32 {
+        8usize
+    } else if number >= 1000u32 {
+        7usize
+    } else if number >= 100u32 {
+        6usize
+    } else {
+        // Review the outcome of https://github.com/whatwg/encoding/issues/15
+        // to see if this case is possible
+        5usize
+    };
+    debug_assert!(number >= 10u32);
+    debug_assert!(len <= dst.len());
+    let mut pos = len;
+    dst[pos] = b';';
+    pos -= 1;
+    loop {
+        let rightmost = number % 10;
+        dst[pos] = rightmost as u8 + b'0';
+        pos -= 1;
+        if number < 10 {
+            break;
+        }
+        number /= 10;
+    }
+    dst[pos] = b'#';
+    pos -= 1;
+    dst[pos] = b'&';
+    len
 }
 
 // ############## TESTS ###############
