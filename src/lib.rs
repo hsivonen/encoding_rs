@@ -1874,8 +1874,46 @@ impl Encoder {
                                              dst: &mut [u8],
                                              last: bool)
                                              -> (WithReplacementResult, usize, usize, bool) {
-        // XXX
-        (WithReplacementResult::InputEmpty, 0, 0, false)
+        let effective_dst_len = dst.len() -
+                                if self.encoding().can_encode_everything() {
+            0
+        } else {
+            NCR_EXTRA
+        };
+        let mut had_unmappables = false;
+        let mut total_read = 0usize;
+        let mut total_written = 0usize;
+        loop {
+            let (result, read, written) =
+                self.encode_from_utf8(&src[total_read..],
+                                      &mut dst[total_written..effective_dst_len],
+                                      last);
+            total_read += read;
+            total_written += written;
+            match result {
+                EncoderResult::InputEmpty => {
+                    return (WithReplacementResult::InputEmpty,
+                            total_read,
+                            total_written,
+                            had_unmappables);
+                }
+                EncoderResult::OutputFull => {
+                    return (WithReplacementResult::OutputFull,
+                            total_read,
+                            total_written,
+                            had_unmappables);
+                }
+                EncoderResult::Unmappable(unmappable) => {
+                    had_unmappables = true;
+                    debug_assert!(dst.len() - total_written >= NCR_EXTRA + 1);
+                    debug_assert!(self.encoding() != UTF_16BE);
+                    debug_assert!(self.encoding() != UTF_16LE);
+                    // Additionally, Iso2022JpEncoder is responsible for
+                    // transitioning to ASCII when returning with Unmappable.
+                    total_written += write_ncr(unmappable, &mut dst[total_written..]);
+                }
+            }
+        }
     }
 
     /// Incrementally encode into byte stream from UTF-8 with replacement.
