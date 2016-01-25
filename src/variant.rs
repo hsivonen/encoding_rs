@@ -210,80 +210,6 @@ impl VariantEncoder {
         }
     }
 
-    pub fn max_buffer_length_from_utf16_with_replacement_if_no_unmappables(&self,
-                                                                           u16_length: usize)
-                                                                           -> usize {
-        match self {
-            &VariantEncoder::SingleByte(ref v) => {
-                v.max_buffer_length_from_utf16_with_replacement_if_no_unmappables(u16_length)
-            }
-            &VariantEncoder::Utf8(ref v) => {
-                v.max_buffer_length_from_utf16_with_replacement_if_no_unmappables(u16_length)
-            }
-            &VariantEncoder::Gb18030(ref v) => {
-                v.max_buffer_length_from_utf16_with_replacement_if_no_unmappables(u16_length)
-            }
-            &VariantEncoder::Big5(ref v) => {
-                v.max_buffer_length_from_utf16_with_replacement_if_no_unmappables(u16_length)
-            }
-            &VariantEncoder::EucJp(ref v) => {
-                v.max_buffer_length_from_utf16_with_replacement_if_no_unmappables(u16_length)
-            }
-            &VariantEncoder::Iso2022Jp(ref v) => {
-                v.max_buffer_length_from_utf16_with_replacement_if_no_unmappables(u16_length)
-            }
-            &VariantEncoder::ShiftJis(ref v) => {
-                v.max_buffer_length_from_utf16_with_replacement_if_no_unmappables(u16_length)
-            }
-            &VariantEncoder::EucKr(ref v) => {
-                v.max_buffer_length_from_utf16_with_replacement_if_no_unmappables(u16_length)
-            }
-            &VariantEncoder::UserDefined(ref v) => {
-                v.max_buffer_length_from_utf16_with_replacement_if_no_unmappables(u16_length)
-            }
-            &VariantEncoder::Utf16(ref v) => {
-                v.max_buffer_length_from_utf16_with_replacement_if_no_unmappables(u16_length)
-            }
-        }
-    }
-
-    pub fn max_buffer_length_from_utf8_with_replacement_if_no_unmappables(&self,
-                                                                          byte_length: usize)
-                                                                          -> usize {
-        match self {
-            &VariantEncoder::SingleByte(ref v) => {
-                v.max_buffer_length_from_utf8_with_replacement_if_no_unmappables(byte_length)
-            }
-            &VariantEncoder::Utf8(ref v) => {
-                v.max_buffer_length_from_utf8_with_replacement_if_no_unmappables(byte_length)
-            }
-            &VariantEncoder::Gb18030(ref v) => {
-                v.max_buffer_length_from_utf8_with_replacement_if_no_unmappables(byte_length)
-            }
-            &VariantEncoder::Big5(ref v) => {
-                v.max_buffer_length_from_utf8_with_replacement_if_no_unmappables(byte_length)
-            }
-            &VariantEncoder::EucJp(ref v) => {
-                v.max_buffer_length_from_utf8_with_replacement_if_no_unmappables(byte_length)
-            }
-            &VariantEncoder::Iso2022Jp(ref v) => {
-                v.max_buffer_length_from_utf8_with_replacement_if_no_unmappables(byte_length)
-            }
-            &VariantEncoder::ShiftJis(ref v) => {
-                v.max_buffer_length_from_utf8_with_replacement_if_no_unmappables(byte_length)
-            }
-            &VariantEncoder::EucKr(ref v) => {
-                v.max_buffer_length_from_utf8_with_replacement_if_no_unmappables(byte_length)
-            }
-            &VariantEncoder::UserDefined(ref v) => {
-                v.max_buffer_length_from_utf8_with_replacement_if_no_unmappables(byte_length)
-            }
-            &VariantEncoder::Utf16(ref v) => {
-                v.max_buffer_length_from_utf8_with_replacement_if_no_unmappables(byte_length)
-            }
-        }
-    }
-
     pub fn encode_from_utf16(&mut self,
                              src: &[u16],
                              dst: &mut [u8],
@@ -372,6 +298,16 @@ impl VariantEncoding {
             &VariantEncoding::UserDefined => UserDefinedEncoder::new(encoding),
             &VariantEncoding::Utf16Be => Utf16Encoder::new(encoding, true),
             &VariantEncoding::Utf16Le => Utf16Encoder::new(encoding, false),
+        }
+    }
+
+    pub fn can_encode_everything(&self) -> bool {
+        match self {
+            &VariantEncoding::Utf8 => true,
+            &VariantEncoding::Gb18030 => true,
+            &VariantEncoding::Utf16Be => true,
+            &VariantEncoding::Utf16Le => true,
+            _ => false,
         }
     }
 }

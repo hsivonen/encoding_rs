@@ -29,6 +29,8 @@ pub mod ffi;
 
 use variant::*;
 
+const NCR_EXTRA: usize = 9; // #1114111;
+
 // BEGIN GENERATED CODE. PLEASE DO NOT EDIT.
 // Instead, please regenerate using generate-encoding-data.py
 
@@ -983,6 +985,11 @@ impl Encoding {
         return None;
     }
 
+    /// Checks whether this encoding can encode every `char`.
+    pub fn can_encode_everything(&'static self) -> bool {
+        self.variant.can_encode_everything()
+    }
+
     /// Instantiates a new decoder for this encoding.
     pub fn new_decoder(&'static self) -> Decoder {
         self.variant.new_decoder(self)
@@ -1273,6 +1280,11 @@ impl Decoder {
             encoding: enc,
             variant: decoder,
         }
+    }
+
+    /// The `Encoding` this `Decoder` is for.
+    pub fn encoding(&self) -> &'static Encoding {
+        self.encoding
     }
 
     /// Make the decoder ready to process a new stream.
@@ -1697,6 +1709,11 @@ impl Encoder {
         }
     }
 
+    /// The `Encoding` this `Encoder` is for.
+    pub fn encoding(&self) -> &'static Encoding {
+        self.encoding
+    }
+
     /// Make the encoder ready to process a new stream. (No-op for all encoders
     /// other than the ISO-2022-JP encoder.)
     pub fn reset(&mut self) {
@@ -1738,7 +1755,12 @@ impl Encoder {
     pub fn max_buffer_length_from_utf16_with_replacement_if_no_unmappables(&self,
                                                                            u16_length: usize)
                                                                            -> usize {
-        self.variant.max_buffer_length_from_utf16_with_replacement_if_no_unmappables(u16_length)
+        self.max_buffer_length_from_utf16(u16_length) +
+        if self.encoding().can_encode_everything() {
+            0
+        } else {
+            NCR_EXTRA
+        }
     }
 
     /// Query the worst-case output size when encoding from UTF-8 with
@@ -1752,7 +1774,12 @@ impl Encoder {
     pub fn max_buffer_length_from_utf8_with_replacement_if_no_unmappables(&self,
                                                                           byte_length: usize)
                                                                           -> usize {
-        self.variant.max_buffer_length_from_utf8_with_replacement_if_no_unmappables(byte_length)
+        self.max_buffer_length_from_utf8(byte_length) +
+        if self.encoding().can_encode_everything() {
+            0
+        } else {
+            NCR_EXTRA
+        }
     }
 
     /// Incrementally encode into byte stream from UTF-16.
@@ -1794,8 +1821,42 @@ impl Encoder {
                                               dst: &mut [u8],
                                               last: bool)
                                               -> (WithReplacementResult, usize, usize, bool) {
-        // XXX
-        (WithReplacementResult::InputEmpty, 0, 0, false)
+        let effective_dst_len = dst.len() -
+                                if self.encoding().can_encode_everything() {
+            0
+        } else {
+            NCR_EXTRA
+        };
+        let mut had_unmappables = false;
+        let mut total_read = 0usize;
+        let mut total_written = 0usize;
+        loop {
+            let (result, read, written) =
+                self.encode_from_utf16(&src[total_read..],
+                                       &mut dst[total_written..effective_dst_len],
+                                       last);
+            total_read += read;
+            total_written += written;
+            match result {
+                EncoderResult::InputEmpty => {
+                    return (WithReplacementResult::InputEmpty,
+                            total_read,
+                            total_written,
+                            had_unmappables);
+                }
+                EncoderResult::OutputFull => {
+                    return (WithReplacementResult::OutputFull,
+                            total_read,
+                            total_written,
+                            had_unmappables);
+                }
+                EncoderResult::Unmappable(unmappable) => {
+                    had_unmappables = true;
+                    debug_assert!(dst.len() - total_written >= NCR_EXTRA + 1);
+                    total_written += write_ncr(unmappable, &mut dst[total_written..]);
+                }
+            }
+        }
     }
 
     /// Incrementally encode into byte stream from UTF-8 with replacement.
@@ -1834,6 +1895,10 @@ impl Encoder {
             (result, read, replaced)
         }
     }
+}
+
+fn write_ncr(unmappable: char, dst: &[u8]) -> usize {
+    0 // TODO
 }
 
 // ############## TESTS ###############

@@ -465,10 +465,6 @@ write_variant_method("max_buffer_length_from_utf16", False, [("u16_length", "usi
 
 write_variant_method("max_buffer_length_from_utf8", False, [("byte_length", "usize")], "usize", encoder_variants, [], "Encoder")
 
-write_variant_method("max_buffer_length_from_utf16_with_replacement_if_no_unmappables", False, [("u16_length", "usize")], "usize", encoder_variants, [], "Encoder")
-
-write_variant_method("max_buffer_length_from_utf8_with_replacement_if_no_unmappables", False, [("byte_length", "usize")], "usize", encoder_variants, [], "Encoder")
-
 write_variant_method("encode_from_utf16", True, [("src", "&[u16]"),
                            ("dst", "&mut [u8]"),
                            ("last", "bool")], "(EncoderResult, usize, usize)", encoder_variants, [], "Encoder")
@@ -521,6 +517,16 @@ impl VariantEncoding {
             &VariantEncoding::UserDefined => UserDefinedEncoder::new(encoding),
             &VariantEncoding::Utf16Be => Utf16Encoder::new(encoding, true),
             &VariantEncoding::Utf16Le => Utf16Encoder::new(encoding, false),
+        }
+    }
+
+    pub fn can_encode_everything(&self) -> bool {
+        match self {
+            &VariantEncoding::Utf8 => true,
+            &VariantEncoding::Gb18030 => true,
+            &VariantEncoding::Utf16Be => true,
+            &VariantEncoding::Utf16Le => true,
+            _ => false,
         }
     }
 }
