@@ -526,9 +526,9 @@ pub struct Utf8Source<'a> {
 
 impl<'a> Utf8Source<'a> {
     #[inline(always)]
-    pub fn new(src: &[u8]) -> Utf8Source {
+    pub fn new(src: &str) -> Utf8Source {
         Utf8Source {
-            slice: src,
+            slice: src.as_bytes(),
             pos: 0,
             old_pos: 0,
         }
@@ -621,5 +621,196 @@ impl<'a, 'b> Utf8UnreadHandle<'a, 'b> where 'b: 'a
     #[inline(always)]
     pub fn consumed(&self) -> usize {
         self.source.consumed()
+    }
+}
+
+// Byte destination
+
+pub struct ByteOneHandle<'a, 'b>
+    where 'b: 'a
+{
+    dest: &'a mut ByteDestination<'b>,
+}
+
+impl<'a, 'b> ByteOneHandle<'a, 'b> where 'b: 'a
+{
+    #[inline(always)]
+    fn new(dst: &'a mut ByteDestination<'b>) -> ByteOneHandle<'a, 'b> {
+        ByteOneHandle { dest: dst }
+    }
+    #[inline(always)]
+    pub fn written(&self) -> usize {
+        self.dest.written()
+    }
+    #[inline(always)]
+    pub fn write_one(self, first: u8) {
+        self.dest.write_one(first);
+    }
+}
+
+pub struct ByteTwoHandle<'a, 'b>
+    where 'b: 'a
+{
+    dest: &'a mut ByteDestination<'b>,
+}
+
+impl<'a, 'b> ByteTwoHandle<'a, 'b> where 'b: 'a
+{
+    #[inline(always)]
+    fn new(dst: &'a mut ByteDestination<'b>) -> ByteTwoHandle<'a, 'b> {
+        ByteTwoHandle { dest: dst }
+    }
+    #[inline(always)]
+    pub fn written(&self) -> usize {
+        self.dest.written()
+    }
+    #[inline(always)]
+    pub fn write_one(self, first: u8) {
+        self.dest.write_one(first);
+    }
+    #[inline(always)]
+    pub fn write_two(self, first: u8, second: u8) {
+        self.dest.write_two(first, second);
+    }
+}
+
+pub struct ByteThreeHandle<'a, 'b>
+    where 'b: 'a
+{
+    dest: &'a mut ByteDestination<'b>,
+}
+
+impl<'a, 'b> ByteThreeHandle<'a, 'b> where 'b: 'a
+{
+    #[inline(always)]
+    fn new(dst: &'a mut ByteDestination<'b>) -> ByteThreeHandle<'a, 'b> {
+        ByteThreeHandle { dest: dst }
+    }
+    #[inline(always)]
+    pub fn written(&self) -> usize {
+        self.dest.written()
+    }
+    #[inline(always)]
+    pub fn write_one(self, first: u8) {
+        self.dest.write_one(first);
+    }
+    #[inline(always)]
+    pub fn write_two(self, first: u8, second: u8) {
+        self.dest.write_two(first, second);
+    }
+    #[inline(always)]
+    pub fn write_three(self, first: u8, second: u8, third: u8) {
+        self.dest.write_three(first, second, third);
+    }
+}
+
+pub struct ByteFourHandle<'a, 'b>
+    where 'b: 'a
+{
+    dest: &'a mut ByteDestination<'b>,
+}
+
+impl<'a, 'b> ByteFourHandle<'a, 'b> where 'b: 'a
+{
+    #[inline(always)]
+    fn new(dst: &'a mut ByteDestination<'b>) -> ByteFourHandle<'a, 'b> {
+        ByteFourHandle { dest: dst }
+    }
+    #[inline(always)]
+    pub fn written(&self) -> usize {
+        self.dest.written()
+    }
+    #[inline(always)]
+    pub fn write_one(self, first: u8) {
+        self.dest.write_one(first);
+    }
+    #[inline(always)]
+    pub fn write_two(self, first: u8, second: u8) {
+        self.dest.write_two(first, second);
+    }
+    #[inline(always)]
+    pub fn write_three(self, first: u8, second: u8, third: u8) {
+        self.dest.write_three(first, second, third);
+    }
+    #[inline(always)]
+    pub fn write_four(self, first: u8, second: u8, third: u8, fourth: u8) {
+        self.dest.write_four(first, second, third, fourth);
+    }
+}
+
+pub struct ByteDestination<'a> {
+    slice: &'a mut [u8],
+    pos: usize,
+}
+
+impl<'a> ByteDestination<'a> {
+    #[inline(always)]
+    pub fn new(dst: &mut [u8]) -> ByteDestination {
+        ByteDestination {
+            slice: dst,
+            pos: 0,
+        }
+    }
+    #[inline(always)]
+    pub fn check_space_one<'b>(&'b mut self) -> Space<ByteOneHandle<'b, 'a>> {
+        if self.pos < self.slice.len() {
+            Space::Available(ByteOneHandle::new(self))
+        } else {
+            Space::Full(self.written())
+        }
+    }
+    #[inline(always)]
+    pub fn check_space_two<'b>(&'b mut self) -> Space<ByteTwoHandle<'b, 'a>> {
+        if self.pos + 1 < self.slice.len() {
+            Space::Available(ByteTwoHandle::new(self))
+        } else {
+            Space::Full(self.written())
+        }
+    }
+    #[inline(always)]
+    pub fn check_space_three<'b>(&'b mut self) -> Space<ByteThreeHandle<'b, 'a>> {
+        if self.pos + 2 < self.slice.len() {
+            Space::Available(ByteThreeHandle::new(self))
+        } else {
+            Space::Full(self.written())
+        }
+    }
+    #[inline(always)]
+    pub fn check_space_four<'b>(&'b mut self) -> Space<ByteFourHandle<'b, 'a>> {
+        if self.pos + 3 < self.slice.len() {
+            Space::Available(ByteFourHandle::new(self))
+        } else {
+            Space::Full(self.written())
+        }
+    }
+    #[inline(always)]
+    pub fn written(&self) -> usize {
+        self.pos
+    }
+    #[inline(always)]
+    fn write_one(&mut self, first: u8) {
+        self.slice[self.pos] = first;
+        self.pos += 1;
+    }
+    #[inline(always)]
+    fn write_two(&mut self, first: u8, second: u8) {
+        self.slice[self.pos] = first;
+        self.slice[self.pos + 1] = second;
+        self.pos += 2;
+    }
+    #[inline(always)]
+    fn write_three(&mut self, first: u8, second: u8, third: u8) {
+        self.slice[self.pos] = first;
+        self.slice[self.pos + 1] = second;
+        self.slice[self.pos + 2] = third;
+        self.pos += 3;
+    }
+    #[inline(always)]
+    fn write_four(&mut self, first: u8, second: u8, third: u8, fourth: u8) {
+        self.slice[self.pos] = first;
+        self.slice[self.pos + 1] = second;
+        self.slice[self.pos + 2] = third;
+        self.slice[self.pos + 3] = fourth;
+        self.pos += 3;
     }
 }
