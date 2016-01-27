@@ -191,6 +191,7 @@ impl Big5Encoder {
     encoder_functions!({},
                        {
                            if c <= '\u{7F}' {
+                               // TODO optimize ASCII run
                                destination_handle.write_one(c as u8);
                                continue;
                            }
@@ -219,6 +220,7 @@ impl Big5Encoder {
                                remainder + 0x62
                            };
                            destination_handle.write_two(lead as u8, trail as u8);
+                           continue;
                        },
                        self,
                        src_consumed,
