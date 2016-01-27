@@ -8,51 +8,66 @@
 // except according to those terms.
 
 use handles::*;
-use data::*;
 use variant::*;
 use super::*;
 
-pub struct ReplacementDecoder;
+pub struct ReplacementDecoder {
+    emitted: bool,
+}
 
 impl ReplacementDecoder {
     pub fn new(encoding: &'static Encoding) -> Decoder {
-        Decoder::new(encoding, VariantDecoder::Replacement(ReplacementDecoder))
+        Decoder::new(encoding,
+                     VariantDecoder::Replacement(ReplacementDecoder { emitted: false }))
     }
 
-    pub fn reset(&mut self) {}
+    pub fn reset(&mut self) {
+        self.emitted = false;
+    }
 
     pub fn max_utf16_buffer_length(&self, byte_length: usize) -> usize {
-        byte_length
+        1
     }
 
     pub fn max_utf8_buffer_length(&self, byte_length: usize) -> usize {
-        byte_length * 3
+        1 // really zero, but that might surprise callers
     }
 
     pub fn max_utf8_buffer_length_with_replacement(&self, byte_length: usize) -> usize {
-        byte_length * 3
+        3
     }
 
-    decoder_functions!({},
-                       {},
-                       {
-                           if b < 0x80 {
-                               // XXX optimize ASCII
-                               destination_handle.write_ascii(b);
-                           } else {
-                               return (DecoderResult::Malformed(1),
-                                       unread_handle.consumed(),
-                                       destination_handle.written());
+    fn decode(&mut self, src: &[u8], last: bool) -> (DecoderResult, usize, usize) {
+        // Don't err if the input stream is empty. See
+        // https://github.com/whatwg/encoding/issues/33
+        if self.emitted || src.is_empty() {
+            if last {
+                // The API says the caller doesn't need to reset after
+                // the decoder returns `InputEmpty` with `last` set to `true`.
+                self.emitted = false;
+            }
+            (DecoderResult::InputEmpty, src.len(), 0)
+        } else {
+            self.emitted = true;
+            (DecoderResult::Malformed(1u8), 1, 0)
+        }
+    }
 
-                           }
-                       },
-                       self,
-                       src_consumed,
-                       dest,
-                       b,
-                       destination_handle,
-                       unread_handle,
-                       check_space_bmp);
+    pub fn decode_to_utf16(&mut self,
+                           src: &[u8],
+                           _dst: &mut [u16],
+                           last: bool)
+                           -> (DecoderResult, usize, usize) {
+        self.decode(src, last)
+    }
+
+    pub fn decode_to_utf8(&mut self,
+                          src: &[u8],
+                          _dst: &mut [u8],
+                          last: bool)
+                          -> (DecoderResult, usize, usize) {
+        self.decode(src, last)
+    }
 }
 
 
