@@ -34,12 +34,12 @@ impl Big5Decoder {
         self.lead = 0u8;
     }
 
-    pub fn max_utf16_buffer_length(&self, byte_length: usize) -> usize {
+    pub fn max_utf16_buffer_length(&self, u16_length: usize) -> usize {
         // If there is a lead but the next byte isn't a valid trail, an
         // error is generated for the lead (+1). Then another iteration checks
         // space, which needs +1 to account for the possibility of astral
         // output or combining pair.
-        self.plus_one_if_lead(byte_length) + 1
+        self.plus_one_if_lead(u16_length) + 1
     }
 
     pub fn max_utf8_buffer_length(&self, byte_length: usize) -> usize {

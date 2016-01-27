@@ -431,7 +431,7 @@ def write_variant_method(name, mut, arg_list, ret, variants, excludes, kind):
 
 write_variant_method("reset", True, [], None, decoder_variants, [u"single-byte"], "Decoder")
 
-write_variant_method("max_utf16_buffer_length", False, [("byte_length", "usize")], "usize", decoder_variants, [], "Decoder")
+write_variant_method("max_utf16_buffer_length", False, [("u16_length", "usize")], "usize", decoder_variants, [], "Decoder")
 
 write_variant_method("max_utf8_buffer_length", False, [("byte_length", "usize")], "usize", decoder_variants, [], "Decoder")
 

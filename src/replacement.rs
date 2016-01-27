@@ -25,7 +25,7 @@ impl ReplacementDecoder {
         self.emitted = false;
     }
 
-    pub fn max_utf16_buffer_length(&self, byte_length: usize) -> usize {
+    pub fn max_utf16_buffer_length(&self, u16_length: usize) -> usize {
         1
     }
 

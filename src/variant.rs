@@ -63,19 +63,19 @@ impl VariantDecoder {
         }
     }
 
-    pub fn max_utf16_buffer_length(&self, byte_length: usize) -> usize {
+    pub fn max_utf16_buffer_length(&self, u16_length: usize) -> usize {
         match self {
-            &VariantDecoder::SingleByte(ref v) => v.max_utf16_buffer_length(byte_length),
-            &VariantDecoder::Utf8(ref v) => v.max_utf16_buffer_length(byte_length),
-            &VariantDecoder::Gb18030(ref v) => v.max_utf16_buffer_length(byte_length),
-            &VariantDecoder::Big5(ref v) => v.max_utf16_buffer_length(byte_length),
-            &VariantDecoder::EucJp(ref v) => v.max_utf16_buffer_length(byte_length),
-            &VariantDecoder::Iso2022Jp(ref v) => v.max_utf16_buffer_length(byte_length),
-            &VariantDecoder::ShiftJis(ref v) => v.max_utf16_buffer_length(byte_length),
-            &VariantDecoder::EucKr(ref v) => v.max_utf16_buffer_length(byte_length),
-            &VariantDecoder::Replacement(ref v) => v.max_utf16_buffer_length(byte_length),
-            &VariantDecoder::UserDefined(ref v) => v.max_utf16_buffer_length(byte_length),
-            &VariantDecoder::Utf16(ref v) => v.max_utf16_buffer_length(byte_length),
+            &VariantDecoder::SingleByte(ref v) => v.max_utf16_buffer_length(u16_length),
+            &VariantDecoder::Utf8(ref v) => v.max_utf16_buffer_length(u16_length),
+            &VariantDecoder::Gb18030(ref v) => v.max_utf16_buffer_length(u16_length),
+            &VariantDecoder::Big5(ref v) => v.max_utf16_buffer_length(u16_length),
+            &VariantDecoder::EucJp(ref v) => v.max_utf16_buffer_length(u16_length),
+            &VariantDecoder::Iso2022Jp(ref v) => v.max_utf16_buffer_length(u16_length),
+            &VariantDecoder::ShiftJis(ref v) => v.max_utf16_buffer_length(u16_length),
+            &VariantDecoder::EucKr(ref v) => v.max_utf16_buffer_length(u16_length),
+            &VariantDecoder::Replacement(ref v) => v.max_utf16_buffer_length(u16_length),
+            &VariantDecoder::UserDefined(ref v) => v.max_utf16_buffer_length(u16_length),
+            &VariantDecoder::Utf16(ref v) => v.max_utf16_buffer_length(u16_length),
         }
     }
 
