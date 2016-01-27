@@ -8,7 +8,6 @@
 // except according to those terms.
 
 use handles::*;
-use data::*;
 use variant::*;
 use super::*;
 
