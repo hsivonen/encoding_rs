@@ -194,7 +194,37 @@ impl Big5Encoder {
     }
 
     encoder_functions!({},
-                       {},
+                       {
+                           if c <= '\u{7F}' {
+                               destination_handle.write_one(c as u8);
+                               continue;
+                           }
+                           let high_bits = c as u32 & 0xFF0000;
+                           let (low_bits, is_astral) = if high_bits == 0 {
+                               (c as u16, false)
+                           } else if high_bits == 0x20000 {
+                               ((c as u32 & 0xFFFF) as u16, true)
+                           } else {
+                               // Only BMP and Plane 2 are potentially mappable.
+                               return (EncoderResult::Unmappable(c),
+                                       unread_handle.consumed(),
+                                       destination_handle.written());
+                           };
+                           let pointer = big5_find_pointer(low_bits, is_astral);
+                           if pointer == 0 {
+                               return (EncoderResult::Unmappable(c),
+                                       unread_handle.consumed(),
+                                       destination_handle.written());
+                           }
+                           let lead = pointer / 157 + 0x81;
+                           let remainder = pointer % 157;
+                           let trail = if remainder < 0x3F {
+                               remainder + 0x40
+                           } else {
+                               remainder + 0x62
+                           };
+                           destination_handle.write_two(lead as u8, trail as u8);
+                       },
                        self,
                        src_consumed,
                        source,
