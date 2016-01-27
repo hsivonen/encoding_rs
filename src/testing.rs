@@ -11,7 +11,7 @@ use super::*;
 
 pub fn decode_to_utf16(encoding: &'static Encoding, bytes: &[u8], expect: &[u16]) {
     let mut decoder = encoding.new_decoder();
-    let mut dest: Vec<u16> = Vec::with_capacity(decoder.max_utf16_buffer_length(expect.len()));
+    let mut dest: Vec<u16> = Vec::with_capacity(decoder.max_utf16_buffer_length(bytes.len()));
     let capacity = dest.capacity();
     dest.resize(capacity, 0u16);
     let (complete, read, written, _) = decoder.decode_to_utf16_with_replacement(bytes,
@@ -32,7 +32,7 @@ pub fn decode_to_utf16(encoding: &'static Encoding, bytes: &[u8], expect: &[u16]
 pub fn decode_to_utf8(encoding: &'static Encoding, bytes: &[u8], expect: &str) {
     let mut decoder = encoding.new_decoder();
     let mut dest: Vec<u8> =
-        Vec::with_capacity(decoder.max_utf8_buffer_length_with_replacement(expect.len()));
+        Vec::with_capacity(decoder.max_utf8_buffer_length_with_replacement(bytes.len()));
     let capacity = dest.capacity();
     dest.resize(capacity, 0u8);
     let (complete, read, written, _) = decoder.decode_to_utf8_with_replacement(bytes,
@@ -48,4 +48,25 @@ pub fn decode_to_utf8(encoding: &'static Encoding, bytes: &[u8], expect: &str) {
     assert_eq!(written, expect.len());
     dest.truncate(written);
     assert_eq!(&dest[..], expect.as_bytes());
+}
+
+pub fn encode_from_utf8(encoding: &'static Encoding, string: &str, expect: &[u8]) {
+    let mut encoder = encoding.new_encoder();
+    let mut dest: Vec<u8> =
+        Vec::with_capacity(encoder.max_buffer_length_from_utf8_with_replacement_if_no_unmappables(string.len()));
+    let capacity = dest.capacity();
+    dest.resize(capacity, 0u8);
+    let (complete, read, written, _) = encoder.encode_from_utf8_with_replacement(string,
+                                                                                 &mut dest,
+                                                                                 true);
+    match complete {
+        WithReplacementResult::InputEmpty => {}
+        WithReplacementResult::OutputFull => {
+            unreachable!();
+        }
+    }
+    assert_eq!(read, string.len());
+    assert_eq!(written, expect.len());
+    dest.truncate(written);
+    assert_eq!(&dest[..], expect);
 }
