@@ -174,23 +174,18 @@ impl Big5Encoder {
     }
 
     pub fn max_buffer_length_from_utf16(&self, u16_length: usize) -> usize {
-        0 // TODO
+        // Astral: 2 to 2
+        // ASCII: 1 to 1
+        // Other: 1 to 2
+        2 * u16_length
     }
 
     pub fn max_buffer_length_from_utf8(&self, byte_length: usize) -> usize {
-        0 // TODO
-    }
-
-    pub fn max_buffer_length_from_utf16_with_replacement_if_no_unmappables(&self,
-                                                                           u16_length: usize)
-                                                                           -> usize {
-        0 // TODO
-    }
-
-    pub fn max_buffer_length_from_utf8_with_replacement_if_no_unmappables(&self,
-                                                                          byte_length: usize)
-                                                                          -> usize {
-        0 // TODO
+        // Astral: 4 to 2
+        // Upper BMP: 3 to 2
+        // Lower BMP: 2 to 2
+        // ASCII: 1 to 1
+        byte_length
     }
 
     encoder_functions!({},
