@@ -39,15 +39,16 @@ impl SingleByteDecoder {
                            if b < 0x80 {
                                // XXX optimize ASCII
                                destination_handle.write_ascii(b);
-                           } else {
-                               let mapped = self.table[b as usize - 0x80usize];
-                               if mapped == 0u16 {
-                                   return (DecoderResult::Malformed(1),
-                                           unread_handle.consumed(),
-                                           destination_handle.written());
-                               }
-                               destination_handle.write_bmp_excl_ascii(mapped);
+                               continue;
                            }
+                           let mapped = self.table[b as usize - 0x80usize];
+                           if mapped == 0u16 {
+                               return (DecoderResult::Malformed(1),
+                                       unread_handle.consumed(),
+                                       destination_handle.written());
+                           }
+                           destination_handle.write_bmp_excl_ascii(mapped);
+                           continue;
                        },
                        self,
                        src_consumed,
