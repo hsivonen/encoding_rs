@@ -53,7 +53,7 @@ pub fn decode_to_utf8(encoding: &'static Encoding, bytes: &[u8], expect: &str) {
 pub fn encode_from_utf8(encoding: &'static Encoding, string: &str, expect: &[u8]) {
     let mut encoder = encoding.new_encoder();
     let mut dest: Vec<u8> =
-        Vec::with_capacity(encoder.max_buffer_length_from_utf8_with_replacement_if_no_unmappables(string.len()));
+        Vec::with_capacity(10 * string.len()); // 10 is replacement worst case
     let capacity = dest.capacity();
     dest.resize(capacity, 0u8);
     let (complete, read, written, _) = encoder.encode_from_utf8_with_replacement(string,
