@@ -62,32 +62,42 @@ impl Utf8Encoder {
     }
 
     pub fn max_buffer_length_from_utf16(&self, u16_length: usize) -> usize {
-        0 // TODO
+        3 * u16_length
     }
 
     pub fn max_buffer_length_from_utf8(&self, byte_length: usize) -> usize {
-        0 // TODO
-    }
-
-    pub fn max_buffer_length_from_utf16_with_replacement_if_no_unmappables(&self,
-                                                                           u16_length: usize)
-                                                                           -> usize {
-        0 // TODO
-    }
-
-    pub fn max_buffer_length_from_utf8_with_replacement_if_no_unmappables(&self,
-                                                                          byte_length: usize)
-                                                                          -> usize {
-        0 // TODO
+        byte_length
     }
 
     pub fn encode_from_utf16(&mut self,
                              src: &[u16],
                              dst: &mut [u8],
-                             last: bool)
+                             _last: bool)
                              -> (EncoderResult, usize, usize) {
-        // XXX
-        (EncoderResult::InputEmpty, 0, 0)
+        let mut source = Utf16Source::new(src);
+        let mut dest = Utf8Destination::new(dst);
+        loop {
+            match source.check_available() {
+                Space::Full(src_consumed) => {
+                    return (EncoderResult::InputEmpty, src_consumed, dest.written());
+                }
+                Space::Available(source_handle) => {
+                    match dest.check_space_astral() {
+                        Space::Full(dst_written) => {
+                            return (EncoderResult::OutputFull,
+                                    source_handle.consumed(),
+                                    dst_written);
+                        }
+                        Space::Available(destination_handle) => {
+                            let (c, _) = source_handle.read();
+                            // Start non-boilerplate
+                            destination_handle.write_char(c);
+                            // End non-boilerplate
+                        }
+                    }
+                }
+            }
+        }
     }
 
     pub fn encode_from_utf8(&mut self,
