@@ -193,23 +193,15 @@ impl Big5Encoder {
         0 // TODO
     }
 
-    pub fn encode_from_utf16(&mut self,
-                             src: &[u16],
-                             dst: &mut [u8],
-                             last: bool)
-                             -> (EncoderResult, usize, usize) {
-        // XXX
-        (EncoderResult::InputEmpty, 0, 0)
-    }
-
-    pub fn encode_from_utf8(&mut self,
-                            src: &str,
-                            dst: &mut [u8],
-                            last: bool)
-                            -> (EncoderResult, usize, usize) {
-        // XXX
-        (EncoderResult::InputEmpty, 0, 0)
-    }
+    encoder_functions!({},
+                       {},
+                       self,
+                       src_consumed,
+                       source,
+                       c,
+                       destination_handle,
+                       unread_handle,
+                       check_space_two);
 }
 
 #[cfg(test)]
