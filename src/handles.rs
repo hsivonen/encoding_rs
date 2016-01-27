@@ -515,3 +515,111 @@ impl<'a, 'b> Utf16UnreadHandle<'a, 'b> where 'b: 'a
         self.source.consumed()
     }
 }
+
+// UTF-8 source
+
+pub struct Utf8Source<'a> {
+    slice: &'a [u8],
+    pos: usize,
+    old_pos: usize,
+}
+
+impl<'a> Utf8Source<'a> {
+    #[inline(always)]
+    pub fn new(src: &[u8]) -> Utf8Source {
+        Utf8Source {
+            slice: src,
+            pos: 0,
+            old_pos: 0,
+        }
+    }
+    #[inline(always)]
+    pub fn check_available<'b>(&'b mut self) -> Space<Utf8ReadHandle<'b, 'a>> {
+        if self.pos < self.slice.len() {
+            Space::Available(Utf8ReadHandle::new(self))
+        } else {
+            Space::Full(self.consumed())
+        }
+    }
+    #[inline(always)]
+    fn read(&mut self) -> char {
+        self.old_pos = self.pos;
+        let unit = self.slice[self.pos] as u32;
+        if unit < 0x80u32 {
+            self.pos += 1;
+            return unsafe { ::std::mem::transmute(unit) };
+        }
+        if unit < 0xE0u32 {
+            let point = ((unit & 0x1Fu32) << 6) | (self.slice[self.pos + 1] as u32 & 0x3Fu32);
+            self.pos += 2;
+            return unsafe { ::std::mem::transmute(point) };
+        }
+        if unit < 0xF0u32 {
+            let point = ((unit & 0xFu32) << 12) |
+                        ((self.slice[self.pos + 1] as u32 & 0x3Fu32) << 6) |
+                        (self.slice[self.pos + 2] as u32 & 0x3Fu32);
+            self.pos += 3;
+            return unsafe { ::std::mem::transmute(point) };
+        }
+        let point = ((unit & 0x7u32) << 18) | ((self.slice[self.pos + 1] as u32 & 0x3Fu32) << 12) |
+                    ((self.slice[self.pos + 2] as u32 & 0x3Fu32) << 6) |
+                    (self.slice[self.pos + 3] as u32 & 0x3Fu32);
+        self.pos += 4;
+        return unsafe { ::std::mem::transmute(point) };
+    }
+    #[inline(always)]
+    fn unread(&mut self) -> usize {
+        self.pos = self.old_pos;
+        self.pos
+    }
+    #[inline(always)]
+    fn consumed(&self) -> usize {
+        self.pos
+    }
+}
+
+pub struct Utf8ReadHandle<'a, 'b>
+    where 'b: 'a
+{
+    source: &'a mut Utf8Source<'b>,
+}
+
+impl<'a, 'b> Utf8ReadHandle<'a, 'b> where 'b: 'a
+{
+    #[inline(always)]
+    fn new(src: &'a mut Utf8Source<'b>) -> Utf8ReadHandle<'a, 'b> {
+        Utf8ReadHandle { source: src }
+    }
+    #[inline(always)]
+    pub fn read(self) -> (char, Utf8UnreadHandle<'a, 'b>) {
+        let character = self.source.read();
+        let handle = Utf8UnreadHandle::new(self.source);
+        (character, handle)
+    }
+    #[inline(always)]
+    pub fn consumed(&self) -> usize {
+        self.source.consumed()
+    }
+}
+
+pub struct Utf8UnreadHandle<'a, 'b>
+    where 'b: 'a
+{
+    source: &'a mut Utf8Source<'b>,
+}
+
+impl<'a, 'b> Utf8UnreadHandle<'a, 'b> where 'b: 'a
+{
+    #[inline(always)]
+    fn new(src: &'a mut Utf8Source<'b>) -> Utf8UnreadHandle<'a, 'b> {
+        Utf8UnreadHandle { source: src }
+    }
+    #[inline(always)]
+    pub fn unread(self) -> usize {
+        self.source.unread()
+    }
+    #[inline(always)]
+    pub fn consumed(&self) -> usize {
+        self.source.consumed()
+    }
+}
