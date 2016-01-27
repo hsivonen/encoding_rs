@@ -244,6 +244,14 @@ mod tests {
         decode_to_utf8(BIG5, bytes, expect);
     }
 
+    fn encode_big5_from_utf16(string: &[u16], expect: &[u8]) {
+        encode_from_utf16(BIG5, string, expect);
+    }
+
+    fn encode_big5_from_utf8(string: &str, expect: &[u8]) {
+        encode_from_utf8(BIG5, string, expect);
+    }
+
     #[test]
     fn test_big5_decode() {
         // ASCII
@@ -341,5 +349,27 @@ mod tests {
         decode_big5_to_utf8(&[0x87u8, 0x66u8], &"\u{FFFD}\u{0066}");
         decode_big5_to_utf8(&[0x81u8, 0x40u8], &"\u{FFFD}\u{0040}");
         decode_big5_to_utf8(&[0x61u8, 0x81u8], &"\u{0061}\u{FFFD}");
+    }
+
+    #[test]
+    fn test_big5_encode() {
+        // ASCII
+        encode_big5_from_utf16(&[0x0061u16, 0x0062u16], b"\x61\x62");
+        // Edge cases
+        encode_big5_from_utf16(&[0x9EA6u16, 0x0061u16], b"&#40614;\x61");
+        encode_big5_from_utf16(&[0xD858u16, 0xDE6Bu16, 0x0061u16], b"&#156267;\x61");
+        encode_big5_from_utf16(&[0x3000u16], b"\xA1\x40");
+        encode_big5_from_utf16(&[0x20ACu16], b"\xA3\xE1");
+        encode_big5_from_utf16(&[0x4E00u16], b"\xA4\x40");
+        encode_big5_from_utf16(&[0xD85Du16, 0xDE07u16], b"\xC8\xA4");
+        encode_big5_from_utf16(&[0xFFE2u16], b"\xC8\xCD");
+        encode_big5_from_utf16(&[0x79D4u16], b"\xFE\xFE");
+        // Not in index
+        encode_big5_from_utf16(&[0x2603u16, 0x0061u16], b"&#9731;\x61");
+        // duplicate low bits
+        encode_big5_from_utf16(&[0xD840u16, 0xDFB5u16], b"\xFD\x6A");
+        // prefer last
+        encode_big5_from_utf16(&[0x2550u16], b"\xF9\xF9");
+
     }
 }

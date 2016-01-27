@@ -1943,7 +1943,7 @@ fn write_ncr(unmappable: char, dst: &mut [u8]) -> usize {
     };
     debug_assert!(number >= 10u32);
     debug_assert!(len <= dst.len());
-    let mut pos = len;
+    let mut pos = len - 1;
     dst[pos] = b';';
     pos -= 1;
     loop {
@@ -1955,9 +1955,8 @@ fn write_ncr(unmappable: char, dst: &mut [u8]) -> usize {
         }
         number /= 10;
     }
-    dst[pos] = b'#';
-    pos -= 1;
-    dst[pos] = b'&';
+    dst[1] = b'#';
+    dst[0] = b'&';
     len
 }
 
