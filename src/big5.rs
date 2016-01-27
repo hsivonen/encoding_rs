@@ -371,5 +371,22 @@ mod tests {
         // prefer last
         encode_big5_from_utf16(&[0x2550u16], b"\xF9\xF9");
 
+        // ASCII
+        encode_big5_from_utf8("\u{0061}\u{0062}", b"\x61\x62");
+        // Edge cases
+        encode_big5_from_utf8("\u{9EA6}\u{0061}", b"&#40614;\x61");
+        encode_big5_from_utf8("\u{2626B}\u{0061}", b"&#156267;\x61");
+        encode_big5_from_utf8("\u{3000}", b"\xA1\x40");
+        encode_big5_from_utf8("\u{20AC}", b"\xA3\xE1");
+        encode_big5_from_utf8("\u{4E00}", b"\xA4\x40");
+        encode_big5_from_utf8("\u{27607}", b"\xC8\xA4");
+        encode_big5_from_utf8("\u{FFE2}", b"\xC8\xCD");
+        encode_big5_from_utf8("\u{79D4}", b"\xFE\xFE");
+        // Not in index
+        encode_big5_from_utf8("\u{2603}\u{0061}", b"&#9731;\x61");
+        // duplicate low bits
+        encode_big5_from_utf8("\u{203B5}", b"\xFD\x6A");
+        // prefer last
+        encode_big5_from_utf8("\u{2550}", b"\xF9\xF9");
     }
 }
