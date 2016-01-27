@@ -93,10 +93,25 @@ impl Utf8Encoder {
     pub fn encode_from_utf8(&mut self,
                             src: &str,
                             dst: &mut [u8],
-                            last: bool)
+                            _last: bool)
                             -> (EncoderResult, usize, usize) {
-        // XXX
-        (EncoderResult::InputEmpty, 0, 0)
+        let mut to_write = src.len();
+        if to_write <= dst.len() {
+            unsafe {
+                ::std::ptr::copy_nonoverlapping(src.as_ptr(), dst.as_mut_ptr(), to_write);
+            }
+            return (EncoderResult::InputEmpty, to_write, to_write);
+        }
+        to_write = dst.len();
+        // Move back until we find a UTF-8 sequence boundary.
+        let bytes = src.as_bytes();
+        while (bytes[to_write] & 0xC0) == 0x80 {
+            to_write -= 1;
+        }
+        unsafe {
+            ::std::ptr::copy_nonoverlapping(src.as_ptr(), dst.as_mut_ptr(), to_write);
+        }
+        return (EncoderResult::OutputFull, to_write, to_write);
     }
 }
 
