@@ -17,7 +17,12 @@ pub fn decode_to_utf16(encoding: &'static Encoding, bytes: &[u8], expect: &[u16]
     let (complete, read, written, _) = decoder.decode_to_utf16_with_replacement(bytes,
                                                                                 &mut dest,
                                                                                 true);
-    assert_eq!(complete, WithReplacementResult::InputEmpty);
+    match complete {
+        WithReplacementResult::InputEmpty => {}
+        WithReplacementResult::OutputFull => {
+            unreachable!();
+        }
+    }
     assert_eq!(read, bytes.len());
     assert_eq!(written, expect.len());
     dest.truncate(written);
@@ -33,7 +38,12 @@ pub fn decode_to_utf8(encoding: &'static Encoding, bytes: &[u8], expect: &str) {
     let (complete, read, written, _) = decoder.decode_to_utf8_with_replacement(bytes,
                                                                                &mut dest,
                                                                                true);
-    assert_eq!(complete, WithReplacementResult::InputEmpty);
+    match complete {
+        WithReplacementResult::InputEmpty => {}
+        WithReplacementResult::OutputFull => {
+            unreachable!();
+        }
+    }
     assert_eq!(read, bytes.len());
     assert_eq!(written, expect.len());
     dest.truncate(written);

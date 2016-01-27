@@ -1142,26 +1142,6 @@ pub enum WithReplacementResult {
     OutputFull,
 }
 
-impl PartialEq for WithReplacementResult {
-    fn eq(&self, other: &WithReplacementResult) -> bool {
-        // TODO: There has to be a simpler way to implement this.
-        match *self {
-            WithReplacementResult::InputEmpty => {
-                match *other {
-                    WithReplacementResult::InputEmpty => true,
-                    WithReplacementResult::OutputFull => false,
-                }
-            }
-            WithReplacementResult::OutputFull => {
-                match *other {
-                    WithReplacementResult::InputEmpty => false,
-                    WithReplacementResult::OutputFull => true,
-                }
-            }
-        }
-    }
-}
-
 /// Result of a (potentially partial) decode operation.
 #[derive(Debug)]
 pub enum DecoderResult {
