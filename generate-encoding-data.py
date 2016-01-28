@@ -155,7 +155,7 @@ pub const %s: &'static Encoding = &Encoding {
 
 ''' % (to_dom_name(name), to_constant_name(name), to_dom_name(name), variant))
 
-label_file.write("""static ENCODINGS_SORTED_BY_DOM_NAME: [&'static Encoding; %d] = [
+label_file.write("""static ENCODINGS_SORTED_BY_NAME: [&'static Encoding; %d] = [
 """ % len(dom))
 
 for dom_name in dom:
