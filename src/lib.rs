@@ -936,12 +936,12 @@ impl Encoding {
     /// is most likely the wrong thing to do.
     ///
     /// XXX: Should this method be made FFI-only to discourage Rust callers?
-    pub fn for_dom_name(dom_name: &[u8]) -> Option<&'static Encoding> {
+    pub fn for_name(dom_name: &[u8]) -> Option<&'static Encoding> {
         // XXX optimize this to binary search, potentially with a comparator
         // that reads the name from the end to start.
         for i in 0..ENCODINGS_SORTED_BY_DOM_NAME.len() {
             let encoding = ENCODINGS_SORTED_BY_DOM_NAME[i];
-            if dom_name == encoding.dom_name().as_bytes() {
+            if dom_name == encoding.name().as_bytes() {
                 return Some(ENCODINGS_IN_LABEL_SORT[i]);
             }
         }
@@ -968,11 +968,6 @@ impl Encoding {
     /// XXX https://github.com/whatwg/encoding/issues/32
     pub fn name(&'static self) -> &'static str {
         self.name
-    }
-
-    /// XXX get rid of this https://github.com/whatwg/encoding/issues/32
-    pub fn dom_name(&'static self) -> &'static str {
-        self.dom_name
     }
 
     /// Convenience method for decoding to `String` with malformed sequences
