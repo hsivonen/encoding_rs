@@ -39,287 +39,249 @@ const NCR_EXTRA: usize = 9; // #1114111;
 
 const LONGEST_LABEL_LENGTH: usize = 19; // cseucpkdfmtjapanese
 
-/// The big5 encoding.
+/// The Big5 encoding.
 pub const BIG5: &'static Encoding = &Encoding {
-    name: "big5",
-    dom_name: "Big5",
+    name: "Big5",
     variant: VariantEncoding::Big5,
 };
 
-/// The euc-jp encoding.
+/// The EUC-JP encoding.
 pub const EUC_JP: &'static Encoding = &Encoding {
-    name: "euc-jp",
-    dom_name: "euc-jp",
+    name: "EUC-JP",
     variant: VariantEncoding::EucJp,
 };
 
-/// The euc-kr encoding.
+/// The EUC-KR encoding.
 pub const EUC_KR: &'static Encoding = &Encoding {
-    name: "euc-kr",
-    dom_name: "euc-kr",
+    name: "EUC-KR",
     variant: VariantEncoding::EucKr,
 };
 
 /// The gb18030 encoding.
 pub const GB18030: &'static Encoding = &Encoding {
     name: "gb18030",
-    dom_name: "gb18030",
     variant: VariantEncoding::Gb18030,
 };
 
-/// The gbk encoding.
+/// The GBK encoding.
 pub const GBK: &'static Encoding = &Encoding {
-    name: "gbk",
-    dom_name: "GBK",
+    name: "GBK",
     variant: VariantEncoding::Gbk,
 };
 
-/// The ibm866 encoding.
+/// The IBM866 encoding.
 pub const IBM866: &'static Encoding = &Encoding {
-    name: "ibm866",
-    dom_name: "IBM866",
+    name: "IBM866",
     variant: VariantEncoding::SingleByte(data::IBM866_DATA),
 };
 
-/// The iso-2022-jp encoding.
+/// The ISO-2022-JP encoding.
 pub const ISO_2022_JP: &'static Encoding = &Encoding {
-    name: "iso-2022-jp",
-    dom_name: "ISO-2022-JP",
+    name: "ISO-2022-JP",
     variant: VariantEncoding::Iso2022Jp,
 };
 
-/// The iso-8859-10 encoding.
+/// The ISO-8859-10 encoding.
 pub const ISO_8859_10: &'static Encoding = &Encoding {
-    name: "iso-8859-10",
-    dom_name: "ISO-8859-10",
+    name: "ISO-8859-10",
     variant: VariantEncoding::SingleByte(data::ISO_8859_10_DATA),
 };
 
-/// The iso-8859-13 encoding.
+/// The ISO-8859-13 encoding.
 pub const ISO_8859_13: &'static Encoding = &Encoding {
-    name: "iso-8859-13",
-    dom_name: "ISO-8859-13",
+    name: "ISO-8859-13",
     variant: VariantEncoding::SingleByte(data::ISO_8859_13_DATA),
 };
 
-/// The iso-8859-14 encoding.
+/// The ISO-8859-14 encoding.
 pub const ISO_8859_14: &'static Encoding = &Encoding {
-    name: "iso-8859-14",
-    dom_name: "ISO-8859-14",
+    name: "ISO-8859-14",
     variant: VariantEncoding::SingleByte(data::ISO_8859_14_DATA),
 };
 
-/// The iso-8859-15 encoding.
+/// The ISO-8859-15 encoding.
 pub const ISO_8859_15: &'static Encoding = &Encoding {
-    name: "iso-8859-15",
-    dom_name: "ISO-8859-15",
+    name: "ISO-8859-15",
     variant: VariantEncoding::SingleByte(data::ISO_8859_15_DATA),
 };
 
-/// The iso-8859-16 encoding.
+/// The ISO-8859-16 encoding.
 pub const ISO_8859_16: &'static Encoding = &Encoding {
-    name: "iso-8859-16",
-    dom_name: "ISO-8859-16",
+    name: "ISO-8859-16",
     variant: VariantEncoding::SingleByte(data::ISO_8859_16_DATA),
 };
 
-/// The iso-8859-2 encoding.
+/// The ISO-8859-2 encoding.
 pub const ISO_8859_2: &'static Encoding = &Encoding {
-    name: "iso-8859-2",
-    dom_name: "ISO-8859-2",
+    name: "ISO-8859-2",
     variant: VariantEncoding::SingleByte(data::ISO_8859_2_DATA),
 };
 
-/// The iso-8859-3 encoding.
+/// The ISO-8859-3 encoding.
 pub const ISO_8859_3: &'static Encoding = &Encoding {
-    name: "iso-8859-3",
-    dom_name: "ISO-8859-3",
+    name: "ISO-8859-3",
     variant: VariantEncoding::SingleByte(data::ISO_8859_3_DATA),
 };
 
-/// The iso-8859-4 encoding.
+/// The ISO-8859-4 encoding.
 pub const ISO_8859_4: &'static Encoding = &Encoding {
-    name: "iso-8859-4",
-    dom_name: "ISO-8859-4",
+    name: "ISO-8859-4",
     variant: VariantEncoding::SingleByte(data::ISO_8859_4_DATA),
 };
 
-/// The iso-8859-5 encoding.
+/// The ISO-8859-5 encoding.
 pub const ISO_8859_5: &'static Encoding = &Encoding {
-    name: "iso-8859-5",
-    dom_name: "ISO-8859-5",
+    name: "ISO-8859-5",
     variant: VariantEncoding::SingleByte(data::ISO_8859_5_DATA),
 };
 
-/// The iso-8859-6 encoding.
+/// The ISO-8859-6 encoding.
 pub const ISO_8859_6: &'static Encoding = &Encoding {
-    name: "iso-8859-6",
-    dom_name: "ISO-8859-6",
+    name: "ISO-8859-6",
     variant: VariantEncoding::SingleByte(data::ISO_8859_6_DATA),
 };
 
-/// The iso-8859-7 encoding.
+/// The ISO-8859-7 encoding.
 pub const ISO_8859_7: &'static Encoding = &Encoding {
-    name: "iso-8859-7",
-    dom_name: "ISO-8859-7",
+    name: "ISO-8859-7",
     variant: VariantEncoding::SingleByte(data::ISO_8859_7_DATA),
 };
 
-/// The iso-8859-8 encoding.
+/// The ISO-8859-8 encoding.
 pub const ISO_8859_8: &'static Encoding = &Encoding {
-    name: "iso-8859-8",
-    dom_name: "ISO-8859-8",
+    name: "ISO-8859-8",
     variant: VariantEncoding::SingleByte(data::ISO_8859_8_DATA),
 };
 
-/// The iso-8859-8-i encoding.
+/// The ISO-8859-8-I encoding.
 pub const ISO_8859_8_I: &'static Encoding = &Encoding {
-    name: "iso-8859-8-i",
-    dom_name: "ISO-8859-8-I",
+    name: "ISO-8859-8-I",
     variant: VariantEncoding::SingleByte(data::ISO_8859_8_DATA),
 };
 
-/// The koi8-r encoding.
+/// The KOI8-R encoding.
 pub const KOI8_R: &'static Encoding = &Encoding {
-    name: "koi8-r",
-    dom_name: "KOI8-R",
+    name: "KOI8-R",
     variant: VariantEncoding::SingleByte(data::KOI8_R_DATA),
 };
 
-/// The koi8-u encoding.
+/// The KOI8-U encoding.
 pub const KOI8_U: &'static Encoding = &Encoding {
-    name: "koi8-u",
-    dom_name: "KOI8-U",
+    name: "KOI8-U",
     variant: VariantEncoding::SingleByte(data::KOI8_U_DATA),
 };
 
 /// The macintosh encoding.
 pub const MACINTOSH: &'static Encoding = &Encoding {
     name: "macintosh",
-    dom_name: "macintosh",
     variant: VariantEncoding::SingleByte(data::MACINTOSH_DATA),
 };
 
 /// The replacement encoding.
 pub const REPLACEMENT: &'static Encoding = &Encoding {
     name: "replacement",
-    dom_name: "replacement",
     variant: VariantEncoding::Replacement,
 };
 
-/// The shift_jis encoding.
+/// The Shift_JIS encoding.
 pub const SHIFT_JIS: &'static Encoding = &Encoding {
-    name: "shift_jis",
-    dom_name: "Shift_JIS",
+    name: "Shift_JIS",
     variant: VariantEncoding::ShiftJis,
 };
 
-/// The utf-16be encoding.
+/// The UTF-16BE encoding.
 pub const UTF_16BE: &'static Encoding = &Encoding {
-    name: "utf-16be",
-    dom_name: "UTF-16BE",
+    name: "UTF-16BE",
     variant: VariantEncoding::Utf16Be,
 };
 
-/// The utf-16le encoding.
+/// The UTF-16LE encoding.
 pub const UTF_16LE: &'static Encoding = &Encoding {
-    name: "utf-16le",
-    dom_name: "UTF-16LE",
+    name: "UTF-16LE",
     variant: VariantEncoding::Utf16Le,
 };
 
-/// The utf-8 encoding.
+/// The UTF-8 encoding.
 pub const UTF_8: &'static Encoding = &Encoding {
-    name: "utf-8",
-    dom_name: "UTF-8",
+    name: "UTF-8",
     variant: VariantEncoding::Utf8,
 };
 
 /// The windows-1250 encoding.
 pub const WINDOWS_1250: &'static Encoding = &Encoding {
     name: "windows-1250",
-    dom_name: "windows-1250",
     variant: VariantEncoding::SingleByte(data::WINDOWS_1250_DATA),
 };
 
 /// The windows-1251 encoding.
 pub const WINDOWS_1251: &'static Encoding = &Encoding {
     name: "windows-1251",
-    dom_name: "windows-1251",
     variant: VariantEncoding::SingleByte(data::WINDOWS_1251_DATA),
 };
 
 /// The windows-1252 encoding.
 pub const WINDOWS_1252: &'static Encoding = &Encoding {
     name: "windows-1252",
-    dom_name: "windows-1252",
     variant: VariantEncoding::SingleByte(data::WINDOWS_1252_DATA),
 };
 
 /// The windows-1253 encoding.
 pub const WINDOWS_1253: &'static Encoding = &Encoding {
     name: "windows-1253",
-    dom_name: "windows-1253",
     variant: VariantEncoding::SingleByte(data::WINDOWS_1253_DATA),
 };
 
 /// The windows-1254 encoding.
 pub const WINDOWS_1254: &'static Encoding = &Encoding {
     name: "windows-1254",
-    dom_name: "windows-1254",
     variant: VariantEncoding::SingleByte(data::WINDOWS_1254_DATA),
 };
 
 /// The windows-1255 encoding.
 pub const WINDOWS_1255: &'static Encoding = &Encoding {
     name: "windows-1255",
-    dom_name: "windows-1255",
     variant: VariantEncoding::SingleByte(data::WINDOWS_1255_DATA),
 };
 
 /// The windows-1256 encoding.
 pub const WINDOWS_1256: &'static Encoding = &Encoding {
     name: "windows-1256",
-    dom_name: "windows-1256",
     variant: VariantEncoding::SingleByte(data::WINDOWS_1256_DATA),
 };
 
 /// The windows-1257 encoding.
 pub const WINDOWS_1257: &'static Encoding = &Encoding {
     name: "windows-1257",
-    dom_name: "windows-1257",
     variant: VariantEncoding::SingleByte(data::WINDOWS_1257_DATA),
 };
 
 /// The windows-1258 encoding.
 pub const WINDOWS_1258: &'static Encoding = &Encoding {
     name: "windows-1258",
-    dom_name: "windows-1258",
     variant: VariantEncoding::SingleByte(data::WINDOWS_1258_DATA),
 };
 
 /// The windows-874 encoding.
 pub const WINDOWS_874: &'static Encoding = &Encoding {
     name: "windows-874",
-    dom_name: "windows-874",
     variant: VariantEncoding::SingleByte(data::WINDOWS_874_DATA),
 };
 
 /// The x-mac-cyrillic encoding.
 pub const X_MAC_CYRILLIC: &'static Encoding = &Encoding {
     name: "x-mac-cyrillic",
-    dom_name: "x-mac-cyrillic",
     variant: VariantEncoding::SingleByte(data::X_MAC_CYRILLIC_DATA),
 };
 
 /// The x-user-defined encoding.
 pub const X_USER_DEFINED: &'static Encoding = &Encoding {
     name: "x-user-defined",
-    dom_name: "x-user-defined",
     variant: VariantEncoding::UserDefined,
 };
 
 static ENCODINGS_SORTED_BY_DOM_NAME: [&'static Encoding; 40] = [BIG5,
+                                                                EUC_JP,
+                                                                EUC_KR,
                                                                 GBK,
                                                                 IBM866,
                                                                 ISO_2022_JP,
@@ -342,8 +304,6 @@ static ENCODINGS_SORTED_BY_DOM_NAME: [&'static Encoding; 40] = [BIG5,
                                                                 UTF_16BE,
                                                                 UTF_16LE,
                                                                 UTF_8,
-                                                                EUC_JP,
-                                                                EUC_KR,
                                                                 GB18030,
                                                                 MACINTOSH,
                                                                 REPLACEMENT,
@@ -804,22 +764,23 @@ static ENCODINGS_IN_LABEL_SORT: [&'static Encoding; 218] = [IBM866,
 /// [Encoding Standard](https://encoding.spec.whatwg.org/).
 ///
 /// An _encoding_ defines a mapping from a `char` sequence to a `u8` sequence
-/// (and vice versa). Each encoding has a name, a DOM name, a submission
-/// encoding, and one or more labels and an output encoding.
+/// (and vice versa). Each encoding has a name, a submission encoding, and one
+/// or more labels and an output encoding.
 ///
 /// _Labels_ are ASCII-case-insensitive strings that are used to identify an
 /// encoding in formats and protocols. The _name_ of the encoding is the
-/// lower-case form of one of the labels (i.e. the preferred label), except for
-/// the replacement encoding whose name is not one of its labels. The _DOM
-/// name_ is a potentially mixed-case case-sensitive variant of the name for
-/// historical reasons. If the DOM name differs from the name, it differs only
-/// in terms of some letters being in upper case instead of being in lower case.
-/// DOM names are defined in the "Compatibility name" column of the mapping
-/// table in the
-/// [DOM Standard](https://dom.spec.whatwg.org/#dom-document-characterset).
+/// preferred label in the case appropriate for returning from the
+/// [`characterSet`](https://dom.spec.whatwg.org/#dom-document-characterset)
+/// property of the `Document` DOM interface, except for the replacement
+/// encoding whose name is not one of its labels.
+///
+/// For the time being, the Encoding Standard defines names to always be in
+/// the lower case. To obtain a name appropriate for returning from the
+/// `encoding` property of the `TextDecoder` DOM interface, convert the name
+/// returned by this API to ASCII lower case.
 ///
 /// The _submission encoding_ is the encoding using for form submission and URL
-/// parsing. This is utf-8 for the replacement, utf-16le and utf-16be encodings
+/// parsing. This is UTF-8 for the replacement, UTF-16LE and UTF-16BE encodings
 /// and the encoding itself for other encodings.
 ///
 /// When you have the entire input in a single buffer, you can use the
@@ -832,7 +793,6 @@ static ENCODINGS_IN_LABEL_SORT: [&'static Encoding; 218] = [IBM866,
 /// or when you want to control the allocation of the output buffers.
 pub struct Encoding {
     name: &'static str,
-    dom_name: &'static str,
     variant: VariantEncoding,
 }
 

@@ -63,6 +63,8 @@ def to_dom_name(name):
     return name.upper()
   if name.startswith(u"utf-"):
     return name.upper()
+  if name.startswith(u"euc-"):
+    return name.upper()
   if name.startswith(u"koi"):
     return name.upper()
   if name.startswith(u"ibm"):
@@ -148,11 +150,10 @@ for name in preferred:
   label_file.write('''/// The %s encoding.
 pub const %s: &'static Encoding = &Encoding {
     name: "%s",
-    dom_name: "%s",
     variant: VariantEncoding::%s,
 };
 
-''' % (name, to_constant_name(name), name, to_dom_name(name), variant))
+''' % (to_dom_name(name), to_constant_name(name), to_dom_name(name), variant))
 
 label_file.write("""static ENCODINGS_SORTED_BY_DOM_NAME: [&'static Encoding; %d] = [
 """ % len(dom))
