@@ -1877,6 +1877,7 @@ impl Encoder {
     }
 }
 
+/// Format an unmappable as NCR without heap allocation.
 fn write_ncr(unmappable: char, dst: &mut [u8]) -> usize {
     // len is the number of decimal digits needed to represent unmappable plus
     // 3 (the length of "&#" and ";").
