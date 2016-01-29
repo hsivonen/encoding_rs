@@ -1096,6 +1096,12 @@ impl PartialEq for Encoding {
 
 impl Eq for Encoding {}
 
+impl std::fmt::Debug for Encoding {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "Encoding {{ {} }}", self.name)
+    }
+}
+
 /// Result of a (potentially partial) decode or operation with replacement.
 #[derive(Debug)]
 pub enum WithReplacementResult {

@@ -7,7 +7,6 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-use handles::*;
 use variant::*;
 use super::*;
 
@@ -25,15 +24,15 @@ impl ReplacementDecoder {
         self.emitted = false;
     }
 
-    pub fn max_utf16_buffer_length(&self, u16_length: usize) -> usize {
+    pub fn max_utf16_buffer_length(&self, _u16_length: usize) -> usize {
         1
     }
 
-    pub fn max_utf8_buffer_length(&self, byte_length: usize) -> usize {
+    pub fn max_utf8_buffer_length(&self, _byte_length: usize) -> usize {
         1 // really zero, but that might surprise callers
     }
 
-    pub fn max_utf8_buffer_length_with_replacement(&self, byte_length: usize) -> usize {
+    pub fn max_utf8_buffer_length_with_replacement(&self, _byte_length: usize) -> usize {
         3
     }
 
@@ -70,10 +69,31 @@ impl ReplacementDecoder {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use super::super::testing::*;
     use super::super::*;
 
+    fn decode_replacement_to_utf16(bytes: &[u8], expect: &[u16]) {
+        decode_to_utf16(REPLACEMENT, bytes, expect);
+    }
+
+    fn decode_replacement_to_utf8(bytes: &[u8], expect: &str) {
+        decode_to_utf8(REPLACEMENT, bytes, expect);
+    }
+
+    #[test]
+    fn test_replacement_decode() {
+        decode_replacement_to_utf16(b"", &[]);
+        decode_replacement_to_utf16(b"A", &[0xFFFDu16]);
+        decode_replacement_to_utf16(b"AB", &[0xFFFDu16]);
+        decode_replacement_to_utf8(b"", "");
+        decode_replacement_to_utf8(b"A", "\u{FFFD}");
+        decode_replacement_to_utf8(b"AB", "\u{FFFD}");
+    }
+
+    #[test]
+    fn test_replacement_encode() {
+        assert_eq!(REPLACEMENT.new_encoder().encoding(), UTF_8);
+    }
 }
