@@ -2,7 +2,7 @@
 name = "encoding-rs"
 version = "0.1.0"
 authors = ["Henri Sivonen <hsivonen@hsivonen.fi>"]
-#build = "build.rs"
+build = "build.rs"
 
 [build-dependencies]
 rusty-cheddar = "0.3.1"
