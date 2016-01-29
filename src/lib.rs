@@ -39,6 +39,8 @@ const NCR_EXTRA: usize = 9; // #1114111;
 
 const LONGEST_LABEL_LENGTH: usize = 19; // cseucpkdfmtjapanese
 
+const LONGEST_NAME_LENGTH: usize = 14; // x-mac-cyrillic
+
 /// The Big5 encoding.
 pub const BIG5: &'static Encoding = &Encoding {
     name: "Big5",
@@ -810,6 +812,8 @@ impl Encoding {
     /// that are extracting the label from a non-UTF-8 protocol the trouble
     /// of conversion to UTF-8. (If you have a `&str`, just call `.as_bytes()`
     /// on it.)
+    ///
+    /// Available via the C wrapper.
     pub fn for_label(label: &[u8]) -> Option<&'static Encoding> {
         let mut trimmed = [0u8; LONGEST_LABEL_LENGTH];
         let mut trimmed_pos = 0usize;
@@ -912,6 +916,8 @@ impl Encoding {
     /// upon invalid label, because in those cases the caller typically wishes
     /// to treat the labels that map to the replacement encoding as fatal
     /// errors, too.
+    ///
+    /// Available via the C wrapper.
     pub fn for_label_no_replacement(label: &[u8]) -> Option<&'static Encoding> {
         match Encoding::for_label(label) {
             None => None,
@@ -936,6 +942,8 @@ impl Encoding {
     /// is most likely the wrong thing to do.
     ///
     /// XXX: Should this method be made FFI-only to discourage Rust callers?
+    ///
+    /// Available via the C wrapper.
     pub fn for_name(dom_name: &[u8]) -> Option<&'static Encoding> {
         // XXX optimize this to binary search, potentially with a comparator
         // that reads the name from the end to start.
@@ -948,12 +956,23 @@ impl Encoding {
         return None;
     }
 
+    /// XXX https://github.com/whatwg/encoding/issues/32
+    ///
+    /// Available via the C wrapper.
+    pub fn name(&'static self) -> &'static str {
+        self.name
+    }
+
     /// Checks whether this encoding can encode every `char`.
+    ///
+    /// Available via the C wrapper.
     pub fn can_encode_everything(&'static self) -> bool {
         self.variant.can_encode_everything()
     }
 
     /// Instantiates a new decoder for this encoding.
+    ///
+    /// Available via the C wrapper.
     pub fn new_decoder(&'static self) -> Decoder {
         self.variant.new_decoder(self)
     }
@@ -961,13 +980,10 @@ impl Encoding {
     /// Instantiates a new encoder for this encoding, except if this encoding
     /// is replacement a new decoder for UTF-8 is instantiated (and that
     /// decoder reports `UTF_8` as its encoding).
+    ///
+    /// Available via the C wrapper.
     pub fn new_encoder(&'static self) -> Encoder {
         self.variant.new_encoder(self)
-    }
-
-    /// XXX https://github.com/whatwg/encoding/issues/32
-    pub fn name(&'static self) -> &'static str {
-        self.name
     }
 
     /// Convenience method for decoding to `String` with malformed sequences

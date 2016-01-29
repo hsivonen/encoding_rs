@@ -138,7 +138,9 @@ label_file.write("""
 
 const LONGEST_LABEL_LENGTH: usize = %d; // %s
 
-""" % (longest_label_length, longest_label))
+const LONGEST_NAME_LENGTH: usize = %d; // %s
+
+""" % (longest_label_length, longest_label, longest_name_length, longest_name))
 
 for name in preferred:
   variant = None
