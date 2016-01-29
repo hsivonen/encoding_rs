@@ -47,6 +47,9 @@ impl ReplacementDecoder {
             }
             (DecoderResult::InputEmpty, src.len(), 0)
         } else {
+            // We don't need to check if output has enough space, because
+            // everything is weird anyway if the caller of the `Encoder` API
+            // passes an output buffer that violates the minimum size rules.
             self.emitted = true;
             (DecoderResult::Malformed(1u8), 1, 0)
         }
