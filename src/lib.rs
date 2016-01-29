@@ -31,6 +31,7 @@ mod variant;
 pub mod ffi;
 
 use variant::*;
+pub use ffi::*;
 
 const NCR_EXTRA: usize = 9; // #1114111;
 
