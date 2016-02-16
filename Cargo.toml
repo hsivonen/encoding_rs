@@ -9,7 +9,8 @@ build = "build.rs"
 
 [lib]
 name = "encoding_rs"
-crate-type = ["rlib", "staticlib"]
+# The below line confuses rustfmt. Uncomment to build a staticlib.
+# crate-type = ["rlib", "staticlib"]
 
 [build-dependencies]
 rusty-cheddar = "0.3.1"

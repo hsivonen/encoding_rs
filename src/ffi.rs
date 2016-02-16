@@ -248,15 +248,15 @@ pub unsafe extern "C" fn encoder_reset(encoder: *mut Encoder) {
 
 #[no_mangle]
 pub unsafe extern "C" fn encoder_max_buffer_length_from_utf16(encoder: *const Encoder,
-                                                       u16_length: usize)
-                                                       -> usize {
+                                                              u16_length: usize)
+                                                              -> usize {
     (*encoder).max_buffer_length_from_utf16(u16_length)
 }
 
 #[no_mangle]
 pub unsafe extern "C" fn encoder_max_buffer_length_from_utf8(encoder: *const Encoder,
-                                                      byte_length: usize)
-                                                      -> usize {
+                                                             byte_length: usize)
+                                                             -> usize {
     (*encoder).max_buffer_length_from_utf8(byte_length)
 }
 

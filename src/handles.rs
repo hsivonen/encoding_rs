@@ -67,7 +67,8 @@ pub struct ByteReadHandle<'a, 'b>
     source: &'a mut ByteSource<'b>,
 }
 
-impl<'a, 'b> ByteReadHandle<'a, 'b> where 'b: 'a
+impl<'a, 'b> ByteReadHandle<'a, 'b>
+    where 'b: 'a
 {
     #[inline(always)]
     fn new(src: &'a mut ByteSource<'b>) -> ByteReadHandle<'a, 'b> {
@@ -91,7 +92,8 @@ pub struct ByteUnreadHandle<'a, 'b>
     source: &'a mut ByteSource<'b>,
 }
 
-impl<'a, 'b> ByteUnreadHandle<'a, 'b> where 'b: 'a
+impl<'a, 'b> ByteUnreadHandle<'a, 'b>
+    where 'b: 'a
 {
     #[inline(always)]
     fn new(src: &'a mut ByteSource<'b>) -> ByteUnreadHandle<'a, 'b> {
@@ -115,7 +117,8 @@ pub struct Utf16BmpHandle<'a, 'b>
     dest: &'a mut Utf16Destination<'b>,
 }
 
-impl<'a, 'b> Utf16BmpHandle<'a, 'b> where 'b: 'a
+impl<'a, 'b> Utf16BmpHandle<'a, 'b>
+    where 'b: 'a
 {
     #[inline(always)]
     fn new(dst: &'a mut Utf16Destination<'b>) -> Utf16BmpHandle<'a, 'b> {
@@ -141,7 +144,8 @@ pub struct Utf16AstralHandle<'a, 'b>
     dest: &'a mut Utf16Destination<'b>,
 }
 
-impl<'a, 'b> Utf16AstralHandle<'a, 'b> where 'b: 'a
+impl<'a, 'b> Utf16AstralHandle<'a, 'b>
+    where 'b: 'a
 {
     #[inline(always)]
     fn new(dst: &'a mut Utf16Destination<'b>) -> Utf16AstralHandle<'a, 'b> {
@@ -251,7 +255,8 @@ pub struct Utf8BmpHandle<'a, 'b>
     dest: &'a mut Utf8Destination<'b>,
 }
 
-impl<'a, 'b> Utf8BmpHandle<'a, 'b> where 'b: 'a
+impl<'a, 'b> Utf8BmpHandle<'a, 'b>
+    where 'b: 'a
 {
     #[inline(always)]
     fn new(dst: &'a mut Utf8Destination<'b>) -> Utf8BmpHandle<'a, 'b> {
@@ -277,7 +282,8 @@ pub struct Utf8AstralHandle<'a, 'b>
     dest: &'a mut Utf8Destination<'b>,
 }
 
-impl<'a, 'b> Utf8AstralHandle<'a, 'b> where 'b: 'a
+impl<'a, 'b> Utf8AstralHandle<'a, 'b>
+    where 'b: 'a
 {
     #[inline(always)]
     fn new(dst: &'a mut Utf8Destination<'b>) -> Utf8AstralHandle<'a, 'b> {
@@ -476,7 +482,8 @@ pub struct Utf16ReadHandle<'a, 'b>
     source: &'a mut Utf16Source<'b>,
 }
 
-impl<'a, 'b> Utf16ReadHandle<'a, 'b> where 'b: 'a
+impl<'a, 'b> Utf16ReadHandle<'a, 'b>
+    where 'b: 'a
 {
     #[inline(always)]
     fn new(src: &'a mut Utf16Source<'b>) -> Utf16ReadHandle<'a, 'b> {
@@ -500,7 +507,8 @@ pub struct Utf16UnreadHandle<'a, 'b>
     source: &'a mut Utf16Source<'b>,
 }
 
-impl<'a, 'b> Utf16UnreadHandle<'a, 'b> where 'b: 'a
+impl<'a, 'b> Utf16UnreadHandle<'a, 'b>
+    where 'b: 'a
 {
     #[inline(always)]
     fn new(src: &'a mut Utf16Source<'b>) -> Utf16UnreadHandle<'a, 'b> {
@@ -584,7 +592,8 @@ pub struct Utf8ReadHandle<'a, 'b>
     source: &'a mut Utf8Source<'b>,
 }
 
-impl<'a, 'b> Utf8ReadHandle<'a, 'b> where 'b: 'a
+impl<'a, 'b> Utf8ReadHandle<'a, 'b>
+    where 'b: 'a
 {
     #[inline(always)]
     fn new(src: &'a mut Utf8Source<'b>) -> Utf8ReadHandle<'a, 'b> {
@@ -608,7 +617,8 @@ pub struct Utf8UnreadHandle<'a, 'b>
     source: &'a mut Utf8Source<'b>,
 }
 
-impl<'a, 'b> Utf8UnreadHandle<'a, 'b> where 'b: 'a
+impl<'a, 'b> Utf8UnreadHandle<'a, 'b>
+    where 'b: 'a
 {
     #[inline(always)]
     fn new(src: &'a mut Utf8Source<'b>) -> Utf8UnreadHandle<'a, 'b> {
@@ -632,7 +642,8 @@ pub struct ByteOneHandle<'a, 'b>
     dest: &'a mut ByteDestination<'b>,
 }
 
-impl<'a, 'b> ByteOneHandle<'a, 'b> where 'b: 'a
+impl<'a, 'b> ByteOneHandle<'a, 'b>
+    where 'b: 'a
 {
     #[inline(always)]
     fn new(dst: &'a mut ByteDestination<'b>) -> ByteOneHandle<'a, 'b> {
@@ -654,7 +665,8 @@ pub struct ByteTwoHandle<'a, 'b>
     dest: &'a mut ByteDestination<'b>,
 }
 
-impl<'a, 'b> ByteTwoHandle<'a, 'b> where 'b: 'a
+impl<'a, 'b> ByteTwoHandle<'a, 'b>
+    where 'b: 'a
 {
     #[inline(always)]
     fn new(dst: &'a mut ByteDestination<'b>) -> ByteTwoHandle<'a, 'b> {
@@ -680,7 +692,8 @@ pub struct ByteThreeHandle<'a, 'b>
     dest: &'a mut ByteDestination<'b>,
 }
 
-impl<'a, 'b> ByteThreeHandle<'a, 'b> where 'b: 'a
+impl<'a, 'b> ByteThreeHandle<'a, 'b>
+    where 'b: 'a
 {
     #[inline(always)]
     fn new(dst: &'a mut ByteDestination<'b>) -> ByteThreeHandle<'a, 'b> {
@@ -710,7 +723,8 @@ pub struct ByteFourHandle<'a, 'b>
     dest: &'a mut ByteDestination<'b>,
 }
 
-impl<'a, 'b> ByteFourHandle<'a, 'b> where 'b: 'a
+impl<'a, 'b> ByteFourHandle<'a, 'b>
+    where 'b: 'a
 {
     #[inline(always)]
     fn new(dst: &'a mut ByteDestination<'b>) -> ByteFourHandle<'a, 'b> {
