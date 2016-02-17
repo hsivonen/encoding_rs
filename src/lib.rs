@@ -1872,6 +1872,12 @@ impl Encoder {
                     // Additionally, Iso2022JpEncoder is responsible for
                     // transitioning to ASCII when returning with Unmappable.
                     total_written += write_ncr(unmappable, &mut dst[total_written..]);
+                    if total_written >= effective_dst_len {
+                        return (WithReplacementResult::OutputFull,
+                                total_read,
+                                total_written,
+                                had_unmappables);
+                    }
                 }
             }
         }
