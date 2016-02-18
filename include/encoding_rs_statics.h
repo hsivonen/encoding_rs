@@ -18,7 +18,11 @@
 
 #include <uchar.h>
 
-#ifndef __cplusplus
+#ifdef __cplusplus
+class Encoding;
+class Decoder;
+class Encoder;
+#else
 typedef struct Encoding_ Encoding;
 typedef struct Decoder_ Decoder;
 typedef struct Encoder_ Encoder;
