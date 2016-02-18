@@ -22,24 +22,25 @@
 class Encoding final
 {
 public:
-  inline static const Encoding* for_label(cstring_span label)
+  /*
+  inline static const Encoding* for_label(cstring_gsl::span label)
   {
     return encoding_for_label(reinterpret_cast<const uint8_t*>(label.data()),
                               label.length());
   }
 
-  inline static const Encoding* for_label_no_replacement(cstring_span label)
+  inline static const Encoding* for_label_no_replacement(cstring_gsl::span label)
   {
     return encoding_for_label_no_replacement(
       reinterpret_cast<const uint8_t*>(label.data()), label.length());
   }
 
-  inline static const Encoding* for_name(cstring_span name)
+  inline static const Encoding* for_name(cstring_gsl::span name)
   {
     return encoding_for_name(reinterpret_cast<const uint8_t*>(name.data()),
                              name.length());
   }
-
+*/
   inline std::string name() const
   {
     std::string name(ENCODING_NAME_MAX_LENGTH, '\0');
@@ -54,15 +55,15 @@ public:
     return encoding_can_encode_everything(this);
   }
 
-  inline std::unique_pointer<Decoder> new_decoder() const
+  inline std::unique_ptr<Decoder> new_decoder() const
   {
-    std::unique_pointer<Decoder> decoder(encoding_new_decoder(this));
+    std::unique_ptr<Decoder> decoder(encoding_new_decoder(this));
     return decoder;
   }
 
-  inline std::unique_pointer<Encoder> new_encoder() const
+  inline std::unique_ptr<Encoder> new_encoder() const
   {
-    std::unique_pointer<Encoder> encoder(encoding_new_encoder(this));
+    std::unique_ptr<Encoder> encoder(encoding_new_encoder(this));
     return encoder;
   }
 
@@ -75,7 +76,7 @@ class Decoder final
 {
 public:
   ~Decoder() {}
-  operator delete(void* decoder) { decoder_free(decoder); }
+  static void operator delete(void* decoder) { decoder_free(reinterpret_cast<Decoder*>(decoder)); }
 
   inline const Encoding* encoding() const { return decoder_encoding(this); }
 
@@ -97,7 +98,7 @@ public:
   }
 
   inline std::tuple<uint32_t, size_t, size_t> decode_to_utf16(
-    span<const uint8_t> src, span<char16_t> dst, bool last)
+    gsl::span<const uint8_t> src, gsl::span<char16_t> dst, bool last)
   {
     size_t src_read = src.size();
     size_t dst_written = dst.size();
@@ -107,7 +108,7 @@ public:
   }
 
   inline std::tuple<uint32_t, size_t, size_t> decode_to_utf8(
-    span<const uint8_t> src, span<uint8_t> dst, bool last)
+    gsl::span<const uint8_t> src, gsl::span<uint8_t> dst, bool last)
   {
     size_t src_read = src.size();
     size_t dst_written = dst.size();
@@ -117,7 +118,7 @@ public:
   }
 
   inline std::tuple<uint32_t, size_t, size_t, bool>
-  decode_to_utf16_with_replacement(span<const uint8_t> src, span<char16_t> dst,
+  decode_to_utf16_with_replacement(gsl::span<const uint8_t> src, gsl::span<char16_t> dst,
                                    bool last)
   {
     size_t src_read = src.size();
@@ -130,7 +131,7 @@ public:
   }
 
   inline std::tuple<uint32_t, size_t, size_t, bool>
-  decode_to_utf8_with_replacement(span<const uint8_t> src, span<uint8_t> dst,
+  decode_to_utf8_with_replacement(gsl::span<const uint8_t> src, gsl::span<uint8_t> dst,
                                   bool last)
   {
     size_t src_read = src.size();
@@ -148,8 +149,9 @@ private:
 
 class Encoder final
 {
-  ~Decoder() {}
-  operator delete(void* encoder) { encoder_free(encoder); }
+public:
+  ~Encoder() {}
+  static void operator delete(void* encoder) { encoder_free(reinterpret_cast<Encoder*>(encoder)); }
 
   inline const Encoding* encoding() const { return encoder_encoding(this); }
 
@@ -180,7 +182,7 @@ class Encoder final
   }
 
   inline std::tuple<uint32_t, size_t, size_t> encode_from_utf16(
-    span<const char16_t> src, span<uint8_t> dst, bool last)
+    gsl::span<const char16_t> src, gsl::span<uint8_t> dst, bool last)
   {
     size_t src_read = src.size();
     size_t dst_written = dst.size();
@@ -190,7 +192,7 @@ class Encoder final
   }
 
   inline std::tuple<uint32_t, size_t, size_t> encode_from_utf8(
-    span<const uint8_t> src, span<uint8_t> dst, bool last)
+    gsl::span<const uint8_t> src, gsl::span<uint8_t> dst, bool last)
   {
     size_t src_read = src.size();
     size_t dst_written = dst.size();
@@ -200,8 +202,8 @@ class Encoder final
   }
 
   inline std::tuple<uint32_t, size_t, size_t, bool>
-  encode_from_utf16_with_replacement(span<const char16_t> src,
-                                     span<uint8_t> dst, bool last)
+  encode_from_utf16_with_replacement(gsl::span<const char16_t> src,
+                                     gsl::span<uint8_t> dst, bool last)
   {
     size_t src_read = src.size();
     size_t dst_written = dst.size();
@@ -213,7 +215,7 @@ class Encoder final
   }
 
   inline std::tuple<uint32_t, size_t, size_t, bool>
-  encode_from_utf8_with_replacement(span<const uint8_t> src, span<uint8_t> dst,
+  encode_from_utf8_with_replacement(gsl::span<const uint8_t> src, gsl::span<uint8_t> dst,
                                     bool last)
   {
     size_t src_read = src.size();
