@@ -22,25 +22,24 @@
 class Encoding final
 {
 public:
-  /*
-  inline static const Encoding* for_label(cstring_gsl::span label)
+  static const Encoding* for_label(gsl::cstring_span<> label)
   {
     return encoding_for_label(reinterpret_cast<const uint8_t*>(label.data()),
                               label.length());
   }
 
-  inline static const Encoding* for_label_no_replacement(cstring_gsl::span label)
+  inline const Encoding* for_label_no_replacement(gsl::cstring_span<> label)
   {
     return encoding_for_label_no_replacement(
       reinterpret_cast<const uint8_t*>(label.data()), label.length());
   }
 
-  inline static const Encoding* for_name(cstring_gsl::span name)
+  inline const Encoding* for_name(gsl::cstring_span<> name)
   {
     return encoding_for_name(reinterpret_cast<const uint8_t*>(name.data()),
                              name.length());
   }
-*/
+
   inline std::string name() const
   {
     std::string name(ENCODING_NAME_MAX_LENGTH, '\0');
