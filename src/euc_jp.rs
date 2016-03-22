@@ -19,8 +19,6 @@ impl EucJpDecoder {
         Decoder::new(encoding, VariantDecoder::EucJp(EucJpDecoder))
     }
 
-    pub fn reset(&mut self) {}
-
     pub fn max_utf16_buffer_length(&self, u16_length: usize) -> usize {
         u16_length
     }

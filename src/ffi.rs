@@ -273,6 +273,14 @@ pub unsafe extern "C" fn encoding_new_decoder(encoding: *const Encoding) -> *mut
     Box::into_raw(Box::new((*encoding).new_decoder()))
 }
 
+/// Allocates a new `Decoder` for the given `Encoding` into memory provided by
+/// the caller. (In practice, the target should likely be a pointer previously
+/// returned by `encoding_new_decoder()`.)
+#[no_mangle]
+pub unsafe extern "C" fn encoding_new_decoder_into(encoding: *const Encoding, decoder: *mut Decoder) {
+    *decoder = (*encoding).new_decoder();
+}
+
 /// Allocates a new `Encoder` for the given `Encoding` on the heap and returns a
 /// pointer to the newly-allocated `Encoder`. (Exception, if the `Encoding` is
 /// `replacement`, a new `Decoder` for UTF-8 is instantiated (and that
@@ -286,6 +294,14 @@ pub unsafe extern "C" fn encoding_new_encoder(encoding: *const Encoding) -> *mut
     Box::into_raw(Box::new((*encoding).new_encoder()))
 }
 
+/// Allocates a new `Encoder` for the given `Encoding` into memory provided by
+/// the caller. (In practice, the target should likely be a pointer previously
+/// returned by `encoding_new_encoder()`.)
+#[no_mangle]
+pub unsafe extern "C" fn encoding_new_encoder_into(encoding: *const Encoding, encoder: *mut Encoder) {
+    *encoder = (*encoding).new_encoder();
+}
+
 /// Deallocates a `Decoder` previously allocated by `encoding_new_decoder()`.
 #[no_mangle]
 pub unsafe extern "C" fn decoder_free(decoder: *mut Decoder) {
@@ -295,11 +311,6 @@ pub unsafe extern "C" fn decoder_free(decoder: *mut Decoder) {
 #[no_mangle]
 pub unsafe extern "C" fn decoder_encoding(decoder: *const Decoder) -> *const Encoding {
     (*decoder).encoding()
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn decoder_reset(decoder: *mut Decoder) {
-    (*decoder).reset();
 }
 
 #[no_mangle]
@@ -404,11 +415,6 @@ pub unsafe extern "C" fn encoder_free(encoder: *mut Encoder) {
 #[no_mangle]
 pub unsafe extern "C" fn encoder_encoding(encoder: *const Encoder) -> *const Encoding {
     (*encoder).encoding()
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn encoder_reset(encoder: *mut Encoder) {
-    (*encoder).reset();
 }
 
 #[no_mangle]

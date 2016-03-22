@@ -60,10 +60,20 @@ public:
     return decoder;
   }
 
+  inline void new_decoder_into(Decoder* decoder) const
+  {
+    encoding_new_decoder_into(this, decoder);
+  }
+
   inline std::unique_ptr<Encoder> new_encoder() const
   {
     std::unique_ptr<Encoder> encoder(encoding_new_encoder(this));
     return encoder;
+  }
+
+  inline void new_encoder_into(Encoder* encoder) const
+  {
+    encoding_new_encoder_into(this, encoder);
   }
 
 private:
@@ -78,8 +88,6 @@ public:
   static void operator delete(void* decoder) { decoder_free(reinterpret_cast<Decoder*>(decoder)); }
 
   inline const Encoding* encoding() const { return decoder_encoding(this); }
-
-  inline void reset() { return decoder_reset(this); }
 
   inline size_t max_utf16_length(size_t u16_length) const
   {
@@ -153,8 +161,6 @@ public:
   static void operator delete(void* encoder) { encoder_free(reinterpret_cast<Encoder*>(encoder)); }
 
   inline const Encoding* encoding() const { return encoder_encoding(this); }
-
-  inline void reset() { return encoder_reset(this); }
 
   inline size_t max_buffer_length_from_utf16(size_t u16_length) const
   {

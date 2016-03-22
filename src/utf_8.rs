@@ -18,8 +18,6 @@ impl Utf8Decoder {
         Decoder::new(encoding, VariantDecoder::Utf8(Utf8Decoder))
     }
 
-    pub fn reset(&mut self) {}
-
     pub fn max_utf16_buffer_length(&self, u16_length: usize) -> usize {
         u16_length
     }

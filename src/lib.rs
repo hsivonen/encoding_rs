@@ -1219,11 +1219,8 @@ pub enum DecoderResult {
 /// `decode_*` again with `last` set to `true` (or treat a `Malformed` result as
 ///  a fatal error).
 ///
-/// The decoder is ready to start processing a new stream when it has
-/// returned `InputEmpty` from a call
-/// where `last` was set to `true`. In other cases, if the caller wishes to
-/// stop processing the current stream and to start processing a new stream,
-/// the caller must call `reset()` before starting processing the new stream.
+/// Once the stream has ended, the `Decoder` object must not be used anymore.
+/// That is, you need to create another one to process another stream.
 ///
 /// When the decoder returns `OutputFull` or the decoder returns `Malformed` and
 /// the caller does not wish to treat it as a fatal error, the input buffer
@@ -1246,11 +1243,6 @@ impl Decoder {
     /// The `Encoding` this `Decoder` is for.
     pub fn encoding(&self) -> &'static Encoding {
         self.encoding
-    }
-
-    /// Make the decoder ready to process a new stream.
-    pub fn reset(&mut self) {
-        self.variant.reset();
     }
 
     /// Query the worst-case UTF-16 output size (with or without replacement).
@@ -1641,16 +1633,10 @@ pub enum EncoderResult {
 /// least once with `last` set to `true`. If `encode_*` returns `InputEmpty`,
 /// the processing of the stream has ended. Otherwise, the caller must call
 /// `encode_*` again with `last` set to `true` (or treat an `Unmappable` result
-/// as a fatal error). (If you know that the encoder is not an ISO-2022-JP
-/// encoder, you may ignore this paragraph and treat the encoder as stateless.)
+/// as a fatal error).
 ///
-/// The encoder is ready to start processing a new stream when it has
-/// returned `InputEmpty` from a call
-/// where `last` was set to `true`. In other cases, if the caller wishes to
-/// stop processing the current stream and to start processing a new stream,
-/// the caller must call `reset()` before starting processing the new stream.
-/// (If you know that the encoder is not an ISO-2022-JP encoder, you may ignore
-/// this paragraph and treat the encoder as stateless.)
+/// Once the stream has ended, the `Encoder` object must not be used anymore.
+/// That is, you need to create another one to process another stream.
 ///
 /// When the encoder returns `OutputFull` or the encoder returns `Unmappable`
 /// and the caller does not wish to treat it as a fatal error, the input buffer
@@ -1673,12 +1659,6 @@ impl Encoder {
     /// The `Encoding` this `Encoder` is for.
     pub fn encoding(&self) -> &'static Encoding {
         self.encoding
-    }
-
-    /// Make the encoder ready to process a new stream. (No-op for all encoders
-    /// other than the ISO-2022-JP encoder.)
-    pub fn reset(&mut self) {
-        self.variant.reset();
     }
 
     /// Query the worst-case output size when encoding from UTF-16 without

@@ -30,10 +30,6 @@ impl Big5Decoder {
         }
     }
 
-    pub fn reset(&mut self) {
-        self.lead = 0u8;
-    }
-
     pub fn max_utf16_buffer_length(&self, u16_length: usize) -> usize {
         // If there is a lead but the next byte isn't a valid trail, an
         // error is generated for the lead (+1). Then another iteration checks

@@ -47,22 +47,6 @@ pub enum VariantDecoder {
 }
 
 impl VariantDecoder {
-    pub fn reset(&mut self) {
-        match self {
-            &mut VariantDecoder::SingleByte(ref mut v) => (),
-            &mut VariantDecoder::Utf8(ref mut v) => v.reset(),
-            &mut VariantDecoder::Gb18030(ref mut v) => v.reset(),
-            &mut VariantDecoder::Big5(ref mut v) => v.reset(),
-            &mut VariantDecoder::EucJp(ref mut v) => v.reset(),
-            &mut VariantDecoder::Iso2022Jp(ref mut v) => v.reset(),
-            &mut VariantDecoder::ShiftJis(ref mut v) => v.reset(),
-            &mut VariantDecoder::EucKr(ref mut v) => v.reset(),
-            &mut VariantDecoder::Replacement(ref mut v) => v.reset(),
-            &mut VariantDecoder::UserDefined(ref mut v) => v.reset(),
-            &mut VariantDecoder::Utf16(ref mut v) => v.reset(),
-        }
-    }
-
     pub fn max_utf16_buffer_length(&self, u16_length: usize) -> usize {
         match self {
             &VariantDecoder::SingleByte(ref v) => v.max_utf16_buffer_length(u16_length),
@@ -178,8 +162,6 @@ pub enum VariantEncoder {
 }
 
 impl VariantEncoder {
-    pub fn reset(&mut self) {}
-
     pub fn max_buffer_length_from_utf16(&self, u16_length: usize) -> usize {
         match self {
             &VariantEncoder::SingleByte(ref v) => v.max_buffer_length_from_utf16(u16_length),

@@ -20,10 +20,6 @@ impl ReplacementDecoder {
                      VariantDecoder::Replacement(ReplacementDecoder { emitted: false }))
     }
 
-    pub fn reset(&mut self) {
-        self.emitted = false;
-    }
-
     pub fn max_utf16_buffer_length(&self, _u16_length: usize) -> usize {
         1
     }
@@ -40,11 +36,6 @@ impl ReplacementDecoder {
         // Don't err if the input stream is empty. See
         // https://github.com/whatwg/encoding/issues/33
         if self.emitted || src.is_empty() {
-            if last {
-                // The API says the caller doesn't need to reset after
-                // the decoder returns `InputEmpty` with `last` set to `true`.
-                self.emitted = false;
-            }
             (DecoderResult::InputEmpty, src.len(), 0)
         } else {
             // We don't need to check if output has enough space, because
