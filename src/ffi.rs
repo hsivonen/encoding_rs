@@ -277,7 +277,8 @@ pub unsafe extern "C" fn encoding_new_decoder(encoding: *const Encoding) -> *mut
 /// the caller. (In practice, the target should likely be a pointer previously
 /// returned by `encoding_new_decoder()`.)
 #[no_mangle]
-pub unsafe extern "C" fn encoding_new_decoder_into(encoding: *const Encoding, decoder: *mut Decoder) {
+pub unsafe extern "C" fn encoding_new_decoder_into(encoding: *const Encoding,
+                                                   decoder: *mut Decoder) {
     *decoder = (*encoding).new_decoder();
 }
 
@@ -298,7 +299,8 @@ pub unsafe extern "C" fn encoding_new_encoder(encoding: *const Encoding) -> *mut
 /// the caller. (In practice, the target should likely be a pointer previously
 /// returned by `encoding_new_encoder()`.)
 #[no_mangle]
-pub unsafe extern "C" fn encoding_new_encoder_into(encoding: *const Encoding, encoder: *mut Encoder) {
+pub unsafe extern "C" fn encoding_new_encoder_into(encoding: *const Encoding,
+                                                   encoder: *mut Encoder) {
     *encoder = (*encoding).new_encoder();
 }
 

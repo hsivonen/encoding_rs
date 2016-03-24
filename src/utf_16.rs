@@ -14,8 +14,8 @@ use super::*;
 pub struct Utf16Decoder;
 
 impl Utf16Decoder {
-    pub fn new(encoding: &'static Encoding, big_endian: bool) -> Decoder {
-        Decoder::new(encoding, VariantDecoder::Utf16(Utf16Decoder))
+    pub fn new(big_endian: bool) -> VariantDecoder {
+        VariantDecoder::Utf16(Utf16Decoder)
     }
 
     pub fn max_utf16_buffer_length(&self, u16_length: usize) -> usize {

@@ -15,8 +15,8 @@ use super::*;
 pub struct Gb18030Decoder;
 
 impl Gb18030Decoder {
-    pub fn new(encoding: &'static Encoding) -> Decoder {
-        Decoder::new(encoding, VariantDecoder::Gb18030(Gb18030Decoder))
+    pub fn new() -> VariantDecoder {
+        VariantDecoder::Gb18030(Gb18030Decoder)
     }
 
     pub fn max_utf16_buffer_length(&self, u16_length: usize) -> usize {

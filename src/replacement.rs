@@ -15,9 +15,8 @@ pub struct ReplacementDecoder {
 }
 
 impl ReplacementDecoder {
-    pub fn new(encoding: &'static Encoding) -> Decoder {
-        Decoder::new(encoding,
-                     VariantDecoder::Replacement(ReplacementDecoder { emitted: false }))
+    pub fn new() -> VariantDecoder {
+        VariantDecoder::Replacement(ReplacementDecoder { emitted: false })
     }
 
     pub fn max_utf16_buffer_length(&self, _u16_length: usize) -> usize {

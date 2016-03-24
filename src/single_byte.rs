@@ -16,9 +16,8 @@ pub struct SingleByteDecoder {
 }
 
 impl SingleByteDecoder {
-    pub fn new(encoding: &'static Encoding, data: &'static [u16; 128]) -> Decoder {
-        Decoder::new(encoding,
-                     VariantDecoder::SingleByte(SingleByteDecoder { table: data }))
+    pub fn new(data: &'static [u16; 128]) -> VariantDecoder {
+        VariantDecoder::SingleByte(SingleByteDecoder { table: data })
     }
 
     pub fn max_utf16_buffer_length(&self, u16_length: usize) -> usize {

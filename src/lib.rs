@@ -971,11 +971,15 @@ impl Encoding {
         self.variant.can_encode_everything()
     }
 
+    fn new_variant_decoder(&'static self) -> VariantDecoder {
+        self.variant.new_variant_decoder()
+    }
+
     /// Instantiates a new decoder for this encoding.
     ///
     /// Available via the C wrapper.
     pub fn new_decoder(&'static self) -> Decoder {
-        self.variant.new_decoder(self)
+        Decoder::new(self, self.new_variant_decoder())
     }
 
     /// Instantiates a new encoder for this encoding, except if this encoding
@@ -1100,6 +1104,29 @@ impl std::fmt::Debug for Encoding {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "Encoding {{ {} }}", self.name)
     }
+}
+
+/// Tracks the life cycle of a decoder from BOM sniffing to conversion to end.
+#[derive(PartialEq)]
+enum DecoderLifeCycle {
+    /// The decoder has seen no input yet.
+    AtStart,
+    /// The decoder has seen EF.
+    SeenUtf8First,
+    /// The decoder has seen EF, BB.
+    SeenUtf8Second,
+    /// The decoder has seen FE.
+    SeenUtf16BeFirst,
+    /// The decoder has seen FF.
+    SeenUtf16LeFirst,
+    /// Saw EF, BB but not BF, there was a buffer boundary after BB and the
+    /// underlying decoder reported EF as an error, so we need to remember to
+    /// push BB before the next buffer.
+    ConvertingWithPendingBB,
+    /// No longer looking for a BOM and EOF not yet seen.
+    Converting,
+    /// EOF has been seen.
+    Finished,
 }
 
 /// Result of a (potentially partial) decode or operation with replacement.
@@ -1230,6 +1257,7 @@ pub enum DecoderResult {
 pub struct Decoder {
     encoding: &'static Encoding,
     variant: VariantDecoder,
+    life_cycle: DecoderLifeCycle,
 }
 
 impl Decoder {
@@ -1237,10 +1265,23 @@ impl Decoder {
         Decoder {
             encoding: enc,
             variant: decoder,
+            life_cycle: DecoderLifeCycle::AtStart,
         }
     }
 
+    /// Turn off BOM sniffing.
+    ///
+    /// Must not be called after data had been passed to this decoder.
+    pub fn do_not_sniff(&mut self) {
+        assert!(self.life_cycle == DecoderLifeCycle::AtStart,
+                "Must not call do_not_sniff() after passing data.");
+        self.life_cycle = DecoderLifeCycle::Converting;
+    }
+
     /// The `Encoding` this `Decoder` is for.
+    ///
+    /// BOM sniffing can change the return value of this method during the life
+    /// of the decoder.
     pub fn encoding(&self) -> &'static Encoding {
         self.encoding
     }
@@ -1288,6 +1329,110 @@ impl Decoder {
         self.variant.max_utf8_buffer_length_with_replacement(byte_length)
     }
 
+    fn decode_to_utf16_after_one_potential_bom_byte(&mut self,
+                                                    src: &[u8],
+                                                    dst: &mut [u16],
+                                                    last: bool,
+                                                    offset: usize,
+                                                    first_byte: u8)
+                                                    -> (DecoderResult, usize, usize) {
+        self.life_cycle = DecoderLifeCycle::Converting;
+        if offset == 0usize {
+            // First byte was seen previously.
+            let first = [first_byte];
+            let (mut first_result, mut first_read, mut first_written) =
+                self.variant
+                    .decode_to_utf16(&first[..], dst, last);
+            match first_result {
+                DecoderResult::InputEmpty => {
+                    let (result, read, written) =
+                        self.decode_to_utf16_checking_end(src, &mut dst[first_written..], last);
+                    first_result = result;
+                    first_read += read;
+                    first_written += written;
+                }
+                DecoderResult::Malformed(_) => {}
+                DecoderResult::OutputFull => {
+                    panic!("Output buffer must have been too small.");
+                }
+            }
+            return (first_result, first_read, first_written);
+        }
+        debug_assert!(offset == 1usize);
+        // The first byte is in `src`, so no need to push it separately.
+        return self.decode_to_utf16_checking_end(src, dst, last);
+    }
+
+    fn decode_to_utf16_after_two_potential_bom_bytes(&mut self,
+                                                     src: &[u8],
+                                                     dst: &mut [u16],
+                                                     last: bool,
+                                                     offset: usize)
+                                                     -> (DecoderResult, usize, usize) {
+        self.life_cycle = DecoderLifeCycle::Converting;
+        if offset == 0usize {
+            // The first two bytes are not in the current buffer..
+            let ef_bb = [0xEFu8, 0xBBu8];
+            let (mut first_result, mut first_read, mut first_written) =
+                self.variant
+                    .decode_to_utf16(&ef_bb[..], dst, last);
+            match first_result {
+                DecoderResult::InputEmpty => {
+                    let (result, read, written) =
+                        self.decode_to_utf16_checking_end(src, &mut dst[first_written..], last);
+                    first_result = result;
+                    first_read += read;
+                    first_written += written;
+                }
+                DecoderResult::Malformed(_) => {
+                    if first_read == 1usize {
+                        // The first byte was malformed. We need to handle
+                        // the second one, which isn't in `src`, later.
+                        self.life_cycle = DecoderLifeCycle::ConvertingWithPendingBB;
+                    }
+                }
+                DecoderResult::OutputFull => {
+                    panic!("Output buffer must have been too small.");
+                }
+            }
+            return (first_result, first_read, first_written);
+        }
+        if offset == 1usize {
+            // The first byte isn't in the current buffer but the second one
+            // is.
+            return self.decode_to_utf16_after_one_potential_bom_byte(src,
+                                                                     dst,
+                                                                     last,
+                                                                     0usize,
+                                                                     0xEFu8);
+
+        }
+        debug_assert!(offset == 2usize);
+        // The first two bytes are in `src`, so no need to push them separately.
+        return self.decode_to_utf16_checking_end(src, dst, last);
+    }
+
+    /// Calls through to the delegate and adjusts life cycle iff `last` is
+    /// `true` and result is `DecoderResult::InputEmpty`.
+    fn decode_to_utf16_checking_end(&mut self,
+                                    src: &[u8],
+                                    dst: &mut [u16],
+                                    last: bool)
+                                    -> (DecoderResult, usize, usize) {
+        debug_assert!(self.life_cycle == DecoderLifeCycle::Converting);
+        let (result, read, written) = self.variant
+                                          .decode_to_utf16(src, dst, last);
+        if last {
+            match result {
+                DecoderResult::InputEmpty => {
+                    self.life_cycle = DecoderLifeCycle::Finished;
+                }
+                _ => {}
+            }
+        }
+        return (result, read, written);
+    }
+
     /// Incrementally decode a byte stream into UTF-16.
     ///
     /// See the documentation of the trait for documentation for `decode_*`
@@ -1299,7 +1444,150 @@ impl Decoder {
                            dst: &mut [u16],
                            last: bool)
                            -> (DecoderResult, usize, usize) {
-        self.variant.decode_to_utf16(src, dst, last)
+        let mut offset = 0usize;
+        loop {
+            match self.life_cycle {
+                // The common case. (Post-sniffing.)
+                DecoderLifeCycle::Converting => {
+                    return self.decode_to_utf16_checking_end(src, dst, last);
+                }
+                // The rest is all BOM sniffing!
+                DecoderLifeCycle::AtStart => {
+                    debug_assert!(offset == 0usize);
+                    if src.is_empty() {
+                        return (DecoderResult::InputEmpty, 0, 0);
+                    }
+                    match src[0] {
+                        0xEFu8 => {
+                            self.life_cycle = DecoderLifeCycle::SeenUtf8First;
+                            offset += 1;
+                            continue;
+                        }
+                        0xFEu8 => {
+                            self.life_cycle = DecoderLifeCycle::SeenUtf16BeFirst;
+                            offset += 1;
+                            continue;
+                        }
+                        0xFFu8 => {
+                            self.life_cycle = DecoderLifeCycle::SeenUtf16LeFirst;
+                            offset += 1;
+                            continue;
+                        }
+                        _ => {
+                            self.life_cycle = DecoderLifeCycle::Converting;
+                            continue;
+                        }
+                    }
+                }
+                DecoderLifeCycle::SeenUtf8First => {
+                    if offset >= src.len() {
+                        if last {
+                            return self.decode_to_utf16_after_one_potential_bom_byte(src,
+                                                                                     dst,
+                                                                                     last,
+                                                                                     offset,
+                                                                                     0xEFu8);
+                        }
+                        return (DecoderResult::InputEmpty, offset, 0);
+                    }
+                    if src[offset] == 0xBBu8 {
+                        self.life_cycle = DecoderLifeCycle::SeenUtf8Second;
+                        offset += 1;
+                        continue;
+                    }
+                    return self.decode_to_utf16_after_one_potential_bom_byte(src,
+                                                                             dst,
+                                                                             last,
+                                                                             offset,
+                                                                             0xEFu8);
+                }
+                DecoderLifeCycle::SeenUtf8Second => {
+                    if offset >= src.len() {
+                        if last {
+                            return self.decode_to_utf16_after_two_potential_bom_bytes(src,
+                                                                                      dst,
+                                                                                      last,
+                                                                                      offset);
+                        }
+                        return (DecoderResult::InputEmpty, offset, 0);
+                    }
+                    if src[offset] == 0xBFu8 {
+                        self.life_cycle = DecoderLifeCycle::Converting;
+                        offset += 1;
+                        if self.encoding != UTF_8 {
+                            self.encoding = UTF_8;
+                            self.variant = UTF_8.new_variant_decoder();
+                        }
+                        return self.decode_to_utf16_checking_end(&src[offset..], dst, last);
+                    }
+                    return self.decode_to_utf16_after_two_potential_bom_bytes(src,
+                                                                              dst,
+                                                                              last,
+                                                                              offset);
+                }
+                DecoderLifeCycle::SeenUtf16BeFirst => {
+                    if offset >= src.len() {
+                        if last {
+                            return self.decode_to_utf16_after_one_potential_bom_byte(src,
+                                                                                     dst,
+                                                                                     last,
+                                                                                     offset,
+                                                                                     0xFEu8);
+                        }
+                        return (DecoderResult::InputEmpty, offset, 0);
+                    }
+                    if src[offset] == 0xFFu8 {
+                        self.life_cycle = DecoderLifeCycle::Converting;
+                        offset += 1;
+                        if self.encoding != UTF_16BE {
+                            self.encoding = UTF_16BE;
+                            self.variant = UTF_16BE.new_variant_decoder();
+                        }
+                        return self.decode_to_utf16_checking_end(&src[offset..], dst, last);
+                    }
+                    return self.decode_to_utf16_after_one_potential_bom_byte(src,
+                                                                             dst,
+                                                                             last,
+                                                                             offset,
+                                                                             0xFEu8);
+                }
+                DecoderLifeCycle::SeenUtf16LeFirst => {
+                    if offset >= src.len() {
+                        if last {
+                            return self.decode_to_utf16_after_one_potential_bom_byte(src,
+                                                                                     dst,
+                                                                                     last,
+                                                                                     offset,
+                                                                                     0xFFu8);
+                        }
+                        return (DecoderResult::InputEmpty, offset, 0);
+                    }
+                    if src[offset] == 0xFEu8 {
+                        self.life_cycle = DecoderLifeCycle::Converting;
+                        offset += 1;
+                        if self.encoding != UTF_16LE {
+                            self.encoding = UTF_16LE;
+                            self.variant = UTF_16LE.new_variant_decoder();
+                        }
+                        return self.decode_to_utf16_checking_end(&src[offset..], dst, last);
+                    }
+                    return self.decode_to_utf16_after_one_potential_bom_byte(src,
+                                                                             dst,
+                                                                             last,
+                                                                             offset,
+                                                                             0xFFu8);
+                }
+                DecoderLifeCycle::ConvertingWithPendingBB => {
+                    debug_assert!(offset == 0usize);
+                    return self.decode_to_utf16_after_one_potential_bom_byte(src,
+                                                                             dst,
+                                                                             last,
+                                                                             0usize,
+                                                                             0xBBu8);
+                }
+                DecoderLifeCycle::Finished => panic!("Must not use a decoder that has finished."),
+            }
+        }
     }
 
     /// Incrementally decode a byte stream into UTF-8.
@@ -1927,5 +2215,63 @@ fn write_ncr(unmappable: char, dst: &mut [u8]) -> usize {
 
 // ############## TESTS ###############
 
-#[test]
-fn it_works() {}
+#[cfg(test)]
+mod tests {
+    use super::testing::*;
+    use super::*;
+
+    fn sniff_to_utf16(initial_encoding: &'static Encoding,
+                      expected_encoding: &'static Encoding,
+                      bytes: &[u8],
+                      expect: &[u16],
+                      breaks: &[usize]) {
+        let mut decoder = initial_encoding.new_decoder();
+
+        let mut dest: Vec<u16> = Vec::with_capacity(decoder.max_utf16_buffer_length(bytes.len()));
+        let capacity = dest.capacity();
+        dest.resize(capacity, 0u16);
+
+        let mut total_written = 0usize;
+        let mut start = 0usize;
+        for br in breaks {
+            let (result, read, written, _) =
+                decoder.decode_to_utf16_with_replacement(&bytes[start..*br],
+                                                         &mut dest[total_written..],
+                                                         false);
+            total_written += written;
+            assert_eq!(read, *br - start);
+            match result {
+                WithReplacementResult::InputEmpty => {}
+                WithReplacementResult::OutputFull => {
+                    unreachable!();
+                }
+            }
+            start = *br;
+        }
+        let (result, read, written, _) =
+            decoder.decode_to_utf16_with_replacement(&bytes[start..],
+                                                     &mut dest[total_written..],
+                                                     false);
+        total_written += written;
+        match result {
+            WithReplacementResult::InputEmpty => {}
+            WithReplacementResult::OutputFull => {
+                unreachable!();
+            }
+        }
+        assert_eq!(read, bytes.len() - start);
+        assert_eq!(total_written, expect.len());
+        assert_eq!(&dest[..], expect);
+        assert_eq!(decoder.encoding(), expected_encoding);
+    }
+
+    #[test]
+    fn test_bom_sniffing() {
+        // ASCII
+        sniff_to_utf16(WINDOWS_1252,
+                       WINDOWS_1252,
+                       &[0x61u8, 0x62u8],
+                       &[0x0061u16, 0x0062u16],
+                       &[]);
+    }
+}

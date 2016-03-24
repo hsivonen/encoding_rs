@@ -15,8 +15,8 @@ use super::*;
 pub struct Iso2022JpDecoder;
 
 impl Iso2022JpDecoder {
-    pub fn new(encoding: &'static Encoding) -> Decoder {
-        Decoder::new(encoding, VariantDecoder::Iso2022Jp(Iso2022JpDecoder))
+    pub fn new() -> VariantDecoder {
+        VariantDecoder::Iso2022Jp(Iso2022JpDecoder)
     }
 
     pub fn max_utf16_buffer_length(&self, u16_length: usize) -> usize {

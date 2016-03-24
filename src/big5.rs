@@ -17,8 +17,8 @@ pub struct Big5Decoder {
 }
 
 impl Big5Decoder {
-    pub fn new(encoding: &'static Encoding) -> Decoder {
-        Decoder::new(encoding, VariantDecoder::Big5(Big5Decoder { lead: 0 }))
+    pub fn new() -> VariantDecoder {
+        VariantDecoder::Big5(Big5Decoder { lead: 0 })
     }
 
     fn plus_one_if_lead(&self, byte_length: usize) -> usize {

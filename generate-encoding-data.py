@@ -445,8 +445,6 @@ def write_variant_method(name, mut, arg_list, ret, variants, excludes, kind):
     variant_file.write('''),\n''')
   variant_file.write('''}\n}\n\n''')
 
-write_variant_method("reset", True, [], None, decoder_variants, [u"single-byte"], "Decoder")
-
 write_variant_method("max_utf16_buffer_length", False, [("u16_length", "usize")], "usize", decoder_variants, [], "Decoder")
 
 write_variant_method("max_utf8_buffer_length", False, [("byte_length", "usize")], "usize", decoder_variants, [], "Decoder")
@@ -473,8 +471,6 @@ for variant in encoder_variants:
 variant_file.write('''}
 
 impl VariantEncoder {
-    pub fn reset(&mut self) {}
-
 ''')
 
 write_variant_method("max_buffer_length_from_utf16", False, [("u16_length", "usize")], "usize", encoder_variants, [], "Encoder")
@@ -501,20 +497,20 @@ for encoding in multi_byte:
 variant_file.write('''}
 
 impl VariantEncoding {
-    pub fn new_decoder(&self, encoding: &'static Encoding) -> Decoder {
+    pub fn new_variant_decoder(&self) -> VariantDecoder {
         match self {
-            &VariantEncoding::SingleByte(table) => SingleByteDecoder::new(encoding, table),
-            &VariantEncoding::Utf8 => Utf8Decoder::new(encoding),
-            &VariantEncoding::Gbk | &VariantEncoding::Gb18030 => Gb18030Decoder::new(encoding),
-            &VariantEncoding::Big5 => Big5Decoder::new(encoding),
-            &VariantEncoding::EucJp => EucJpDecoder::new(encoding),
-            &VariantEncoding::Iso2022Jp => Iso2022JpDecoder::new(encoding),
-            &VariantEncoding::ShiftJis => ShiftJisDecoder::new(encoding),
-            &VariantEncoding::EucKr => EucKrDecoder::new(encoding),
-            &VariantEncoding::Replacement => ReplacementDecoder::new(encoding),
-            &VariantEncoding::UserDefined => UserDefinedDecoder::new(encoding),
-            &VariantEncoding::Utf16Be => Utf16Decoder::new(encoding, true),
-            &VariantEncoding::Utf16Le => Utf16Decoder::new(encoding, false),
+            &VariantEncoding::SingleByte(table) => SingleByteDecoder::new(table),
+            &VariantEncoding::Utf8 => Utf8Decoder::new(),
+            &VariantEncoding::Gbk | &VariantEncoding::Gb18030 => Gb18030Decoder::new(),
+            &VariantEncoding::Big5 => Big5Decoder::new(),
+            &VariantEncoding::EucJp => EucJpDecoder::new(),
+            &VariantEncoding::Iso2022Jp => Iso2022JpDecoder::new(),
+            &VariantEncoding::ShiftJis => ShiftJisDecoder::new(),
+            &VariantEncoding::EucKr => EucKrDecoder::new(),
+            &VariantEncoding::Replacement => ReplacementDecoder::new(),
+            &VariantEncoding::UserDefined => UserDefinedDecoder::new(),
+            &VariantEncoding::Utf16Be => Utf16Decoder::new(true),
+            &VariantEncoding::Utf16Le => Utf16Decoder::new(false),
         }
     }
 

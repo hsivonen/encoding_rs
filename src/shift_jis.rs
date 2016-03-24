@@ -15,8 +15,8 @@ use super::*;
 pub struct ShiftJisDecoder;
 
 impl ShiftJisDecoder {
-    pub fn new(encoding: &'static Encoding) -> Decoder {
-        Decoder::new(encoding, VariantDecoder::ShiftJis(ShiftJisDecoder))
+    pub fn new() -> VariantDecoder {
+        VariantDecoder::ShiftJis(ShiftJisDecoder)
     }
 
     pub fn max_utf16_buffer_length(&self, u16_length: usize) -> usize {

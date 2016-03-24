@@ -15,8 +15,8 @@ use super::*;
 pub struct EucJpDecoder;
 
 impl EucJpDecoder {
-    pub fn new(encoding: &'static Encoding) -> Decoder {
-        Decoder::new(encoding, VariantDecoder::EucJp(EucJpDecoder))
+    pub fn new() -> VariantDecoder {
+        VariantDecoder::EucJp(EucJpDecoder)
     }
 
     pub fn max_utf16_buffer_length(&self, u16_length: usize) -> usize {
