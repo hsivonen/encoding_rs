@@ -1348,10 +1348,12 @@ impl Decoder {
                     let (result, read, written) =
                         self.decode_to_utf16_checking_end(src, &mut dst[first_written..], last);
                     first_result = result;
-                    first_read += read;
+                    first_read = read; // Overwrite, don't add!
                     first_written += written;
                 }
-                DecoderResult::Malformed(_) => {}
+                DecoderResult::Malformed(_) => {
+                    first_read = 0usize; // Wasn't read from `src`!
+                }
                 DecoderResult::OutputFull => {
                     panic!("Output buffer must have been too small.");
                 }
@@ -1381,7 +1383,7 @@ impl Decoder {
                     let (result, read, written) =
                         self.decode_to_utf16_checking_end(src, &mut dst[first_written..], last);
                     first_result = result;
-                    first_read += read;
+                    first_read = read; // Overwrite, don't add!
                     first_written += written;
                 }
                 DecoderResult::Malformed(_) => {
@@ -1390,6 +1392,7 @@ impl Decoder {
                         // the second one, which isn't in `src`, later.
                         self.life_cycle = DecoderLifeCycle::ConvertingWithPendingBB;
                     }
+                    first_read = 0usize; // Wasn't read from `src`!
                 }
                 DecoderResult::OutputFull => {
                     panic!("Output buffer must have been too small.");
@@ -1410,6 +1413,29 @@ impl Decoder {
         debug_assert!(offset == 2usize);
         // The first two bytes are in `src`, so no need to push them separately.
         return self.decode_to_utf16_checking_end(src, dst, last);
+    }
+
+    /// Calls `decode_to_utf16_checking_end` with `offset` bytes omitted from
+    /// the start of `src` but adjusting the return values to show those bytes
+    /// as having been consumed.
+    fn decode_to_utf16_checking_end_with_offset(&mut self,
+                                                src: &[u8],
+                                                dst: &mut [u16],
+                                                last: bool,
+                                                offset: usize)
+                                                -> (DecoderResult, usize, usize) {
+        debug_assert!(self.life_cycle == DecoderLifeCycle::Converting);
+        let (result, read, written) = self.variant
+                                          .decode_to_utf16(&src[offset..], dst, last);
+        if last {
+            match result {
+                DecoderResult::InputEmpty => {
+                    self.life_cycle = DecoderLifeCycle::Finished;
+                }
+                _ => {}
+            }
+        }
+        return (result, read + offset, written);
     }
 
     /// Calls through to the delegate and adjusts life cycle iff `last` is
@@ -1518,7 +1544,10 @@ impl Decoder {
                             self.encoding = UTF_8;
                             self.variant = UTF_8.new_variant_decoder();
                         }
-                        return self.decode_to_utf16_checking_end(&src[offset..], dst, last);
+                        return self.decode_to_utf16_checking_end_with_offset(src,
+                                                                             dst,
+                                                                             last,
+                                                                             offset);
                     }
                     return self.decode_to_utf16_after_two_potential_bom_bytes(src,
                                                                               dst,
@@ -1543,7 +1572,10 @@ impl Decoder {
                             self.encoding = UTF_16BE;
                             self.variant = UTF_16BE.new_variant_decoder();
                         }
-                        return self.decode_to_utf16_checking_end(&src[offset..], dst, last);
+                        return self.decode_to_utf16_checking_end_with_offset(src,
+                                                                             dst,
+                                                                             last,
+                                                                             offset);
                     }
                     return self.decode_to_utf16_after_one_potential_bom_byte(src,
                                                                              dst,
@@ -1569,7 +1601,10 @@ impl Decoder {
                             self.encoding = UTF_16LE;
                             self.variant = UTF_16LE.new_variant_decoder();
                         }
-                        return self.decode_to_utf16_checking_end(&src[offset..], dst, last);
+                        return self.decode_to_utf16_checking_end_with_offset(src,
+                                                                             dst,
+                                                                             last,
+                                                                             offset);
                     }
                     return self.decode_to_utf16_after_one_potential_bom_byte(src,
                                                                              dst,
@@ -2251,7 +2286,7 @@ mod tests {
         let (result, read, written, _) =
             decoder.decode_to_utf16_with_replacement(&bytes[start..],
                                                      &mut dest[total_written..],
-                                                     false);
+                                                     true);
         total_written += written;
         match result {
             WithReplacementResult::InputEmpty => {}
@@ -2261,7 +2296,7 @@ mod tests {
         }
         assert_eq!(read, bytes.len() - start);
         assert_eq!(total_written, expect.len());
-        assert_eq!(&dest[..], expect);
+        assert_eq!(&dest[..total_written], expect);
         assert_eq!(decoder.encoding(), expected_encoding);
     }
 
@@ -2270,8 +2305,115 @@ mod tests {
         // ASCII
         sniff_to_utf16(WINDOWS_1252,
                        WINDOWS_1252,
-                       &[0x61u8, 0x62u8],
+                       b"\x61\x62",
                        &[0x0061u16, 0x0062u16],
                        &[]);
+        // UTF-8
+        sniff_to_utf16(WINDOWS_1252,
+                       UTF_8,
+                       b"\xEF\xBB\xBF\x61\x62",
+                       &[0x0061u16, 0x0062u16],
+                       &[]);
+        sniff_to_utf16(WINDOWS_1252,
+                       UTF_8,
+                       b"\xEF\xBB\xBF\x61\x62",
+                       &[0x0061u16, 0x0062u16],
+                       &[1]);
+        sniff_to_utf16(WINDOWS_1252,
+                       UTF_8,
+                       b"\xEF\xBB\xBF\x61\x62",
+                       &[0x0061u16, 0x0062u16],
+                       &[2]);
+        sniff_to_utf16(WINDOWS_1252,
+                       UTF_8,
+                       b"\xEF\xBB\xBF\x61\x62",
+                       &[0x0061u16, 0x0062u16],
+                       &[3]);
+        sniff_to_utf16(WINDOWS_1252,
+                       UTF_8,
+                       b"\xEF\xBB\xBF\x61\x62",
+                       &[0x0061u16, 0x0062u16],
+                       &[4]);
+        sniff_to_utf16(WINDOWS_1252,
+                       UTF_8,
+                       b"\xEF\xBB\xBF\x61\x62",
+                       &[0x0061u16, 0x0062u16],
+                       &[2, 3]);
+        sniff_to_utf16(WINDOWS_1252,
+                       UTF_8,
+                       b"\xEF\xBB\xBF\x61\x62",
+                       &[0x0061u16, 0x0062u16],
+                       &[1, 2]);
+        sniff_to_utf16(WINDOWS_1252,
+                       UTF_8,
+                       b"\xEF\xBB\xBF\x61\x62",
+                       &[0x0061u16, 0x0062u16],
+                       &[1, 3]);
+        sniff_to_utf16(WINDOWS_1252,
+                       UTF_8,
+                       b"\xEF\xBB\xBF\x61\x62",
+                       &[0x0061u16, 0x0062u16],
+                       &[1, 2, 3, 4]);
+        sniff_to_utf16(WINDOWS_1252, UTF_8, b"\xEF\xBB\xBF", &[], &[]);
+        // Not UTF-8
+        sniff_to_utf16(WINDOWS_1252,
+                       WINDOWS_1252,
+                       b"\xEF\xBB\x61\x62",
+                       &[0x00EFu16, 0x00BBu16, 0x0061u16, 0x0062u16],
+                       &[]);
+        sniff_to_utf16(WINDOWS_1252,
+                       WINDOWS_1252,
+                       b"\xEF\xBB\x61\x62",
+                       &[0x00EFu16, 0x00BBu16, 0x0061u16, 0x0062u16],
+                       &[1]);
+        sniff_to_utf16(WINDOWS_1252,
+                       WINDOWS_1252,
+                       b"\xEF\x61\x62",
+                       &[0x00EFu16, 0x0061u16, 0x0062u16],
+                       &[]);
+        sniff_to_utf16(WINDOWS_1252,
+                       WINDOWS_1252,
+                       b"\xEF\x61\x62",
+                       &[0x00EFu16, 0x0061u16, 0x0062u16],
+                       &[1]);
+        sniff_to_utf16(WINDOWS_1252,
+                       WINDOWS_1252,
+                       b"\xEF\xBB",
+                       &[0x00EFu16, 0x00BBu16],
+                       &[]);
+        sniff_to_utf16(WINDOWS_1252,
+                       WINDOWS_1252,
+                       b"\xEF\xBB",
+                       &[0x00EFu16, 0x00BBu16],
+                       &[1]);
+        sniff_to_utf16(WINDOWS_1252, WINDOWS_1252, b"\xEF", &[0x00EFu16], &[]);
+        // Not UTF-16
+        sniff_to_utf16(WINDOWS_1252,
+                       WINDOWS_1252,
+                       b"\xFE\x61\x62",
+                       &[0x00FEu16, 0x0061u16, 0x0062u16],
+                       &[]);
+        sniff_to_utf16(WINDOWS_1252,
+                       WINDOWS_1252,
+                       b"\xFE\x61\x62",
+                       &[0x00FEu16, 0x0061u16, 0x0062u16],
+                       &[1]);
+        sniff_to_utf16(WINDOWS_1252, WINDOWS_1252, b"\xFE", &[0x00FEu16], &[]);
+        sniff_to_utf16(WINDOWS_1252,
+                       WINDOWS_1252,
+                       b"\xFF\x61\x62",
+                       &[0x00FFu16, 0x0061u16, 0x0062u16],
+                       &[]);
+        sniff_to_utf16(WINDOWS_1252,
+                       WINDOWS_1252,
+                       b"\xFF\x61\x62",
+                       &[0x00FFu16, 0x0061u16, 0x0062u16],
+                       &[1]);
+        sniff_to_utf16(WINDOWS_1252, WINDOWS_1252, b"\xFF", &[0x00FFu16], &[]);
+        // UTF-16
+        sniff_to_utf16(WINDOWS_1252, UTF_16BE, b"\xFE\xFF", &[], &[]);
+        sniff_to_utf16(WINDOWS_1252, UTF_16BE, b"\xFE\xFF", &[], &[1]);
+        sniff_to_utf16(WINDOWS_1252, UTF_16LE, b"\xFF\xFE", &[], &[]);
+        sniff_to_utf16(WINDOWS_1252, UTF_16LE, b"\xFF\xFE", &[], &[1]);
     }
 }
