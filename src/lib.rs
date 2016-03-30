@@ -1177,6 +1177,173 @@ pub enum DecoderResult {
     Malformed(u8), // u8 instead of usize to avoid uselessly bloating the enum
 }
 
+macro_rules! public_decode_function{
+    ($decode_to_utf:ident,
+     $decode_to_utf_checking_end:ident,
+     $decode_to_utf_after_one_potential_bom_byte:ident,
+     $decode_to_utf_after_two_potential_bom_bytes:ident,
+     $decode_to_utf_checking_end_with_offset:ident) => (
+    pub fn $decode_to_utf(&mut self,
+                           src: &[u8],
+                           dst: &mut [u16],
+                           last: bool)
+                           -> (DecoderResult, usize, usize) {
+        let mut offset = 0usize;
+        loop {
+            match self.life_cycle {
+                // The common case. (Post-sniffing.)
+                DecoderLifeCycle::Converting => {
+                    return self.$decode_to_utf_checking_end(src, dst, last);
+                }
+                // The rest is all BOM sniffing!
+                DecoderLifeCycle::AtStart => {
+                    debug_assert!(offset == 0usize);
+                    if src.is_empty() {
+                        return (DecoderResult::InputEmpty, 0, 0);
+                    }
+                    match src[0] {
+                        0xEFu8 => {
+                            self.life_cycle = DecoderLifeCycle::SeenUtf8First;
+                            offset += 1;
+                            continue;
+                        }
+                        0xFEu8 => {
+                            self.life_cycle = DecoderLifeCycle::SeenUtf16BeFirst;
+                            offset += 1;
+                            continue;
+                        }
+                        0xFFu8 => {
+                            self.life_cycle = DecoderLifeCycle::SeenUtf16LeFirst;
+                            offset += 1;
+                            continue;
+                        }
+                        _ => {
+                            self.life_cycle = DecoderLifeCycle::Converting;
+                            continue;
+                        }
+                    }
+                }
+                DecoderLifeCycle::SeenUtf8First => {
+                    if offset >= src.len() {
+                        if last {
+                            return self.$decode_to_utf_after_one_potential_bom_byte(src,
+                                                                                    dst,
+                                                                                    last,
+                                                                                    offset,
+                                                                                    0xEFu8);
+                        }
+                        return (DecoderResult::InputEmpty, offset, 0);
+                    }
+                    if src[offset] == 0xBBu8 {
+                        self.life_cycle = DecoderLifeCycle::SeenUtf8Second;
+                        offset += 1;
+                        continue;
+                    }
+                    return self.$decode_to_utf_after_one_potential_bom_byte(src,
+                                                                            dst,
+                                                                            last,
+                                                                            offset,
+                                                                            0xEFu8);
+                }
+                DecoderLifeCycle::SeenUtf8Second => {
+                    if offset >= src.len() {
+                        if last {
+                            return self.$decode_to_utf_after_two_potential_bom_bytes(src,
+                                                                                     dst,
+                                                                                     last,
+                                                                                     offset);
+                        }
+                        return (DecoderResult::InputEmpty, offset, 0);
+                    }
+                    if src[offset] == 0xBFu8 {
+                        self.life_cycle = DecoderLifeCycle::Converting;
+                        offset += 1;
+                        if self.encoding != UTF_8 {
+                            self.encoding = UTF_8;
+                            self.variant = UTF_8.new_variant_decoder();
+                        }
+                        return self.$decode_to_utf_checking_end_with_offset(src,
+                                                                            dst,
+                                                                            last,
+                                                                            offset);
+                    }
+                    return self.$decode_to_utf_after_two_potential_bom_bytes(src,
+                                                                             dst,
+                                                                             last,
+                                                                             offset);
+                }
+                DecoderLifeCycle::SeenUtf16BeFirst => {
+                    if offset >= src.len() {
+                        if last {
+                            return self.$decode_to_utf_after_one_potential_bom_byte(src,
+                                                                                    dst,
+                                                                                    last,
+                                                                                    offset,
+                                                                                    0xFEu8);
+                        }
+                        return (DecoderResult::InputEmpty, offset, 0);
+                    }
+                    if src[offset] == 0xFFu8 {
+                        self.life_cycle = DecoderLifeCycle::Converting;
+                        offset += 1;
+                        if self.encoding != UTF_16BE {
+                            self.encoding = UTF_16BE;
+                            self.variant = UTF_16BE.new_variant_decoder();
+                        }
+                        return self.$decode_to_utf_checking_end_with_offset(src,
+                                                                            dst,
+                                                                            last,
+                                                                            offset);
+                    }
+                    return self.$decode_to_utf_after_one_potential_bom_byte(src,
+                                                                            dst,
+                                                                            last,
+                                                                            offset,
+                                                                            0xFEu8);
+                }
+                DecoderLifeCycle::SeenUtf16LeFirst => {
+                    if offset >= src.len() {
+                        if last {
+                            return self.$decode_to_utf_after_one_potential_bom_byte(src,
+                                                                                    dst,
+                                                                                    last,
+                                                                                    offset,
+                                                                                    0xFFu8);
+                        }
+                        return (DecoderResult::InputEmpty, offset, 0);
+                    }
+                    if src[offset] == 0xFEu8 {
+                        self.life_cycle = DecoderLifeCycle::Converting;
+                        offset += 1;
+                        if self.encoding != UTF_16LE {
+                            self.encoding = UTF_16LE;
+                            self.variant = UTF_16LE.new_variant_decoder();
+                        }
+                        return self.$decode_to_utf_checking_end_with_offset(src,
+                                                                            dst,
+                                                                            last,
+                                                                            offset);
+                    }
+                    return self.$decode_to_utf_after_one_potential_bom_byte(src,
+                                                                            dst,
+                                                                            last,
+                                                                            offset,
+                                                                            0xFFu8);
+                }
+                DecoderLifeCycle::ConvertingWithPendingBB => {
+                    debug_assert!(offset == 0usize);
+                    return self.$decode_to_utf_after_one_potential_bom_byte(src,
+                                                                            dst,
+                                                                            last,
+                                                                            0usize,
+                                                                            0xBBu8);
+                }
+                DecoderLifeCycle::Finished => panic!("Must not use a decoder that has finished."),
+            }
+        }
+    });
+}
+
 /// A converter that decodes a byte stream into Unicode according to a
 /// character encoding.
 ///
@@ -1465,165 +1632,11 @@ impl Decoder {
     /// methods collectively.
     ///
     /// Available via the C wrapper.
-    pub fn decode_to_utf16(&mut self,
-                           src: &[u8],
-                           dst: &mut [u16],
-                           last: bool)
-                           -> (DecoderResult, usize, usize) {
-        let mut offset = 0usize;
-        loop {
-            match self.life_cycle {
-                // The common case. (Post-sniffing.)
-                DecoderLifeCycle::Converting => {
-                    return self.decode_to_utf16_checking_end(src, dst, last);
-                }
-                // The rest is all BOM sniffing!
-                DecoderLifeCycle::AtStart => {
-                    debug_assert!(offset == 0usize);
-                    if src.is_empty() {
-                        return (DecoderResult::InputEmpty, 0, 0);
-                    }
-                    match src[0] {
-                        0xEFu8 => {
-                            self.life_cycle = DecoderLifeCycle::SeenUtf8First;
-                            offset += 1;
-                            continue;
-                        }
-                        0xFEu8 => {
-                            self.life_cycle = DecoderLifeCycle::SeenUtf16BeFirst;
-                            offset += 1;
-                            continue;
-                        }
-                        0xFFu8 => {
-                            self.life_cycle = DecoderLifeCycle::SeenUtf16LeFirst;
-                            offset += 1;
-                            continue;
-                        }
-                        _ => {
-                            self.life_cycle = DecoderLifeCycle::Converting;
-                            continue;
-                        }
-                    }
-                }
-                DecoderLifeCycle::SeenUtf8First => {
-                    if offset >= src.len() {
-                        if last {
-                            return self.decode_to_utf16_after_one_potential_bom_byte(src,
-                                                                                     dst,
-                                                                                     last,
-                                                                                     offset,
-                                                                                     0xEFu8);
-                        }
-                        return (DecoderResult::InputEmpty, offset, 0);
-                    }
-                    if src[offset] == 0xBBu8 {
-                        self.life_cycle = DecoderLifeCycle::SeenUtf8Second;
-                        offset += 1;
-                        continue;
-                    }
-                    return self.decode_to_utf16_after_one_potential_bom_byte(src,
-                                                                             dst,
-                                                                             last,
-                                                                             offset,
-                                                                             0xEFu8);
-                }
-                DecoderLifeCycle::SeenUtf8Second => {
-                    if offset >= src.len() {
-                        if last {
-                            return self.decode_to_utf16_after_two_potential_bom_bytes(src,
-                                                                                      dst,
-                                                                                      last,
-                                                                                      offset);
-                        }
-                        return (DecoderResult::InputEmpty, offset, 0);
-                    }
-                    if src[offset] == 0xBFu8 {
-                        self.life_cycle = DecoderLifeCycle::Converting;
-                        offset += 1;
-                        if self.encoding != UTF_8 {
-                            self.encoding = UTF_8;
-                            self.variant = UTF_8.new_variant_decoder();
-                        }
-                        return self.decode_to_utf16_checking_end_with_offset(src,
-                                                                             dst,
-                                                                             last,
-                                                                             offset);
-                    }
-                    return self.decode_to_utf16_after_two_potential_bom_bytes(src,
-                                                                              dst,
-                                                                              last,
-                                                                              offset);
-                }
-                DecoderLifeCycle::SeenUtf16BeFirst => {
-                    if offset >= src.len() {
-                        if last {
-                            return self.decode_to_utf16_after_one_potential_bom_byte(src,
-                                                                                     dst,
-                                                                                     last,
-                                                                                     offset,
-                                                                                     0xFEu8);
-                        }
-                        return (DecoderResult::InputEmpty, offset, 0);
-                    }
-                    if src[offset] == 0xFFu8 {
-                        self.life_cycle = DecoderLifeCycle::Converting;
-                        offset += 1;
-                        if self.encoding != UTF_16BE {
-                            self.encoding = UTF_16BE;
-                            self.variant = UTF_16BE.new_variant_decoder();
-                        }
-                        return self.decode_to_utf16_checking_end_with_offset(src,
-                                                                             dst,
-                                                                             last,
-                                                                             offset);
-                    }
-                    return self.decode_to_utf16_after_one_potential_bom_byte(src,
-                                                                             dst,
-                                                                             last,
-                                                                             offset,
-                                                                             0xFEu8);
-                }
-                DecoderLifeCycle::SeenUtf16LeFirst => {
-                    if offset >= src.len() {
-                        if last {
-                            return self.decode_to_utf16_after_one_potential_bom_byte(src,
-                                                                                     dst,
-                                                                                     last,
-                                                                                     offset,
-                                                                                     0xFFu8);
-                        }
-                        return (DecoderResult::InputEmpty, offset, 0);
-                    }
-                    if src[offset] == 0xFEu8 {
-                        self.life_cycle = DecoderLifeCycle::Converting;
-                        offset += 1;
-                        if self.encoding != UTF_16LE {
-                            self.encoding = UTF_16LE;
-                            self.variant = UTF_16LE.new_variant_decoder();
-                        }
-                        return self.decode_to_utf16_checking_end_with_offset(src,
-                                                                             dst,
-                                                                             last,
-                                                                             offset);
-                    }
-                    return self.decode_to_utf16_after_one_potential_bom_byte(src,
-                                                                             dst,
-                                                                             last,
-                                                                             offset,
-                                                                             0xFFu8);
-                }
-                DecoderLifeCycle::ConvertingWithPendingBB => {
-                    debug_assert!(offset == 0usize);
-                    return self.decode_to_utf16_after_one_potential_bom_byte(src,
-                                                                             dst,
-                                                                             last,
-                                                                             0usize,
-                                                                             0xBBu8);
-                }
-                DecoderLifeCycle::Finished => panic!("Must not use a decoder that has finished."),
-            }
-        }
-    }
+    public_decode_function!(decode_to_utf16,
+                            decode_to_utf16_checking_end,
+                            decode_to_utf16_after_one_potential_bom_byte,
+                            decode_to_utf16_after_two_potential_bom_bytes,
+                            decode_to_utf16_checking_end_with_offset);
 
     /// Incrementally decode a byte stream into UTF-8.
     ///
