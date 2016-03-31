@@ -235,12 +235,32 @@ mod tests {
         decode_valid_utf8("a\u{E4}b");
         decode_valid_utf8("a\u{2603}b");
         decode_valid_utf8("a\u{1F4A9}b");
-        decode_utf8_to_utf8(b"a\xE4b", "a\u{FFFD}b");
-        decode_utf8_to_utf8(b"a\xE4", "a\u{FFFD}");
+        decode_utf8_to_utf8(b"a\xC3b", "a\u{FFFD}b");
+        decode_utf8_to_utf8(b"a\xC3", "a\u{FFFD}");
         decode_utf8_to_utf8(b"a\xE2\x98b", "a\u{FFFD}b");
         decode_utf8_to_utf8(b"a\xE2\x98", "a\u{FFFD}");
         decode_utf8_to_utf8(b"a\xF0\x9F\x92b", "a\u{FFFD}b");
         decode_utf8_to_utf8(b"a\xF0\x9F\x92", "a\u{FFFD}");
+        decode_utf8_to_utf8(b"a\x80b", "a\u{FFFD}b");
+        decode_utf8_to_utf8(b"a\x80", "a\u{FFFD}");
+        decode_utf8_to_utf8(b"a\xBFb", "a\u{FFFD}b");
+        decode_utf8_to_utf8(b"a\xBF", "a\u{FFFD}");
+        decode_utf8_to_utf8(b"a\x80\x80b", "a\u{FFFD}\u{FFFD}b");
+        decode_utf8_to_utf8(b"a\x80\x80", "a\u{FFFD}\u{FFFD}");
+        decode_utf8_to_utf8(b"a\xBF\xBFb", "a\u{FFFD}\u{FFFD}b");
+        decode_utf8_to_utf8(b"a\xBF\xBF", "a\u{FFFD}\u{FFFD}");
+        decode_utf8_to_utf8(b"a\xC3\xA4\x80b", "a\u{E4}\u{FFFD}b");
+        decode_utf8_to_utf8(b"a\xC3\xA4\x80", "a\u{E4}\u{FFFD}");
+        decode_utf8_to_utf8(b"a\xC3\xA4\xBFb", "a\u{E4}\u{FFFD}b");
+        decode_utf8_to_utf8(b"a\xC3\xA4\xBF", "a\u{E4}\u{FFFD}");
+        decode_utf8_to_utf8(b"a\xE2\x98\x83\x80b", "a\u{2603}\u{FFFD}b");
+        decode_utf8_to_utf8(b"a\xE2\x98\x83\x80", "a\u{2603}\u{FFFD}");
+        decode_utf8_to_utf8(b"a\xE2\x98\x83\xBFb", "a\u{2603}\u{FFFD}b");
+        decode_utf8_to_utf8(b"a\xE2\x98\x83\xBF", "a\u{2603}\u{FFFD}");
+        decode_utf8_to_utf8(b"a\xF0\x9F\x92\xA9\x80b", "a\u{1F4A9}\u{FFFD}b");
+        decode_utf8_to_utf8(b"a\xF0\x9F\x92\xA9\x80", "a\u{1F4A9}\u{FFFD}");
+        decode_utf8_to_utf8(b"a\xF0\x9F\x92\xA9\xBFb", "a\u{1F4A9}\u{FFFD}b");
+        decode_utf8_to_utf8(b"a\xF0\x9F\x92\xA9\xBF", "a\u{1F4A9}\u{FFFD}");
     }
 
 }
