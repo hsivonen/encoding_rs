@@ -262,8 +262,12 @@ pub unsafe extern "C" fn encoding_can_encode_everything(encoding: *const Encodin
     (*encoding).can_encode_everything()
 }
 
-/// Allocates a new `Decoder` for the given `Encoding` on the heap and returns a
-/// pointer to the newly-allocated `Decoder`.
+/// Allocates a new `Decoder` for the given `Encoding` on the heap with BOM
+/// sniffing enabled and returns a pointer to the newly-allocated `Decoder`.
+///
+/// Note: If the caller has already performed BOM sniffing but has
+/// not removed the BOM, the caller should still use this method in
+/// order to cause the BOM to be ignored.
 ///
 /// Once the allocated `Decoder` is no longer needed, the caller _MUST_
 /// deallocate it by passing the pointer returned by this function to
@@ -273,13 +277,43 @@ pub unsafe extern "C" fn encoding_new_decoder(encoding: *const Encoding) -> *mut
     Box::into_raw(Box::new((*encoding).new_decoder()))
 }
 
+/// Allocates a new `Decoder` for the given `Encoding` on the heap with BOM
+/// sniffing disabled and returns a pointer to the newly-allocated `Decoder`.
+///
+/// If the input starts with BOM bytes, those bytes are not treated as a BOM.
+///
+/// Once the allocated `Decoder` is no longer needed, the caller _MUST_
+/// deallocate it by passing the pointer returned by this function to
+/// `decoder_free()`.
+#[no_mangle]
+pub unsafe extern "C" fn encoding_new_decoder_without_sniffing(encoding: *const Encoding)
+                                                               -> *mut Decoder {
+    Box::into_raw(Box::new((*encoding).new_decoder_without_sniffing()))
+}
+
 /// Allocates a new `Decoder` for the given `Encoding` into memory provided by
-/// the caller. (In practice, the target should likely be a pointer previously
-/// returned by `encoding_new_decoder()`.)
+/// the caller with BOM sniffing enabled. (In practice, the target should
+/// likely be a pointer previously returned by `encoding_new_decoder()`.)
+///
+/// Note: If the caller has already performed BOM sniffing but has
+/// not removed the BOM, the caller should still use this method in
+/// order to cause the BOM to be ignored.
 #[no_mangle]
 pub unsafe extern "C" fn encoding_new_decoder_into(encoding: *const Encoding,
                                                    decoder: *mut Decoder) {
     *decoder = (*encoding).new_decoder();
+}
+
+/// Allocates a new `Decoder` for the given `Encoding` into memory provided by
+/// the caller with BOM sniffing disabled. (In practice, the target should
+/// likely be a pointer previously returned by
+/// `encoding_new_decoder_without_sniffing()`.)
+///
+/// If the input starts with BOM bytes, those bytes are not treated as a BOM.
+#[no_mangle]
+pub unsafe extern "C" fn encoding_new_decoder_without_sniffing_into(encoding: *const Encoding,
+                                                                    decoder: *mut Decoder) {
+    *decoder = (*encoding).new_decoder_without_sniffing();
 }
 
 /// Allocates a new `Encoder` for the given `Encoding` on the heap and returns a

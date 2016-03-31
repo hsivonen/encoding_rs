@@ -975,11 +975,25 @@ impl Encoding {
         self.variant.new_variant_decoder()
     }
 
-    /// Instantiates a new decoder for this encoding.
+    /// Instantiates a new decoder for this encoding with BOM sniffing enabled.
+    ///
+    /// Note: If the caller has already performed BOM sniffing but has
+    /// not removed the BOM, the caller should still use this method in
+    /// order to cause the BOM to be ignored.
     ///
     /// Available via the C wrapper.
     pub fn new_decoder(&'static self) -> Decoder {
-        Decoder::new(self, self.new_variant_decoder())
+        Decoder::new(self, self.new_variant_decoder(), true)
+    }
+
+    /// Instantiates a new decoder for this encoding with BOM sniffing disabled.
+    ///
+    /// If the input starts with BOM bytes, those bytes are not treated as a
+    /// BOM.
+    ///
+    /// Available via the C wrapper.
+    pub fn new_decoder_without_sniffing(&'static self) -> Decoder {
+        Decoder::new(self, self.new_variant_decoder(), false)
     }
 
     /// Instantiates a new encoder for this encoding, except if this encoding
@@ -1261,21 +1275,16 @@ pub struct Decoder {
 }
 
 impl Decoder {
-    fn new(enc: &'static Encoding, decoder: VariantDecoder) -> Decoder {
+    fn new(enc: &'static Encoding, decoder: VariantDecoder, sniffing: bool) -> Decoder {
         Decoder {
             encoding: enc,
             variant: decoder,
-            life_cycle: DecoderLifeCycle::AtStart,
+            life_cycle: if sniffing {
+                DecoderLifeCycle::AtStart
+            } else {
+                DecoderLifeCycle::Converting
+            },
         }
-    }
-
-    /// Turn off BOM sniffing.
-    ///
-    /// Must not be called after data had been passed to this decoder.
-    pub fn do_not_sniff(&mut self) {
-        assert!(self.life_cycle == DecoderLifeCycle::AtStart,
-                "Must not call do_not_sniff() after passing data.");
-        self.life_cycle = DecoderLifeCycle::Converting;
     }
 
     /// The `Encoding` this `Decoder` is for.

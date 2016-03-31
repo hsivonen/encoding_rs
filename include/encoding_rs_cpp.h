@@ -65,6 +65,17 @@ public:
     encoding_new_decoder_into(this, decoder);
   }
 
+  inline std::unique_ptr<Decoder> new_decoder_without_sniffing() const
+  {
+    std::unique_ptr<Decoder> decoder(encoding_new_decoder_without_sniffing(this));
+    return decoder;
+  }
+
+  inline void new_decoder_without_sniffing_into(Decoder* decoder) const
+  {
+    encoding_new_decoder_without_sniffing_into(this, decoder);
+  }
+
   inline std::unique_ptr<Encoder> new_encoder() const
   {
     std::unique_ptr<Encoder> encoder(encoding_new_encoder(this));
