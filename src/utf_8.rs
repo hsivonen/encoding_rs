@@ -11,11 +11,23 @@ use handles::*;
 use variant::*;
 use super::*;
 
-pub struct Utf8Decoder;
+pub struct Utf8Decoder {
+    code_point: u32,
+    bytes_seen: usize, // 1, 2 or 3: counts continuations only
+    bytes_needed: usize, // 1, 2 or 3: counts continuations only
+    lower_boundary: u8,
+    upper_boundary: u8,
+}
 
 impl Utf8Decoder {
     pub fn new() -> VariantDecoder {
-        VariantDecoder::Utf8(Utf8Decoder)
+        VariantDecoder::Utf8(Utf8Decoder {
+            code_point: 0,
+            bytes_seen: 0,
+            bytes_needed: 0,
+            lower_boundary: 0x80u8,
+            upper_boundary: 0xBFu8,
+        })
     }
 
     pub fn max_utf16_buffer_length(&self, u16_length: usize) -> usize {
@@ -31,17 +43,86 @@ impl Utf8Decoder {
     }
 
     decoder_functions!({},
-                       {},
                        {
-                           if b < 0x80 {
-                               // XXX optimize ASCII
-                               destination_handle.write_ascii(b);
-                           } else {
+                           if self.bytes_needed != 0 {
+                               let bad_bytes = (self.bytes_seen + 1) as u8;
+                               self.code_point = 0;
+                               self.bytes_needed = 0;
+                               self.bytes_seen = 0;
+                               return (DecoderResult::Malformed(bad_bytes),
+                                       src_consumed,
+                                       dest.written());
+                           }
+                       },
+                       {
+                           if self.bytes_needed == 0 {
+                               if b < 0x80u8 {
+                                   // XXX optimize ASCII
+                                   destination_handle.write_ascii(b);
+                                   continue;
+                               }
+                               if b < 0xC2u8 {
+                                   return (DecoderResult::Malformed(1),
+                                           unread_handle.consumed(),
+                                           destination_handle.written());
+                               }
+                               if b < 0xE0u8 {
+                                   self.bytes_needed = 1;
+                                   self.code_point = b as u32 & 0x1F;
+                                   continue;
+                               }
+                               if b < 0xF0u8 {
+                                   if b == 0xE0u8 {
+                                       self.lower_boundary = 0xA0u8;
+                                   } else if b == 0xEDu8 {
+                                       self.upper_boundary = 0x9Fu8;
+                                   }
+                                   self.bytes_needed = 2;
+                                   self.code_point = b as u32 & 0xF;
+                                   continue;
+                               }
+                               if b < 0xF5u8 {
+                                   if b == 0xF0u8 {
+                                       self.lower_boundary = 0x90u8;
+                                   } else if b == 0xF4u8 {
+                                       self.upper_boundary = 0x8Fu8;
+                                   }
+                                   self.bytes_needed = 3;
+                                   self.code_point = b as u32 & 0x7;
+                                   continue;
+                               }
                                return (DecoderResult::Malformed(1),
                                        unread_handle.consumed(),
                                        destination_handle.written());
-
                            }
+                           // self.bytes_needed != 0
+                           if !(b >= self.lower_boundary && b <= self.upper_boundary) {
+                               let bad_bytes = (self.bytes_seen + 1) as u8;
+                               self.code_point = 0;
+                               self.bytes_needed = 0;
+                               self.bytes_seen = 0;
+                               self.lower_boundary = 0x80u8;
+                               self.upper_boundary = 0xBFu8;
+                               return (DecoderResult::Malformed(bad_bytes),
+                                       unread_handle.unread(),
+                                       destination_handle.written());
+                           }
+                           self.lower_boundary = 0x80u8;
+                           self.upper_boundary = 0xBFu8;
+                           self.code_point = (self.code_point << 6) | (b as u32 & 0x3F);
+                           self.bytes_seen += 1;
+                           if self.bytes_seen != self.bytes_needed {
+                               continue;
+                           }
+                           if self.bytes_needed == 3 {
+                               destination_handle.write_astral(self.code_point);
+                           } else {
+                               destination_handle.write_bmp_excl_ascii(self.code_point as u16);
+                           }
+                           self.code_point = 0;
+                           self.bytes_needed = 0;
+                           self.bytes_seen = 0;
+                           continue;
                        },
                        self,
                        src_consumed,
@@ -49,7 +130,7 @@ impl Utf8Decoder {
                        b,
                        destination_handle,
                        unread_handle,
-                       check_space_bmp);
+                       check_space_astral);
 }
 
 pub struct Utf8Encoder;
@@ -125,7 +206,41 @@ impl Utf8Encoder {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use super::super::testing::*;
     use super::super::*;
+
+    fn decode_utf8_to_utf16(bytes: &[u8], expect: &[u16]) {
+        decode_to_utf16(UTF_8, bytes, expect);
+    }
+
+    fn decode_utf8_to_utf8(bytes: &[u8], expect: &str) {
+        decode_to_utf8(UTF_8, bytes, expect);
+    }
+
+    fn decode_valid_utf8(string: &str) {
+        decode_utf8_to_utf8(string.as_bytes(), string);
+    }
+
+    fn encode_utf8_from_utf16(string: &[u16], expect: &[u8]) {
+        encode_from_utf16(UTF_8, string, expect);
+    }
+
+    fn encode_utf8_from_utf8(string: &str, expect: &[u8]) {
+        encode_from_utf8(UTF_8, string, expect);
+    }
+
+    #[test]
+    fn test_utf8_decode() {
+        decode_valid_utf8("ab");
+        decode_valid_utf8("a\u{E4}b");
+        decode_valid_utf8("a\u{2603}b");
+        decode_valid_utf8("a\u{1F4A9}b");
+        decode_utf8_to_utf8(b"a\xE4b", "a\u{FFFD}b");
+        decode_utf8_to_utf8(b"a\xE4", "a\u{FFFD}");
+        decode_utf8_to_utf8(b"a\xE2\x98b", "a\u{FFFD}b");
+        decode_utf8_to_utf8(b"a\xE2\x98", "a\u{FFFD}");
+        decode_utf8_to_utf8(b"a\xF0\x9F\x92b", "a\u{FFFD}b");
+        decode_utf8_to_utf8(b"a\xF0\x9F\x92", "a\u{FFFD}");
+    }
 
 }
