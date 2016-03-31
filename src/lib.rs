@@ -1007,7 +1007,8 @@ impl Encoding {
 
     /// Convenience method for decoding to `String` with malformed sequences
     /// treated as fatal when the entire input is available as a single buffer
-    /// (i.e. the end of the buffer marks the end of the stream).
+    /// (i.e. the end of the buffer marks the end of the stream). BOM sniffing
+    /// is performed.
     ///
     /// Returns `None` if a malformed sequence was encountered and the result
     /// of the decode as `Some(String)` otherwise.
@@ -1037,7 +1038,7 @@ impl Encoding {
     /// Convenience method for decoding to `String` with malformed sequences
     /// replaced with the REPLACEMENT CHARACTER when the entire input is
     /// available as a single buffer (i.e. the end of the buffer marks the end
-    /// of the stream).
+    /// of the stream). BOM sniffing is performed.
     ///
     /// _Note:_ It is wrong to use this when the input buffer represents only
     /// a segment of the input instead of the whole input. Use `new_decoder()`
