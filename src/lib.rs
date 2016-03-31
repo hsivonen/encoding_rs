@@ -766,9 +766,9 @@ static ENCODINGS_IN_LABEL_SORT: [&'static Encoding; 218] = [IBM866,
 /// An encoding as defined in the
 /// [Encoding Standard](https://encoding.spec.whatwg.org/).
 ///
-/// An _encoding_ defines a mapping from a `char` sequence to a `u8` sequence
-/// (and vice versa). Each encoding has a name, a submission encoding, and one
-/// or more labels and an output encoding.
+/// An _encoding_ defines a mapping from a `u8` sequence to a `char` sequence
+/// and, in most cases, vice versa. Each encoding has a name, an output
+/// encoding, and one or more labels and an output encoding.
 ///
 /// _Labels_ are ASCII-case-insensitive strings that are used to identify an
 /// encoding in formats and protocols. The _name_ of the encoding is the
@@ -782,7 +782,7 @@ static ENCODINGS_IN_LABEL_SORT: [&'static Encoding; 218] = [IBM866,
 /// `encoding` property of the `TextDecoder` DOM interface, convert the name
 /// returned by this API to ASCII lower case.
 ///
-/// The _submission encoding_ is the encoding using for form submission and URL
+/// The _output encoding_ is the encoding using for form submission and URL
 /// parsing. This is UTF-8 for the replacement, UTF-16LE and UTF-16BE encodings
 /// and the encoding itself for other encodings.
 ///
@@ -957,18 +957,34 @@ impl Encoding {
         return None;
     }
 
-    /// XXX https://github.com/whatwg/encoding/issues/32
+    /// Returns the name of this encoding.
+    ///
+    /// This name is appropriate to return as-is from the DOM
+    /// `document.characterSet` property.
     ///
     /// Available via the C wrapper.
     pub fn name(&'static self) -> &'static str {
         self.name
     }
 
-    /// Checks whether this encoding can encode every `char`.
+    /// Checks whether the _output encoding_ of this encoding can encode every
+    /// `char`.
     ///
     /// Available via the C wrapper.
     pub fn can_encode_everything(&'static self) -> bool {
         self.variant.can_encode_everything()
+    }
+
+    /// Returns the _output encoding_ of this encoding. This is UTF-8 for
+    /// UTF-16BE, UTF-16LE and replacement and the encoding itself otherwise.
+    ///
+    /// Available via the C wrapper.
+    pub fn output_encoding(&'static self) -> &'static Encoding {
+        if self == REPLACEMENT || self == UTF_16BE || self == UTF_16LE {
+            UTF_8
+        } else {
+            self
+        }
     }
 
     fn new_variant_decoder(&'static self) -> VariantDecoder {
@@ -996,13 +1012,12 @@ impl Encoding {
         Decoder::new(self, self.new_variant_decoder(), false)
     }
 
-    /// Instantiates a new encoder for this encoding, except if this encoding
-    /// is replacement a new decoder for UTF-8 is instantiated (and that
-    /// decoder reports `UTF_8` as its encoding).
+    /// Instantiates a new encoder for the output encoding of this encoding.
     ///
     /// Available via the C wrapper.
     pub fn new_encoder(&'static self) -> Encoder {
-        self.variant.new_encoder(self)
+        let enc = self.output_encoding();
+        enc.variant.new_encoder(enc)
     }
 
     /// Convenience method for decoding to `String` with malformed sequences

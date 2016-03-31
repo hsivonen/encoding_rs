@@ -52,52 +52,6 @@ impl Utf16Decoder {
                        check_space_bmp);
 }
 
-pub struct Utf16Encoder;
-
-impl Utf16Encoder {
-    pub fn new(encoding: &'static Encoding, big_endian: bool) -> Encoder {
-        Encoder::new(encoding, VariantEncoder::Utf16(Utf16Encoder))
-    }
-
-    pub fn max_buffer_length_from_utf16(&self, u16_length: usize) -> usize {
-        0 // TODO
-    }
-
-    pub fn max_buffer_length_from_utf8(&self, byte_length: usize) -> usize {
-        0 // TODO
-    }
-
-    pub fn max_buffer_length_from_utf16_with_replacement_if_no_unmappables(&self,
-                                                                           u16_length: usize)
-                                                                           -> usize {
-        0 // TODO
-    }
-
-    pub fn max_buffer_length_from_utf8_with_replacement_if_no_unmappables(&self,
-                                                                          byte_length: usize)
-                                                                          -> usize {
-        0 // TODO
-    }
-
-    pub fn encode_from_utf16(&mut self,
-                             src: &[u16],
-                             dst: &mut [u8],
-                             last: bool)
-                             -> (EncoderResult, usize, usize) {
-        // XXX
-        (EncoderResult::InputEmpty, 0, 0)
-    }
-
-    pub fn encode_from_utf8(&mut self,
-                            src: &str,
-                            dst: &mut [u8],
-                            last: bool)
-                            -> (EncoderResult, usize, usize) {
-        // XXX
-        (EncoderResult::InputEmpty, 0, 0)
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

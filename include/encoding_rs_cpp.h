@@ -54,6 +54,11 @@ public:
     return encoding_can_encode_everything(this);
   }
 
+  inline const Encoding* output_encoding() const
+  {
+    return encoding_output_encoding(this);
+  }
+
   inline std::unique_ptr<Decoder> new_decoder() const
   {
     std::unique_ptr<Decoder> decoder(encoding_new_decoder(this));

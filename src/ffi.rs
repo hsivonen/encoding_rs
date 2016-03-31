@@ -262,6 +262,11 @@ pub unsafe extern "C" fn encoding_can_encode_everything(encoding: *const Encodin
     (*encoding).can_encode_everything()
 }
 
+#[no_mangle]
+pub unsafe extern "C" fn encoding_output_encoding(encoding: *const Encoding) -> *const Encoding {
+    (*encoding).output_encoding()
+}
+
 /// Allocates a new `Decoder` for the given `Encoding` on the heap with BOM
 /// sniffing enabled and returns a pointer to the newly-allocated `Decoder`.
 ///

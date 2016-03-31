@@ -394,7 +394,7 @@ for variant in encoding_variants:
 
 encoder_variants = []
 for variant in encoding_variants:
-  if variant in [u"replacement", u"gbk"]:
+  if variant in [u"replacement", u"gbk", u"utf-16"]:
     continue
   encoder_variants.append(variant)
 
@@ -525,19 +525,19 @@ impl VariantEncoding {
             &VariantEncoding::Iso2022Jp => Iso2022JpEncoder::new(encoding),
             &VariantEncoding::ShiftJis => ShiftJisEncoder::new(encoding),
             &VariantEncoding::EucKr => EucKrEncoder::new(encoding),
-            &VariantEncoding::Replacement => Utf8Encoder::new(UTF_8),
             &VariantEncoding::UserDefined => UserDefinedEncoder::new(encoding),
-            &VariantEncoding::Utf16Be => Utf16Encoder::new(encoding, true),
-            &VariantEncoding::Utf16Le => Utf16Encoder::new(encoding, false),
+            &VariantEncoding::Utf16Be | &VariantEncoding::Replacement |
+            &VariantEncoding::Utf16Le => unreachable!(),
         }
     }
 
     pub fn can_encode_everything(&self) -> bool {
         match self {
-            &VariantEncoding::Utf8 => true,
-            &VariantEncoding::Gb18030 => true,
-            &VariantEncoding::Utf16Be => true,
-            &VariantEncoding::Utf16Le => true,
+            &VariantEncoding::Utf8 |
+            &VariantEncoding::Gb18030 |
+            &VariantEncoding::Utf16Be |
+            &VariantEncoding::Utf16Le |
+            &VariantEncoding::Replacement => true,
             _ => false,
         }
     }

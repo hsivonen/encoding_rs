@@ -158,7 +158,6 @@ pub enum VariantEncoder {
     ShiftJis(ShiftJisEncoder),
     EucKr(EucKrEncoder),
     UserDefined(UserDefinedEncoder),
-    Utf16(Utf16Encoder),
 }
 
 impl VariantEncoder {
@@ -173,7 +172,6 @@ impl VariantEncoder {
             &VariantEncoder::ShiftJis(ref v) => v.max_buffer_length_from_utf16(u16_length),
             &VariantEncoder::EucKr(ref v) => v.max_buffer_length_from_utf16(u16_length),
             &VariantEncoder::UserDefined(ref v) => v.max_buffer_length_from_utf16(u16_length),
-            &VariantEncoder::Utf16(ref v) => v.max_buffer_length_from_utf16(u16_length),
         }
     }
 
@@ -188,7 +186,6 @@ impl VariantEncoder {
             &VariantEncoder::ShiftJis(ref v) => v.max_buffer_length_from_utf8(byte_length),
             &VariantEncoder::EucKr(ref v) => v.max_buffer_length_from_utf8(byte_length),
             &VariantEncoder::UserDefined(ref v) => v.max_buffer_length_from_utf8(byte_length),
-            &VariantEncoder::Utf16(ref v) => v.max_buffer_length_from_utf8(byte_length),
         }
     }
 
@@ -207,7 +204,6 @@ impl VariantEncoder {
             &mut VariantEncoder::ShiftJis(ref mut v) => v.encode_from_utf16(src, dst, last),
             &mut VariantEncoder::EucKr(ref mut v) => v.encode_from_utf16(src, dst, last),
             &mut VariantEncoder::UserDefined(ref mut v) => v.encode_from_utf16(src, dst, last),
-            &mut VariantEncoder::Utf16(ref mut v) => v.encode_from_utf16(src, dst, last),
         }
     }
 
@@ -226,7 +222,6 @@ impl VariantEncoder {
             &mut VariantEncoder::ShiftJis(ref mut v) => v.encode_from_utf8(src, dst, last),
             &mut VariantEncoder::EucKr(ref mut v) => v.encode_from_utf8(src, dst, last),
             &mut VariantEncoder::UserDefined(ref mut v) => v.encode_from_utf8(src, dst, last),
-            &mut VariantEncoder::Utf16(ref mut v) => v.encode_from_utf8(src, dst, last),
         }
     }
 }
@@ -276,19 +271,20 @@ impl VariantEncoding {
             &VariantEncoding::Iso2022Jp => Iso2022JpEncoder::new(encoding),
             &VariantEncoding::ShiftJis => ShiftJisEncoder::new(encoding),
             &VariantEncoding::EucKr => EucKrEncoder::new(encoding),
-            &VariantEncoding::Replacement => Utf8Encoder::new(UTF_8),
             &VariantEncoding::UserDefined => UserDefinedEncoder::new(encoding),
-            &VariantEncoding::Utf16Be => Utf16Encoder::new(encoding, true),
-            &VariantEncoding::Utf16Le => Utf16Encoder::new(encoding, false),
+            &VariantEncoding::Utf16Be |
+            &VariantEncoding::Replacement |
+            &VariantEncoding::Utf16Le => unreachable!(),
         }
     }
 
     pub fn can_encode_everything(&self) -> bool {
         match self {
-            &VariantEncoding::Utf8 => true,
-            &VariantEncoding::Gb18030 => true,
-            &VariantEncoding::Utf16Be => true,
-            &VariantEncoding::Utf16Le => true,
+            &VariantEncoding::Utf8 |
+            &VariantEncoding::Gb18030 |
+            &VariantEncoding::Utf16Be |
+            &VariantEncoding::Utf16Le |
+            &VariantEncoding::Replacement => true,
             _ => false,
         }
     }
