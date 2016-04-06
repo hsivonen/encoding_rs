@@ -37,10 +37,6 @@ pub static EUC_JP_ENCODING: *const Encoding = EUC_JP;
 #[no_mangle]
 pub static EUC_KR_ENCODING: *const Encoding = EUC_KR;
 
-/// The gb18030 encoding.
-#[no_mangle]
-pub static GB18030_ENCODING: *const Encoding = GB18030;
-
 /// The GBK encoding.
 #[no_mangle]
 pub static GBK_ENCODING: *const Encoding = GBK;
@@ -113,14 +109,6 @@ pub static KOI8_R_ENCODING: *const Encoding = KOI8_R;
 #[no_mangle]
 pub static KOI8_U_ENCODING: *const Encoding = KOI8_U;
 
-/// The macintosh encoding.
-#[no_mangle]
-pub static MACINTOSH_ENCODING: *const Encoding = MACINTOSH;
-
-/// The replacement encoding.
-#[no_mangle]
-pub static REPLACEMENT_ENCODING: *const Encoding = REPLACEMENT;
-
 /// The Shift_JIS encoding.
 #[no_mangle]
 pub static SHIFT_JIS_ENCODING: *const Encoding = SHIFT_JIS;
@@ -136,6 +124,18 @@ pub static UTF_16LE_ENCODING: *const Encoding = UTF_16LE;
 /// The UTF-8 encoding.
 #[no_mangle]
 pub static UTF_8_ENCODING: *const Encoding = UTF_8;
+
+/// The gb18030 encoding.
+#[no_mangle]
+pub static GB18030_ENCODING: *const Encoding = GB18030;
+
+/// The macintosh encoding.
+#[no_mangle]
+pub static MACINTOSH_ENCODING: *const Encoding = MACINTOSH;
+
+/// The replacement encoding.
+#[no_mangle]
+pub static REPLACEMENT_ENCODING: *const Encoding = REPLACEMENT;
 
 /// The windows-1250 encoding.
 #[no_mangle]

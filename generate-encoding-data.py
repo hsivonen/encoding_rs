@@ -53,22 +53,6 @@ def to_snake_name(name):
   return name.replace(u"-", u"_").lower()
 
 def to_dom_name(name):
-  if name == u"big5":
-    return u"Big5"
-  if name == u"shift_jis":
-    return u"Shift_JIS"
-  if name == u"gbk":
-    return u"GBK"
-  if name.startswith(u"iso-"):
-    return name.upper()
-  if name.startswith(u"utf-"):
-    return name.upper()
-  if name.startswith(u"euc-"):
-    return name.upper()
-  if name.startswith(u"koi"):
-    return name.upper()
-  if name.startswith(u"ibm"):
-    return name.upper()
   return name
 
 # 
@@ -148,7 +132,7 @@ const LONGEST_NAME_LENGTH: usize = %d; // %s
 for name in preferred:
   variant = None
   if is_single_byte(name):
-    variant = "SingleByte(data::%s_DATA)" % to_constant_name(u"iso-8859-8" if name == u"iso-8859-8-i" else name)
+    variant = "SingleByte(data::%s_DATA)" % to_constant_name(u"iso-8859-8" if name == u"ISO-8859-8-I" else name)
   else:
     variant = to_camel_name(name)
 
@@ -212,13 +196,13 @@ data_file.write('''// Copyright 2015-2016 Mozilla Foundation. See the COPYRIGHT
 
 for encoding in single_byte:
   name = encoding["name"]
-  if name == u"iso-8859-8-i":
+  if name == u"ISO-8859-8-I":
     continue
 
   data_file.write('''pub const %s_DATA: &'static [u16; 128] = &[
 ''' % to_constant_name(name))
 
-  for code_point in indexes[name]:
+  for code_point in indexes[name.lower()]:
     data_file.write('0x%04X,\n' % null_to_zero(code_point))
 
   data_file.write('''];
@@ -350,6 +334,34 @@ data_file.write('''_ => {},
     }
 }
 ''' % (hkscs_start_index, hkscs_bound))
+
+# JIS0208
+
+index = []
+
+for code_point in indexes["jis0208"]:
+  index.append(null_to_zero(code_point))  
+
+# TODO: Compress away empty ranges
+
+data_file.write('''static JIS0208: [u16; %d] = [
+''' % len(index))
+
+for i in xrange(len(index)):
+  data_file.write('0x%04X,\n' % index[i])
+
+data_file.write('''];
+
+#[inline(always)]
+pub fn jis0208_decode(pointer: usize) -> u16 {
+    if pointer < %d {
+        JIS0208[pointer]
+    } else {
+        0
+    }
+}
+''' % len(index))
+
 data_file.close()
 
 # Variant
@@ -380,21 +392,21 @@ variant_file.write('''// Copyright 2015-2016 Mozilla Foundation. See the COPYRIG
 
 encoding_variants = [u"single-byte",]
 for encoding in multi_byte:
-  if encoding["name"] in [u"utf-16le", u"utf-16be"]:
+  if encoding["name"] in [u"UTF-16LE", u"UTF-16BE"]:
     continue
   else:
     encoding_variants.append(encoding["name"])
-encoding_variants.append(u"utf-16")
+encoding_variants.append(u"UTF-16")
 
 decoder_variants = []
 for variant in encoding_variants:
-  if variant == u"gbk":
+  if variant == u"GBK":
     continue
   decoder_variants.append(variant)
 
 encoder_variants = []
 for variant in encoding_variants:
-  if variant in [u"replacement", u"gbk", u"utf-16"]:
+  if variant in [u"replacement", u"GBK", u"UTF-16"]:
     continue
   encoder_variants.append(variant)
 

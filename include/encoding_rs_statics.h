@@ -44,9 +44,6 @@ extern const Encoding* const EUC_JP_ENCODING;
 /// The EUC-KR encoding.
 extern const Encoding* const EUC_KR_ENCODING;
 
-/// The gb18030 encoding.
-extern const Encoding* const GB18030_ENCODING;
-
 /// The GBK encoding.
 extern const Encoding* const GBK_ENCODING;
 
@@ -101,12 +98,6 @@ extern const Encoding* const KOI8_R_ENCODING;
 /// The KOI8-U encoding.
 extern const Encoding* const KOI8_U_ENCODING;
 
-/// The macintosh encoding.
-extern const Encoding* const MACINTOSH_ENCODING;
-
-/// The replacement encoding.
-extern const Encoding* const REPLACEMENT_ENCODING;
-
 /// The Shift_JIS encoding.
 extern const Encoding* const SHIFT_JIS_ENCODING;
 
@@ -118,6 +109,15 @@ extern const Encoding* const UTF_16LE_ENCODING;
 
 /// The UTF-8 encoding.
 extern const Encoding* const UTF_8_ENCODING;
+
+/// The gb18030 encoding.
+extern const Encoding* const GB18030_ENCODING;
+
+/// The macintosh encoding.
+extern const Encoding* const MACINTOSH_ENCODING;
+
+/// The replacement encoding.
+extern const Encoding* const REPLACEMENT_ENCODING;
 
 /// The windows-1250 encoding.
 extern const Encoding* const WINDOWS_1250_ENCODING;

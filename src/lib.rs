@@ -60,12 +60,6 @@ pub const EUC_KR: &'static Encoding = &Encoding {
     variant: VariantEncoding::EucKr,
 };
 
-/// The gb18030 encoding.
-pub const GB18030: &'static Encoding = &Encoding {
-    name: "gb18030",
-    variant: VariantEncoding::Gb18030,
-};
-
 /// The GBK encoding.
 pub const GBK: &'static Encoding = &Encoding {
     name: "GBK",
@@ -174,18 +168,6 @@ pub const KOI8_U: &'static Encoding = &Encoding {
     variant: VariantEncoding::SingleByte(data::KOI8_U_DATA),
 };
 
-/// The macintosh encoding.
-pub const MACINTOSH: &'static Encoding = &Encoding {
-    name: "macintosh",
-    variant: VariantEncoding::SingleByte(data::MACINTOSH_DATA),
-};
-
-/// The replacement encoding.
-pub const REPLACEMENT: &'static Encoding = &Encoding {
-    name: "replacement",
-    variant: VariantEncoding::Replacement,
-};
-
 /// The Shift_JIS encoding.
 pub const SHIFT_JIS: &'static Encoding = &Encoding {
     name: "Shift_JIS",
@@ -208,6 +190,24 @@ pub const UTF_16LE: &'static Encoding = &Encoding {
 pub const UTF_8: &'static Encoding = &Encoding {
     name: "UTF-8",
     variant: VariantEncoding::Utf8,
+};
+
+/// The gb18030 encoding.
+pub const GB18030: &'static Encoding = &Encoding {
+    name: "gb18030",
+    variant: VariantEncoding::Gb18030,
+};
+
+/// The macintosh encoding.
+pub const MACINTOSH: &'static Encoding = &Encoding {
+    name: "macintosh",
+    variant: VariantEncoding::SingleByte(data::MACINTOSH_DATA),
+};
+
+/// The replacement encoding.
+pub const REPLACEMENT: &'static Encoding = &Encoding {
+    name: "replacement",
+    variant: VariantEncoding::Replacement,
 };
 
 /// The windows-1250 encoding.

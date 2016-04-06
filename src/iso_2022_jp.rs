@@ -12,11 +12,34 @@ use data::*;
 use variant::*;
 use super::*;
 
-pub struct Iso2022JpDecoder;
+#[derive(Copy,Clone)]
+enum Iso2022JpDecoderState {
+    Ascii,
+    Roman,
+    Katakana,
+    LeadByte,
+    TrailByte,
+    EscapeStart,
+    Escape,
+}
+
+pub struct Iso2022JpDecoder {
+    decoder_state: Iso2022JpDecoderState,
+    output_state: Iso2022JpDecoderState, // only takes 1 of first 4 values
+    lead: u8,
+    output_flag: bool,
+    pending_prepended: bool,
+}
 
 impl Iso2022JpDecoder {
     pub fn new() -> VariantDecoder {
-        VariantDecoder::Iso2022Jp(Iso2022JpDecoder)
+        VariantDecoder::Iso2022Jp(Iso2022JpDecoder {
+            decoder_state: Iso2022JpDecoderState::Ascii,
+            output_state: Iso2022JpDecoderState::Ascii,
+            lead: 0u8,
+            output_flag: false,
+            pending_prepended: false,
+        })
     }
 
     pub fn max_utf16_buffer_length(&self, u16_length: usize) -> usize {
@@ -31,17 +54,216 @@ impl Iso2022JpDecoder {
         byte_length * 3
     }
 
-    decoder_functions!({},
-                       {},
+    decoder_functions!({
+                           if self.pending_prepended {
+                               // lead was set in EscapeStart and "prepended"
+                               // in Escape.
+                               debug_assert!(self.lead == 0x24u8 || self.lead == 0x28u8);
+                               match dest.check_space_bmp() {
+                                   Space::Full(_) => {
+                                       return (DecoderResult::OutputFull, 0, 0);
+                                   }
+                                   Space::Available(destination_handle) => {
+                                       self.pending_prepended = false;
+                                       self.output_flag = false;
+                                       match self.decoder_state {
+                                           Iso2022JpDecoderState::Ascii |
+                                           Iso2022JpDecoderState::Roman => {
+                                               destination_handle.write_ascii(self.lead);
+                                               self.lead = 0x0u8;
+                                           }
+                                           Iso2022JpDecoderState::Katakana => {
+                                               destination_handle.write_upper_bmp(self.lead as u16 -
+                                                                                  0x21u16 +
+                                                                                  0xFF61u16);
+                                               self.lead = 0x0u8;
+                                           }
+                                           Iso2022JpDecoderState::LeadByte => {
+                                               self.decoder_state =
+                                                   Iso2022JpDecoderState::TrailByte;
+                                           }
+                                           _ => unreachable!(),
+                                       }
+                                   }
+                               }
+                           }
+                       },
                        {
-                           if b < 0x80 {
-                               // XXX optimize ASCII
-                               destination_handle.write_ascii(b);
-                           } else {
-                               return (DecoderResult::Malformed(1),
-                                       unread_handle.consumed(),
-                                       destination_handle.written());
-
+                           match self.decoder_state {
+                               Iso2022JpDecoderState::TrailByte |
+                               Iso2022JpDecoderState::EscapeStart => {
+                                   self.decoder_state = self.output_state;
+                                   return (DecoderResult::Malformed(1),
+                                           src_consumed,
+                                           dest.written());
+                               }
+                               Iso2022JpDecoderState::Escape => {
+                                   self.pending_prepended = true;
+                                   self.decoder_state = self.output_state;
+                                   return (DecoderResult::Malformed(1),
+                                           src_consumed,
+                                           dest.written());
+                               }
+                               _ => {}
+                           }
+                       },
+                       {
+                           match self.decoder_state {
+                               Iso2022JpDecoderState::Ascii => {
+                                   if b == 0x1Bu8 {
+                                       self.decoder_state = Iso2022JpDecoderState::EscapeStart;
+                                       continue;
+                                   }
+                                   self.output_flag = false;
+                                   if b > 0x7Eu8 || b == 0x0Eu8 || b == 0x0Fu8 {
+                                       return (DecoderResult::Malformed(1),
+                                               unread_handle.consumed(),
+                                               destination_handle.written());
+                                   }
+                                   destination_handle.write_ascii(b);
+                                   continue;
+                               }
+                               Iso2022JpDecoderState::Roman => {
+                                   if b == 0x1Bu8 {
+                                       self.decoder_state = Iso2022JpDecoderState::EscapeStart;
+                                       continue;
+                                   }
+                                   self.output_flag = false;
+                                   if b == 0x5Cu8 {
+                                       destination_handle.write_mid_bmp(0x00A5u16);
+                                       continue;
+                                   }
+                                   if b == 0x7Eu8 {
+                                       destination_handle.write_upper_bmp(0x203Eu16);
+                                       continue;
+                                   }
+                                   if b > 0x7Eu8 || b == 0x0Eu8 || b == 0x0Fu8 {
+                                       return (DecoderResult::Malformed(1),
+                                               unread_handle.consumed(),
+                                               destination_handle.written());
+                                   }
+                                   destination_handle.write_ascii(b);
+                                   continue;
+                               }
+                               Iso2022JpDecoderState::Katakana => {
+                                   if b == 0x1Bu8 {
+                                       self.decoder_state = Iso2022JpDecoderState::EscapeStart;
+                                       continue;
+                                   }
+                                   self.output_flag = false;
+                                   if b >= 0x21u8 && b <= 0x5Fu8 {
+                                       destination_handle.write_upper_bmp(b as u16 - 0x21u16 +
+                                                                          0xFF61u16);
+                                       continue;
+                                   }
+                                   return (DecoderResult::Malformed(1),
+                                           unread_handle.consumed(),
+                                           destination_handle.written());
+                               }
+                               Iso2022JpDecoderState::LeadByte => {
+                                   if b == 0x1Bu8 {
+                                       self.decoder_state = Iso2022JpDecoderState::EscapeStart;
+                                       continue;
+                                   }
+                                   self.output_flag = false;
+                                   if b >= 0x21u8 && b <= 0x7Eu8 {
+                                       self.lead = b;
+                                       self.decoder_state = Iso2022JpDecoderState::TrailByte;
+                                       continue;
+                                   }
+                                   return (DecoderResult::Malformed(1),
+                                           unread_handle.consumed(),
+                                           destination_handle.written());
+                               }
+                               Iso2022JpDecoderState::TrailByte => {
+                                   if b == 0x1Bu8 {
+                                       self.decoder_state = Iso2022JpDecoderState::EscapeStart;
+                                       return (DecoderResult::Malformed(2),
+                                               unread_handle.consumed(),
+                                               destination_handle.written());
+                                   }
+                                   if b >= 0x21u8 && b <= 0x7Eu8 {
+                                       self.decoder_state = Iso2022JpDecoderState::LeadByte;
+                                       let pointer = (self.lead as usize - 0x21usize) * 94usize +
+                                                     b as usize -
+                                                     0x21usize;
+                                       let c = jis0208_decode(pointer);
+                                       if c == 0 {
+                                           return (DecoderResult::Malformed(2),
+                                                   unread_handle.consumed(),
+                                                   destination_handle.written());
+                                       }
+                                       destination_handle.write_bmp_excl_ascii(c);
+                                       continue;
+                                   }
+                                   self.decoder_state = Iso2022JpDecoderState::LeadByte;
+                                   return (DecoderResult::Malformed(2),
+                                           unread_handle.consumed(),
+                                           destination_handle.written());
+                               }
+                               Iso2022JpDecoderState::EscapeStart => {
+                                   if b == 0x24u8 || b == 0x28u8 {
+                                       self.lead = b;
+                                       self.decoder_state = Iso2022JpDecoderState::Escape;
+                                       continue;
+                                   }
+                                   self.output_flag = false;
+                                   self.decoder_state = self.output_state;
+                                   return (DecoderResult::Malformed(2),
+                                           unread_handle.unread(),
+                                           destination_handle.written());
+                               }
+                               Iso2022JpDecoderState::Escape => {
+                                   let mut state: Option<Iso2022JpDecoderState> = None;
+                                   if self.lead == 0x28u8 && b == 0x42u8 {
+                                       state = Some(Iso2022JpDecoderState::Ascii);
+                                   } else if self.lead == 0x28u8 && b == 0x4Au8 {
+                                       state = Some(Iso2022JpDecoderState::Roman);
+                                   } else if self.lead == 0x28u8 && b == 0x49u8 {
+                                       state = Some(Iso2022JpDecoderState::Katakana);
+                                   } else if self.lead == 0x24u8 && (b == 0x40u8 || b == 0x42u8) {
+                                       state = Some(Iso2022JpDecoderState::LeadByte);
+                                   }
+                                   match state {
+                                       Some(s) => {
+                                           self.lead = 0x0u8;
+                                           self.decoder_state = s;
+                                           self.output_state = s;
+                                           let flag = self.output_flag;
+                                           self.output_flag = true;
+                                           if flag {
+                                               // It's impossible to designate
+                                               // the right bytes as being in
+                                               // error. The previous three
+                                               // bytes are now provisionally
+                                               // OK, but the three bytes before
+                                               // those are now known to be in
+                                               // error! We have to flag
+                                               // the last 3. :-(
+                                               return (DecoderResult::Malformed(3),
+                                                       unread_handle.consumed(),
+                                                       destination_handle.written());
+                                           }
+                                           continue;
+                                       }
+                                       None => {
+                                           // self.lead is still the previous
+                                           // byte. It will be processed in
+                                           // the preabmle upon next call.
+                                           self.pending_prepended = true;
+                                           self.output_flag = false;
+                                           self.decoder_state = self.output_state;
+                                           // It's impossible to designate the
+                                           // right byte as being in error.
+                                           // The byte in error is not the
+                                           // current or the previous byte but
+                                           // the one before those (lone 0x1B).
+                                           return (DecoderResult::Malformed(1),
+                                                   unread_handle.unread(),
+                                                   destination_handle.written());
+                                       }
+                                   }
+                               }
                            }
                        },
                        self,

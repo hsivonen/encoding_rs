@@ -136,6 +136,17 @@ impl<'a, 'b> Utf16BmpHandle<'a, 'b>
     pub fn write_bmp_excl_ascii(self, bmp: u16) {
         self.dest.write_bmp_excl_ascii(bmp);
     }
+    #[inline(always)]
+    pub fn write_mid_bmp(self, bmp: u16) {
+        debug_assert!(bmp >= 0x80);
+        debug_assert!(bmp < 0x800);
+        self.dest.write_mid_bmp(bmp);
+    }
+    #[inline(always)]
+    pub fn write_upper_bmp(self, bmp: u16) {
+        debug_assert!(bmp >= 0x800);
+        self.dest.write_upper_bmp(bmp);
+    }
 }
 
 pub struct Utf16AstralHandle<'a, 'b>
@@ -234,6 +245,16 @@ impl<'a> Utf16Destination<'a> {
         self.write_code_unit(bmp);
     }
     #[inline(always)]
+    fn write_mid_bmp(&mut self, bmp: u16) {
+        debug_assert!(bmp >= 0x80); // XXX
+        self.write_code_unit(bmp);
+    }
+    #[inline(always)]
+    fn write_upper_bmp(&mut self, bmp: u16) {
+        debug_assert!(bmp >= 0x80);
+        self.write_code_unit(bmp);
+    }
+    #[inline(always)]
     fn write_astral(&mut self, astral: u32) {
         debug_assert!(astral > 0xFFFF);
         debug_assert!(astral <= 0x10FFFF);
@@ -273,6 +294,14 @@ impl<'a, 'b> Utf8BmpHandle<'a, 'b>
     #[inline(always)]
     pub fn write_bmp_excl_ascii(self, bmp: u16) {
         self.dest.write_bmp_excl_ascii(bmp);
+    }
+    #[inline(always)]
+    pub fn write_mid_bmp(self, bmp: u16) {
+        self.dest.write_mid_bmp(bmp);
+    }
+    #[inline(always)]
+    pub fn write_upper_bmp(self, bmp: u16) {
+        self.dest.write_upper_bmp(bmp);
     }
 }
 

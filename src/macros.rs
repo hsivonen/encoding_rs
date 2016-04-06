@@ -28,7 +28,7 @@ macro_rules! decoder_function {
                  -> (DecoderResult, usize, usize) {
         let mut source = ByteSource::new(src);
         let mut $dest = $dest_struct::new(dst);
-        loop {
+        loop { // TODO: remove this loop
             {
                 // Start non-boilerplate
                 $preamble
