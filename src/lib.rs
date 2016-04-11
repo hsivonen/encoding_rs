@@ -993,23 +993,40 @@ impl Encoding {
 
     /// Instantiates a new decoder for this encoding with BOM sniffing enabled.
     ///
-    /// Note: If the caller has already performed BOM sniffing but has
-    /// not removed the BOM, the caller should still use this method in
-    /// order to cause the BOM to be ignored.
+    /// BOM sniffing may cause the returned decoder to morph into a decoder
+    /// for UTF-8, UTF-16LE or UTF-16BE instead of this encoding.
     ///
     /// Available via the C wrapper.
     pub fn new_decoder(&'static self) -> Decoder {
-        Decoder::new(self, self.new_variant_decoder(), true)
+        Decoder::new(self, self.new_variant_decoder(), BomHandling::Sniff)
     }
 
-    /// Instantiates a new decoder for this encoding with BOM sniffing disabled.
+    /// Instantiates a new decoder for this encoding with BOM removal.
     ///
-    /// If the input starts with BOM bytes, those bytes are not treated as a
-    /// BOM.
+    /// If the input starts with bytes that are the BOM for this encoding,
+    /// those bytes are removed. However, the decoder never morphs into a
+    /// decoder for another encoding: A BOM for another encoding is treated as
+    /// (potentially malformed) input to the decoding algorithm for this
+    /// encoding.
     ///
     /// Available via the C wrapper.
-    pub fn new_decoder_without_sniffing(&'static self) -> Decoder {
-        Decoder::new(self, self.new_variant_decoder(), false)
+    pub fn new_decoder_with_bom_removal(&'static self) -> Decoder {
+        Decoder::new(self, self.new_variant_decoder(), BomHandling::Remove)
+    }
+
+    /// Instantiates a new decoder for this encoding with BOM handling disabled.
+    ///
+    /// If the input starts with bytes that look like a BOM, those bytes are
+    /// not treated as a BOM. (Hence, the decoder never morphs into a decoder
+    /// for another encoding.)
+    ///
+    /// _Note:_ If the caller has performed BOM sniffing on its own but has not
+    /// removed the BOM, the caller should use `new_decoder_with_bom_removal()`
+    /// instead of this method to cause the BOM to be removed.
+    ///
+    /// Available via the C wrapper.
+    pub fn new_decoder_without_bom_handling(&'static self) -> Decoder {
+        Decoder::new(self, self.new_variant_decoder(), BomHandling::Off)
     }
 
     /// Instantiates a new encoder for the output encoding of this encoding.
@@ -1141,6 +1158,12 @@ impl std::fmt::Debug for Encoding {
 enum DecoderLifeCycle {
     /// The decoder has seen no input yet.
     AtStart,
+    /// The decoder has seen no input yet but expects UTF-8.
+    AtUtf8Start,
+    /// The decoder has seen no input yet but expects UTF-16BE.
+    AtUtf16BeStart,
+    /// The decoder has seen no input yet but expects UTF-16LE.
+    AtUtf16LeStart,
     /// The decoder has seen EF.
     SeenUtf8First,
     /// The decoder has seen EF, BB.
@@ -1157,6 +1180,16 @@ enum DecoderLifeCycle {
     Converting,
     /// EOF has been seen.
     Finished,
+}
+
+/// Communicate the BOM handling mode.
+enum BomHandling {
+    /// Don't handle the BOM
+    Off,
+    /// Sniff for UTF-8, UTF-16BE or UTF-16LE BOM
+    Sniff,
+    /// Remove the BOM only if it's the BOM for this encoding
+    Remove,
 }
 
 /// Result of a (potentially partial) decode or operation with replacement.
@@ -1293,14 +1326,22 @@ pub struct Decoder {
 }
 
 impl Decoder {
-    fn new(enc: &'static Encoding, decoder: VariantDecoder, sniffing: bool) -> Decoder {
+    fn new(enc: &'static Encoding, decoder: VariantDecoder, sniffing: BomHandling) -> Decoder {
         Decoder {
             encoding: enc,
             variant: decoder,
-            life_cycle: if sniffing {
-                DecoderLifeCycle::AtStart
-            } else {
-                DecoderLifeCycle::Converting
+            life_cycle: match sniffing {
+                BomHandling::Off => DecoderLifeCycle::Converting,
+                BomHandling::Sniff => DecoderLifeCycle::AtStart,
+                BomHandling::Remove => if enc == UTF_8 {
+                    DecoderLifeCycle::AtUtf8Start
+                } else if enc == UTF_16BE {
+                    DecoderLifeCycle::AtUtf16BeStart
+                } else if enc == UTF_16LE {
+                    DecoderLifeCycle::AtUtf16LeStart
+                } else {
+                    DecoderLifeCycle::Converting
+                },
             },
         }
     }

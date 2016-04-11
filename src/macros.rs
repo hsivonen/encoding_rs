@@ -239,6 +239,57 @@ macro_rules! public_decode_function{
                         }
                     }
                 }
+                DecoderLifeCycle::AtUtf8Start => {
+                    debug_assert!(offset == 0usize);
+                    if src.is_empty() {
+                        return (DecoderResult::InputEmpty, 0, 0);
+                    }
+                    match src[0] {
+                        0xEFu8 => {
+                            self.life_cycle = DecoderLifeCycle::SeenUtf8First;
+                            offset += 1;
+                            continue;
+                        }
+                        _ => {
+                            self.life_cycle = DecoderLifeCycle::Converting;
+                            continue;
+                        }
+                    }
+                }
+                DecoderLifeCycle::AtUtf16BeStart => {
+                    debug_assert!(offset == 0usize);
+                    if src.is_empty() {
+                        return (DecoderResult::InputEmpty, 0, 0);
+                    }
+                    match src[0] {
+                        0xFEu8 => {
+                            self.life_cycle = DecoderLifeCycle::SeenUtf16BeFirst;
+                            offset += 1;
+                            continue;
+                        }
+                        _ => {
+                            self.life_cycle = DecoderLifeCycle::Converting;
+                            continue;
+                        }
+                    }
+                }
+                DecoderLifeCycle::AtUtf16LeStart => {
+                    debug_assert!(offset == 0usize);
+                    if src.is_empty() {
+                        return (DecoderResult::InputEmpty, 0, 0);
+                    }
+                    match src[0] {
+                        0xFFu8 => {
+                            self.life_cycle = DecoderLifeCycle::SeenUtf16LeFirst;
+                            offset += 1;
+                            continue;
+                        }
+                        _ => {
+                            self.life_cycle = DecoderLifeCycle::Converting;
+                            continue;
+                        }
+                    }
+                }
                 DecoderLifeCycle::SeenUtf8First => {
                     if offset >= src.len() {
                         if last {
@@ -358,7 +409,7 @@ macro_rules! public_decode_function{
             }
         }
     }
-                           
+
     fn $decode_to_utf_after_one_potential_bom_byte(&mut self,
                                                    src: &[u8],
                                                    dst: &mut [$code_unit],

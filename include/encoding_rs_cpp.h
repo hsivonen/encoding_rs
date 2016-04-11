@@ -70,15 +70,26 @@ public:
     encoding_new_decoder_into(this, decoder);
   }
 
-  inline std::unique_ptr<Decoder> new_decoder_without_sniffing() const
+  inline std::unique_ptr<Decoder> new_decoder_with_bom_removal() const
   {
-    std::unique_ptr<Decoder> decoder(encoding_new_decoder_without_sniffing(this));
+    std::unique_ptr<Decoder> decoder(encoding_new_decoder_with_bom_removal(this));
     return decoder;
   }
 
-  inline void new_decoder_without_sniffing_into(Decoder* decoder) const
+  inline void new_decoder_with_bom_removal_into(Decoder* decoder) const
   {
-    encoding_new_decoder_without_sniffing_into(this, decoder);
+    encoding_new_decoder_with_bom_removal_into(this, decoder);
+  }
+
+  inline std::unique_ptr<Decoder> new_decoder_without_bom_handling() const
+  {
+    std::unique_ptr<Decoder> decoder(encoding_new_decoder_without_bom_handling(this));
+    return decoder;
+  }
+
+  inline void new_decoder_without_bom_handling_into(Decoder* decoder) const
+  {
+    encoding_new_decoder_without_bom_handling_into(this, decoder);
   }
 
   inline std::unique_ptr<Encoder> new_encoder() const
