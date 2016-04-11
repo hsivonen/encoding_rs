@@ -42,7 +42,7 @@ impl SingleByteDecoder {
                            }
                            let mapped = self.table[b as usize - 0x80usize];
                            if mapped == 0u16 {
-                               return (DecoderResult::Malformed(1),
+                               return (DecoderResult::Malformed(1, 0),
                                        unread_handle.consumed(),
                                        destination_handle.written());
                            }

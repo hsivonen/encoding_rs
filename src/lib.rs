@@ -1045,7 +1045,7 @@ impl Encoding {
                 debug_assert_eq!(read, bytes.len());
                 Some(string)
             }
-            DecoderResult::Malformed(_) => None,
+            DecoderResult::Malformed(_, _) => None,
             DecoderResult::OutputFull => unreachable!(),
         }
     }
@@ -1200,11 +1200,13 @@ pub enum DecoderResult {
     /// REPLACEMENT CHARACTER (U+FFFD) to the output and then re-push the
     /// the remaining input to the decoder.
     ///
-    /// The wrapped integer indicates the length of the malformed byte sequence.
-    /// The last byte that was consumed is the last byte of the malformed
-    /// sequence. Note that the earlier bytes may have been part of an earlier
-    /// input buffer.
-    Malformed(u8), // u8 instead of usize to avoid uselessly bloating the enum
+    /// The first wrapped integer indicates the length of the malformed byte
+    /// sequence. The second wrapped integer indicates the number of bytes
+    /// that were consumed after the malformed sequence. If the second
+    /// integer is zero, the last byte that was consumed is the last byte of
+    /// the malformed sequence. Note that the malformed bytes may have been part
+    /// of an earlier input buffer.
+    Malformed(u8, u8), // u8 instead of usize to avoid useless bloat
 }
 
 /// A converter that decodes a byte stream into Unicode according to a
@@ -1472,7 +1474,7 @@ impl Decoder {
                             total_written,
                             had_errors);
                 }
-                DecoderResult::Malformed(_) => {
+                DecoderResult::Malformed(_, _) => {
                     had_errors = true;
                     // There should always be space for the U+FFFD, because
                     // otherwise we'd have gotten OutputFull already.
@@ -1517,7 +1519,7 @@ impl Decoder {
                             total_written,
                             had_errors);
                 }
-                DecoderResult::Malformed(_) => {
+                DecoderResult::Malformed(_, _) => {
                     had_errors = true;
                     // There should always be space for the U+FFFD, because
                     // otherwise we'd have gotten OutputFull already.

@@ -49,7 +49,7 @@ impl Utf8Decoder {
                                self.code_point = 0;
                                self.bytes_needed = 0;
                                self.bytes_seen = 0;
-                               return (DecoderResult::Malformed(bad_bytes),
+                               return (DecoderResult::Malformed(bad_bytes, 0),
                                        src_consumed,
                                        dest.written());
                            }
@@ -62,7 +62,7 @@ impl Utf8Decoder {
                                    continue;
                                }
                                if b < 0xC2u8 {
-                                   return (DecoderResult::Malformed(1),
+                                   return (DecoderResult::Malformed(1, 0),
                                            unread_handle.consumed(),
                                            destination_handle.written());
                                }
@@ -91,7 +91,7 @@ impl Utf8Decoder {
                                    self.code_point = b as u32 & 0x7;
                                    continue;
                                }
-                               return (DecoderResult::Malformed(1),
+                               return (DecoderResult::Malformed(1, 0),
                                        unread_handle.consumed(),
                                        destination_handle.written());
                            }
@@ -103,7 +103,7 @@ impl Utf8Decoder {
                                self.bytes_seen = 0;
                                self.lower_boundary = 0x80u8;
                                self.upper_boundary = 0xBFu8;
-                               return (DecoderResult::Malformed(bad_bytes),
+                               return (DecoderResult::Malformed(bad_bytes, 0),
                                        unread_handle.unread(),
                                        destination_handle.written());
                            }

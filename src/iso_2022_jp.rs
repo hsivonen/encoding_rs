@@ -93,14 +93,14 @@ impl Iso2022JpDecoder {
                                Iso2022JpDecoderState::TrailByte |
                                Iso2022JpDecoderState::EscapeStart => {
                                    self.decoder_state = self.output_state;
-                                   return (DecoderResult::Malformed(1),
+                                   return (DecoderResult::Malformed(1, 0),
                                            src_consumed,
                                            dest.written());
                                }
                                Iso2022JpDecoderState::Escape => {
                                    self.pending_prepended = true;
                                    self.decoder_state = self.output_state;
-                                   return (DecoderResult::Malformed(1),
+                                   return (DecoderResult::Malformed(1, 1),
                                            src_consumed,
                                            dest.written());
                                }
@@ -116,7 +116,7 @@ impl Iso2022JpDecoder {
                                    }
                                    self.output_flag = false;
                                    if b > 0x7Eu8 || b == 0x0Eu8 || b == 0x0Fu8 {
-                                       return (DecoderResult::Malformed(1),
+                                       return (DecoderResult::Malformed(1, 0),
                                                unread_handle.consumed(),
                                                destination_handle.written());
                                    }
@@ -138,7 +138,7 @@ impl Iso2022JpDecoder {
                                        continue;
                                    }
                                    if b > 0x7Eu8 || b == 0x0Eu8 || b == 0x0Fu8 {
-                                       return (DecoderResult::Malformed(1),
+                                       return (DecoderResult::Malformed(1, 0),
                                                unread_handle.consumed(),
                                                destination_handle.written());
                                    }
@@ -156,7 +156,7 @@ impl Iso2022JpDecoder {
                                                                           0xFF61u16);
                                        continue;
                                    }
-                                   return (DecoderResult::Malformed(1),
+                                   return (DecoderResult::Malformed(1, 0),
                                            unread_handle.consumed(),
                                            destination_handle.written());
                                }
@@ -171,14 +171,16 @@ impl Iso2022JpDecoder {
                                        self.decoder_state = Iso2022JpDecoderState::TrailByte;
                                        continue;
                                    }
-                                   return (DecoderResult::Malformed(1),
+                                   return (DecoderResult::Malformed(1, 0),
                                            unread_handle.consumed(),
                                            destination_handle.written());
                                }
                                Iso2022JpDecoderState::TrailByte => {
                                    if b == 0x1Bu8 {
                                        self.decoder_state = Iso2022JpDecoderState::EscapeStart;
-                                       return (DecoderResult::Malformed(2),
+                                       // The byte in error is the previous
+                                       // lead byte.
+                                       return (DecoderResult::Malformed(1, 1),
                                                unread_handle.consumed(),
                                                destination_handle.written());
                                    }
@@ -189,7 +191,7 @@ impl Iso2022JpDecoder {
                                                      0x21usize;
                                        let c = jis0208_decode(pointer);
                                        if c == 0 {
-                                           return (DecoderResult::Malformed(2),
+                                           return (DecoderResult::Malformed(2, 0),
                                                    unread_handle.consumed(),
                                                    destination_handle.written());
                                        }
@@ -197,7 +199,7 @@ impl Iso2022JpDecoder {
                                        continue;
                                    }
                                    self.decoder_state = Iso2022JpDecoderState::LeadByte;
-                                   return (DecoderResult::Malformed(2),
+                                   return (DecoderResult::Malformed(2, 0),
                                            unread_handle.consumed(),
                                            destination_handle.written());
                                }
@@ -209,7 +211,7 @@ impl Iso2022JpDecoder {
                                    }
                                    self.output_flag = false;
                                    self.decoder_state = self.output_state;
-                                   return (DecoderResult::Malformed(2),
+                                   return (DecoderResult::Malformed(1, 0),
                                            unread_handle.unread(),
                                            destination_handle.written());
                                }
@@ -232,15 +234,12 @@ impl Iso2022JpDecoder {
                                            let flag = self.output_flag;
                                            self.output_flag = true;
                                            if flag {
-                                               // It's impossible to designate
-                                               // the right bytes as being in
-                                               // error. The previous three
-                                               // bytes are now provisionally
-                                               // OK, but the three bytes before
-                                               // those are now known to be in
-                                               // error! We have to flag
-                                               // the last 3. :-(
-                                               return (DecoderResult::Malformed(3),
+                                               // We had an escape sequence
+                                               // immediately following another
+                                               // escape sequence. Therefore,
+                                               // the first one of these was
+                                               // useless.
+                                               return (DecoderResult::Malformed(3, 3),
                                                        unread_handle.consumed(),
                                                        destination_handle.written());
                                            }
@@ -253,12 +252,10 @@ impl Iso2022JpDecoder {
                                            self.pending_prepended = true;
                                            self.output_flag = false;
                                            self.decoder_state = self.output_state;
-                                           // It's impossible to designate the
-                                           // right byte as being in error.
                                            // The byte in error is not the
                                            // current or the previous byte but
                                            // the one before those (lone 0x1B).
-                                           return (DecoderResult::Malformed(1),
+                                           return (DecoderResult::Malformed(1, 1),
                                                    unread_handle.unread(),
                                                    destination_handle.written());
                                        }

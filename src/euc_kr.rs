@@ -38,7 +38,7 @@ impl EucKrDecoder {
                                // XXX optimize ASCII
                                destination_handle.write_ascii(b);
                            } else {
-                               return (DecoderResult::Malformed(1),
+                               return (DecoderResult::Malformed(1, 0),
                                        unread_handle.consumed(),
                                        destination_handle.written());
 

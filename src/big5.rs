@@ -71,7 +71,7 @@ impl Big5Decoder {
                        {
                            if self.lead != 0 {
                                self.lead = 0;
-                               return (DecoderResult::Malformed(1), src_consumed, dest.written());
+                               return (DecoderResult::Malformed(1, 0), src_consumed, dest.written());
                            }
                        },
                        {
@@ -85,7 +85,7 @@ impl Big5Decoder {
                                    self.lead = b;
                                    continue;
                                }
-                               return (DecoderResult::Malformed(1),
+                               return (DecoderResult::Malformed(1, 0),
                                        unread_handle.consumed(),
                                        destination_handle.written());
                            }
@@ -123,11 +123,11 @@ impl Big5Decoder {
                                        let low_bits = big5_low_bits(pointer);
                                        if low_bits == 0 {
                                            if b <= 0x7F {
-                                               return (DecoderResult::Malformed(1),
+                                               return (DecoderResult::Malformed(1, 0),
                                                        unread_handle.unread(),
                                                        destination_handle.written());
                                            }
-                                           return (DecoderResult::Malformed(2),
+                                           return (DecoderResult::Malformed(2, 0),
                                                    unread_handle.consumed(),
                                                    destination_handle.written());
                                        }
@@ -143,11 +143,11 @@ impl Big5Decoder {
                            }
                            // pointer is null
                            if b <= 0x7F {
-                               return (DecoderResult::Malformed(1),
+                               return (DecoderResult::Malformed(1, 0),
                                        unread_handle.unread(),
                                        destination_handle.written());
                            }
-                           return (DecoderResult::Malformed(2),
+                           return (DecoderResult::Malformed(2, 0),
                                    unread_handle.consumed(),
                                    destination_handle.written());
 

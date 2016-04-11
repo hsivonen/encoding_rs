@@ -201,7 +201,7 @@ impl DecoderResult {
         match self {
             &DecoderResult::InputEmpty => INPUT_EMPTY,
             &DecoderResult::OutputFull => OUTPUT_FULL,
-            &DecoderResult::Malformed(num) => num as u32,
+            &DecoderResult::Malformed(bad, good) => ((good as u32) << 8) | (bad as u32),
         }
     }
 }

@@ -41,7 +41,7 @@ impl ReplacementDecoder {
             // everything is weird anyway if the caller of the `Encoder` API
             // passes an output buffer that violates the minimum size rules.
             self.emitted = true;
-            (DecoderResult::Malformed(1u8), 1, 0)
+            (DecoderResult::Malformed(1, 0), 1, 0)
         }
     }
 

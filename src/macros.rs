@@ -381,7 +381,7 @@ macro_rules! public_decode_function{
                     first_read = read; // Overwrite, don't add!
                     first_written += written;
                 }
-                DecoderResult::Malformed(_) => {
+                DecoderResult::Malformed(_, _) => {
                     first_read = 0usize; // Wasn't read from `src`!
                 }
                 DecoderResult::OutputFull => {
@@ -416,7 +416,7 @@ macro_rules! public_decode_function{
                     first_read = read; // Overwrite, don't add!
                     first_written += written;
                 }
-                DecoderResult::Malformed(_) => {
+                DecoderResult::Malformed(_, _) => {
                     if first_read == 1usize {
                         // The first byte was malformed. We need to handle
                         // the second one, which isn't in `src`, later.
