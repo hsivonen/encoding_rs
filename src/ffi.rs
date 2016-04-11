@@ -295,7 +295,7 @@ pub unsafe extern "C" fn encoding_new_decoder(encoding: *const Encoding) -> *mut
 /// `decoder_free()`.
 #[no_mangle]
 pub unsafe extern "C" fn encoding_new_decode_with_bom_removal(encoding: *const Encoding)
-                                                               -> *mut Decoder {
+                                                              -> *mut Decoder {
     Box::into_raw(Box::new((*encoding).new_decoder_with_bom_removal()))
 }
 
@@ -316,7 +316,7 @@ pub unsafe extern "C" fn encoding_new_decode_with_bom_removal(encoding: *const E
 /// `decoder_free()`.
 #[no_mangle]
 pub unsafe extern "C" fn encoding_new_decoder_without_bom_handling(encoding: *const Encoding)
-                                                               -> *mut Decoder {
+                                                                   -> *mut Decoder {
     Box::into_raw(Box::new((*encoding).new_decoder_without_bom_handling()))
 }
 
@@ -347,7 +347,7 @@ pub unsafe extern "C" fn encoding_new_decoder_into(encoding: *const Encoding,
 /// `decoder_free()`.
 #[no_mangle]
 pub unsafe extern "C" fn encoding_new_decode_with_bom_removal_into(encoding: *const Encoding,
-                                                                    decoder: *mut Decoder) {
+                                                                   decoder: *mut Decoder) {
     *decoder = (*encoding).new_decoder_with_bom_removal();
 }
 
@@ -364,7 +364,7 @@ pub unsafe extern "C" fn encoding_new_decode_with_bom_removal_into(encoding: *co
 /// cause the BOM to be removed.
 #[no_mangle]
 pub unsafe extern "C" fn encoding_new_decoder_without_bom_handling_into(encoding: *const Encoding,
-                                                                    decoder: *mut Decoder) {
+                                                                        decoder: *mut Decoder) {
     *decoder = (*encoding).new_decoder_without_bom_handling();
 }
 

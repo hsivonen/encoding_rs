@@ -71,7 +71,9 @@ impl Big5Decoder {
                        {
                            if self.lead != 0 {
                                self.lead = 0;
-                               return (DecoderResult::Malformed(1, 0), src_consumed, dest.written());
+                               return (DecoderResult::Malformed(1, 0),
+                                       src_consumed,
+                                       dest.written());
                            }
                        },
                        {

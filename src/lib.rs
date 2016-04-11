@@ -1042,8 +1042,12 @@ impl Encoding {
     /// (i.e. the end of the buffer marks the end of the stream). BOM sniffing
     /// is performed.
     ///
-    /// Returns `None` if a malformed sequence was encountered and the result
-    /// of the decode as `Some(String)` otherwise.
+    /// Returns `None` (as the first item of the pair) if a malformed sequence
+    /// was encountered and the resull of the decode as `Some(String)`
+    /// otherwise.
+    ///
+    /// The second item in the returned pair is the encoding that was actually
+    /// used (which may differ from this encoding thanks to BOM sniffing).
     ///
     /// _Note:_ It is wrong to use this when the input buffer represents only
     /// a segment of the input instead of the whole input. Use `new_decoder()`
@@ -1053,16 +1057,16 @@ impl Encoding {
     /// of the `String`.
     ///
     /// Available to Rust only.
-    pub fn decode(&'static self, bytes: &[u8]) -> Option<String> {
+    pub fn decode(&'static self, bytes: &[u8]) -> (Option<String>, &'static Encoding) {
         let mut decoder = self.new_decoder();
         let mut string = String::with_capacity(decoder.max_utf8_buffer_length(bytes.len()));
         let (result, read) = decoder.decode_to_string(bytes, &mut string, true);
         match result {
             DecoderResult::InputEmpty => {
                 debug_assert_eq!(read, bytes.len());
-                Some(string)
+                (Some(string), decoder.encoding())
             }
-            DecoderResult::Malformed(_, _) => None,
+            DecoderResult::Malformed(_, _) => (None, decoder.encoding()),
             DecoderResult::OutputFull => unreachable!(),
         }
     }
@@ -1072,6 +1076,9 @@ impl Encoding {
     /// available as a single buffer (i.e. the end of the buffer marks the end
     /// of the stream). BOM sniffing is performed.
     ///
+    /// The second item in the returned pair is the encoding that was actually
+    /// used (which may differ from this encoding thanks to BOM sniffing).
+    ///
     /// _Note:_ It is wrong to use this when the input buffer represents only
     /// a segment of the input instead of the whole input. Use `new_decoder()`
     /// when parsing segmented input.
@@ -1080,7 +1087,7 @@ impl Encoding {
     /// of the `String`.
     ///
     /// Available to Rust only.
-    pub fn decode_with_replacement(&'static self, bytes: &[u8]) -> String {
+    pub fn decode_with_replacement(&'static self, bytes: &[u8]) -> (String, &'static Encoding) {
         let mut decoder = self.new_decoder();
         let mut string =
             String::with_capacity(decoder.max_utf8_buffer_length_with_replacement(bytes.len()));
@@ -1088,7 +1095,7 @@ impl Encoding {
         match result {
             WithReplacementResult::InputEmpty => {
                 debug_assert_eq!(read, bytes.len());
-                string
+                (string, decoder.encoding())
             }
             WithReplacementResult::OutputFull => unreachable!(),
         }
@@ -1098,6 +1105,10 @@ impl Encoding {
     /// replaced with decimal numeric character references when the entire input
     /// is available as a single buffer (i.e. the end of the buffer marks the
     /// end of the stream).
+    ///
+    /// The second item in the returned pair is the encoding that was actually
+    /// used (which may differ from this encoding thanks to some encodings
+    /// having UTF-8 as their output encoding).
     ///
     /// _Note:_ It is wrong to use this when the input buffer represents only
     /// a segment of the input instead of the whole input. Use `new_encoder()`
@@ -1110,7 +1121,7 @@ impl Encoding {
     /// that doesn't use power-of-two buckets.
     ///
     /// Available to Rust only.
-    pub fn encode_with_replacement(&'static self, string: &str) -> Vec<u8> {
+    pub fn encode_with_replacement(&'static self, string: &str) -> (Vec<u8>, &'static Encoding) {
         let mut encoder = self.new_encoder();
         let mut total_read = 0usize;
         let mut vec: Vec<u8> =
@@ -1124,7 +1135,7 @@ impl Encoding {
             match result {
                 WithReplacementResult::InputEmpty => {
                     debug_assert_eq!(total_read, string.len());
-                    return vec;
+                    return (vec, encoder.encoding());
                 }
                 WithReplacementResult::OutputFull => {
                     // reserve_exact wants to know how much more on top of current
@@ -1333,15 +1344,17 @@ impl Decoder {
             life_cycle: match sniffing {
                 BomHandling::Off => DecoderLifeCycle::Converting,
                 BomHandling::Sniff => DecoderLifeCycle::AtStart,
-                BomHandling::Remove => if enc == UTF_8 {
-                    DecoderLifeCycle::AtUtf8Start
-                } else if enc == UTF_16BE {
-                    DecoderLifeCycle::AtUtf16BeStart
-                } else if enc == UTF_16LE {
-                    DecoderLifeCycle::AtUtf16LeStart
-                } else {
-                    DecoderLifeCycle::Converting
-                },
+                BomHandling::Remove => {
+                    if enc == UTF_8 {
+                        DecoderLifeCycle::AtUtf8Start
+                    } else if enc == UTF_16BE {
+                        DecoderLifeCycle::AtUtf16BeStart
+                    } else if enc == UTF_16LE {
+                        DecoderLifeCycle::AtUtf16LeStart
+                    } else {
+                        DecoderLifeCycle::Converting
+                    }
+                }
             },
         }
     }
