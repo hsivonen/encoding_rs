@@ -99,7 +99,8 @@ impl Big5Decoder {
                                0x62usize
                            };
                            if (b >= 0x40 && b <= 0x7E) || (b >= 0xA1 && b <= 0xFE) {
-                               let pointer = (lead - 0x81usize) * 157usize + (b as usize - offset);
+                               let pointer = (lead as usize - 0x81usize) * 157usize +
+                                             (b as usize - offset);
                                match pointer {
                                    1133 => {
                                        destination_handle.write_big5_combination(0x00CAu16,
@@ -123,27 +124,18 @@ impl Big5Decoder {
                                    }
                                    _ => {
                                        let low_bits = big5_low_bits(pointer);
-                                       if low_bits == 0 {
-                                           if b <= 0x7F {
-                                               return (DecoderResult::Malformed(1, 0),
-                                                       unread_handle.unread(),
-                                                       destination_handle.written());
+                                       if low_bits != 0 {
+                                           if big5_is_astral(pointer) {
+                                               destination_handle.write_astral(low_bits as u32 |
+                                                                               0x20000u32);
+                                               continue;
                                            }
-                                           return (DecoderResult::Malformed(2, 0),
-                                                   unread_handle.consumed(),
-                                                   destination_handle.written());
-                                       }
-                                       if big5_is_astral(pointer) {
-                                           destination_handle.write_astral(low_bits as u32 |
-                                                                           0x20000u32);
+                                           destination_handle.write_bmp_excl_ascii(low_bits);
                                            continue;
                                        }
-                                       destination_handle.write_bmp_excl_ascii(low_bits);
-                                       continue;
                                    }
                                }
                            }
-                           // pointer is null
                            if b <= 0x7F {
                                return (DecoderResult::Malformed(1, 0),
                                        unread_handle.unread(),
@@ -152,8 +144,6 @@ impl Big5Decoder {
                            return (DecoderResult::Malformed(2, 0),
                                    unread_handle.consumed(),
                                    destination_handle.written());
-
-
                        },
                        self,
                        src_consumed,

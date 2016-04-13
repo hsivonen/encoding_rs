@@ -12,11 +12,13 @@ use data::*;
 use variant::*;
 use super::*;
 
-pub struct ShiftJisDecoder;
+pub struct ShiftJisDecoder {
+    lead: u8,
+}
 
 impl ShiftJisDecoder {
     pub fn new() -> VariantDecoder {
-        VariantDecoder::ShiftJis(ShiftJisDecoder)
+        VariantDecoder::ShiftJis(ShiftJisDecoder { lead: 0 })
     }
 
     pub fn max_utf16_buffer_length(&self, u16_length: usize) -> usize {
@@ -32,17 +34,69 @@ impl ShiftJisDecoder {
     }
 
     decoder_functions!({},
-                       {},
                        {
-                           if b < 0x80 {
-                               // XXX optimize ASCII
-                               destination_handle.write_ascii(b);
-                           } else {
+                           if self.lead != 0 {
+                               self.lead = 0;
+                               return (DecoderResult::Malformed(1, 0),
+                                       src_consumed,
+                                       dest.written());
+                           }
+                       },
+                       {
+                           if self.lead == 0 {
+                               if b <= 0x7f {
+                                   // TODO optimize ASCII run
+                                   destination_handle.write_ascii(b);
+                                   continue;
+                               }
+                               if b == 0x80 {
+                                   destination_handle.write_mid_bmp(b as u16);
+                                   continue;
+                               }
+                               if b >= 0xA1 && b <= 0xDF {
+                                   destination_handle.write_upper_bmp(0xFF61 + b as u16 - 0xA1);
+                                   continue;
+                               }
+                               if (b >= 0x81 && b <= 0x9F) || (b >= 0xE0 && b <= 0xFC) {
+                                   self.lead = b;
+                                   continue;
+                               }
                                return (DecoderResult::Malformed(1, 0),
                                        unread_handle.consumed(),
                                        destination_handle.written());
-
                            }
+                           let lead = self.lead as usize;
+                           self.lead = 0;
+                           let offset = if b < 0x7F {
+                               0x40usize
+                           } else {
+                               0x41usize
+                           };
+                           let lead_offset = if lead < 0xA0 {
+                               0x81usize
+                           } else {
+                               0xC1usize
+                           };
+                           if (b >= 0x40 && b <= 0x7E) || (b >= 0x80 && b <= 0xFC) {
+                               let pointer = (lead as usize - lead_offset) * 188usize +
+                                             (b as usize - offset);
+                               let bmp = jis0208_decode(pointer);
+                               if bmp != 0 {
+                                   destination_handle.write_bmp_excl_ascii(bmp);
+                                   continue;
+                               } else if pointer >= 8836 && pointer <= 10528 {
+                                   destination_handle.write_upper_bmp((0xE000 + pointer - 8836) as u16);
+                                   continue;
+                               }
+                           }
+                           if b <= 0x7F {
+                               return (DecoderResult::Malformed(1, 0),
+                                       unread_handle.unread(),
+                                       destination_handle.written());
+                           }
+                           return (DecoderResult::Malformed(2, 0),
+                                   unread_handle.consumed(),
+                                   destination_handle.written());
                        },
                        self,
                        src_consumed,
