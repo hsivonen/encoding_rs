@@ -111,6 +111,7 @@ macro_rules! encoder_function {
      $slf:ident,
      $src_consumed:ident,
      $source:ident,
+     $dest:ident,
      $c:ident,
      $destination_handle:ident,
      $unread_handle:ident,
@@ -124,7 +125,7 @@ macro_rules! encoder_function {
                  last: bool)
                  -> (EncoderResult, usize, usize) {
         let mut $source = $source_struct::new(src);
-        let mut dest = ByteDestination::new(dst);
+        let mut $dest = ByteDestination::new(dst);
         loop {
             match $source.check_available() {
                 Space::Full($src_consumed) => {
@@ -133,10 +134,10 @@ macro_rules! encoder_function {
                         $eof
                         // End non-boilerplate
                     }
-                    return (EncoderResult::InputEmpty, $src_consumed, dest.written());
+                    return (EncoderResult::InputEmpty, $src_consumed, $dest.written());
                 }
                 Space::Available(source_handle) => {
-                    match dest.$destination_check() {
+                    match $dest.$destination_check() {
                         Space::Full(dst_written) => {
                             return (EncoderResult::OutputFull,
                                     source_handle.consumed(),
@@ -161,6 +162,7 @@ macro_rules! encoder_functions {
      $slf:ident,
      $src_consumed:ident,
      $source:ident,
+     $dest:ident,
      $c:ident,
      $destination_handle:ident,
      $unread_handle:ident,
@@ -170,6 +172,7 @@ macro_rules! encoder_functions {
                       $slf,
                       $src_consumed,
                       $source,
+                      $dest,
                       $c,
                       $destination_handle,
                       $unread_handle,
@@ -182,6 +185,7 @@ macro_rules! encoder_functions {
                       $slf,
                       $src_consumed,
                       $source,
+                      $dest,
                       $c,
                       $destination_handle,
                       $unread_handle,

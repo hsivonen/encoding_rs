@@ -108,10 +108,11 @@ impl SingleByteEncoder {
                        self,
                        src_consumed,
                        source,
+                       dest,
                        c,
                        destination_handle,
                        unread_handle,
-                       check_space_two);
+                       check_space_one);
 }
 
 #[cfg(test)]

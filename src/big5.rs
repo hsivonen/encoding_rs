@@ -223,6 +223,7 @@ impl Big5Encoder {
                        self,
                        src_consumed,
                        source,
+                       dest,
                        c,
                        destination_handle,
                        unread_handle,

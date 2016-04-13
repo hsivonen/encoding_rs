@@ -272,11 +272,22 @@ impl Iso2022JpDecoder {
                        check_space_bmp);
 }
 
-pub struct Iso2022JpEncoder;
+enum Iso2022JpEncoderState {
+    Ascii,
+    Roman,
+    Jis0208,
+}
+
+pub struct Iso2022JpEncoder {
+    state: Iso2022JpEncoderState,
+}
 
 impl Iso2022JpEncoder {
     pub fn new(encoding: &'static Encoding) -> Encoder {
-        Encoder::new(encoding, VariantEncoder::Iso2022Jp(Iso2022JpEncoder))
+        Encoder::new(encoding,
+                     VariantEncoder::Iso2022Jp(Iso2022JpEncoder {
+                         state: Iso2022JpEncoderState::Ascii,
+                     }))
     }
 
     pub fn max_buffer_length_from_utf16(&self, u16_length: usize) -> usize {
@@ -299,23 +310,130 @@ impl Iso2022JpEncoder {
         0 // TODO
     }
 
-    pub fn encode_from_utf16(&mut self,
-                             src: &[u16],
-                             dst: &mut [u8],
-                             last: bool)
-                             -> (EncoderResult, usize, usize) {
-        // XXX
-        (EncoderResult::InputEmpty, 0, 0)
-    }
-
-    pub fn encode_from_utf8(&mut self,
-                            src: &str,
-                            dst: &mut [u8],
-                            last: bool)
-                            -> (EncoderResult, usize, usize) {
-        // XXX
-        (EncoderResult::InputEmpty, 0, 0)
-    }
+    encoder_functions!({
+                           match self.state {
+                               Iso2022JpEncoderState::Ascii => {}
+                               _ => {
+                                   match dest.check_space_three() {
+                                       Space::Full(dst_written) => {
+                                           return (EncoderResult::OutputFull,
+                                                   src_consumed,
+                                                   dst_written);
+                                       }
+                                       Space::Available(destination_handle) => {
+                                           self.state = Iso2022JpEncoderState::Ascii;
+                                           destination_handle.write_three(0x1Bu8, 0x28u8, 0x42u8);
+                                       }
+                                   }
+                               }
+                           }
+                       },
+                       {
+                           match self.state {
+                               Iso2022JpEncoderState::Ascii => {
+                                   if c == '\u{0E}' || c == '\u{0F}' || c == '\u{1B}' {
+                                       return (EncoderResult::Unmappable('\u{FFFD}'),
+                                               unread_handle.consumed(),
+                                               destination_handle.written());
+                                   }
+                                   if c <= '\u{7F}' {
+                                       destination_handle.write_one(c as u8);
+                                       continue;
+                                   }
+                                   if c == '\u{A5}' || c == '\u{203E}' {
+                                       self.state = Iso2022JpEncoderState::Roman;
+                                       destination_handle.write_three(0x1Bu8, 0x28u8, 0x4Au8);
+                                       unread_handle.unread();
+                                       continue;
+                                   }
+                                   // Yes, if c is in index, we'll search
+                                   // again in the Jis0208 state, but this
+                                   // encoder is not worth optimizing.
+                                   if c == '\u{2212}' || jis0208_encode(c) != usize::max_value() {
+                                       self.state = Iso2022JpEncoderState::Roman;
+                                       destination_handle.write_three(0x1Bu8, 0x24u8, 0x42u8);
+                                       unread_handle.unread();
+                                       continue;
+                                   }
+                                   return (EncoderResult::Unmappable(c),
+                                           unread_handle.consumed(),
+                                           destination_handle.written());
+                               }
+                               Iso2022JpEncoderState::Roman => {
+                                   if c == '\u{0E}' || c == '\u{0F}' || c == '\u{1B}' {
+                                       return (EncoderResult::Unmappable('\u{FFFD}'),
+                                               unread_handle.consumed(),
+                                               destination_handle.written());
+                                   }
+                                   if c == '\u{5C}' || c == '\u{7E}' {
+                                       self.state = Iso2022JpEncoderState::Ascii;
+                                       destination_handle.write_three(0x1Bu8, 0x28u8, 0x42u8);
+                                       unread_handle.unread();
+                                       continue;
+                                   }
+                                   if c <= '\u{7F}' {
+                                       destination_handle.write_one(c as u8);
+                                       continue;
+                                   }
+                                   if c == '\u{A5}' {
+                                       destination_handle.write_one(0x5Cu8);
+                                       continue;
+                                   }
+                                   if c == '\u{203E}' {
+                                       destination_handle.write_one(0x7Eu8);
+                                       continue;
+                                   }
+                                   // Yes, if c is in index, we'll search
+                                   // again in the Jis0208 state, but this
+                                   // encoder is not worth optimizing.
+                                   if c == '\u{2212}' || jis0208_encode(c) != usize::max_value() {
+                                       self.state = Iso2022JpEncoderState::Roman;
+                                       destination_handle.write_three(0x1Bu8, 0x24u8, 0x42u8);
+                                       unread_handle.unread();
+                                       continue;
+                                   }
+                                   return (EncoderResult::Unmappable(c),
+                                           unread_handle.consumed(),
+                                           destination_handle.written());
+                               }
+                               Iso2022JpEncoderState::Jis0208 => {
+                                   if c <= '\u{7F}' {
+                                       self.state = Iso2022JpEncoderState::Ascii;
+                                       destination_handle.write_three(0x1Bu8, 0x28u8, 0x42u8);
+                                       unread_handle.unread();
+                                       continue;
+                                   }
+                                   if c == '\u{A5}' || c == '\u{203E}' {
+                                       self.state = Iso2022JpEncoderState::Roman;
+                                       destination_handle.write_three(0x1Bu8, 0x28u8, 0x4Au8);
+                                       unread_handle.unread();
+                                       continue;
+                                   }
+                                   if c == '\u{2212}' {
+                                       destination_handle.write_two(0x21, 0x5D);
+                                       continue;
+                                   }
+                                   let pointer = jis0208_encode(c);
+                                   if pointer == usize::max_value() {
+                                       return (EncoderResult::Unmappable(c),
+                                               unread_handle.consumed(),
+                                               destination_handle.written());
+                                   }
+                                   let lead = (pointer / 94) + 0x21;
+                                   let trail = (pointer % 94) + 0x21;
+                                   destination_handle.write_two(lead as u8, trail as u8);
+                                   continue;
+                               }
+                           }
+                       },
+                       self,
+                       src_consumed,
+                       source,
+                       dest,
+                       c,
+                       destination_handle,
+                       unread_handle,
+                       check_space_three);
 }
 
 #[cfg(test)]

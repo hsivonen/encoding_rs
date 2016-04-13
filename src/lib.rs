@@ -1914,10 +1914,16 @@ impl Encoder {
                 EncoderResult::Unmappable(unmappable) => {
                     had_unmappables = true;
                     debug_assert!(dst.len() - total_written >= NCR_EXTRA + 1);
+                    // There are no UTF-16 encoders and even if there were,
+                    // they'd never have unmappables.
                     debug_assert!(self.encoding() != UTF_16BE);
                     debug_assert!(self.encoding() != UTF_16LE);
                     // Additionally, Iso2022JpEncoder is responsible for
-                    // transitioning to ASCII when returning with Unmappable.
+                    // transitioning to ASCII when returning with Unmappable
+                    // from the jis0208 state. That is, when we encode
+                    // ISO-2022-JP and come here, the encoder is in either the
+                    // ASCII or the Roman state. We are allowed to generate any
+                    // printable ASCII excluding \ and ~.
                     total_written += write_ncr(unmappable, &mut dst[total_written..]);
                 }
             }

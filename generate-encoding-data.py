@@ -338,9 +338,13 @@ data_file.write('''_ => {},
 # JIS0208
 
 index = []
+highest_jis0208 = 0
 
 for code_point in indexes["jis0208"]:
-  index.append(null_to_zero(code_point))  
+  n_or_z = null_to_zero(code_point)
+  index.append(n_or_z)
+  if n_or_z > highest_jis0208:
+    highest_jis0208 = n_or_z
 
 # TODO: Compress away empty ranges
 
@@ -361,6 +365,30 @@ pub fn jis0208_decode(pointer: usize) -> u16 {
     }
 }
 ''' % len(index))
+
+data_file.write('''
+#[inline(always)]
+pub fn jis0208_encode(c: char) -> usize {
+    if c > '\u{%X}' {
+        return usize::max_value();
+    }
+    let bmp = c as u16;
+    let mut it = JIS0208.iter().enumerate();
+    loop {
+        match it.next() {
+            Some((i, code_point)) => {
+                if *code_point != bmp {
+                    continue;
+                }
+                return i;
+            }
+            None => {
+                return usize::max_value();
+            }
+        }
+    }
+}
+''' % highest_jis0208)
 
 data_file.close()
 
