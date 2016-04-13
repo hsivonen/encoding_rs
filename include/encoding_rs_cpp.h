@@ -65,9 +65,9 @@ public:
     return decoder;
   }
 
-  inline void new_decoder_into(Decoder* decoder) const
+  inline void new_decoder_into(Decoder& decoder) const
   {
-    encoding_new_decoder_into(this, decoder);
+    encoding_new_decoder_into(this, &decoder);
   }
 
   inline std::unique_ptr<Decoder> new_decoder_with_bom_removal() const
@@ -76,9 +76,9 @@ public:
     return decoder;
   }
 
-  inline void new_decoder_with_bom_removal_into(Decoder* decoder) const
+  inline void new_decoder_with_bom_removal_into(Decoder& decoder) const
   {
-    encoding_new_decoder_with_bom_removal_into(this, decoder);
+    encoding_new_decoder_with_bom_removal_into(this, &decoder);
   }
 
   inline std::unique_ptr<Decoder> new_decoder_without_bom_handling() const
@@ -87,9 +87,9 @@ public:
     return decoder;
   }
 
-  inline void new_decoder_without_bom_handling_into(Decoder* decoder) const
+  inline void new_decoder_without_bom_handling_into(Decoder& decoder) const
   {
-    encoding_new_decoder_without_bom_handling_into(this, decoder);
+    encoding_new_decoder_without_bom_handling_into(this, &decoder);
   }
 
   inline std::unique_ptr<Encoder> new_encoder() const
