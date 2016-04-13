@@ -12,11 +12,17 @@ use data::*;
 use variant::*;
 use super::*;
 
-pub struct EucJpDecoder;
+pub struct EucJpDecoder {
+    lead: u8,
+    jis0212: bool,
+}
 
 impl EucJpDecoder {
     pub fn new() -> VariantDecoder {
-        VariantDecoder::EucJp(EucJpDecoder)
+        VariantDecoder::EucJp(EucJpDecoder {
+            lead: 0,
+            jis0212: false,
+        })
     }
 
     pub fn max_utf16_buffer_length(&self, u16_length: usize) -> usize {
@@ -32,17 +38,63 @@ impl EucJpDecoder {
     }
 
     decoder_functions!({},
-                       {},
                        {
-                           if b < 0x80 {
-                               // XXX optimize ASCII
-                               destination_handle.write_ascii(b);
-                           } else {
+                           if self.lead != 0 {
+                               self.lead = 0;
+                               return (DecoderResult::Malformed(1, 0),
+                                       src_consumed,
+                                       dest.written());
+                           }
+                       },
+                       {
+                           if self.lead == 0 {
+                               if b <= 0x7f {
+                                   // TODO optimize ASCII run
+                                   destination_handle.write_ascii(b);
+                                   continue;
+                               }
+                               if (b >= 0xA1 && b <= 0xFE) || b == 0x8E || b == 0x8F {
+                                   self.lead = b;
+                                   continue;
+                               }
                                return (DecoderResult::Malformed(1, 0),
                                        unread_handle.consumed(),
                                        destination_handle.written());
-
                            }
+                           let lead = self.lead as usize;
+                           self.lead = 0;
+                           // Comparison to 0xA1 could be hoisted, but the
+                           // form below matches the spec better.
+                           if lead == 0x8E && (b >= 0xA1 && b <= 0xDF) {
+                               destination_handle.write_upper_bmp(0xFF61 + b as u16 - 0xA1);
+                               continue;
+                           }
+                           if lead == 0x8F && (b >= 0xA1 && b <= 0xFE) {
+                               self.lead = b;
+                               self.jis0212 = true;
+                               continue;
+                           }
+                           if (b >= 0xA1 && b <= 0xFE) && (lead >= 0xA1 && lead <= 0xFE) {
+                               let pointer = (lead as usize - 0xA1) * 94usize + (b as usize - 0xA1);
+                               let bmp = if self.jis0212 {
+                                   self.jis0212 = false;
+                                   jis0212_decode(pointer)
+                               } else {
+                                   jis0208_decode(pointer)
+                               };
+                               if bmp != 0 {
+                                   destination_handle.write_bmp_excl_ascii(bmp);
+                                   continue;
+                               }
+                           }
+                           if b < 0xA1 || b == 0xFF {
+                               return (DecoderResult::Malformed(1, 0),
+                                       unread_handle.unread(),
+                                       destination_handle.written());
+                           }
+                           return (DecoderResult::Malformed(2, 0),
+                                   unread_handle.consumed(),
+                                   destination_handle.written());
                        },
                        self,
                        src_consumed,

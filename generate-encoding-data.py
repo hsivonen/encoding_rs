@@ -445,6 +445,41 @@ pub fn euc_kr_encode(c: char) -> usize {
 }
 ''' % highest)
 
+# EUC-JP
+
+index = []
+
+for code_point in indexes["jis0212"]:
+  index.append(null_to_zero(code_point))  
+
+index_first = 0
+
+for i in xrange(len(index)):
+  if index[i]:
+    index_first = i
+    break
+
+# TODO: Compress away empty ranges
+
+data_file.write('''static JIS0212: [u16; %d] = [
+''' % len(index))
+
+for i in xrange(index_first, len(index)):
+  data_file.write('0x%04X,\n' % index[i])
+
+data_file.write('''];
+
+#[inline(always)]
+pub fn jis0212_decode(pointer: usize) -> u16 {
+    let i = pointer.wrapping_sub(%d);
+    if i < %d {
+        JIS0212[i]
+    } else {
+        0
+    }
+}
+''' % (index_first, len(index) - index_first))
+
 data_file.close()
 
 # Variant
