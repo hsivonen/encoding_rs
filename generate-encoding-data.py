@@ -338,13 +338,13 @@ data_file.write('''_ => {},
 # JIS0208
 
 index = []
-highest_jis0208 = 0
+highest = 0
 
 for code_point in indexes["jis0208"]:
   n_or_z = null_to_zero(code_point)
   index.append(n_or_z)
-  if n_or_z > highest_jis0208:
-    highest_jis0208 = n_or_z
+  if n_or_z > highest:
+    highest = n_or_z
 
 # TODO: Compress away empty ranges
 
@@ -388,7 +388,62 @@ pub fn jis0208_encode(c: char) -> usize {
         }
     }
 }
-''' % highest_jis0208)
+''' % highest)
+
+# EUC-KR
+
+index = []
+highest = 0
+
+for code_point in indexes["euc-kr"]:
+  n_or_z = null_to_zero(code_point)
+  index.append(n_or_z)
+  if n_or_z > highest:
+    highest = n_or_z
+
+# TODO: Compress away empty ranges
+
+data_file.write('''static EUC_KR_INDEX: [u16; %d] = [
+''' % len(index))
+
+for i in xrange(len(index)):
+  data_file.write('0x%04X,\n' % index[i])
+
+data_file.write('''];
+
+#[inline(always)]
+pub fn euc_kr_decode(pointer: usize) -> u16 {
+    if pointer < %d {
+        EUC_KR_INDEX[pointer]
+    } else {
+        0
+    }
+}
+''' % len(index))
+
+data_file.write('''
+#[inline(always)]
+pub fn euc_kr_encode(c: char) -> usize {
+    if c > '\u{%X}' {
+        return usize::max_value();
+    }
+    let bmp = c as u16;
+    let mut it = EUC_KR_INDEX.iter().enumerate();
+    loop {
+        match it.next() {
+            Some((i, code_point)) => {
+                if *code_point != bmp {
+                    continue;
+                }
+                return i;
+            }
+            None => {
+                return usize::max_value();
+            }
+        }
+    }
+}
+''' % highest)
 
 data_file.close()
 

@@ -12,11 +12,13 @@ use data::*;
 use variant::*;
 use super::*;
 
-pub struct EucKrDecoder;
+pub struct EucKrDecoder {
+    lead: u8,
+}
 
 impl EucKrDecoder {
     pub fn new() -> VariantDecoder {
-        VariantDecoder::EucKr(EucKrDecoder)
+        VariantDecoder::EucKr(EucKrDecoder { lead: 0 })
     }
 
     pub fn max_utf16_buffer_length(&self, u16_length: usize) -> usize {
@@ -32,17 +34,48 @@ impl EucKrDecoder {
     }
 
     decoder_functions!({},
-                       {},
                        {
-                           if b < 0x80 {
-                               // XXX optimize ASCII
-                               destination_handle.write_ascii(b);
-                           } else {
+                           if self.lead != 0 {
+                               self.lead = 0;
+                               return (DecoderResult::Malformed(1, 0),
+                                       src_consumed,
+                                       dest.written());
+                           }
+                       },
+                       {
+                           if self.lead == 0 {
+                               if b <= 0x7f {
+                                   // TODO optimize ASCII run
+                                   destination_handle.write_ascii(b);
+                                   continue;
+                               }
+                               if b >= 0x81 && b <= 0xFE {
+                                   self.lead = b;
+                                   continue;
+                               }
                                return (DecoderResult::Malformed(1, 0),
                                        unread_handle.consumed(),
                                        destination_handle.written());
-
                            }
+                           let lead = self.lead as usize;
+                           self.lead = 0;
+                           if b >= 0x41 && b <= 0xFE {
+                               let pointer = (lead as usize - 0x81) * 190usize +
+                                             (b as usize - 0x41);
+                               let bmp = euc_kr_decode(pointer);
+                               if bmp != 0 {
+                                   destination_handle.write_bmp_excl_ascii(bmp);
+                                   continue;
+                               }
+                           }
+                           if b <= 0x7F {
+                               return (DecoderResult::Malformed(1, 0),
+                                       unread_handle.unread(),
+                                       destination_handle.written());
+                           }
+                           return (DecoderResult::Malformed(2, 0),
+                                   unread_handle.consumed(),
+                                   destination_handle.written());
                        },
                        self,
                        src_consumed,
