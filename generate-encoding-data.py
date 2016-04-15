@@ -462,7 +462,7 @@ for i in xrange(len(index)):
 # TODO: Compress away empty ranges
 
 data_file.write('''static JIS0212: [u16; %d] = [
-''' % len(index))
+''' % (len(index) - index_first))
 
 for i in xrange(index_first, len(index)):
   data_file.write('0x%04X,\n' % index[i])
