@@ -247,7 +247,8 @@ impl VariantEncoding {
         match self {
             &VariantEncoding::SingleByte(table) => SingleByteDecoder::new(table),
             &VariantEncoding::Utf8 => Utf8Decoder::new(),
-            &VariantEncoding::Gbk | &VariantEncoding::Gb18030 => Gb18030Decoder::new(),
+            &VariantEncoding::Gbk |
+            &VariantEncoding::Gb18030 => Gb18030Decoder::new(),
             &VariantEncoding::Big5 => Big5Decoder::new(),
             &VariantEncoding::EucJp => EucJpDecoder::new(),
             &VariantEncoding::Iso2022Jp => Iso2022JpDecoder::new(),

@@ -480,6 +480,111 @@ pub fn jis0212_decode(pointer: usize) -> u16 {
 }
 ''' % (index_first, len(index) - index_first))
 
+# gb18030
+
+index = []
+highest = 0
+
+for code_point in indexes["gb18030"]:
+  n_or_z = null_to_zero(code_point)
+  index.append(n_or_z)
+  if n_or_z > highest:
+    highest = n_or_z
+
+# TODO: Compress away empty ranges
+
+data_file.write('''static GB18030_INDEX: [u16; %d] = [
+''' % len(index))
+
+for i in xrange(len(index)):
+  data_file.write('0x%04X,\n' % index[i])
+
+data_file.write('''];
+
+#[inline(always)]
+pub fn gb18030_decode(pointer: usize) -> u16 {
+    if pointer < %d {
+        GB18030_INDEX[pointer]
+    } else {
+        0
+    }
+}
+''' % len(index))
+
+data_file.write('''
+#[inline(always)]
+pub fn gb18030_encode(c: char) -> usize {
+    if c > '\u{%X}' {
+        return usize::max_value();
+    }
+    let bmp = c as u16;
+    let mut it = GB18030_INDEX.iter().enumerate();
+    loop {
+        match it.next() {
+            Some((i, code_point)) => {
+                if *code_point != bmp {
+                    continue;
+                }
+                return i;
+            }
+            None => {
+                return usize::max_value();
+            }
+        }
+    }
+}
+''' % highest)
+
+pointers = []
+offsets = []
+for pair in indexes["gb18030-ranges"]:
+  if pair[1] == 0x10000:
+    break # the last entry doesn't fit in u16
+  pointers.append(pair[0])
+  offsets.append(pair[1])
+
+data_file.write('''static GB18030_RANGE_POINTERS: [u16; %d] = [
+''' % len(pointers))
+
+for i in xrange(len(pointers)):
+  data_file.write('0x%04X,\n' % pointers[i])
+
+data_file.write('''];
+
+static GB18030_RANGE_OFFSETS: [u16; %d] = [
+''' % len(pointers))
+
+for i in xrange(len(pointers)):
+  data_file.write('0x%04X,\n' % offsets[i])
+
+data_file.write('''];
+
+#[inline(always)]
+pub fn gb18030_range_decode(pointer: usize) -> char {
+    if pointer > 1237575 || (pointer > 39419 && pointer < 189000) {
+        return '\u{0}';
+    }
+    if pointer == 7457 {
+        return '\u{E7C7}';
+    }
+    let mut i = %d - 1;
+    loop {
+        let candidate = GB18030_RANGE_POINTERS[i] as usize;
+        if candidate > pointer {
+            i += 1;
+            break;
+        }
+        i -= 1;
+    }
+    let (offset, code_point_offset) = if i == %d {
+        (189000usize, 0x10000usize)
+    } else {
+        (GB18030_RANGE_POINTERS[i] as usize, GB18030_RANGE_OFFSETS[i] as usize)
+    };
+    return unsafe { ::std::mem::transmute((pointer - offset + code_point_offset) as u32) };
+}
+''' % (len(pointers), len(pointers)))
+
 data_file.close()
 
 # Variant

@@ -138,13 +138,10 @@ impl<'a, 'b> Utf16BmpHandle<'a, 'b>
     }
     #[inline(always)]
     pub fn write_mid_bmp(self, bmp: u16) {
-        debug_assert!(bmp >= 0x80);
-        debug_assert!(bmp < 0x800);
         self.dest.write_mid_bmp(bmp);
     }
     #[inline(always)]
     pub fn write_upper_bmp(self, bmp: u16) {
-        debug_assert!(bmp >= 0x800);
         self.dest.write_upper_bmp(bmp);
     }
 }
@@ -171,12 +168,20 @@ impl<'a, 'b> Utf16AstralHandle<'a, 'b>
         self.dest.write_char(c);
     }
     #[inline(always)]
+    pub fn write_char_excl_ascii(self, c: char) {
+        self.dest.write_char(c);
+    }
+    #[inline(always)]
     pub fn write_ascii(self, ascii: u8) {
         self.dest.write_ascii(ascii);
     }
     #[inline(always)]
     pub fn write_bmp_excl_ascii(self, bmp: u16) {
         self.dest.write_bmp_excl_ascii(bmp);
+    }
+    #[inline(always)]
+    pub fn write_upper_bmp(self, bmp: u16) {
+        self.dest.write_upper_bmp(bmp);
     }
     #[inline(always)]
     pub fn write_astral(self, astral: u32) {
@@ -228,6 +233,15 @@ impl<'a> Utf16Destination<'a> {
     }
     #[inline(always)]
     fn write_char(&mut self, c: char) {
+        if c <= '\u{FFFF}' {
+            self.write_code_unit(c as u16);
+        } else {
+            self.write_astral(c as u32);
+        }
+    }
+    #[inline(always)]
+    fn write_char_excl_ascii(&mut self, c: char) {
+        debug_assert!(c >= '\u{80}');
         if c <= '\u{FFFF}' {
             self.write_code_unit(c as u16);
         } else {
@@ -327,12 +341,20 @@ impl<'a, 'b> Utf8AstralHandle<'a, 'b>
         self.dest.write_char(c);
     }
     #[inline(always)]
+    pub fn write_char_excl_ascii(self, c: char) {
+        self.dest.write_char(c);
+    }
+    #[inline(always)]
     pub fn write_ascii(self, ascii: u8) {
         self.dest.write_ascii(ascii);
     }
     #[inline(always)]
     pub fn write_bmp_excl_ascii(self, bmp: u16) {
         self.dest.write_bmp_excl_ascii(bmp);
+    }
+    #[inline(always)]
+    pub fn write_upper_bmp(self, bmp: u16) {
+        self.dest.write_upper_bmp(bmp);
     }
     #[inline(always)]
     pub fn write_astral(self, astral: u32) {
@@ -387,6 +409,17 @@ impl<'a> Utf8Destination<'a> {
         if c <= '\u{7F}' {
             self.write_ascii(c as u8);
         } else if c <= '\u{0800}' {
+            self.write_mid_bmp(c as u16);
+        } else if c <= '\u{FFFF}' {
+            self.write_upper_bmp(c as u16);
+        } else {
+            self.write_astral(c as u32);
+        }
+    }
+    #[inline(always)]
+    fn write_char_excl_ascii(&mut self, c: char) {
+        debug_assert!(c >= '\u{80}');
+        if c <= '\u{0800}' {
             self.write_mid_bmp(c as u16);
         } else if c <= '\u{FFFF}' {
             self.write_upper_bmp(c as u16);
