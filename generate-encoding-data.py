@@ -680,7 +680,7 @@ def write_variant_method(name, mut, arg_list, ret, variants, excludes, kind):
     variant_file.write('''),\n''')
   variant_file.write('''}\n}\n\n''')
 
-write_variant_method("max_utf16_buffer_length", False, [("u16_length", "usize")], "usize", decoder_variants, [], "Decoder")
+write_variant_method("max_utf16_buffer_length", False, [("byte_length", "usize")], "usize", decoder_variants, [], "Decoder")
 
 write_variant_method("max_utf8_buffer_length", False, [("byte_length", "usize")], "usize", decoder_variants, [], "Decoder")
 

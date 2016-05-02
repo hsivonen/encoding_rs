@@ -1378,8 +1378,8 @@ impl Decoder {
     /// `_with_replacement` case.
     ///
     /// Available via the C wrapper.
-    pub fn max_utf16_buffer_length(&self, u16_length: usize) -> usize {
-        self.variant.max_utf16_buffer_length(u16_length)
+    pub fn max_utf16_buffer_length(&self, byte_length: usize) -> usize {
+        self.variant.max_utf16_buffer_length(byte_length)
     }
 
     /// Query the worst-case UTF-8 output size _without replacement_.

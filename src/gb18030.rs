@@ -29,16 +29,47 @@ impl Gb18030Decoder {
         })
     }
 
-    pub fn max_utf16_buffer_length(&self, u16_length: usize) -> usize {
-        u16_length
+    fn extra_from_state(&self, byte_length: usize) -> usize {
+        byte_length +
+        if self.first != 0 {
+            1
+        } else {
+            0
+        } +
+        if self.second != 0 {
+            1
+        } else {
+            0
+        } +
+        if self.third != 0 {
+            1
+        } else {
+            0
+        } +
+        if self.pending_ascii != 0 {
+            1
+        } else {
+            0
+        }
+    }
+
+    pub fn max_utf16_buffer_length(&self, byte_length: usize) -> usize {
+        // ASCII: 1 to 1 (worst case)
+        // gbk: 2 to 1
+        // ranges: 4 to 1 or 4 to 2
+        self.extra_from_state(byte_length)
     }
 
     pub fn max_utf8_buffer_length(&self, byte_length: usize) -> usize {
-        byte_length * 3
+        // ASCII: 1 to 1
+        // gbk: 2 to 2 or 2 to 3 (worst case: ratio 1.5)
+        // ranges: 4 to 2, 4 to 3 or 4 to 4
+        let len = self.extra_from_state(byte_length);
+        len + ((len + 1) / 2)
     }
 
     pub fn max_utf8_buffer_length_with_replacement(&self, byte_length: usize) -> usize {
-        byte_length * 3
+        self.extra_from_state(byte_length) * 3
     }
 
     decoder_functions!({
