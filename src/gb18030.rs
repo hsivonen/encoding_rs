@@ -234,50 +234,82 @@ impl Gb18030Decoder {
                        check_space_astral);
 }
 
-pub struct Gb18030Encoder;
+pub struct Gb18030Encoder {
+    extended: bool,
+}
 
 impl Gb18030Encoder {
     pub fn new(encoding: &'static Encoding, extended_range: bool) -> Encoder {
-        Encoder::new(encoding, VariantEncoder::Gb18030(Gb18030Encoder))
+        Encoder::new(encoding,
+                     VariantEncoder::Gb18030(Gb18030Encoder { extended: extended_range }))
     }
 
     pub fn max_buffer_length_from_utf16(&self, u16_length: usize) -> usize {
-        0 // TODO
+        u16_length * 4
     }
 
     pub fn max_buffer_length_from_utf8(&self, byte_length: usize) -> usize {
-        0 // TODO
+        // 1 to 1
+        // 2 to 2
+        // 3 to 2
+        // 2 to 4 (worst)
+        // 3 to 4
+        // 4 to 4
+        byte_length * 2
     }
 
-    pub fn max_buffer_length_from_utf16_with_replacement_if_no_unmappables(&self,
-                                                                           u16_length: usize)
-                                                                           -> usize {
-        0 // TODO
-    }
-
-    pub fn max_buffer_length_from_utf8_with_replacement_if_no_unmappables(&self,
-                                                                          byte_length: usize)
-                                                                          -> usize {
-        0 // TODO
-    }
-
-    pub fn encode_from_utf16(&mut self,
-                             src: &[u16],
-                             dst: &mut [u8],
-                             last: bool)
-                             -> (EncoderResult, usize, usize) {
-        // XXX
-        (EncoderResult::InputEmpty, 0, 0)
-    }
-
-    pub fn encode_from_utf8(&mut self,
-                            src: &str,
-                            dst: &mut [u8],
-                            last: bool)
-                            -> (EncoderResult, usize, usize) {
-        // XXX
-        (EncoderResult::InputEmpty, 0, 0)
-    }
+    encoder_functions!({},
+                       {
+                           if c <= '\u{7F}' {
+                               // TODO optimize ASCII run
+                               destination_handle.write_one(c as u8);
+                               continue;
+                           }
+                           if c == '\u{E5E5}' {
+                               return (EncoderResult::Unmappable(c),
+                                       unread_handle.consumed(),
+                                       destination_handle.written());
+                           }
+                           if !self.extended && c == '\u{20AC}' {
+                               destination_handle.write_one(0x80u8);
+                               continue;
+                           }
+                           let pointer = gb18030_encode(c);
+                           if pointer != usize::max_value() {
+                               let lead = (pointer / 190) + 0x81;
+                               let trail = pointer % 190;
+                               let offset = if trail < 0x3F {
+                                   0x40
+                               } else {
+                                   0x41
+                               };
+                               destination_handle.write_two(lead as u8, (trail + offset) as u8);
+                               continue;
+                           }
+                           if !self.extended {
+                               return (EncoderResult::Unmappable(c),
+                                       unread_handle.consumed(),
+                                       destination_handle.written());
+                           }
+                           let mut range_pointer = gb18030_range_encode(c);
+                           // This can be made better with %
+                           let first = range_pointer / 10 / 126 / 10;
+                           range_pointer -= first * 10 * 126 * 10;
+                           let second = range_pointer / 10 / 126;
+                           range_pointer -= second * 10 * 126;
+                           let third = range_pointer / 10;
+                           let fourth = range_pointer - third * 10;
+                           destination_handle.write_four((first + 0x81) as u8, (second + 0x30) as u8, (third + 0x81) as u8, (fourth + 0x30) as u8);
+                           continue;
+                       },
+                       self,
+                       src_consumed,
+                       source,
+                       dest,
+                       c,
+                       destination_handle,
+                       unread_handle,
+                       check_space_four);
 }
 
 #[cfg(test)]

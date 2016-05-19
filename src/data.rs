@@ -12754,22 +12754,56 @@ pub fn gb18030_range_decode(pointer: usize) -> char {
     if pointer > 1237575 || (pointer > 39419 && pointer < 189000) {
         return '\u{0}';
     }
+    if pointer >= 189000 {
+        return unsafe { ::std::mem::transmute((pointer - 189000usize + 0x10000usize) as u32) };
+    }
     if pointer == 7457 {
         return '\u{E7C7}';
     }
-    let mut i = 206 - 1;
+    let mut it = GB18030_RANGE_POINTERS.iter().enumerate();
     loop {
-        let candidate = GB18030_RANGE_POINTERS[i] as usize;
-        if candidate > pointer {
-            i += 1;
-            break;
+        match it.next() {
+            Some((i, candidate)) => {
+                if *candidate as usize <= pointer {
+                    continue;
+                }
+                return unsafe {
+                    ::std::mem::transmute((pointer - GB18030_RANGE_POINTERS[i-1] as usize + GB18030_RANGE_OFFSETS[i-1] as usize) as u32)
+                };
+            }
+            None => {
+                return unsafe {
+                    ::std::mem::transmute((pointer - GB18030_RANGE_POINTERS[GB18030_RANGE_POINTERS.len()-1] as usize + GB18030_RANGE_OFFSETS[GB18030_RANGE_OFFSETS.len()-1] as usize) as u32)
+                };
+            }
         }
-        i -= 1;
     }
-    let (offset, code_point_offset) = if i == 206 {
-        (189000usize, 0x10000usize)
-    } else {
-        (GB18030_RANGE_POINTERS[i] as usize, GB18030_RANGE_OFFSETS[i] as usize)
-    };
-    return unsafe { ::std::mem::transmute((pointer - offset + code_point_offset) as u32) };
+}
+
+#[inline(always)]
+pub fn gb18030_range_encode(c: char) -> usize {
+    if c > '\u{FFFF}' {
+        return 189000usize + (c as usize - 0x10000usize);
+    }
+    if c == '\u{E7C7}' {
+        return 7457;
+    }
+    let bmp = c as u16;
+    let mut it = GB18030_RANGE_OFFSETS.iter().enumerate();
+    loop {
+        match it.next() {
+            Some((i, candidate)) => {
+                if *candidate <= bmp {
+                    continue;
+                }
+                return bmp as usize - GB18030_RANGE_OFFSETS[i - 1] as usize +
+                       GB18030_RANGE_POINTERS[i - 1] as usize;
+            }
+            None => {
+                return bmp as usize -
+                       GB18030_RANGE_OFFSETS[GB18030_RANGE_OFFSETS.len() - 1] as usize +
+                       GB18030_RANGE_POINTERS[GB18030_RANGE_POINTERS.len() - 1] as usize;
+            }
+        }
+    }
 }
