@@ -120,18 +120,6 @@ impl EucJpEncoder {
         0 // TODO
     }
 
-    pub fn max_buffer_length_from_utf16_with_replacement_if_no_unmappables(&self,
-                                                                           u16_length: usize)
-                                                                           -> usize {
-        0 // TODO
-    }
-
-    pub fn max_buffer_length_from_utf8_with_replacement_if_no_unmappables(&self,
-                                                                          byte_length: usize)
-                                                                          -> usize {
-        0 // TODO
-    }
-
     pub fn encode_from_utf16(&mut self,
                              src: &[u16],
                              dst: &mut [u8],

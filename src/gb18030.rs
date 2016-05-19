@@ -245,17 +245,28 @@ impl Gb18030Encoder {
     }
 
     pub fn max_buffer_length_from_utf16(&self, u16_length: usize) -> usize {
-        u16_length * 4
+        if self.extended {
+            u16_length * 4
+        } else {
+            u16_length * 2
+        }
     }
 
     pub fn max_buffer_length_from_utf8(&self, byte_length: usize) -> usize {
-        // 1 to 1
-        // 2 to 2
-        // 3 to 2
-        // 2 to 4 (worst)
-        // 3 to 4
-        // 4 to 4
-        byte_length * 2
+        if self.extended {
+            // 1 to 1
+            // 2 to 2
+            // 3 to 2
+            // 2 to 4 (worst)
+            // 3 to 4
+            // 4 to 4
+            byte_length * 2
+        } else {
+            // 1 to 1
+            // 2 to 2
+            // 3 to 2
+            byte_length
+        }
     }
 
     encoder_functions!({},
