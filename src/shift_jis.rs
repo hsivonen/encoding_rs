@@ -115,42 +115,61 @@ impl ShiftJisEncoder {
     }
 
     pub fn max_buffer_length_from_utf16(&self, u16_length: usize) -> usize {
-        0 // TODO
+        u16_length * 2
     }
 
     pub fn max_buffer_length_from_utf8(&self, byte_length: usize) -> usize {
-        0 // TODO
+        byte_length
     }
 
-    pub fn max_buffer_length_from_utf16_with_replacement_if_no_unmappables(&self,
-                                                                           u16_length: usize)
-                                                                           -> usize {
-        0 // TODO
-    }
-
-    pub fn max_buffer_length_from_utf8_with_replacement_if_no_unmappables(&self,
-                                                                          byte_length: usize)
-                                                                          -> usize {
-        0 // TODO
-    }
-
-    pub fn encode_from_utf16(&mut self,
-                             src: &[u16],
-                             dst: &mut [u8],
-                             last: bool)
-                             -> (EncoderResult, usize, usize) {
-        // XXX
-        (EncoderResult::InputEmpty, 0, 0)
-    }
-
-    pub fn encode_from_utf8(&mut self,
-                            src: &str,
-                            dst: &mut [u8],
-                            last: bool)
-                            -> (EncoderResult, usize, usize) {
-        // XXX
-        (EncoderResult::InputEmpty, 0, 0)
-    }
+    encoder_functions!({},
+                       {
+                           if c <= '\u{7F}' {
+                               // TODO optimize ASCII run
+                               destination_handle.write_one(c as u8);
+                               continue;
+                           }
+                           if c == '\u{80}' {
+                               destination_handle.write_one(0x80u8);
+                               continue;
+                           }
+                           if c == '\u{A5}' {
+                               destination_handle.write_one(0x5Cu8);
+                               continue;
+                           }
+                           if c == '\u{203E}' {
+                               destination_handle.write_one(0x7Eu8);
+                               continue;
+                           }
+                           if c >= '\u{FF61}' && c <= '\u{FF9F}' {
+                               destination_handle.write_one((c as usize - 0xFF61 + 0xA1) as u8);
+                               continue;
+                           }
+                           if c == '\u{2212}' {
+                               destination_handle.write_two(0x81u8, 0x7Cu8);
+                               continue;
+                           }
+                           let pointer = jis0208_encode(c);
+                           if pointer == usize::max_value() {
+                               return (EncoderResult::Unmappable(c),
+                                       unread_handle.consumed(),
+                                       destination_handle.written());
+                           }
+                           let lead = (pointer / 188);
+                           let lead_offset = if lead < 0x1F { 0x81usize } else { 0xC1usize };
+                           let trail = (pointer % 188);
+                           let trail_offset = if trail < 0x3F { 0x40usize } else { 0x41usize };
+                           destination_handle.write_two((lead + lead_offset) as u8, (trail + trail_offset) as u8);
+                           continue;
+                       },
+                       self,
+                       src_consumed,
+                       source,
+                       dest,
+                       c,
+                       destination_handle,
+                       unread_handle,
+                       check_space_two);
 }
 
 #[cfg(test)]
