@@ -796,7 +796,6 @@ impl VariantEncoding {
     pub fn can_encode_everything(&self) -> bool {
         match self {
             &VariantEncoding::Utf8 |
-            &VariantEncoding::Gb18030 |
             &VariantEncoding::Utf16Be |
             &VariantEncoding::Utf16Le |
             &VariantEncoding::Replacement => true,

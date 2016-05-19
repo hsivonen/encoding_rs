@@ -310,7 +310,10 @@ impl Gb18030Encoder {
                            range_pointer -= second * 10 * 126;
                            let third = range_pointer / 10;
                            let fourth = range_pointer - third * 10;
-                           destination_handle.write_four((first + 0x81) as u8, (second + 0x30) as u8, (third + 0x81) as u8, (fourth + 0x30) as u8);
+                           destination_handle.write_four((first + 0x81) as u8,
+                                                         (second + 0x30) as u8,
+                                                         (third + 0x81) as u8,
+                                                         (fourth + 0x30) as u8);
                            continue;
                        },
                        self,

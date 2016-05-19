@@ -968,11 +968,11 @@ impl Encoding {
     }
 
     /// Checks whether the _output encoding_ of this encoding can encode every
-    /// `char`.
+    /// `char`. (Only true if the output encoding is UTF-8.)
     ///
     /// Available via the C wrapper.
     pub fn can_encode_everything(&'static self) -> bool {
-        self.variant.can_encode_everything()
+        self.output_encoding() == UTF_8
     }
 
     /// Returns the _output encoding_ of this encoding. This is UTF-8 for
