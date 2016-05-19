@@ -94,42 +94,39 @@ impl EucKrEncoder {
     }
 
     pub fn max_buffer_length_from_utf16(&self, u16_length: usize) -> usize {
-        0 // TODO
+        u16_length * 2
     }
 
     pub fn max_buffer_length_from_utf8(&self, byte_length: usize) -> usize {
-        0 // TODO
+        byte_length
     }
 
-    pub fn max_buffer_length_from_utf16_with_replacement_if_no_unmappables(&self,
-                                                                           u16_length: usize)
-                                                                           -> usize {
-        0 // TODO
-    }
-
-    pub fn max_buffer_length_from_utf8_with_replacement_if_no_unmappables(&self,
-                                                                          byte_length: usize)
-                                                                          -> usize {
-        0 // TODO
-    }
-
-    pub fn encode_from_utf16(&mut self,
-                             src: &[u16],
-                             dst: &mut [u8],
-                             last: bool)
-                             -> (EncoderResult, usize, usize) {
-        // XXX
-        (EncoderResult::InputEmpty, 0, 0)
-    }
-
-    pub fn encode_from_utf8(&mut self,
-                            src: &str,
-                            dst: &mut [u8],
-                            last: bool)
-                            -> (EncoderResult, usize, usize) {
-        // XXX
-        (EncoderResult::InputEmpty, 0, 0)
-    }
+    encoder_functions!({},
+                       {
+                           if c <= '\u{7F}' {
+                               // TODO optimize ASCII run
+                               destination_handle.write_one(c as u8);
+                               continue;
+                           }
+                           let pointer = euc_kr_encode(c);
+                           if pointer == usize::max_value() {
+                               return (EncoderResult::Unmappable(c),
+                                       unread_handle.consumed(),
+                                       destination_handle.written());
+                           }
+                           let lead = (pointer / 190) + 0x81;
+                           let trail = (pointer % 190) + 0x41;
+                           destination_handle.write_two(lead as u8, trail as u8);
+                           continue;
+                       },
+                       self,
+                       src_consumed,
+                       source,
+                       dest,
+                       c,
+                       destination_handle,
+                       unread_handle,
+                       check_space_two);
 }
 
 #[cfg(test)]
