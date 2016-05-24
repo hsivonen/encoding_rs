@@ -147,7 +147,8 @@ impl EucJpEncoder {
                                continue;
                            }
                            if c >= '\u{FF61}' && c <= '\u{FF9F}' {
-                               destination_handle.write_two(0x8Eu8, (c as usize - 0xFF61 + 0xA1) as u8);
+                               destination_handle.write_two(0x8Eu8,
+                                                            (c as usize - 0xFF61 + 0xA1) as u8);
                                continue;
                            }
                            if c == '\u{2212}' {

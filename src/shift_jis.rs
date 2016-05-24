@@ -167,10 +167,19 @@ impl ShiftJisEncoder {
                                        destination_handle.written());
                            }
                            let lead = pointer / 188;
-                           let lead_offset = if lead < 0x1F { 0x81usize } else { 0xC1usize };
+                           let lead_offset = if lead < 0x1F {
+                               0x81usize
+                           } else {
+                               0xC1usize
+                           };
                            let trail = pointer % 188;
-                           let trail_offset = if trail < 0x3F { 0x40usize } else { 0x41usize };
-                           destination_handle.write_two((lead + lead_offset) as u8, (trail + trail_offset) as u8);
+                           let trail_offset = if trail < 0x3F {
+                               0x40usize
+                           } else {
+                               0x41usize
+                           };
+                           destination_handle.write_two((lead + lead_offset) as u8,
+                                                        (trail + trail_offset) as u8);
                            continue;
                        },
                        self,
