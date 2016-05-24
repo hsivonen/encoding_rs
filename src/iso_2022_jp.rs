@@ -60,7 +60,7 @@ impl Iso2022JpDecoder {
     }
 
     pub fn max_utf16_buffer_length(&self, byte_length: usize) -> usize {
-        self.plus_one_if_lead(byte_length) + self.one_if_pending_prepended(one_if_pending_prepended)
+        self.plus_one_if_lead(byte_length) + self.one_if_pending_prepended()
     }
 
     pub fn max_utf8_buffer_length(&self, byte_length: usize) -> usize {
