@@ -21,16 +21,27 @@ impl EucKrDecoder {
         VariantDecoder::EucKr(EucKrDecoder { lead: 0 })
     }
 
-    pub fn max_utf16_buffer_length(&self, u16_length: usize) -> usize {
-        u16_length
+    fn plus_one_if_lead(&self, byte_length: usize) -> usize {
+        byte_length +
+        if self.lead == 0 {
+            0
+        } else {
+            1
+        }
+    }
+
+    pub fn max_utf16_buffer_length(&self, byte_length: usize) -> usize {
+        self.plus_one_if_lead(byte_length)
     }
 
     pub fn max_utf8_buffer_length(&self, byte_length: usize) -> usize {
-        byte_length * 3
+        // worst case: 2 to 3
+        let len = self.plus_one_if_lead(byte_length);
+        len + (len + 1) / 2
     }
 
     pub fn max_utf8_buffer_length_with_replacement(&self, byte_length: usize) -> usize {
-        byte_length * 3
+        self.plus_one_if_lead(byte_length) * 3
     }
 
     decoder_functions!({},

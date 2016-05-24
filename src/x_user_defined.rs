@@ -19,8 +19,8 @@ impl UserDefinedDecoder {
         VariantDecoder::UserDefined(UserDefinedDecoder)
     }
 
-    pub fn max_utf16_buffer_length(&self, u16_length: usize) -> usize {
-        u16_length
+    pub fn max_utf16_buffer_length(&self, byte_length: usize) -> usize {
+        byte_length
     }
 
     pub fn max_utf8_buffer_length(&self, byte_length: usize) -> usize {

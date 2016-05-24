@@ -42,16 +42,35 @@ impl Iso2022JpDecoder {
         })
     }
 
-    pub fn max_utf16_buffer_length(&self, u16_length: usize) -> usize {
-        u16_length
+    fn plus_one_if_lead(&self, byte_length: usize) -> usize {
+        byte_length +
+        if self.lead == 0 || self.pending_prepended {
+            0
+        } else {
+            1
+        }
+    }
+
+    fn one_if_pending_prepended(&self) -> usize {
+        if self.lead != 0 && !self.pending_prepended {
+            1
+        } else {
+            0
+        }
+    }
+
+    pub fn max_utf16_buffer_length(&self, byte_length: usize) -> usize {
+        self.plus_one_if_lead(byte_length) + self.one_if_pending_prepended(one_if_pending_prepended)
     }
 
     pub fn max_utf8_buffer_length(&self, byte_length: usize) -> usize {
-        byte_length * 3
+        // worst case: 2 to 3
+        let len = self.plus_one_if_lead(byte_length);
+        self.one_if_pending_prepended() * 3 + len + (len + 1) / 2
     }
 
     pub fn max_utf8_buffer_length_with_replacement(&self, byte_length: usize) -> usize {
-        byte_length * 3
+        (self.one_if_pending_prepended() + self.plus_one_if_lead(byte_length)) * 3
     }
 
     decoder_functions!({

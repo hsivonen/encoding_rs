@@ -54,8 +54,7 @@ impl Big5Decoder {
         // If lead set and the input is a single trail byte, the worst-case
         // output is 4, so we need to add one before multiplying if lead is
         // set.
-        let len = self.plus_one_if_lead(byte_length);
-        (len * 2)
+        self.plus_one_if_lead(byte_length) * 2
     }
 
     pub fn max_utf8_buffer_length_with_replacement(&self, byte_length: usize) -> usize {
