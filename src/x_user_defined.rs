@@ -37,12 +37,10 @@ impl UserDefinedDecoder {
                            if b < 0x80 {
                                // XXX optimize ASCII
                                destination_handle.write_ascii(b);
-                           } else {
-                               return (DecoderResult::Malformed(1, 0),
-                                       unread_handle.consumed(),
-                                       destination_handle.written());
-
+                               continue;
                            }
+                           destination_handle.write_upper_bmp((b as usize + 0xF700usize) as u16);
+                           continue;
                        },
                        self,
                        src_consumed,
