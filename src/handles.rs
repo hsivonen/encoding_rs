@@ -133,6 +133,10 @@ impl<'a, 'b> Utf16BmpHandle<'a, 'b>
         self.dest.write_ascii(ascii);
     }
     #[inline(always)]
+    pub fn write_bmp(self, bmp: u16) {
+        self.dest.write_bmp(bmp);
+    }
+    #[inline(always)]
     pub fn write_bmp_excl_ascii(self, bmp: u16) {
         self.dest.write_bmp_excl_ascii(bmp);
     }
@@ -176,6 +180,10 @@ impl<'a, 'b> Utf16AstralHandle<'a, 'b>
         self.dest.write_ascii(ascii);
     }
     #[inline(always)]
+    pub fn write_bmp(self, bmp: u16) {
+        self.dest.write_bmp(bmp);
+    }
+    #[inline(always)]
     pub fn write_bmp_excl_ascii(self, bmp: u16) {
         self.dest.write_bmp_excl_ascii(bmp);
     }
@@ -186,6 +194,10 @@ impl<'a, 'b> Utf16AstralHandle<'a, 'b>
     #[inline(always)]
     pub fn write_astral(self, astral: u32) {
         self.dest.write_astral(astral);
+    }
+    #[inline(always)]
+    pub fn write_surrogate_pair(self, high: u16, low: u16) {
+        self.dest.write_surrogate_pair(high, low);
     }
     #[inline(always)]
     pub fn write_big5_combination(self, combined: u16, combining: u16) {
@@ -254,6 +266,10 @@ impl<'a> Utf16Destination<'a> {
         self.write_code_unit(ascii as u16);
     }
     #[inline(always)]
+    fn write_bmp(&mut self, bmp: u16) {
+        self.write_code_unit(bmp);
+    }
+    #[inline(always)]
     fn write_bmp_excl_ascii(&mut self, bmp: u16) {
         debug_assert!(bmp >= 0x80);
         self.write_code_unit(bmp);
@@ -274,6 +290,11 @@ impl<'a> Utf16Destination<'a> {
         debug_assert!(astral <= 0x10FFFF);
         self.write_code_unit((0xD7C0 + (astral >> 10)) as u16);
         self.write_code_unit((0xDC00 + (astral & 0x3FF)) as u16);
+    }
+    #[inline(always)]
+    pub fn write_surrogate_pair(&mut self, high: u16, low: u16) {
+        self.write_code_unit(high);
+        self.write_code_unit(low);
     }
     #[inline(always)]
     fn write_big5_combination(&mut self, combined: u16, combining: u16) {
@@ -304,6 +325,10 @@ impl<'a, 'b> Utf8BmpHandle<'a, 'b>
     #[inline(always)]
     pub fn write_ascii(self, ascii: u8) {
         self.dest.write_ascii(ascii);
+    }
+    #[inline(always)]
+    pub fn write_bmp(self, bmp: u16) {
+        self.dest.write_bmp(bmp);
     }
     #[inline(always)]
     pub fn write_bmp_excl_ascii(self, bmp: u16) {
@@ -349,6 +374,10 @@ impl<'a, 'b> Utf8AstralHandle<'a, 'b>
         self.dest.write_ascii(ascii);
     }
     #[inline(always)]
+    pub fn write_bmp(self, bmp: u16) {
+        self.dest.write_bmp(bmp);
+    }
+    #[inline(always)]
     pub fn write_bmp_excl_ascii(self, bmp: u16) {
         self.dest.write_bmp_excl_ascii(bmp);
     }
@@ -359,6 +388,10 @@ impl<'a, 'b> Utf8AstralHandle<'a, 'b>
     #[inline(always)]
     pub fn write_astral(self, astral: u32) {
         self.dest.write_astral(astral);
+    }
+    #[inline(always)]
+    pub fn write_surrogate_pair(self, high: u16, low: u16) {
+        self.dest.write_surrogate_pair(high, low);
     }
     #[inline(always)]
     pub fn write_big5_combination(self, combined: u16, combining: u16) {
@@ -433,6 +466,16 @@ impl<'a> Utf8Destination<'a> {
         self.write_code_unit(ascii);
     }
     #[inline(always)]
+    fn write_bmp(&mut self, bmp: u16) {
+        if bmp < 0x80u16 {
+            self.write_ascii(bmp as u8);
+        } else if bmp < 0x800u16 {
+            self.write_mid_bmp(bmp);
+        } else {
+            self.write_upper_bmp(bmp);
+        }
+    }
+    #[inline(always)]
     fn write_mid_bmp(&mut self, mid_bmp: u16) {
         debug_assert!(mid_bmp >= 0x80);
         debug_assert!(mid_bmp < 0x800);
@@ -462,6 +505,11 @@ impl<'a> Utf8Destination<'a> {
         self.write_code_unit((((astral & 0x3F000u32) >> 12) | 0x80u32) as u8);
         self.write_code_unit((((astral & 0xFC0u32) >> 6) | 0x80u32) as u8);
         self.write_code_unit(((astral & 0x3Fu32) | 0x80u32) as u8);
+    }
+    #[inline(always)]
+    pub fn write_surrogate_pair(&mut self, high: u16, low: u16) {
+        self.write_astral(((high as u32) << 10) + (low as u32) -
+                          (((0xD800u32 << 10) - 0x10000u32) + 0xDC00u32));
     }
     #[inline(always)]
     fn write_big5_combination(&mut self, combined: u16, combining: u16) {
