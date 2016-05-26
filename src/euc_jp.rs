@@ -209,6 +209,17 @@ mod tests {
         decode_euc_jp_to_utf16(b"\x8E\xE0", &[0xFFFDu16]);
         decode_euc_jp_to_utf16(b"\x8E\xFF", &[0xFFFDu16, 0xFFFDu16]);
 
+        // JIS 0212
+        decode_euc_jp_to_utf16(b"\x8F\xA1\xA1", &[0xFFFDu16]);
+        decode_euc_jp_to_utf16(b"\x8F\xA2\xAF", &[0x02D8u16]);
+        decode_euc_jp_to_utf16(b"\x8F\xA2\xFF", &[0xFFFDu16, 0xFFFDu16]);
+
+        // JIS 0208
+        decode_euc_jp_to_utf16(b"\xA1\xA1", &[0x3000u16]);
+        decode_euc_jp_to_utf16(b"\xA1\xA0", &[0xFFFDu16, 0xFFFDu16]);
+        decode_euc_jp_to_utf16(b"\xFC\xFE", &[0xFF02u16]);
+        decode_euc_jp_to_utf16(b"\xFE\xFE", &[0xFFFDu16]);
+
         // ASCII
         decode_euc_jp_to_utf8(b"\x61\x62", "\u{0061}\u{0062}");
 
@@ -218,6 +229,17 @@ mod tests {
         decode_euc_jp_to_utf8(b"\x8E\xA0", "\u{FFFD}\u{FFFD}");
         decode_euc_jp_to_utf8(b"\x8E\xE0", "\u{FFFD}");
         decode_euc_jp_to_utf8(b"\x8E\xFF", "\u{FFFD}\u{FFFD}");
+
+        // JIS 0212
+        decode_euc_jp_to_utf8(b"\x8F\xA1\xA1", "\u{FFFD}");
+        decode_euc_jp_to_utf8(b"\x8F\xA2\xAF", "\u{02D8}");
+        decode_euc_jp_to_utf8(b"\x8F\xA2\xFF", "\u{FFFD}\u{FFFD}");
+
+        // JIS 0208
+        decode_euc_jp_to_utf8(b"\xA1\xA1", "\u{3000}");
+        decode_euc_jp_to_utf8(b"\xA1\xA0", "\u{FFFD}\u{FFFD}");
+        decode_euc_jp_to_utf8(b"\xFC\xFE", "\u{FF02}");
+        decode_euc_jp_to_utf8(b"\xFE\xFE", "\u{FFFD}");
     }
 
     #[test]
