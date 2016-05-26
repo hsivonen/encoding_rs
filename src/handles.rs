@@ -907,6 +907,6 @@ impl<'a> ByteDestination<'a> {
         self.slice[self.pos + 1] = second;
         self.slice[self.pos + 2] = third;
         self.slice[self.pos + 3] = fourth;
-        self.pos += 3;
+        self.pos += 4;
     }
 }
