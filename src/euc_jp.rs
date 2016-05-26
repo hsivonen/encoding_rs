@@ -77,7 +77,7 @@ impl EucJpDecoder {
                            // Comparison to 0xA1 could be hoisted, but the
                            // form below matches the spec better.
                            if lead == 0x8E && (b >= 0xA1 && b <= 0xDF) {
-                               destination_handle.write_upper_bmp(0xFF61 + b as u16 - 0xA1);
+                               destination_handle.write_upper_bmp(0xFF61 - 0xA1 + b as u16);
                                continue;
                            }
                            if lead == 0x8F && (b >= 0xA1 && b <= 0xFE) {
@@ -178,7 +178,44 @@ impl EucJpEncoder {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use super::super::testing::*;
     use super::super::*;
+
+    fn decode_euc_jp_to_utf16(bytes: &[u8], expect: &[u16]) {
+        decode_to_utf16(EUC_JP, bytes, expect);
+    }
+
+    fn decode_euc_jp_to_utf8(bytes: &[u8], expect: &str) {
+        decode_to_utf8(EUC_JP, bytes, expect);
+    }
+
+    fn encode_euc_jp_from_utf16(string: &[u16], expect: &[u8]) {
+        encode_from_utf16(EUC_JP, string, expect);
+    }
+
+    fn encode_euc_jp_from_utf8(string: &str, expect: &[u8]) {
+        encode_from_utf8(EUC_JP, string, expect);
+    }
+
+    #[test]
+    fn test_euc_jp_decode() {
+        // ASCII
+        decode_euc_jp_to_utf16(b"\x61\x62", &[0x0061u16, 0x0062u16]);
+
+        // Half-width
+        decode_euc_jp_to_utf16(b"\x8E\xA1", &[0xFF61u16]);
+
+        // ASCII
+        decode_euc_jp_to_utf8(b"\x61\x62", "\u{0061}\u{0062}");
+    }
+
+    #[test]
+    fn test_euc_jp_encode() {
+        // ASCII
+        encode_euc_jp_from_utf16(&[0x0061u16, 0x0062u16], b"\x61\x62");
+
+        // ASCII
+        encode_euc_jp_from_utf8("\u{0061}\u{0062}", b"\x61\x62");
+    }
 
 }
