@@ -168,10 +168,6 @@ impl<'a, 'b> Utf16AstralHandle<'a, 'b>
         self.dest.written()
     }
     #[inline(always)]
-    pub fn write_char(self, c: char) {
-        self.dest.write_char(c);
-    }
-    #[inline(always)]
     pub fn write_char_excl_ascii(self, c: char) {
         self.dest.write_char(c);
     }
@@ -245,15 +241,6 @@ impl<'a> Utf16Destination<'a> {
     }
     #[inline(always)]
     fn write_char(&mut self, c: char) {
-        if c <= '\u{FFFF}' {
-            self.write_code_unit(c as u16);
-        } else {
-            self.write_astral(c as u32);
-        }
-    }
-    #[inline(always)]
-    fn write_char_excl_ascii(&mut self, c: char) {
-        debug_assert!(c >= '\u{80}');
         if c <= '\u{FFFF}' {
             self.write_code_unit(c as u16);
         } else {
@@ -442,17 +429,6 @@ impl<'a> Utf8Destination<'a> {
         if c <= '\u{7F}' {
             self.write_ascii(c as u8);
         } else if c <= '\u{0800}' {
-            self.write_mid_bmp(c as u16);
-        } else if c <= '\u{FFFF}' {
-            self.write_upper_bmp(c as u16);
-        } else {
-            self.write_astral(c as u32);
-        }
-    }
-    #[inline(always)]
-    fn write_char_excl_ascii(&mut self, c: char) {
-        debug_assert!(c >= '\u{80}');
-        if c <= '\u{0800}' {
             self.write_mid_bmp(c as u16);
         } else if c <= '\u{FFFF}' {
             self.write_upper_bmp(c as u16);
@@ -851,10 +827,6 @@ impl<'a, 'b> ByteFourHandle<'a, 'b>
     #[inline(always)]
     pub fn write_two(self, first: u8, second: u8) {
         self.dest.write_two(first, second);
-    }
-    #[inline(always)]
-    pub fn write_three(self, first: u8, second: u8, third: u8) {
-        self.dest.write_three(first, second, third);
     }
     #[inline(always)]
     pub fn write_four(self, first: u8, second: u8, third: u8, fourth: u8) {
