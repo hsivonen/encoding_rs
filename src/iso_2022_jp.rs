@@ -310,23 +310,27 @@ impl Iso2022JpEncoder {
     }
 
     pub fn max_buffer_length_from_utf16(&self, u16_length: usize) -> usize {
-        0 // TODO
+        // Worst case: every other character is ASCII/Roman and every other
+        // JIS0208.
+        // Two UTF-16 input units:
+        // Transition to Roman: 3
+        // Roman/ASCII: 1
+        // Transition to JIS0208: 3
+        // JIS0208: 2
+        // End transition: 3
+        (u16_length * 4) + ((u16_length + 1) / 2) + 3
     }
 
     pub fn max_buffer_length_from_utf8(&self, byte_length: usize) -> usize {
-        0 // TODO
-    }
-
-    pub fn max_buffer_length_from_utf16_with_replacement_if_no_unmappables(&self,
-                                                                           u16_length: usize)
-                                                                           -> usize {
-        0 // TODO
-    }
-
-    pub fn max_buffer_length_from_utf8_with_replacement_if_no_unmappables(&self,
-                                                                          byte_length: usize)
-                                                                          -> usize {
-        0 // TODO
+        // Worst case: every other character is ASCII/Roman and every other
+        // JIS0208.
+        // Three UTF-8 input units: 1 ASCII, 2 JIS0208
+        // Transition to ASCII: 3
+        // Roman/ASCII: 1
+        // Transition to JIS0208: 3
+        // JIS0208: 2
+        // End transition: 3
+        (byte_length * 3) + 3
     }
 
     encoder_functions!({
@@ -369,7 +373,7 @@ impl Iso2022JpEncoder {
                                    // again in the Jis0208 state, but this
                                    // encoder is not worth optimizing.
                                    if c == '\u{2212}' || jis0208_encode(c) != usize::max_value() {
-                                       self.state = Iso2022JpEncoderState::Roman;
+                                       self.state = Iso2022JpEncoderState::Jis0208;
                                        destination_handle.write_three(0x1Bu8, 0x24u8, 0x42u8);
                                        unread_handle.unread();
                                        continue;
@@ -406,7 +410,7 @@ impl Iso2022JpEncoder {
                                    // again in the Jis0208 state, but this
                                    // encoder is not worth optimizing.
                                    if c == '\u{2212}' || jis0208_encode(c) != usize::max_value() {
-                                       self.state = Iso2022JpEncoderState::Roman;
+                                       self.state = Iso2022JpEncoderState::Jis0208;
                                        destination_handle.write_three(0x1Bu8, 0x24u8, 0x42u8);
                                        unread_handle.unread();
                                        continue;
