@@ -204,9 +204,20 @@ mod tests {
 
         // Half-width
         decode_euc_jp_to_utf16(b"\x8E\xA1", &[0xFF61u16]);
+        decode_euc_jp_to_utf16(b"\x8E\xDF", &[0xFF9Fu16]);
+        decode_euc_jp_to_utf16(b"\x8E\xA0", &[0xFFFDu16, 0xFFFDu16]);
+        decode_euc_jp_to_utf16(b"\x8E\xE0", &[0xFFFDu16]);
+        decode_euc_jp_to_utf16(b"\x8E\xFF", &[0xFFFDu16, 0xFFFDu16]);
 
         // ASCII
         decode_euc_jp_to_utf8(b"\x61\x62", "\u{0061}\u{0062}");
+
+        // Half-width
+        decode_euc_jp_to_utf8(b"\x8E\xA1", "\u{FF61}");
+        decode_euc_jp_to_utf8(b"\x8E\xDF", "\u{FF9F}");
+        decode_euc_jp_to_utf8(b"\x8E\xA0", "\u{FFFD}\u{FFFD}");
+        decode_euc_jp_to_utf8(b"\x8E\xE0", "\u{FFFD}");
+        decode_euc_jp_to_utf8(b"\x8E\xFF", "\u{FFFD}\u{FFFD}");
     }
 
     #[test]
