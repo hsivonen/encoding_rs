@@ -30,16 +30,16 @@ impl Utf8Decoder {
         })
     }
 
-    pub fn max_utf16_buffer_length(&self, u16_length: usize) -> usize {
-        u16_length
+    pub fn max_utf16_buffer_length(&self, byte_length: usize) -> usize {
+        byte_length + 1
     }
 
     pub fn max_utf8_buffer_length(&self, byte_length: usize) -> usize {
-        byte_length * 3
+        byte_length + 3
     }
 
     pub fn max_utf8_buffer_length_with_replacement(&self, byte_length: usize) -> usize {
-        byte_length * 3
+        byte_length * 3 + 3
     }
 
     decoder_functions!({},

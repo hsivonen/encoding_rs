@@ -224,157 +224,83 @@ mod tests {
     use super::super::testing::*;
     use super::super::*;
 
-    fn decode_big5_to_utf16(bytes: &[u8], expect: &[u16]) {
-        decode_to_utf16(BIG5, bytes, expect);
+    fn decode_big5(bytes: &[u8], expect: &str) {
+        decode(BIG5, bytes, expect);
     }
 
-    fn decode_big5_to_utf8(bytes: &[u8], expect: &str) {
-        decode_to_utf8(BIG5, bytes, expect);
-    }
-
-    fn encode_big5_from_utf16(string: &[u16], expect: &[u8]) {
-        encode_from_utf16(BIG5, string, expect);
-    }
-
-    fn encode_big5_from_utf8(string: &str, expect: &[u8]) {
-        encode_from_utf8(BIG5, string, expect);
+    fn encode_big5(string: &str, expect: &[u8]) {
+        encode(BIG5, string, expect);
     }
 
     #[test]
     fn test_big5_decode() {
         // ASCII
-        decode_big5_to_utf16(&[0x61u8, 0x62u8], &[0x0061u16, 0x0062u16]);
+        decode_big5(&[0x61u8, 0x62u8], &"\u{0061}\u{0062}");
         // Edge cases
-        decode_big5_to_utf16(&[0x87u8, 0x40u8], &[0x43F0u16]);
-        decode_big5_to_utf16(&[0xFEu8, 0xFEu8], &[0x79D4u16]);
-        decode_big5_to_utf16(&[0xFEu8, 0xFDu8], &[0xD864u16, 0xDD0Du16]);
-        decode_big5_to_utf16(&[0x88u8, 0x62u8], &[0x00CAu16, 0x0304u16]);
-        decode_big5_to_utf16(&[0x88u8, 0x64u8], &[0x00CAu16, 0x030Cu16]);
-        decode_big5_to_utf16(&[0x88u8, 0x66u8], &[0x00CAu16]);
-        decode_big5_to_utf16(&[0x88u8, 0xA3u8], &[0x00EAu16, 0x0304u16]);
-        decode_big5_to_utf16(&[0x88u8, 0xA5u8], &[0x00EAu16, 0x030Cu16]);
-        decode_big5_to_utf16(&[0x88u8, 0xA7u8], &[0x00EAu16]);
-        decode_big5_to_utf16(&[0x99u8, 0xD4u8], &[0x8991u16]);
-        decode_big5_to_utf16(&[0x99u8, 0xD5u8], &[0xD85Eu16, 0xDD67u16]);
-        decode_big5_to_utf16(&[0x99u8, 0xD6u8], &[0x8A29u16]);
+        decode_big5(&[0x87u8, 0x40u8], &"\u{43F0}");
+        decode_big5(&[0xFEu8, 0xFEu8], &"\u{79D4}");
+        decode_big5(&[0xFEu8, 0xFDu8], &"\u{2910D}");
+        decode_big5(&[0x88u8, 0x62u8], &"\u{00CA}\u{0304}");
+        decode_big5(&[0x88u8, 0x64u8], &"\u{00CA}\u{030C}");
+        decode_big5(&[0x88u8, 0x66u8], &"\u{00CA}");
+        decode_big5(&[0x88u8, 0xA3u8], &"\u{00EA}\u{0304}");
+        decode_big5(&[0x88u8, 0xA5u8], &"\u{00EA}\u{030C}");
+        decode_big5(&[0x88u8, 0xA7u8], &"\u{00EA}");
+        decode_big5(&[0x99u8, 0xD4u8], &"\u{8991}");
+        decode_big5(&[0x99u8, 0xD5u8], &"\u{27967}");
+        decode_big5(&[0x99u8, 0xD6u8], &"\u{8A29}");
         // Edge cases surrounded with ASCII
-        decode_big5_to_utf16(&[0x61u8, 0x87u8, 0x40u8, 0x62u8],
-                             &[0x0061u16, 0x43F0u16, 0x0062u16]);
-        decode_big5_to_utf16(&[0x61u8, 0xFEu8, 0xFEu8, 0x62u8],
-                             &[0x0061u16, 0x79D4u16, 0x0062u16]);
-        decode_big5_to_utf16(&[0x61u8, 0xFEu8, 0xFDu8, 0x62u8],
-                             &[0x0061u16, 0xD864u16, 0xDD0Du16, 0x0062u16]);
-        decode_big5_to_utf16(&[0x61u8, 0x88u8, 0x62u8, 0x62u8],
-                             &[0x0061u16, 0x00CAu16, 0x0304u16, 0x0062u16]);
-        decode_big5_to_utf16(&[0x61u8, 0x88u8, 0x64u8, 0x62u8],
-                             &[0x0061u16, 0x00CAu16, 0x030Cu16, 0x0062u16]);
-        decode_big5_to_utf16(&[0x61u8, 0x88u8, 0x66u8, 0x62u8],
-                             &[0x0061u16, 0x00CAu16, 0x0062u16]);
-        decode_big5_to_utf16(&[0x61u8, 0x88u8, 0xA3u8, 0x62u8],
-                             &[0x0061u16, 0x00EAu16, 0x0304u16, 0x0062u16]);
-        decode_big5_to_utf16(&[0x61u8, 0x88u8, 0xA5u8, 0x62u8],
-                             &[0x0061u16, 0x00EAu16, 0x030Cu16, 0x0062u16]);
-        decode_big5_to_utf16(&[0x61u8, 0x88u8, 0xA7u8, 0x62u8],
-                             &[0x0061u16, 0x00EAu16, 0x0062u16]);
-        decode_big5_to_utf16(&[0x61u8, 0x99u8, 0xD4u8, 0x62u8],
-                             &[0x0061u16, 0x8991u16, 0x0062u16]);
-        decode_big5_to_utf16(&[0x61u8, 0x99u8, 0xD5u8, 0x62u8],
-                             &[0x0061u16, 0xD85Eu16, 0xDD67u16, 0x0062u16]);
-        decode_big5_to_utf16(&[0x61u8, 0x99u8, 0xD6u8, 0x62u8],
-                             &[0x0061u16, 0x8A29u16, 0x0062u16]);
-        // Bad sequences
-        decode_big5_to_utf16(&[0x80u8, 0x61u8], &[0xFFFDu16, 0x0061u16]);
-        decode_big5_to_utf16(&[0xFFu8, 0x61u8], &[0xFFFDu16, 0x0061u16]);
-        decode_big5_to_utf16(&[0xFEu8, 0x39u8], &[0xFFFDu16, 0x0039u16]);
-        decode_big5_to_utf16(&[0x87u8, 0x66u8], &[0xFFFDu16, 0x0066u16]);
-        decode_big5_to_utf16(&[0x81u8, 0x40u8], &[0xFFFDu16, 0x0040u16]);
-        decode_big5_to_utf16(&[0x61u8, 0x81u8], &[0x0061u16, 0xFFFDu16]);
-
-        // ASCII
-        decode_big5_to_utf8(&[0x61u8, 0x62u8], &"\u{0061}\u{0062}");
-        // Edge cases
-        decode_big5_to_utf8(&[0x87u8, 0x40u8], &"\u{43F0}");
-        decode_big5_to_utf8(&[0xFEu8, 0xFEu8], &"\u{79D4}");
-        decode_big5_to_utf8(&[0xFEu8, 0xFDu8], &"\u{2910D}");
-        decode_big5_to_utf8(&[0x88u8, 0x62u8], &"\u{00CA}\u{0304}");
-        decode_big5_to_utf8(&[0x88u8, 0x64u8], &"\u{00CA}\u{030C}");
-        decode_big5_to_utf8(&[0x88u8, 0x66u8], &"\u{00CA}");
-        decode_big5_to_utf8(&[0x88u8, 0xA3u8], &"\u{00EA}\u{0304}");
-        decode_big5_to_utf8(&[0x88u8, 0xA5u8], &"\u{00EA}\u{030C}");
-        decode_big5_to_utf8(&[0x88u8, 0xA7u8], &"\u{00EA}");
-        decode_big5_to_utf8(&[0x99u8, 0xD4u8], &"\u{8991}");
-        decode_big5_to_utf8(&[0x99u8, 0xD5u8], &"\u{27967}");
-        decode_big5_to_utf8(&[0x99u8, 0xD6u8], &"\u{8A29}");
-        // Edge cases surrounded with ASCII
-        decode_big5_to_utf8(&[0x61u8, 0x87u8, 0x40u8, 0x62u8],
+        decode_big5(&[0x61u8, 0x87u8, 0x40u8, 0x62u8],
                             &"\u{0061}\u{43F0}\u{0062}");
-        decode_big5_to_utf8(&[0x61u8, 0xFEu8, 0xFEu8, 0x62u8],
+        decode_big5(&[0x61u8, 0xFEu8, 0xFEu8, 0x62u8],
                             &"\u{0061}\u{79D4}\u{0062}");
-        decode_big5_to_utf8(&[0x61u8, 0xFEu8, 0xFDu8, 0x62u8],
+        decode_big5(&[0x61u8, 0xFEu8, 0xFDu8, 0x62u8],
                             &"\u{0061}\u{2910D}\u{0062}");
-        decode_big5_to_utf8(&[0x61u8, 0x88u8, 0x62u8, 0x62u8],
+        decode_big5(&[0x61u8, 0x88u8, 0x62u8, 0x62u8],
                             &"\u{0061}\u{00CA}\u{0304}\u{0062}");
-        decode_big5_to_utf8(&[0x61u8, 0x88u8, 0x64u8, 0x62u8],
+        decode_big5(&[0x61u8, 0x88u8, 0x64u8, 0x62u8],
                             &"\u{0061}\u{00CA}\u{030C}\u{0062}");
-        decode_big5_to_utf8(&[0x61u8, 0x88u8, 0x66u8, 0x62u8],
+        decode_big5(&[0x61u8, 0x88u8, 0x66u8, 0x62u8],
                             &"\u{0061}\u{00CA}\u{0062}");
-        decode_big5_to_utf8(&[0x61u8, 0x88u8, 0xA3u8, 0x62u8],
+        decode_big5(&[0x61u8, 0x88u8, 0xA3u8, 0x62u8],
                             &"\u{0061}\u{00EA}\u{0304}\u{0062}");
-        decode_big5_to_utf8(&[0x61u8, 0x88u8, 0xA5u8, 0x62u8],
+        decode_big5(&[0x61u8, 0x88u8, 0xA5u8, 0x62u8],
                             &"\u{0061}\u{00EA}\u{030C}\u{0062}");
-        decode_big5_to_utf8(&[0x61u8, 0x88u8, 0xA7u8, 0x62u8],
+        decode_big5(&[0x61u8, 0x88u8, 0xA7u8, 0x62u8],
                             &"\u{0061}\u{00EA}\u{0062}");
-        decode_big5_to_utf8(&[0x61u8, 0x99u8, 0xD4u8, 0x62u8],
+        decode_big5(&[0x61u8, 0x99u8, 0xD4u8, 0x62u8],
                             &"\u{0061}\u{8991}\u{0062}");
-        decode_big5_to_utf8(&[0x61u8, 0x99u8, 0xD5u8, 0x62u8],
+        decode_big5(&[0x61u8, 0x99u8, 0xD5u8, 0x62u8],
                             &"\u{0061}\u{27967}\u{0062}");
-        decode_big5_to_utf8(&[0x61u8, 0x99u8, 0xD6u8, 0x62u8],
+        decode_big5(&[0x61u8, 0x99u8, 0xD6u8, 0x62u8],
                             &"\u{0061}\u{8A29}\u{0062}");
         // Bad sequences
-        decode_big5_to_utf8(&[0x80u8, 0x61u8], &"\u{FFFD}\u{0061}");
-        decode_big5_to_utf8(&[0xFFu8, 0x61u8], &"\u{FFFD}\u{0061}");
-        decode_big5_to_utf8(&[0xFEu8, 0x39u8], &"\u{FFFD}\u{0039}");
-        decode_big5_to_utf8(&[0x87u8, 0x66u8], &"\u{FFFD}\u{0066}");
-        decode_big5_to_utf8(&[0x81u8, 0x40u8], &"\u{FFFD}\u{0040}");
-        decode_big5_to_utf8(&[0x61u8, 0x81u8], &"\u{0061}\u{FFFD}");
+        decode_big5(&[0x80u8, 0x61u8], &"\u{FFFD}\u{0061}");
+        decode_big5(&[0xFFu8, 0x61u8], &"\u{FFFD}\u{0061}");
+        decode_big5(&[0xFEu8, 0x39u8], &"\u{FFFD}\u{0039}");
+        decode_big5(&[0x87u8, 0x66u8], &"\u{FFFD}\u{0066}");
+        decode_big5(&[0x81u8, 0x40u8], &"\u{FFFD}\u{0040}");
+        decode_big5(&[0x61u8, 0x81u8], &"\u{0061}\u{FFFD}");
     }
 
     #[test]
     fn test_big5_encode() {
         // ASCII
-        encode_big5_from_utf16(&[0x0061u16, 0x0062u16], b"\x61\x62");
+        encode_big5("\u{0061}\u{0062}", b"\x61\x62");
         // Edge cases
-        encode_big5_from_utf16(&[0x9EA6u16, 0x0061u16], b"&#40614;\x61");
-        encode_big5_from_utf16(&[0xD858u16, 0xDE6Bu16, 0x0061u16], b"&#156267;\x61");
-        encode_big5_from_utf16(&[0x3000u16], b"\xA1\x40");
-        encode_big5_from_utf16(&[0x20ACu16], b"\xA3\xE1");
-        encode_big5_from_utf16(&[0x4E00u16], b"\xA4\x40");
-        encode_big5_from_utf16(&[0xD85Du16, 0xDE07u16], b"\xC8\xA4");
-        encode_big5_from_utf16(&[0xFFE2u16], b"\xC8\xCD");
-        encode_big5_from_utf16(&[0x79D4u16], b"\xFE\xFE");
+        encode_big5("\u{9EA6}\u{0061}", b"&#40614;\x61");
+        encode_big5("\u{2626B}\u{0061}", b"&#156267;\x61");
+        encode_big5("\u{3000}", b"\xA1\x40");
+        encode_big5("\u{20AC}", b"\xA3\xE1");
+        encode_big5("\u{4E00}", b"\xA4\x40");
+        encode_big5("\u{27607}", b"\xC8\xA4");
+        encode_big5("\u{FFE2}", b"\xC8\xCD");
+        encode_big5("\u{79D4}", b"\xFE\xFE");
         // Not in index
-        encode_big5_from_utf16(&[0x2603u16, 0x0061u16], b"&#9731;\x61");
+        encode_big5("\u{2603}\u{0061}", b"&#9731;\x61");
         // duplicate low bits
-        encode_big5_from_utf16(&[0xD840u16, 0xDFB5u16], b"\xFD\x6A");
+        encode_big5("\u{203B5}", b"\xFD\x6A");
         // prefer last
-        encode_big5_from_utf16(&[0x2550u16], b"\xF9\xF9");
-
-        // ASCII
-        encode_big5_from_utf8("\u{0061}\u{0062}", b"\x61\x62");
-        // Edge cases
-        encode_big5_from_utf8("\u{9EA6}\u{0061}", b"&#40614;\x61");
-        encode_big5_from_utf8("\u{2626B}\u{0061}", b"&#156267;\x61");
-        encode_big5_from_utf8("\u{3000}", b"\xA1\x40");
-        encode_big5_from_utf8("\u{20AC}", b"\xA3\xE1");
-        encode_big5_from_utf8("\u{4E00}", b"\xA4\x40");
-        encode_big5_from_utf8("\u{27607}", b"\xC8\xA4");
-        encode_big5_from_utf8("\u{FFE2}", b"\xC8\xCD");
-        encode_big5_from_utf8("\u{79D4}", b"\xFE\xFE");
-        // Not in index
-        encode_big5_from_utf8("\u{2603}\u{0061}", b"&#9731;\x61");
-        // duplicate low bits
-        encode_big5_from_utf8("\u{203B5}", b"\xFD\x6A");
-        // prefer last
-        encode_big5_from_utf8("\u{2550}", b"\xF9\xF9");
+        encode_big5("\u{2550}", b"\xF9\xF9");
     }
 }

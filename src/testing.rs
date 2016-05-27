@@ -9,6 +9,16 @@
 
 use super::*;
 
+pub fn decode(encoding: &'static Encoding, bytes: &[u8], expect: &str) {
+    decode_to_utf8(encoding, bytes, expect);
+    decode_to_utf16(encoding, bytes, &utf16_from_utf8(expect)[..]);
+}
+
+pub fn encode(encoding: &'static Encoding, string: &str, expect: &[u8]) {
+    encode_from_utf8(encoding, string, expect);
+    encode_from_utf16(encoding, &utf16_from_utf8(string)[..], expect);
+}
+
 pub fn decode_to_utf16(encoding: &'static Encoding, bytes: &[u8], expect: &[u16]) {
     let mut decoder = encoding.new_decoder();
     let mut dest: Vec<u16> = Vec::with_capacity(decoder.max_utf16_buffer_length(bytes.len()));
@@ -88,4 +98,23 @@ pub fn encode_from_utf16(encoding: &'static Encoding, string: &[u16], expect: &[
     assert_eq!(written, expect.len());
     dest.truncate(written);
     assert_eq!(&dest[..], expect);
+}
+
+pub fn utf16_from_utf8(string: &str) -> Vec<u16> {
+    let mut decoder = UTF_8.new_decoder_without_bom_handling();
+    let mut vec = Vec::with_capacity(decoder.max_utf16_buffer_length(string.len()));
+    let capacity = vec.capacity();
+    vec.resize(capacity, 0);
+    println!("UTF-8 len {}, UTF-16 len {}", string.len(), vec.len());
+
+    let (result, read, written) = decoder.decode_to_utf16(string.as_bytes(), &mut vec[..], true);
+    match result {
+        DecoderResult::InputEmpty => {
+            debug_assert_eq!(read, string.len());
+            vec.resize(written, 0);
+            vec
+        }
+        DecoderResult::Malformed(_, _) => unreachable!("Malformed"),
+        DecoderResult::OutputFull => unreachable!("Output full"),
+    }
 }

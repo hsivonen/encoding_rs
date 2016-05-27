@@ -67,22 +67,15 @@ mod tests {
     use super::super::testing::*;
     use super::super::*;
 
-    fn decode_replacement_to_utf16(bytes: &[u8], expect: &[u16]) {
-        decode_to_utf16(REPLACEMENT, bytes, expect);
-    }
-
-    fn decode_replacement_to_utf8(bytes: &[u8], expect: &str) {
-        decode_to_utf8(REPLACEMENT, bytes, expect);
+    fn decode_replacement(bytes: &[u8], expect: &str) {
+        decode(REPLACEMENT, bytes, expect);
     }
 
     #[test]
     fn test_replacement_decode() {
-        decode_replacement_to_utf16(b"", &[]);
-        decode_replacement_to_utf16(b"A", &[0xFFFDu16]);
-        decode_replacement_to_utf16(b"AB", &[0xFFFDu16]);
-        decode_replacement_to_utf8(b"", "");
-        decode_replacement_to_utf8(b"A", "\u{FFFD}");
-        decode_replacement_to_utf8(b"AB", "\u{FFFD}");
+        decode_replacement(b"", "");
+        decode_replacement(b"A", "\u{FFFD}");
+        decode_replacement(b"AB", "\u{FFFD}");
     }
 
     #[test]
