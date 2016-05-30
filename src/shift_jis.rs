@@ -65,7 +65,7 @@ impl ShiftJisDecoder {
                                    continue;
                                }
                                if b >= 0xA1 && b <= 0xDF {
-                                   destination_handle.write_upper_bmp(0xFF61 + b as u16 - 0xA1);
+                                   destination_handle.write_upper_bmp(0xFF61 - 0xA1 + b as u16);
                                    continue;
                                }
                                if (b >= 0x81 && b <= 0x9F) || (b >= 0xE0 && b <= 0xFC) {
@@ -194,7 +194,60 @@ impl ShiftJisEncoder {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use super::super::testing::*;
     use super::super::*;
+
+    fn decode_shift_jis(bytes: &[u8], expect: &str) {
+        decode(SHIFT_JIS, bytes, expect);
+    }
+
+    fn encode_shift_jis(string: &str, expect: &[u8]) {
+        encode(SHIFT_JIS, string, expect);
+    }
+
+    #[test]
+    fn test_shift_jis_decode() {
+        // ASCII
+        decode_shift_jis(b"\x61\x62", "\u{0061}\u{0062}");
+
+        // Half-width
+        decode_shift_jis(b"\xA1", "\u{FF61}");
+        decode_shift_jis(b"\xDF", "\u{FF9F}");
+        decode_shift_jis(b"\xA0", "\u{FFFD}");
+        decode_shift_jis(b"\xE0", "\u{FFFD}");
+        decode_shift_jis(b"\xA0+", "\u{FFFD}+");
+        decode_shift_jis(b"\xE0+", "\u{FFFD}+");
+
+        // JIS 0208
+        decode_shift_jis(b"\x81\x40", "\u{3000}");
+        decode_shift_jis(b"\x81\x3F", "\u{FFFD}?");
+        // decode_shift_jis(b"\xAE\xFC", "\u{FF02}");
+        // decode_shift_jis(b"\xFE\xFE", "\u{FFFD}");
+        //
+    }
+
+    #[test]
+    fn test_shift_jis_encode() {
+        // ASCII
+        encode_shift_jis("\u{0061}\u{0062}", b"\x61\x62");
+
+        // Exceptional code points
+        encode_shift_jis("\u{0080}", b"\x80");
+        encode_shift_jis("\u{00A5}", b"\x5C");
+        encode_shift_jis("\u{203E}", b"\x7E");
+        encode_shift_jis("\u{2212}", b"\x81\x7C");
+
+        // Half-width
+        encode_shift_jis("\u{FF61}", b"\xA1");
+        encode_shift_jis("\u{FF9F}", b"\xDF");
+
+        // JIS 0212
+        encode_shift_jis("\u{02D8}", b"&#728;");
+
+        // JIS 0208
+        encode_shift_jis("\u{3000}", b"\x81\x40");
+        // encode_shift_jis("\u{FF02}", b"\xFC\xFE");
+        //
+    }
 
 }
