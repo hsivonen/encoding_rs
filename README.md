@@ -50,3 +50,29 @@ It is expected that encoding-rs will use code from rust-encoding.
 Evaluation of whether it makes sense to propose portions of encoding-rs to be
 adopted into rust-encoding will be best deferred until encoding-rs is further
 along as a prototype.
+
+## Roadmap
+
+- [x] Design the low-level API.
+- [x] Provide Rust-only convenience features (some BOM sniffing variants still
+      TODO).
+- [x] Provide an stl/gsl-flavored C++ API.
+- [x] Implement all decoders and encoders.
+- [ ] Add unit tests for all decoders and encoders.
+- [ ] Finish BOM sniffing variants in Rust-only convenience features.
+- [ ] Publish the crate on crates.io.
+- [ ] Create a solution for measuring performance.
+- [ ] Test the performance impact of omitting duplicate bound checks using
+      `unsafe`.
+- [ ] Accelerate ASCII conversions using SSE2 on x86.
+- [ ] Accelerate ASCII conversions using ALU register-sized operations on
+      non-x86 architectures (process an `usize` instead of `u8` at a time).
+- [ ] Use Björn Höhrmann's lookup table acceleration for UTF-8 as adapted to
+      Rust in rust-encoding.
+- [ ] Compress consecutive zeros CJK indices.
+- [ ] Provide an XPCOM/MFBT-flavored C++ API.
+- [ ] 
+- [ ] Replace uconv with encoding-rs in Gecko.
+- [ ] Implement the rust-encoding API in terms of encoding-rs.
+- [ ] Investigate the use of NEON on newer ARM CPUs that have a lesser penalty
+      on data flow from NEON to ALU registers.
