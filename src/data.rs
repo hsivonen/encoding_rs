@@ -4674,6 +4674,32 @@ pub fn jis0208_encode(c: char) -> usize {
         }
     }
 }
+
+#[inline(always)]
+pub fn shift_jis_encode(c: char) -> usize {
+    if c > '\u{FFE5}' {
+        return usize::max_value();
+    }
+    let bmp = c as u16;
+    let mut i = 0usize;
+    // No entries between 7807 and 8272
+    while i < 7808 {
+        if JIS0208[i] == bmp {
+            return i;
+        }
+        i += 1;
+    }
+    // No entries between 8834 and 10716
+    i = 10716;
+    while i < JIS0208.len() {
+        if JIS0208[i] == bmp {
+            return i;
+        }
+        i += 1;
+    }
+    return usize::max_value();
+}
+
 static EUC_KR_INDEX: [u16; 23940] = [0xAC02, 0xAC03, 0xAC05, 0xAC06, 0xAC0B, 0xAC0C, 0xAC0D,
                                      0xAC0E, 0xAC0F, 0xAC18, 0xAC1E, 0xAC1F, 0xAC21, 0xAC22,
                                      0xAC23, 0xAC25, 0xAC26, 0xAC27, 0xAC28, 0xAC29, 0xAC2A,

@@ -390,6 +390,33 @@ pub fn jis0208_encode(c: char) -> usize {
 }
 ''' % highest)
 
+data_file.write('''
+#[inline(always)]
+pub fn shift_jis_encode(c: char) -> usize {
+    if c > '\u{%X}' {
+        return usize::max_value();
+    }
+    let bmp = c as u16;
+    let mut i = 0usize;
+    // No entries between 7807 and 8272
+    while i < 7808 {
+        if JIS0208[i] == bmp {
+            return i;
+        }
+        i += 1;
+    }
+    // No entries between 8834 and 10716
+    i = 10716;
+    while i < JIS0208.len() {
+        if JIS0208[i] == bmp {
+            return i;
+        }
+        i += 1;
+    }
+    return usize::max_value();
+}
+''' % highest)
+
 # EUC-KR
 
 index = []
@@ -403,7 +430,8 @@ for code_point in indexes["euc-kr"]:
 
 # TODO: Compress away empty ranges
 
-data_file.write('''static EUC_KR_INDEX: [u16; %d] = [
+data_file.write('''
+static EUC_KR_INDEX: [u16; %d] = [
 ''' % len(index))
 
 for i in xrange(len(index)):

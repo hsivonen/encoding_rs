@@ -91,12 +91,13 @@ impl ShiftJisDecoder {
                            if (b >= 0x40 && b <= 0x7E) || (b >= 0x80 && b <= 0xFC) {
                                let pointer = (lead as usize - lead_offset) * 188usize +
                                              (b as usize - offset);
+                               if pointer >= 8836 && pointer <= 10528 {
+                                   destination_handle.write_upper_bmp((0xE000 - 8836 + pointer) as u16);
+                                   continue;
+                               }
                                let bmp = jis0208_decode(pointer);
                                if bmp != 0 {
                                    destination_handle.write_bmp_excl_ascii(bmp);
-                                   continue;
-                               } else if pointer >= 8836 && pointer <= 10528 {
-                                   destination_handle.write_upper_bmp((0xE000 + pointer - 8836) as u16);
                                    continue;
                                }
                            }
@@ -160,7 +161,7 @@ impl ShiftJisEncoder {
                                destination_handle.write_two(0x81u8, 0x7Cu8);
                                continue;
                            }
-                           let pointer = jis0208_encode(c);
+                           let pointer = shift_jis_encode(c);
                            if pointer == usize::max_value() {
                                return (EncoderResult::Unmappable(c),
                                        unread_handle.consumed(),
@@ -218,11 +219,21 @@ mod tests {
         decode_shift_jis(b"\xA0+", "\u{FFFD}+");
         decode_shift_jis(b"\xE0+", "\u{FFFD}+");
 
+        // EUDC
+        decode_shift_jis(b"\xF0\x40", "\u{E000}");
+        decode_shift_jis(b"\xF9\x40", "\u{E69C}");
+        decode_shift_jis(b"\xEA\xFC", "\u{FFFD}");
+        decode_shift_jis(b"\xF9\x41", "\u{FFFD}A");
+
         // JIS 0208
         decode_shift_jis(b"\x81\x40", "\u{3000}");
         decode_shift_jis(b"\x81\x3F", "\u{FFFD}?");
-        // decode_shift_jis(b"\xAE\xFC", "\u{FF02}");
-        // decode_shift_jis(b"\xFE\xFE", "\u{FFFD}");
+        decode_shift_jis(b"\xEE\xFC", "\u{FF02}");
+        decode_shift_jis(b"\xEE\xFD", "\u{FFFD}");
+        decode_shift_jis(b"\xFA\x40", "\u{2170}");
+        decode_shift_jis(b"\xFA\x3F", "\u{FFFD}?");
+        decode_shift_jis(b"\xFC\x4B", "\u{9ED1}");
+        decode_shift_jis(b"\xFC\x4C", "\u{FFFD}L");
         //
     }
 
@@ -241,13 +252,18 @@ mod tests {
         encode_shift_jis("\u{FF61}", b"\xA1");
         encode_shift_jis("\u{FF9F}", b"\xDF");
 
+        // EUDC
+        encode_shift_jis("\u{E000}", b"&#57344;");
+        encode_shift_jis("\u{E69C}", b"&#59036;");
+
         // JIS 0212
         encode_shift_jis("\u{02D8}", b"&#728;");
 
         // JIS 0208
         encode_shift_jis("\u{3000}", b"\x81\x40");
-        // encode_shift_jis("\u{FF02}", b"\xFC\xFE");
-        //
+        encode_shift_jis("\u{FF02}", b"\xFA\x57");
+        encode_shift_jis("\u{2170}", b"\xFA\x40");
+        encode_shift_jis("\u{9ED1}", b"\xFC\x4B");
     }
 
 }
