@@ -71,7 +71,6 @@ along as a prototype.
       Rust in rust-encoding.
 - [ ] Compress consecutive zeros CJK indices.
 - [ ] Provide an XPCOM/MFBT-flavored C++ API.
-- [ ] 
 - [ ] Replace uconv with encoding-rs in Gecko.
 - [ ] Implement the rust-encoding API in terms of encoding-rs.
 - [ ] Investigate the use of NEON on newer ARM CPUs that have a lesser penalty
