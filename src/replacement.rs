@@ -31,14 +31,14 @@ impl ReplacementDecoder {
         3
     }
 
-    fn decode(&mut self, src: &[u8], last: bool) -> (DecoderResult, usize, usize) {
+    fn decode(&mut self, src: &[u8]) -> (DecoderResult, usize, usize) {
         // Don't err if the input stream is empty. See
         // https://github.com/whatwg/encoding/issues/33
         if self.emitted || src.is_empty() {
             (DecoderResult::InputEmpty, src.len(), 0)
         } else {
             // We don't need to check if output has enough space, because
-            // everything is weird anyway if the caller of the `Encoder` API
+            // everything is weird anyway if the caller of the `Decoder` API
             // passes an output buffer that violates the minimum size rules.
             self.emitted = true;
             (DecoderResult::Malformed(1, 0), 1, 0)
@@ -48,17 +48,17 @@ impl ReplacementDecoder {
     pub fn decode_to_utf16(&mut self,
                            src: &[u8],
                            _dst: &mut [u16],
-                           last: bool)
+                           _last: bool)
                            -> (DecoderResult, usize, usize) {
-        self.decode(src, last)
+        self.decode(src)
     }
 
     pub fn decode_to_utf8(&mut self,
                           src: &[u8],
                           _dst: &mut [u8],
-                          last: bool)
+                          _last: bool)
                           -> (DecoderResult, usize, usize) {
-        self.decode(src, last)
+        self.decode(src)
     }
 }
 
