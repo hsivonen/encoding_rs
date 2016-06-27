@@ -60,6 +60,7 @@ along as a prototype.
 - [x] Implement all decoders and encoders.
 - [ ] Add unit tests for all decoders and encoders.
 - [ ] Finish BOM sniffing variants in Rust-only convenience features.
+- [ ] Document the API.
 - [ ] Publish the crate on crates.io.
 - [ ] Create a solution for measuring performance.
 - [ ] Test the performance impact of omitting duplicate bound checks using
@@ -69,7 +70,7 @@ along as a prototype.
       non-x86 architectures (process an `usize` instead of `u8` at a time).
 - [ ] Use Björn Höhrmann's lookup table acceleration for UTF-8 as adapted to
       Rust in rust-encoding.
-- [ ] Compress consecutive zeros CJK indices.
+- [ ] Compress consecutive zeros in CJK indices.
 - [ ] Provide an XPCOM/MFBT-flavored C++ API.
 - [ ] Replace uconv with encoding-rs in Gecko.
 - [ ] Implement the rust-encoding API in terms of encoding-rs.
