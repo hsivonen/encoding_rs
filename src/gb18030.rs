@@ -57,19 +57,19 @@ impl Gb18030Decoder {
         // ASCII: 1 to 1 (worst case)
         // gbk: 2 to 1
         // ranges: 4 to 1 or 4 to 2
-        self.extra_from_state(byte_length)
+        self.extra_from_state(byte_length) + 1
     }
 
     pub fn max_utf8_buffer_length(&self, byte_length: usize) -> usize {
         // ASCII: 1 to 1
-        // gbk: 2 to 2 or 2 to 3 (worst case: ratio 1.5)
+        // gbk: 2 to 2 or 2 to 3
         // ranges: 4 to 2, 4 to 3 or 4 to 4
-        let len = self.extra_from_state(byte_length);
-        len + ((len + 1) / 2)
+        // 0x80: 1 to 3 (worst case)
+        (self.extra_from_state(byte_length) * 3) + 1
     }
 
     pub fn max_utf8_buffer_length_with_replacement(&self, byte_length: usize) -> usize {
-        self.extra_from_state(byte_length) * 3
+        (self.extra_from_state(byte_length) * 3) + 1
     }
 
     decoder_functions!({
@@ -328,7 +328,57 @@ impl Gb18030Encoder {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use super::super::testing::*;
     use super::super::*;
+
+    fn decode_gb18030(bytes: &[u8], expect: &str) {
+        decode(GB18030, bytes, expect);
+    }
+
+    fn encode_gb18030(string: &str, expect: &[u8]) {
+        encode(GB18030, string, expect);
+    }
+
+    fn encode_gbk(string: &str, expect: &[u8]) {
+        encode(GBK, string, expect);
+    }
+
+    #[test]
+    fn test_gb18030_decode() {
+        // ASCII
+        decode_gb18030(b"\x61\x62", "\u{0061}\u{0062}");
+
+        // gbk-style euro
+        decode_gb18030(b"\x80", "\u{20AC}");
+        
+        // two bytes
+        decode_gb18030(b"\x81\x40", "\u{4E02}");
+        decode_gb18030(b"\x81\x7E", "\u{4E8A}");
+        decode_gb18030(b"\x81\x7F", "\u{FFFD}\u{007F}");
+        decode_gb18030(b"\x81\x80", "\u{4E90}");
+        decode_gb18030(b"\x81\xFE", "\u{4FA2}");
+        decode_gb18030(b"\xFE\x40", "\u{FA0C}");
+        decode_gb18030(b"\xFE\x7E", "\u{E843}");
+        decode_gb18030(b"\xFE\x7F", "\u{FFFD}\u{007F}");
+        decode_gb18030(b"\xFE\x80", "\u{4723}");
+        decode_gb18030(b"\xFE\xFE", "\u{E4C5}");
+        
+        // 0xFF
+        decode_gb18030(b"\xFF\x40", "\u{FFFD}\u{0040}");
+        
+        // Four bytes
+        decode_gb18030(b"\x81\x30\x81\x30", "\u{0080}");
+        decode_gb18030(b"\x81\x35\xF4\x37", "\u{E7C7}");
+        decode_gb18030(b"\x81\x37\xA3\x30", "\u{2603}");
+        decode_gb18030(b"\x94\x39\xDA\x33", "\u{1F4A9}");
+        
+    }
+
+    #[test]
+    fn test_gb18030_encode() {
+        // ASCII
+        encode_gb18030("\u{0061}\u{0062}", b"\x61\x62");
+
+    }
 
 }
