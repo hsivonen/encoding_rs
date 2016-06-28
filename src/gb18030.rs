@@ -350,7 +350,7 @@ mod tests {
 
         // gbk-style euro
         decode_gb18030(b"\x80", "\u{20AC}");
-        
+
         // two bytes
         decode_gb18030(b"\x81\x40", "\u{4E02}");
         decode_gb18030(b"\x81\x7E", "\u{4E8A}");
@@ -362,16 +362,16 @@ mod tests {
         decode_gb18030(b"\xFE\x7F", "\u{FFFD}\u{007F}");
         decode_gb18030(b"\xFE\x80", "\u{4723}");
         decode_gb18030(b"\xFE\xFE", "\u{E4C5}");
-        
+
         // 0xFF
         decode_gb18030(b"\xFF\x40", "\u{FFFD}\u{0040}");
-        
+
         // Four bytes
         decode_gb18030(b"\x81\x30\x81\x30", "\u{0080}");
         decode_gb18030(b"\x81\x35\xF4\x37", "\u{E7C7}");
         decode_gb18030(b"\x81\x37\xA3\x30", "\u{2603}");
         decode_gb18030(b"\x94\x39\xDA\x33", "\u{1F4A9}");
-        
+
     }
 
     #[test]
