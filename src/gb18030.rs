@@ -140,14 +140,10 @@ impl Gb18030Decoder {
                                self.second = 0;
                                self.third = 0;
                                if b >= 0x30 && b <= 0x39 {
-                                   let pointer = (((first as usize - 0x81) * 10 + second as usize -
-                                                   0x30) *
-                                                  126 +
-                                                  third as usize -
-                                                  0x81) *
-                                                 10 +
-                                                 b as usize -
-                                                 0x30;
+                                   let pointer = ((first as usize - 0x81) * (10 * 126 * 10)) +
+                                                 ((second as usize - 0x30) * (10 * 126)) +
+                                                 ((third as usize - 0x81) * 10) +
+                                                 (b as usize - 0x30);
                                    let c = gb18030_range_decode(pointer);
                                    if c != '\u{0}' {
                                        destination_handle.write_char_excl_ascii(c);
@@ -302,14 +298,13 @@ impl Gb18030Encoder {
                                        unread_handle.consumed(),
                                        destination_handle.written());
                            }
-                           let mut range_pointer = gb18030_range_encode(c);
-                           // This can be made better with %
-                           let first = range_pointer / 10 / 126 / 10;
-                           range_pointer -= first * 10 * 126 * 10;
-                           let second = range_pointer / 10 / 126;
-                           range_pointer -= second * 10 * 126;
-                           let third = range_pointer / 10;
-                           let fourth = range_pointer - third * 10;
+                           let range_pointer = gb18030_range_encode(c);
+                           let first = range_pointer / (10 * 126 * 10);
+                           let rem_first = range_pointer % (10 * 126 * 10);
+                           let second = rem_first / (10 * 126);
+                           let rem_second = rem_first % (10 * 126);
+                           let third = rem_second / 10;
+                           let fourth = rem_second % 10;
                            destination_handle.write_four((first + 0x81) as u8,
                                                          (second + 0x30) as u8,
                                                          (third + 0x81) as u8,
