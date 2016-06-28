@@ -348,8 +348,9 @@ mod tests {
         // ASCII
         decode_gb18030(b"\x61\x62", "\u{0061}\u{0062}");
 
-        // gbk-style euro
+        // euro
         decode_gb18030(b"\x80", "\u{20AC}");
+        decode_gb18030(b"\xA2\xE3", "\u{20AC}");
 
         // two bytes
         decode_gb18030(b"\x81\x40", "\u{4E02}");
@@ -363,6 +364,10 @@ mod tests {
         decode_gb18030(b"\xFE\x80", "\u{4723}");
         decode_gb18030(b"\xFE\xFE", "\u{E4C5}");
 
+        // The difference from the original GB18030
+        decode_gb18030(b"\xA3\xA0", "\u{3000}");
+        decode_gb18030(b"\xA1\xA1", "\u{3000}");
+
         // 0xFF
         decode_gb18030(b"\xFF\x40", "\u{FFFD}\u{0040}");
 
@@ -371,6 +376,11 @@ mod tests {
         decode_gb18030(b"\x81\x35\xF4\x37", "\u{E7C7}");
         decode_gb18030(b"\x81\x37\xA3\x30", "\u{2603}");
         decode_gb18030(b"\x94\x39\xDA\x33", "\u{1F4A9}");
+        decode_gb18030(b"\xE3\x32\x9A\x35", "\u{10FFFF}");
+        decode_gb18030(b"\xE3\x32\x9A\x36\x81\x30", "\u{FFFD}\u{0032}\u{309B8}");
+        decode_gb18030(b"\xE3\x32\x9A\x36\x81\x40",
+                       "\u{FFFD}\u{0032}\u{FFFD}\u{0036}\u{4E02}");
+        decode_gb18030(b"\xE3\x32\x9A", "\u{FFFD}"); // not \u{FFFD}\u{0032}\u{FFFD} !
 
     }
 
@@ -379,6 +389,58 @@ mod tests {
         // ASCII
         encode_gb18030("\u{0061}\u{0062}", b"\x61\x62");
 
+        // euro
+        encode_gb18030("\u{20AC}", b"\xA2\xE3");
+
+        // two bytes
+        encode_gb18030("\u{4E02}", b"\x81\x40");
+        encode_gb18030("\u{4E8A}", b"\x81\x7E");
+        encode_gb18030("\u{4E90}", b"\x81\x80");
+        encode_gb18030("\u{4FA2}", b"\x81\xFE");
+        encode_gb18030("\u{FA0C}", b"\xFE\x40");
+        encode_gb18030("\u{E843}", b"\xFE\x7E");
+        encode_gb18030("\u{4723}", b"\xFE\x80");
+        encode_gb18030("\u{E4C5}", b"\xFE\xFE");
+
+        // The difference from the original GB18030
+        encode_gb18030("\u{E5E5}", b"&#58853;");
+        encode_gb18030("\u{3000}", b"\xA1\xA1");
+
+        // Four bytes
+        encode_gb18030("\u{0080}", b"\x81\x30\x81\x30");
+        encode_gb18030("\u{E7C7}", b"\x81\x35\xF4\x37");
+        encode_gb18030("\u{2603}", b"\x81\x37\xA3\x30");
+        encode_gb18030("\u{1F4A9}", b"\x94\x39\xDA\x33");
+        encode_gb18030("\u{10FFFF}", b"\xE3\x32\x9A\x35");
     }
 
+    #[test]
+    fn test_gbk_encode() {
+        // ASCII
+        encode_gbk("\u{0061}\u{0062}", b"\x61\x62");
+
+        // euro
+        encode_gbk("\u{20AC}", b"\x80");
+
+        // two bytes
+        encode_gbk("\u{4E02}", b"\x81\x40");
+        encode_gbk("\u{4E8A}", b"\x81\x7E");
+        encode_gbk("\u{4E90}", b"\x81\x80");
+        encode_gbk("\u{4FA2}", b"\x81\xFE");
+        encode_gbk("\u{FA0C}", b"\xFE\x40");
+        encode_gbk("\u{E843}", b"\xFE\x7E");
+        encode_gbk("\u{4723}", b"\xFE\x80");
+        encode_gbk("\u{E4C5}", b"\xFE\xFE");
+
+        // The difference from the original gb18030
+        encode_gbk("\u{E5E5}", b"&#58853;");
+        encode_gbk("\u{3000}", b"\xA1\xA1");
+
+        // Four bytes
+        encode_gbk("\u{0080}", b"&#128;");
+        encode_gbk("\u{E7C7}", b"&#59335;");
+        encode_gbk("\u{2603}", b"&#9731;");
+        encode_gbk("\u{1F4A9}", b"&#128169;");
+        encode_gbk("\u{10FFFF}", b"&#1114111;");
+    }
 }
