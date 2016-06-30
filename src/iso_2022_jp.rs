@@ -438,9 +438,13 @@ impl Iso2022JpEncoder {
                                    }
                                    let pointer = jis0208_encode(c);
                                    if pointer == usize::max_value() {
+                                       // Transition to ASCII here in order
+                                       // not to make it the responsibility
+                                       // of the caller.
+                                       self.state = Iso2022JpEncoderState::Ascii;
                                        return (EncoderResult::Unmappable(c),
                                                unread_handle.consumed(),
-                                               destination_handle.written());
+                                               destination_handle.write_three_return_written(0x1Bu8, 0x28u8, 0x42u8));
                                    }
                                    let lead = (pointer / 94) + 0x21;
                                    let trail = (pointer % 94) + 0x21;
@@ -493,7 +497,7 @@ mod tests {
         decode_iso_2022_jp(b"\x1B$(C", "\u{FFFD}$(C"); // KR
         decode_iso_2022_jp(b"\x1B.A", "\u{FFFD}.A"); // Latin-1
         decode_iso_2022_jp(b"\x1B.F", "\u{FFFD}.F"); // Greek
-        decode_iso_2022_jp(b"\x1B(I", ""); // Kana
+        decode_iso_2022_jp(b"\x1B(I", ""); // Half-width Katakana
         decode_iso_2022_jp(b"\x1B$(O", "\u{FFFD}$(O"); // 2013
         decode_iso_2022_jp(b"\x1B$(P", "\u{FFFD}$(P"); // 2013
         decode_iso_2022_jp(b"\x1B$(Q", "\u{FFFD}$(Q"); // 2013
@@ -627,7 +631,35 @@ mod tests {
     #[test]
     fn test_iso_2022_jp_encode() {
         // ASCII
-        encode_iso_2022_jp("\u{0061}\u{0062}", b"\x61\x62");
+        encode_iso_2022_jp("ab", b"ab");
+        encode_iso_2022_jp("\u{1F4A9}", b"&#128169;");
+        encode_iso_2022_jp("\x1B", b"&#65533;");
+        encode_iso_2022_jp("\x0E", b"&#65533;");
+        encode_iso_2022_jp("\x0F", b"&#65533;");
+
+        // Roman
+        encode_iso_2022_jp("a\u{00A5}b", b"a\x1B(J\x5Cb\x1B(B");
+        encode_iso_2022_jp("a\u{203E}b", b"a\x1B(J\x7Eb\x1B(B");
+        encode_iso_2022_jp("a\u{00A5}b\x5C", b"a\x1B(J\x5Cb\x1B(B\x5C");
+        encode_iso_2022_jp("a\u{203E}b\x7E", b"a\x1B(J\x7Eb\x1B(B\x7E");
+        encode_iso_2022_jp("\u{00A5}\u{1F4A9}", b"\x1B(J\x5C&#128169;\x1B(B");
+        encode_iso_2022_jp("\u{00A5}\x1B", b"\x1B(J\x5C&#65533;\x1B(B");
+        encode_iso_2022_jp("\u{00A5}\x0E", b"\x1B(J\x5C&#65533;\x1B(B");
+        encode_iso_2022_jp("\u{00A5}\x0F", b"\x1B(J\x5C&#65533;\x1B(B");
+        encode_iso_2022_jp("\u{00A5}\u{58FA}", b"\x1B(J\x5C\x1B$B\x54\x64\x1B(B");
+
+        // Half-width Katakana
+        encode_iso_2022_jp("\u{FF61}", b"&#65377;");
+
+        // 0208
+        encode_iso_2022_jp("\u{58FA}", b"\x1B$B\x54\x64\x1B(B");
+        encode_iso_2022_jp("\u{58FA}\u{250F}", b"\x1B$B\x54\x64\x28\x2E\x1B(B");
+        encode_iso_2022_jp("\u{58FA}\u{1F4A9}", b"\x1B$B\x54\x64\x1B(B&#128169;");
+        encode_iso_2022_jp("\u{58FA}\x1B", b"\x1B$B\x54\x64\x1B(B&#65533;");
+        encode_iso_2022_jp("\u{58FA}\x0E", b"\x1B$B\x54\x64\x1B(B&#65533;");
+        encode_iso_2022_jp("\u{58FA}\x0F", b"\x1B$B\x54\x64\x1B(B&#65533;");
+        encode_iso_2022_jp("\u{58FA}\u{00A5}", b"\x1B$B\x54\x64\x1B(J\x5C\x1B(B");
+        encode_iso_2022_jp("\u{58FA}a", b"\x1B$B\x54\x64\x1B(Ba");
 
     }
 

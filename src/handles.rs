@@ -801,6 +801,11 @@ impl<'a, 'b> ByteThreeHandle<'a, 'b>
     pub fn write_three(self, first: u8, second: u8, third: u8) {
         self.dest.write_three(first, second, third);
     }
+    #[inline(always)]
+    pub fn write_three_return_written(self, first: u8, second: u8, third: u8) -> usize {
+        self.dest.write_three(first, second, third);
+        self.dest.written()
+    }
 }
 
 pub struct ByteFourHandle<'a, 'b>
