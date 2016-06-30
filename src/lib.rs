@@ -1198,7 +1198,8 @@ enum BomHandling {
     Remove,
 }
 
-/// Result of a (potentially partial) decode or operation with replacement.
+/// Result of a (potentially partial) decode or encode operation with
+/// replacement.
 #[derive(Debug)]
 pub enum WithReplacementResult {
     /// The input was exhausted.
