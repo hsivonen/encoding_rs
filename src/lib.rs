@@ -768,7 +768,7 @@ static ENCODINGS_IN_LABEL_SORT: [&'static Encoding; 218] = [IBM866,
 ///
 /// An _encoding_ defines a mapping from a `u8` sequence to a `char` sequence
 /// and, in most cases, vice versa. Each encoding has a name, an output
-/// encoding, and one or more labels and an output encoding.
+/// encoding, and one or more labels.
 ///
 /// _Labels_ are ASCII-case-insensitive strings that are used to identify an
 /// encoding in formats and protocols. The _name_ of the encoding is the
