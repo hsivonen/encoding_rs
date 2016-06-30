@@ -933,9 +933,9 @@ impl Encoding {
     /// return `None`.
     ///
     /// The motivating use case for this method is interoperability with
-    /// legacy Gecko code that represents encodings as DOM name string instead
-    /// of type-safe `Encoding` objects. Using this method for other purposes
-    /// is most likely the wrong thing to do.
+    /// legacy Gecko code that represents encodings as name string instead of
+    /// type-safe `Encoding` objects. Using this method for other purposes is
+    /// most likely the wrong thing to do.
     ///
     /// XXX: Should this method be made FFI-only to discourage Rust callers?
     ///
