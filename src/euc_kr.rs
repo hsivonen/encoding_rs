@@ -162,6 +162,8 @@ mod tests {
         decode_euc_kr(b"\x81\x5B", "\u{FFFD}\x5B");
         decode_euc_kr(b"\xFD\xFE", "\u{8A70}");
         decode_euc_kr(b"\xFE\x41", "\u{FFFD}\x41");
+        decode_euc_kr(b"\xFF\x41", "\u{FFFD}\x41");
+        decode_euc_kr(b"\x80\x41", "\u{FFFD}\x41");
     }
 
     #[test]

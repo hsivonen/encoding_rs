@@ -211,6 +211,27 @@ mod tests {
         decode_euc_jp(b"\xA1\xA0", "\u{FFFD}\u{FFFD}");
         decode_euc_jp(b"\xFC\xFE", "\u{FF02}");
         decode_euc_jp(b"\xFE\xFE", "\u{FFFD}");
+
+        // Bad leads
+        decode_euc_jp(b"\xFF\xA1\xA1", "\u{FFFD}\u{3000}");
+        decode_euc_jp(b"\xA0\xA1\xA1", "\u{FFFD}\u{3000}");
+        decode_euc_jp(b"\x80\xA1\xA1", "\u{FFFD}\u{3000}");
+        decode_euc_jp(b"\x81\xA1\xA1", "\u{FFFD}\u{3000}");
+        decode_euc_jp(b"\x82\xA1\xA1", "\u{FFFD}\u{3000}");
+        decode_euc_jp(b"\x83\xA1\xA1", "\u{FFFD}\u{3000}");
+        decode_euc_jp(b"\x84\xA1\xA1", "\u{FFFD}\u{3000}");
+        decode_euc_jp(b"\x85\xA1\xA1", "\u{FFFD}\u{3000}");
+        decode_euc_jp(b"\x86\xA1\xA1", "\u{FFFD}\u{3000}");
+        decode_euc_jp(b"\x87\xA1\xA1", "\u{FFFD}\u{3000}");
+        decode_euc_jp(b"\x88\xA1\xA1", "\u{FFFD}\u{3000}");
+        decode_euc_jp(b"\x89\xA1\xA1", "\u{FFFD}\u{3000}");
+        decode_euc_jp(b"\x8A\xA1\xA1", "\u{FFFD}\u{3000}");
+        decode_euc_jp(b"\x8B\xA1\xA1", "\u{FFFD}\u{3000}");
+        decode_euc_jp(b"\x8C\xA1\xA1", "\u{FFFD}\u{3000}");
+        decode_euc_jp(b"\x8D\xA1\xA1", "\u{FFFD}\u{3000}");
+
+        // Bad ASCII trail
+        decode_euc_jp(b"\xA1\x40", "\u{FFFD}\u{0040}");        
     }
 
     #[test]
