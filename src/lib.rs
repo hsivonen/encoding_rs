@@ -777,11 +777,6 @@ static ENCODINGS_IN_LABEL_SORT: [&'static Encoding; 218] = [IBM866,
 /// property of the `Document` DOM interface, except for the replacement
 /// encoding whose name is not one of its labels.
 ///
-/// For the time being, the Encoding Standard defines names to always be in
-/// the lower case. To obtain a name appropriate for returning from the
-/// `encoding` property of the `TextDecoder` DOM interface, convert the name
-/// returned by this API to ASCII lower case.
-///
 /// The _output encoding_ is the encoding using for form submission and URL
 /// parsing. This is UTF-8 for the replacement, UTF-16LE and UTF-16BE encodings
 /// and the encoding itself for other encodings.
