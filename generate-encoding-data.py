@@ -820,16 +820,6 @@ impl VariantEncoding {
             &VariantEncoding::Utf16Le => unreachable!(),
         }
     }
-
-    pub fn can_encode_everything(&self) -> bool {
-        match self {
-            &VariantEncoding::Utf8 |
-            &VariantEncoding::Utf16Be |
-            &VariantEncoding::Utf16Le |
-            &VariantEncoding::Replacement => true,
-            _ => false,
-        }
-    }
 }
 ''')
 
