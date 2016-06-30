@@ -194,7 +194,9 @@ mod tests {
 
     #[test]
     fn test_utf_16_encode() {
-        // encode_utf_16be("ab", b"ab");
+        // Encodes as UTF-8
+        encode_utf_16le("\u{1F4A9}\u{2603}", "\u{1F4A9}\u{2603}".as_bytes());
+        encode_utf_16be("\u{1F4A9}\u{2603}", "\u{1F4A9}\u{2603}".as_bytes());
     }
 
 }
