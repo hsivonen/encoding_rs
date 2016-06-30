@@ -29,15 +29,15 @@ impl Utf16Decoder {
     }
 
     pub fn max_utf16_buffer_length(&self, byte_length: usize) -> usize {
-        (byte_length + 1) / 2
+        ((byte_length + 1) / 2) + 1
     }
 
     pub fn max_utf8_buffer_length(&self, byte_length: usize) -> usize {
-        (byte_length / 2) * 3
+        ((byte_length + 1 / 2) * 3) + 1
     }
 
     pub fn max_utf8_buffer_length_with_replacement(&self, byte_length: usize) -> usize {
-        ((byte_length + 1) / 2) * 3
+        ((byte_length + 1 / 2) * 3) + 1
     }
 
     decoder_functions!({
@@ -65,6 +65,7 @@ impl Utf16Decoder {
                                                dest.written());
                                    }
                                    Some(_) => {
+                                       self.lead_byte = None;
                                        return (DecoderResult::Malformed(3, 0),
                                                src_consumed,
                                                dest.written());
@@ -74,6 +75,7 @@ impl Utf16Decoder {
                            match self.lead_byte {
                                None => {}
                                Some(_) => {
+                                   self.lead_byte = None;
                                    return (DecoderResult::Malformed(1, 0),
                                            src_consumed,
                                            dest.written());
@@ -87,6 +89,7 @@ impl Utf16Decoder {
                                    continue;
                                }
                                Some(lead) => {
+                                   self.lead_byte = None;
                                    let code_unit = if self.be {
                                        (lead as u16) << 8 | b as u16
                                    } else {
@@ -146,7 +149,52 @@ impl Utf16Decoder {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use super::super::testing::*;
     use super::super::*;
+
+    fn decode_utf_16le(bytes: &[u8], expect: &str) {
+        decode(UTF_16LE, bytes, expect);
+    }
+
+    fn decode_utf_16be(bytes: &[u8], expect: &str) {
+        decode(UTF_16BE, bytes, expect);
+    }
+
+    fn encode_utf_16le(string: &str, expect: &[u8]) {
+        encode(UTF_16LE, string, expect);
+    }
+
+    fn encode_utf_16be(string: &str, expect: &[u8]) {
+        encode(UTF_16BE, string, expect);
+    }
+
+    #[test]
+    fn test_utf_16_decode() {
+        decode_utf_16le(b"\x61\x00\x62\x00", "\u{0061}\u{0062}");
+        decode_utf_16be(b"\x00\x61\x00\x62", "\u{0061}\u{0062}");
+
+        decode_utf_16le(b"\xFE\xFF\x00\x61\x00\x62", "\u{0061}\u{0062}");
+        decode_utf_16be(b"\xFF\xFE\x61\x00\x62\x00", "\u{0061}\u{0062}");
+
+        decode_utf_16le(b"\x61\x00\x62", "\u{0061}\u{FFFD}");
+        decode_utf_16be(b"\x00\x61\x00", "\u{0061}\u{FFFD}");
+
+        decode_utf_16le(b"\x3D\xD8\xA9", "\u{FFFD}");
+        decode_utf_16be(b"\xD8\x3D\xDC", "\u{FFFD}");
+
+        decode_utf_16le(b"\x3D\xD8\xA9\xDC\x03\x26", "\u{1F4A9}\u{2603}");
+        decode_utf_16be(b"\xD8\x3D\xDC\xA9\x26\x03", "\u{1F4A9}\u{2603}");
+
+        decode_utf_16le(b"\xA9\xDC\x03\x26", "\u{FFFD}\u{2603}");
+        decode_utf_16be(b"\xDC\xA9\x26\x03", "\u{FFFD}\u{2603}");
+
+        decode_utf_16le(b"\x3D\xD8\x03\x26", "\u{FFFD}\u{2603}");
+        decode_utf_16be(b"\xD8\x3D\x26\x03", "\u{FFFD}\u{2603}");
+    }
+
+    #[test]
+    fn test_utf_16_encode() {
+        // encode_utf_16be("ab", b"ab");
+    }
 
 }
