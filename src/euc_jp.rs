@@ -231,7 +231,7 @@ mod tests {
         decode_euc_jp(b"\x8D\xA1\xA1", "\u{FFFD}\u{3000}");
 
         // Bad ASCII trail
-        decode_euc_jp(b"\xA1\x40", "\u{FFFD}\u{0040}");        
+        decode_euc_jp(b"\xA1\x40", "\u{FFFD}\u{0040}");
     }
 
     #[test]

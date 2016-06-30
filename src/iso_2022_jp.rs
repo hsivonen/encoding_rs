@@ -461,7 +461,174 @@ impl Iso2022JpEncoder {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use super::super::testing::*;
     use super::super::*;
+
+    fn decode_iso_2022_jp(bytes: &[u8], expect: &str) {
+        decode(ISO_2022_JP, bytes, expect);
+    }
+
+    fn encode_iso_2022_jp(string: &str, expect: &[u8]) {
+        encode(ISO_2022_JP, string, expect);
+    }
+
+    #[test]
+    fn test_iso_2022_jp_decode() {
+        // ASCII
+        decode_iso_2022_jp(b"\x61\x62", "\u{0061}\u{0062}");
+
+        // Partial escapes
+        decode_iso_2022_jp(b"\x1B", "\u{FFFD}");
+        decode_iso_2022_jp(b"\x1B$", "\u{FFFD}$");
+        decode_iso_2022_jp(b"\x1B(", "\u{FFFD}(");
+        decode_iso_2022_jp(b"\x1B.", "\u{FFFD}.");
+
+        // ISO escapes
+        decode_iso_2022_jp(b"\x1B(B", ""); // ASCII
+        decode_iso_2022_jp(b"\x1B(J", ""); // Roman
+        decode_iso_2022_jp(b"\x1B$@", ""); // 0208
+        decode_iso_2022_jp(b"\x1B$B", ""); // 0208
+        decode_iso_2022_jp(b"\x1B$(D", "\u{FFFD}$(D"); // 2012
+        decode_iso_2022_jp(b"\x1B$A", "\u{FFFD}$A"); // GB2312
+        decode_iso_2022_jp(b"\x1B$(C", "\u{FFFD}$(C"); // KR
+        decode_iso_2022_jp(b"\x1B.A", "\u{FFFD}.A"); // Latin-1
+        decode_iso_2022_jp(b"\x1B.F", "\u{FFFD}.F"); // Greek
+        decode_iso_2022_jp(b"\x1B(I", ""); // Kana
+        decode_iso_2022_jp(b"\x1B$(O", "\u{FFFD}$(O"); // 2013
+        decode_iso_2022_jp(b"\x1B$(P", "\u{FFFD}$(P"); // 2013
+        decode_iso_2022_jp(b"\x1B$(Q", "\u{FFFD}$(Q"); // 2013
+        decode_iso_2022_jp(b"\x1B$)C", "\u{FFFD}$)C"); // KR
+        decode_iso_2022_jp(b"\x1B$)A", "\u{FFFD}$)A"); // GB2312
+        decode_iso_2022_jp(b"\x1B$)G", "\u{FFFD}$)G"); // CNS
+        decode_iso_2022_jp(b"\x1B$*H", "\u{FFFD}$*H"); // CNS
+        decode_iso_2022_jp(b"\x1B$)E", "\u{FFFD}$)E"); // IR
+        decode_iso_2022_jp(b"\x1B$+I", "\u{FFFD}$+I"); // CNS
+        decode_iso_2022_jp(b"\x1B$+J", "\u{FFFD}$+J"); // CNS
+        decode_iso_2022_jp(b"\x1B$+K", "\u{FFFD}$+K"); // CNS
+        decode_iso_2022_jp(b"\x1B$+L", "\u{FFFD}$+L"); // CNS
+        decode_iso_2022_jp(b"\x1B$+M", "\u{FFFD}$+M"); // CNS
+        decode_iso_2022_jp(b"\x1B$(@", "\u{FFFD}$(@"); // 0208
+        decode_iso_2022_jp(b"\x1B$(A", "\u{FFFD}$(A"); // GB2312
+        decode_iso_2022_jp(b"\x1B$(B", "\u{FFFD}$(B"); // 0208
+        decode_iso_2022_jp(b"\x1B%G", "\u{FFFD}%G"); // UTF-8
+
+        // ASCII
+        decode_iso_2022_jp(b"\x5B", "\u{005B}");
+        decode_iso_2022_jp(b"\x5C", "\u{005C}");
+        decode_iso_2022_jp(b"\x7E", "\u{007E}");
+        decode_iso_2022_jp(b"\x0E", "\u{FFFD}");
+        decode_iso_2022_jp(b"\x0F", "\u{FFFD}");
+        decode_iso_2022_jp(b"\x80", "\u{FFFD}");
+        decode_iso_2022_jp(b"\xFF", "\u{FFFD}");
+        decode_iso_2022_jp(b"\x1B(B\x5B", "\u{005B}");
+        decode_iso_2022_jp(b"\x1B(B\x5C", "\u{005C}");
+        decode_iso_2022_jp(b"\x1B(B\x7E", "\u{007E}");
+        decode_iso_2022_jp(b"\x1B(B\x0E", "\u{FFFD}");
+        decode_iso_2022_jp(b"\x1B(B\x0F", "\u{FFFD}");
+        decode_iso_2022_jp(b"\x1B(B\x80", "\u{FFFD}");
+        decode_iso_2022_jp(b"\x1B(B\xFF", "\u{FFFD}");
+
+        // Roman
+        decode_iso_2022_jp(b"\x1B(J\x5B", "\u{005B}");
+        decode_iso_2022_jp(b"\x1B(J\x5C", "\u{00A5}");
+        decode_iso_2022_jp(b"\x1B(J\x7E", "\u{203E}");
+        decode_iso_2022_jp(b"\x1B(J\x0E", "\u{FFFD}");
+        decode_iso_2022_jp(b"\x1B(J\x0F", "\u{FFFD}");
+        decode_iso_2022_jp(b"\x1B(J\x80", "\u{FFFD}");
+        decode_iso_2022_jp(b"\x1B(J\xFF", "\u{FFFD}");
+
+        // Katakana
+        decode_iso_2022_jp(b"\x1B(I\x20", "\u{FFFD}");
+        decode_iso_2022_jp(b"\x1B(I\x21", "\u{FF61}");
+        decode_iso_2022_jp(b"\x1B(I\x5F", "\u{FF9F}");
+        decode_iso_2022_jp(b"\x1B(I\x60", "\u{FFFD}");
+        decode_iso_2022_jp(b"\x1B(I\x0E", "\u{FFFD}");
+        decode_iso_2022_jp(b"\x1B(I\x0F", "\u{FFFD}");
+        decode_iso_2022_jp(b"\x1B(I\x80", "\u{FFFD}");
+        decode_iso_2022_jp(b"\x1B(I\xFF", "\u{FFFD}");
+
+        // 0208 differences from 1978 to 1983
+        decode_iso_2022_jp(b"\x1B$@\x54\x64", "\u{58FA}");
+        decode_iso_2022_jp(b"\x1B$@\x44\x5B", "\u{58F7}");
+        decode_iso_2022_jp(b"\x1B$@\x74\x21", "\u{582F}");
+        decode_iso_2022_jp(b"\x1B$@\x36\x46", "\u{5C2D}");
+        decode_iso_2022_jp(b"\x1B$@\x28\x2E", "\u{250F}");
+        decode_iso_2022_jp(b"\x1B$B\x54\x64", "\u{58FA}");
+        decode_iso_2022_jp(b"\x1B$B\x44\x5B", "\u{58F7}");
+        decode_iso_2022_jp(b"\x1B$B\x74\x21", "\u{582F}");
+        decode_iso_2022_jp(b"\x1B$B\x36\x46", "\u{5C2D}");
+        decode_iso_2022_jp(b"\x1B$B\x28\x2E", "\u{250F}");
+
+        // Broken 0208
+        decode_iso_2022_jp(b"\x1B$B\x28\x41", "\u{FFFD}");
+        decode_iso_2022_jp(b"\x1B$@\x80\x54\x64", "\u{FFFD}\u{58FA}");
+        decode_iso_2022_jp(b"\x1B$B\x28\x80", "\u{FFFD}");
+
+        // Transitions
+        decode_iso_2022_jp(b"\x1B(B\x5C\x1B(J\x5C", "\u{005C}\u{00A5}");
+        decode_iso_2022_jp(b"\x1B(B\x5C\x1B(I\x21", "\u{005C}\u{FF61}");
+        decode_iso_2022_jp(b"\x1B(B\x5C\x1B$@\x54\x64", "\u{005C}\u{58FA}");
+        decode_iso_2022_jp(b"\x1B(B\x5C\x1B$B\x54\x64", "\u{005C}\u{58FA}");
+
+        decode_iso_2022_jp(b"\x1B(J\x5C\x1B(B\x5C", "\u{00A5}\u{005C}");
+        decode_iso_2022_jp(b"\x1B(J\x5C\x1B(I\x21", "\u{00A5}\u{FF61}");
+        decode_iso_2022_jp(b"\x1B(J\x5C\x1B$@\x54\x64", "\u{00A5}\u{58FA}");
+        decode_iso_2022_jp(b"\x1B(J\x5C\x1B$B\x54\x64", "\u{00A5}\u{58FA}");
+
+        decode_iso_2022_jp(b"\x1B(I\x21\x1B(J\x5C", "\u{FF61}\u{00A5}");
+        decode_iso_2022_jp(b"\x1B(I\x21\x1B(B\x5C", "\u{FF61}\u{005C}");
+        decode_iso_2022_jp(b"\x1B(I\x21\x1B$@\x54\x64", "\u{FF61}\u{58FA}");
+        decode_iso_2022_jp(b"\x1B(I\x21\x1B$B\x54\x64", "\u{FF61}\u{58FA}");
+
+        decode_iso_2022_jp(b"\x1B$@\x54\x64\x1B(J\x5C", "\u{58FA}\u{00A5}");
+        decode_iso_2022_jp(b"\x1B$@\x54\x64\x1B(I\x21", "\u{58FA}\u{FF61}");
+        decode_iso_2022_jp(b"\x1B$@\x54\x64\x1B(B\x5C", "\u{58FA}\u{005C}");
+        decode_iso_2022_jp(b"\x1B$@\x54\x64\x1B$B\x54\x64", "\u{58FA}\u{58FA}");
+
+        decode_iso_2022_jp(b"\x1B$B\x54\x64\x1B(J\x5C", "\u{58FA}\u{00A5}");
+        decode_iso_2022_jp(b"\x1B$B\x54\x64\x1B(I\x21", "\u{58FA}\u{FF61}");
+        decode_iso_2022_jp(b"\x1B$B\x54\x64\x1B$@\x54\x64", "\u{58FA}\u{58FA}");
+        decode_iso_2022_jp(b"\x1B$B\x54\x64\x1B(B\x5C", "\u{58FA}\u{005C}");
+
+        // Empty transitions
+        decode_iso_2022_jp(b"\x1B(B\x1B(J", "\u{FFFD}");
+        decode_iso_2022_jp(b"\x1B(B\x1B(I", "\u{FFFD}");
+        decode_iso_2022_jp(b"\x1B(B\x1B$@", "\u{FFFD}");
+        decode_iso_2022_jp(b"\x1B(B\x1B$B", "\u{FFFD}");
+
+        decode_iso_2022_jp(b"\x1B(J\x1B(B", "\u{FFFD}");
+        decode_iso_2022_jp(b"\x1B(J\x1B(I", "\u{FFFD}");
+        decode_iso_2022_jp(b"\x1B(J\x1B$@", "\u{FFFD}");
+        decode_iso_2022_jp(b"\x1B(J\x1B$B", "\u{FFFD}");
+
+        decode_iso_2022_jp(b"\x1B(I\x1B(J", "\u{FFFD}");
+        decode_iso_2022_jp(b"\x1B(I\x1B(B", "\u{FFFD}");
+        decode_iso_2022_jp(b"\x1B(I\x1B$@", "\u{FFFD}");
+        decode_iso_2022_jp(b"\x1B(I\x1B$B", "\u{FFFD}");
+
+        decode_iso_2022_jp(b"\x1B$@\x1B(J", "\u{FFFD}");
+        decode_iso_2022_jp(b"\x1B$@\x1B(I", "\u{FFFD}");
+        decode_iso_2022_jp(b"\x1B$@\x1B(B", "\u{FFFD}");
+        decode_iso_2022_jp(b"\x1B$@\x1B$B", "\u{FFFD}");
+
+        decode_iso_2022_jp(b"\x1B$B\x1B(J", "\u{FFFD}");
+        decode_iso_2022_jp(b"\x1B$B\x1B(I", "\u{FFFD}");
+        decode_iso_2022_jp(b"\x1B$B\x1B$@", "\u{FFFD}");
+        decode_iso_2022_jp(b"\x1B$B\x1B(B", "\u{FFFD}");
+
+        // Transitions to self
+        decode_iso_2022_jp(b"\x1B(B\x5C\x1B(B\x5C", "\u{005C}\u{005C}");
+        decode_iso_2022_jp(b"\x1B(J\x5C\x1B(J\x5C", "\u{00A5}\u{00A5}");
+        decode_iso_2022_jp(b"\x1B(I\x21\x1B(I\x21", "\u{FF61}\u{FF61}");
+        decode_iso_2022_jp(b"\x1B$@\x54\x64\x1B$@\x54\x64", "\u{58FA}\u{58FA}");
+        decode_iso_2022_jp(b"\x1B$B\x54\x64\x1B$B\x54\x64", "\u{58FA}\u{58FA}");
+    }
+
+    #[test]
+    fn test_iso_2022_jp_encode() {
+        // ASCII
+        encode_iso_2022_jp("\u{0061}\u{0062}", b"\x61\x62");
+
+    }
 
 }
