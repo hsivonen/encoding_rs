@@ -928,7 +928,7 @@ impl Encoding {
     }
 
     /// If the argument matches exactly (case-sensitively; no whitespace
-    /// removal performed) the DOM name of an encoding, returns
+    /// removal performed) the name of an encoding, returns
     /// `Some(&'static Encoding)` representing that encoding. Otherwise,
     /// return `None`.
     ///
@@ -940,12 +940,12 @@ impl Encoding {
     /// XXX: Should this method be made FFI-only to discourage Rust callers?
     ///
     /// Available via the C wrapper.
-    pub fn for_name(dom_name: &[u8]) -> Option<&'static Encoding> {
+    pub fn for_name(name: &[u8]) -> Option<&'static Encoding> {
         // XXX optimize this to binary search, potentially with a comparator
         // that reads the name from the end to start.
         for i in 0..ENCODINGS_SORTED_BY_NAME.len() {
             let encoding = ENCODINGS_SORTED_BY_NAME[i];
-            if dom_name == encoding.name().as_bytes() {
+            if name == encoding.name().as_bytes() {
                 return Some(ENCODINGS_IN_LABEL_SORT[i]);
             }
         }
