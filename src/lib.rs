@@ -1505,9 +1505,8 @@ impl Decoder {
         let mut total_read = 0usize;
         let mut total_written = 0usize;
         loop {
-            let (result, read, written) = self.decode_to_utf16(&src[total_read..],
-                                                               &mut dst[total_written..],
-                                                               last);
+            let (result, read, written) =
+                self.decode_to_utf16(&src[total_read..], &mut dst[total_written..], last);
             total_read += read;
             total_written += written;
             match result {
@@ -1550,9 +1549,8 @@ impl Decoder {
         let mut total_read = 0usize;
         let mut total_written = 0usize;
         loop {
-            let (result, read, written) = self.decode_to_utf8(&src[total_read..],
-                                                              &mut dst[total_written..],
-                                                              last);
+            let (result, read, written) =
+                self.decode_to_utf8(&src[total_read..], &mut dst[total_written..], last);
             total_read += read;
             total_written += written;
             match result {
@@ -1603,9 +1601,8 @@ impl Decoder {
                                           last: bool)
                                           -> (WithReplacementResult, usize, usize, bool) {
         let bytes: &mut [u8] = unsafe { std::mem::transmute(dst) };
-        let (result, read, written, replaced) = self.decode_to_utf8_with_replacement(src,
-                                                                                     bytes,
-                                                                                     last);
+        let (result, read, written, replaced) =
+            self.decode_to_utf8_with_replacement(src, bytes, last);
         let len = bytes.len();
         let mut trail = written;
         while trail < len && ((bytes[trail] & 0xC0) == 0x80) {
@@ -1887,10 +1884,9 @@ impl Encoder {
         let mut total_read = 0usize;
         let mut total_written = 0usize;
         loop {
-            let (result, read, written) =
-                self.encode_from_utf16(&src[total_read..],
-                                       &mut dst[total_written..effective_dst_len],
-                                       last);
+            let (result, read, written) = self.encode_from_utf16(&src[total_read..],
+                                   &mut dst[total_written..effective_dst_len],
+                                   last);
             total_read += read;
             total_written += written;
             match result {
@@ -1946,10 +1942,9 @@ impl Encoder {
         let mut total_read = 0usize;
         let mut total_written = 0usize;
         loop {
-            let (result, read, written) =
-                self.encode_from_utf8(&src[total_read..],
-                                      &mut dst[total_written..effective_dst_len],
-                                      last);
+            let (result, read, written) = self.encode_from_utf8(&src[total_read..],
+                                  &mut dst[total_written..effective_dst_len],
+                                  last);
             total_read += read;
             total_written += written;
             match result {
