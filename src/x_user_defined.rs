@@ -46,7 +46,7 @@ impl UserDefinedDecoder {
                        dest,
                        b,
                        destination_handle,
-                       unread_handle,
+                       _unread_handle,
                        check_space_bmp);
 }
 
