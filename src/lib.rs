@@ -1307,9 +1307,7 @@ pub enum DecoderResult {
 /// The boolean argument `last` indicates that the end of the stream is reached
 /// when all the bytes in `src` have been consumed.
 ///
-/// A `Decoder` object can be used to incrementally decode a byte stream. The
-/// decoder cannot be used for multiple streams concurrently but can be used
-/// for multiple streams sequentially.
+/// A `Decoder` object can be used to incrementally decode a byte stream.
 ///
 /// During the processing of a single stream, the caller must call `decode_*`
 /// zero or more times with `last` set to `false` and then call `decode_*` at
