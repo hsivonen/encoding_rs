@@ -425,7 +425,8 @@ macro_rules! public_decode_function{
         if offset == 0usize {
             // First byte was seen previously.
             let first = [first_byte];
-            let (mut first_result, mut first_read, mut first_written) =
+            let mut out_read = 0usize;
+            let (mut first_result, _, mut first_written) =
                 self.variant
                     .$decode_to_utf(&first[..], dst, last);
             match first_result {
@@ -433,17 +434,17 @@ macro_rules! public_decode_function{
                     let (result, read, written) =
                         self.$decode_to_utf_checking_end(src, &mut dst[first_written..], last);
                     first_result = result;
-                    first_read = read; // Overwrite, don't add!
+                    out_read = read; // Overwrite, don't add!
                     first_written += written;
                 }
                 DecoderResult::Malformed(_, _) => {
-                    first_read = 0usize; // Wasn't read from `src`!
+                    // Wasn't read from `src`!, leave out_read to 0
                 }
                 DecoderResult::OutputFull => {
                     panic!("Output buffer must have been too small.");
                 }
             }
-            return (first_result, first_read, first_written);
+            return (first_result, out_read, first_written);
         }
         debug_assert!(offset == 1usize);
         // The first byte is in `src`, so no need to push it separately.
