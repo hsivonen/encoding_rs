@@ -92,7 +92,32 @@ impl UserDefinedEncoder {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use super::super::testing::*;
     use super::super::*;
+
+    fn decode_x_user_defined(bytes: &[u8], expect: &str) {
+        decode(X_USER_DEFINED, bytes, expect);
+    }
+
+    fn encode_x_user_defined(string: &str, expect: &[u8]) {
+        encode(X_USER_DEFINED, string, expect);
+    }
+
+    #[test]
+    fn test_x_user_defined_decode() {
+        // ASCII
+        decode_x_user_defined(b"\x61\x62", "\u{0061}\u{0062}");
+
+        decode_x_user_defined(b"\x80\xFF", "\u{F780}\u{F7FF}");
+    }
+
+    #[test]
+    fn test_x_user_defined_encode() {
+        // ASCII
+        encode_x_user_defined("\u{0061}\u{0062}", b"\x61\x62");
+
+        encode_x_user_defined("\u{F780}\u{F7FF}", b"\x80\xFF");
+        encode_x_user_defined("\u{F77F}\u{F800}", b"&#63359;&#63488;");
+    }
 
 }
