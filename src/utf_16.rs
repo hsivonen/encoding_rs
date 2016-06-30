@@ -195,6 +195,8 @@ mod tests {
     #[test]
     fn test_utf_16_encode() {
         // Encodes as UTF-8
+        assert_eq!(UTF_16LE.new_encoder().encoding(), UTF_8);
+        assert_eq!(UTF_16BE.new_encoder().encoding(), UTF_8);
         encode_utf_16le("\u{1F4A9}\u{2603}", "\u{1F4A9}\u{2603}".as_bytes());
         encode_utf_16be("\u{1F4A9}\u{2603}", "\u{1F4A9}\u{2603}".as_bytes());
     }

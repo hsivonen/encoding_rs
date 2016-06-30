@@ -71,6 +71,10 @@ mod tests {
         decode(REPLACEMENT, bytes, expect);
     }
 
+    fn encode_replacement(string: &str, expect: &[u8]) {
+        encode(REPLACEMENT, string, expect);
+    }
+
     #[test]
     fn test_replacement_decode() {
         decode_replacement(b"", "");
@@ -81,5 +85,6 @@ mod tests {
     #[test]
     fn test_replacement_encode() {
         assert_eq!(REPLACEMENT.new_encoder().encoding(), UTF_8);
+        encode_replacement("\u{1F4A9}\u{2603}", "\u{1F4A9}\u{2603}".as_bytes());
     }
 }
