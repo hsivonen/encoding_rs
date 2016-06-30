@@ -1256,7 +1256,7 @@ pub enum DecoderResult {
 /// buffer `dst` both of which are caller-allocated. There are variants for
 /// both UTF-8 and UTF-16 output buffers.
 ///
-/// A `decode_*` methods decode bytes from `src` into Unicode characters stored
+/// A `decode_*` method decodes bytes from `src` into Unicode characters stored
 /// into `dst` until one of the following three things happens:
 ///
 /// 1. A malformed byte sequence is encountered.
