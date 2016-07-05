@@ -6,9 +6,9 @@ Since this crate is dual-licensed,
 [section 5 of the Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0#contributions)
 is considered to apply in the sense of Contributions being automatically
 under the Apache License 2.0 or MIT dual license (see the `COPYRIGHT` file).
-That is, by the act of offering a Contribution, place your Contribution under
-the Apache License 2.0 or MIT dual license stated in the `COPYRIGHT` file.
-Please do not contribute if you aren't willing or allowed to license your
+That is, by the act of offering a Contribution, you place your Contribution
+under the Apache License 2.0 or MIT dual license stated in the `COPYRIGHT`
+file. Please do not contribute if you aren't willing or allowed to license your
 contributions in this manner.
 
 ## Copyright Notices
