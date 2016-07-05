@@ -874,9 +874,10 @@ static ENCODINGS_IN_LABEL_SORT: [&'static Encoding; 218] = [IBM866,
 /// property of the `Document` DOM interface, except for the replacement
 /// encoding whose name is not one of its labels.
 ///
-/// The _output encoding_ is the encoding using for form submission and URL
-/// parsing. This is UTF-8 for the replacement, UTF-16LE and UTF-16BE encodings
-/// and the encoding itself for other encodings.
+/// The _output encoding_ is the encoding used for form submission and URL
+/// parsing on Web pages in the encoding. This is UTF-8 for the replacement,
+/// UTF-16LE and UTF-16BE encodings and the encoding itself for other
+/// encodings.
 ///
 /// ## Instances
 ///
