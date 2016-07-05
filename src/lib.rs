@@ -878,6 +878,28 @@ static ENCODINGS_IN_LABEL_SORT: [&'static Encoding; 218] = [IBM866,
 /// parsing. This is UTF-8 for the replacement, UTF-16LE and UTF-16BE encodings
 /// and the encoding itself for other encodings.
 ///
+/// ## Instances
+///
+/// All instances of `Encoding` are statically allocated and have the `'static`
+/// lifetime. There is precisely one unique `Encoding` instance for each 
+/// encoding defined in the Encoding Standard.
+///
+/// To obtain a reference to a particular encoding whose identity you know at
+/// compile time, use a constant. There is a constant for each encoding. The
+/// constants are named in all caps with hyphens replaced with underscores (and
+/// in C/C++ have `_ENCODING` appended to the name). For example, if you know
+/// at compile time that you will want to decode using the UTF-8 encoding, use
+/// the `UTF_8` constant (`UTF_8_ENCODING` in C/C++).
+///
+/// If you don't know what encoding you need at compile time and need to
+/// dynamically get an encoding by label, use
+/// Encoding::for_label(<var>label</var>).
+///
+/// Instances of `Encoding` can be compared with `==` (in both Rust and in
+/// C/C++).
+///
+/// ## Streaming vs. Non-Streaming
+///
 /// When you have the entire input in a single buffer, you can use the
 /// convenience methods `decode()`, `decode_with_replacement()`, `encode()` and
 /// `encode_with_replacement()`. (These methods are available to Rust callers
