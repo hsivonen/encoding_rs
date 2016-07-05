@@ -881,7 +881,7 @@ static ENCODINGS_IN_LABEL_SORT: [&'static Encoding; 218] = [IBM866,
 /// ## Instances
 ///
 /// All instances of `Encoding` are statically allocated and have the `'static`
-/// lifetime. There is precisely one unique `Encoding` instance for each 
+/// lifetime. There is precisely one unique `Encoding` instance for each
 /// encoding defined in the Encoding Standard.
 ///
 /// To obtain a reference to a particular encoding whose identity you know at
