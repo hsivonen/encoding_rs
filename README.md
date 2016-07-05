@@ -71,6 +71,8 @@ along as a prototype.
 - [ ] Use Björn Höhrmann's lookup table acceleration for UTF-8 as adapted to
       Rust in rust-encoding.
 - [ ] Compress consecutive zeros in CJK indices.
+- [ ] Make lookups by label or name use binary search that searches from the
+      end of the label/name to the start.
 - [ ] Provide an XPCOM/MFBT-flavored C++ API.
 - [ ] Replace uconv with encoding-rs in Gecko.
 - [ ] Implement the rust-encoding API in terms of encoding-rs.
