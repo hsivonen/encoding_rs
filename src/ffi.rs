@@ -9,17 +9,18 @@
 
 use super::*;
 
-/// Return value for `decode_*` and `encode_*` methods that indicates that
+/// Return value for `*_decode_*` and `*_encode_*` methods that indicates that
 /// the input has been exhausted.
 ///
 /// (This is zero as a micro optimization. U+0000 is never unmappable and
 /// malformed sequences always have a positive length.)
 pub const INPUT_EMPTY: u32 = 0;
 
-/// Return value for `decode_*` and `encode_*` methods that indicates that
+/// Return value for `*_decode_*` and `*_encode_*` methods that indicates that
 /// the output space has been exhausted.
 pub const OUTPUT_FULL: u32 = 0xFFFFFFFF;
 
+/// The minimum length of buffers that may be passed to `encoding_name()`.
 pub const ENCODING_NAME_MAX_LENGTH: usize = super::LONGEST_NAME_LENGTH;
 
 // BEGIN GENERATED CODE. PLEASE DO NOT EDIT.
