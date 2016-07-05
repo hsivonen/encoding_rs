@@ -7,6 +7,103 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
+//! encoding-rs is a Gecko-oriented Free Software / Open Source implementation
+//! of the [Encoding Standard](https://encoding.spec.whatwg.org/) in Rust.
+//! Gecko-oriented means that converting to and from UTF-16 is supported in
+//! addition to converting to and from UTF-8 and that the performance and
+//! streamability goals are browser-oriented.
+//!
+//! ## Availability
+//!
+//! The code is available under the
+//! [Apache license, Version 2.0](https://www.apache.org/licenses/LICENSE-2.0)
+//! or the [MIT license](https://opensource.org/licenses/MIT), at your option.
+//! See the
+//! [`COPYRIGHT`](https://github.com/hsivonen/encoding-rs/blob/master/COPYRIGHT)
+//! file for details.
+//! The [repository is on GitHub](https://github.com/hsivonen/encoding-rs). The
+//! plan is to publish the crate on crates.io, but the crate hasn't been
+//! published there, yet.
+//!
+//! ## Web / Browser Focus
+//!
+//! Both in terms of scope and performance, the focus is on the Web. For scope,
+//! this means that encoding-rs implements the Encoding Standard fully and
+//! doesn't implement encodings that are not specified in the Encoding
+//! Standard. For performance, this means that decoding performance is
+//! important as well as performance for encoding into UTF-8 or encoding the
+//! Basic Latin range (ASCII) into legacy encodings. Non-Basic Latin needs to
+//! be encoded into legacy encodings in only two places in the Web platform: in
+//! the query part of URLs, in which case it's a matter of relatively rare
+//! error handling, and in form submission, in which case the user action and
+//! networking tend to hide the performance of the encoder.
+//!
+//! Deemphasizing performance of encoding non-Basic Latin text into legacy
+//! encodings enables smaller code size thanks to the encoder side using the
+//! decode-optimized data tables without having encode-optimized data tables at
+//! all. Even in decoders, smaller lookup table size is preferred over avoiding
+//! multiplication operations.
+//!
+//! Additionally, performance is a non-goal for the ASCII-incompatible
+//! ISO-2022-JP and UTF-16 encodings, which are rarely used on the Web.
+//!
+//! Despite the focus on the Web, encoding-rs may well be useful for decoding
+//! email, although you'll need to implement UTF-7 decoding and label handling
+//! by other means. (Due to the Web focus, patches to add UTF-7 are unwelcome
+//! in encoding-rs itself.) Also, despite the browser focus, the hope is that
+//! non-browser applications that wish to consume Web content or submit Web
+//! forms in a Web-compatible way will find encoding-rs useful.
+//!
+//! ## Streaming & Non-Streaming; Rust & C/C++
+//!
+//! The API in Rust has two modes of operation: streaming and non-streaming.
+//! The streaming API is the foundation of the implementation and should be
+//! used when processing data that arrives piecemeal from the network. The
+//! streaming API has an FFI wrapper that exposes it to C callers. The
+//! non-streaming part of the API is for Rust callers only and is implemented
+//! on top of the streaming API and, as such, could be considered as merely a
+//! set of convenience methods. There is no analogous C API exposed via FFI,
+//! mainly because C doesn't have standard types for growable byte buffers and
+//! Unicode strings that know their length.
+//!
+//! The C API (header file generated at `target/include/encoding_rs.h` when
+//! building encoding-rs) can, in turn, be wrapped for use from C++. Such a
+//! C++ wrapper could re-create the non-streaming API in C++ for C++ callers.
+//! Currently, encoding-rs comes with a
+//! [C++ wrapper](https://github.com/hsivonen/encoding-rs/blob/master/include/encoding_rs_cpp.h)
+//! that uses STL+[GSL](https://github.com/Microsoft/GSL/) types, but this
+//! wrapper doesn't provide non-streaming convenience methods at this time. A
+//! C++ wrapper with XPCOM/MFBT types is planned but does not exist yet.
+//!
+//! The `Encoding` type is common to both the streaming and non-streaming
+//! modes. In the streaming mode, decoding operations are performed with a
+//! `Decoder` and encoding operations with an `Encoder` object obtained via
+//! `Encoding`. In the non-streaming mode, decoding and encoding operations are
+//! performed using methods on `Encoding` objects themselves, so the `Decoder`
+//! and `Encoder` objects are not used at all.
+//!
+//! ## Mapping Spec Concepts onto the API
+//!
+//! <table>
+//! <thead>
+//! <tr><th>Spec Concept</th><th>Streaming</th><th>Non-Streaming</th></tr>
+//! </thead>
+//! <tbody>
+//! <tr><td><a href="https://encoding.spec.whatwg.org/#encoding">encoding</a></td><td><code>&amp;'static Encoding</code></td><td><code>&amp;'static Encoding</code></td></tr>
+//! <tr><td><a href="https://encoding.spec.whatwg.org/#utf-8">UTF-8 encoding</a></td><td><code>UTF_8</code></td><td><code>UTF_8</code></td></tr>
+//! <tr><td><a href="https://encoding.spec.whatwg.org/#concept-encoding-get">get an encoding</a></td><td><code>Encoding::for_label(<var>label</var>)</code></td><td><code>Encoding::for_label(<var>label</var>)</code></td></tr>
+//! <tr><td><a href="https://encoding.spec.whatwg.org/#name">name</a></td><td><code><var>encoding</var>.name()</code></td><td><code><var>encoding</var>.name()</code></td></tr>
+//! <tr><td><a href="https://encoding.spec.whatwg.org/#get-an-output-encoding">get an output encoding</a></td><td><code><var>encoding</var>.output_encoding()</code></td><td><code><var>encoding</var>.output_encoding()</code></td></tr>
+//! <tr><td><a href="https://encoding.spec.whatwg.org/#decode">decode</a></td><td><code>let d = <var>encoding</var>.new_decoder();<br>let res = d.decode_to_<var>*</var>_with_replacement(<var>src</var>, <var>dst</var>, false);<br>// &hellip;</br>let last_res = d.decode_to_<var>*</var>_with_replacement(<var>src</var>, <var>dst</var>, true);</code></td><td><code><var>encoding</var>.decode_with_replacement(<var>src</var>)</code></td></tr>
+//! <tr><td><a href="https://encoding.spec.whatwg.org/#utf-8-decode">UTF-8 decode</a></td><td><code>let d = UTF_8.new_decoder_with_bom_removal();<br>let res = d.decode_to_<var>*</var>_with_replacement(<var>src</var>, <var>dst</var>, false);<br>// &hellip;</br>let last_res = d.decode_to_<var>*</var>_with_replacement(<var>src</var>, <var>dst</var>, true);</code></td><td><code>UTF_8.TODO(<var>src</var>)</code></td></tr>
+//! <tr><td><a href="https://encoding.spec.whatwg.org/#utf-8-decode-without-bom">UTF-8 decode without BOM</a></td><td><code>let d = UTF_8.new_decoder_without_bom_handling();<br>let res = d.decode_to_<var>*</var>_with_replacement(<var>src</var>, <var>dst</var>, false);<br>// &hellip;</br>let last_res = d.decode_to_<var>*</var>_with_replacement(<var>src</var>, <var>dst</var>, true);</code></td><td><code>UTF_8.TODO(<var>src</var>)</code></td></tr>
+//! <tr><td><a href="https://encoding.spec.whatwg.org/#utf-8-decode-without-bom-or-fail">UTF-8 decode without BOM or fail</a></td><td><code>let d = UTF_8.new_decoder_without_bom_handling();<br>let res = d.decode_to_<var>*</var>(<var>src</var>, <var>dst</var>, false);<br>// &hellip; (fail if malformed)</br>let last_res = d.decode_to_<var>*</var>(<var>src</var>, <var>dst</var>, true);<br>// (fail if malformed)</code></td><td><code>UTF_8.TODO(<var>src</var>)</code></td></tr>
+//! <tr><td><a href="https://encoding.spec.whatwg.org/#encode">encode</a></td><td><code>let e = <var>encoding</var>.new_encoder();<br>let res = e.encode_to_<var>*</var>_with_replacement(<var>src</var>, <var>dst</var>, false);<br>// &hellip;</br>let last_res = e.encode_to_<var>*</var>_with_replacement(<var>src</var>, <var>dst</var>, true);</code></td><td><code><var>encoding</var>.encode_with_replacement(<var>src</var>)</code></td></tr>
+//! <tr><td><a href="https://encoding.spec.whatwg.org/#utf-8-encode">UTF-8 encode</a></td><td>Use the UTF-8 nature of Rust strings directly:<br><code><var>src</var>.as_bytes();<br><code><var>src</var>.as_bytes();<br><code><var>src</var>.as_bytes();<br>// &hellip;</code></td><td>Use the UTF-8 nature of Rust strings directly:<br><code><var>src</var>.as_bytes()</code></td></tr>
+//! </tbody>
+//! </table>
+
+
 #[macro_use]
 mod macros;
 
@@ -1250,7 +1347,7 @@ pub enum DecoderResult {
 }
 
 /// A converter that decodes a byte stream into Unicode according to a
-/// character encoding.
+/// character encoding in a streaming (incremental) manner.
 ///
 /// The various `decode_*` methods take an input buffer (`src`) and an output
 /// buffer `dst` both of which are caller-allocated. There are variants for
@@ -1672,7 +1769,7 @@ pub enum EncoderResult {
 }
 
 /// A converter that encodes a Unicode stream into bytes according to a
-/// character encoding.
+/// character encoding in a streaming (incremental) manner.
 ///
 /// The various `encode_*` methods take an input buffer (`src`) and an output
 /// buffer `dst` both of which are caller-allocated. There are variants for

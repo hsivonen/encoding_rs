@@ -11,9 +11,7 @@ encoding-rs aspires to become an implementation of the
    compatible with at least the most common ways of using
    [rust-encoding](https://github.com/lifthrasiir/rust-encoding/).)
 
-_This project is not in a usable or useful stage yet! You should not expect
-the above-stated aspiration to be fulfilled yet and you shouldn't expect the
-code here to work at all._
+_You should not expect the above-stated aspiration to be fulfilled yet._
 
 ## Licensing
 
