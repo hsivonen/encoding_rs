@@ -1171,6 +1171,8 @@ impl Encoding {
     /// This method performs a single heap allocation for the backing buffer
     /// of the `String`.
     ///
+    /// XXX Does this have use cases?
+    ///
     /// Available to Rust only.
     pub fn decode(&'static self, bytes: &[u8]) -> (Option<String>, &'static Encoding) {
         let mut decoder = self.new_decoder();
