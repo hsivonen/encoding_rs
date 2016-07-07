@@ -1,6 +1,6 @@
-# encoding-rs
+# encoding_rs
 
-encoding-rs aspires to become an implementation of the
+encoding_rs aspires to become an implementation of the
 [Encoding Standard](https://encoding.spec.whatwg.org/) that
 
 1. Is written in Rust.
@@ -43,10 +43,10 @@ rust-encoding both to avoid breaking rust-encoding with in-progress exploration
 and to be able to see where the API design would go from scratch given the
 goals.
 
-It is expected that encoding-rs will use code from rust-encoding.
+It is expected that encoding_rs will use code from rust-encoding.
 
-Evaluation of whether it makes sense to propose portions of encoding-rs to be
-adopted into rust-encoding will be best deferred until encoding-rs is further
+Evaluation of whether it makes sense to propose portions of encoding_rs to be
+adopted into rust-encoding will be best deferred until encoding_rs is further
 along as a prototype.
 
 ## Roadmap
@@ -72,7 +72,7 @@ along as a prototype.
 - [ ] Make lookups by label or name use binary search that searches from the
       end of the label/name to the start.
 - [ ] Provide an XPCOM/MFBT-flavored C++ API.
-- [ ] Replace uconv with encoding-rs in Gecko.
-- [ ] Implement the rust-encoding API in terms of encoding-rs.
+- [ ] Replace uconv with encoding_rs in Gecko.
+- [ ] Implement the rust-encoding API in terms of encoding_rs.
 - [ ] Investigate the use of NEON on newer ARM CPUs that have a lesser penalty
       on data flow from NEON to ALU registers.

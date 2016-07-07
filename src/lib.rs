@@ -7,7 +7,7 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-//! encoding-rs is a Gecko-oriented Free Software / Open Source implementation
+//! encoding_rs is a Gecko-oriented Free Software / Open Source implementation
 //! of the [Encoding Standard](https://encoding.spec.whatwg.org/) in Rust.
 //! Gecko-oriented means that converting to and from UTF-16 is supported in
 //! addition to converting to and from UTF-8 and that the performance and
@@ -19,16 +19,16 @@
 //! [Apache license, Version 2.0](https://www.apache.org/licenses/LICENSE-2.0)
 //! or the [MIT license](https://opensource.org/licenses/MIT), at your option.
 //! See the
-//! [`COPYRIGHT`](https://github.com/hsivonen/encoding-rs/blob/master/COPYRIGHT)
+//! [`COPYRIGHT`](https://github.com/hsivonen/encoding_rs/blob/master/COPYRIGHT)
 //! file for details.
-//! The [repository is on GitHub](https://github.com/hsivonen/encoding-rs). The
+//! The [repository is on GitHub](https://github.com/hsivonen/encoding_rs). The
 //! plan is to publish the crate on crates.io, but the crate hasn't been
 //! published there, yet.
 //!
 //! ## Web / Browser Focus
 //!
 //! Both in terms of scope and performance, the focus is on the Web. For scope,
-//! this means that encoding-rs implements the Encoding Standard fully and
+//! this means that encoding_rs implements the Encoding Standard fully and
 //! doesn't implement encodings that are not specified in the Encoding
 //! Standard. For performance, this means that decoding performance is
 //! important as well as performance for encoding into UTF-8 or encoding the
@@ -47,12 +47,12 @@
 //! Additionally, performance is a non-goal for the ASCII-incompatible
 //! ISO-2022-JP and UTF-16 encodings, which are rarely used on the Web.
 //!
-//! Despite the focus on the Web, encoding-rs may well be useful for decoding
+//! Despite the focus on the Web, encoding_rs may well be useful for decoding
 //! email, although you'll need to implement UTF-7 decoding and label handling
 //! by other means. (Due to the Web focus, patches to add UTF-7 are unwelcome
-//! in encoding-rs itself.) Also, despite the browser focus, the hope is that
+//! in encoding_rs itself.) Also, despite the browser focus, the hope is that
 //! non-browser applications that wish to consume Web content or submit Web
-//! forms in a Web-compatible way will find encoding-rs useful.
+//! forms in a Web-compatible way will find encoding_rs useful.
 //!
 //! ## Streaming & Non-Streaming; Rust & C/C++
 //!
@@ -67,10 +67,10 @@
 //! Unicode strings that know their length.
 //!
 //! The C API (header file generated at `target/include/encoding_rs.h` when
-//! building encoding-rs) can, in turn, be wrapped for use from C++. Such a
+//! building encoding_rs) can, in turn, be wrapped for use from C++. Such a
 //! C++ wrapper could re-create the non-streaming API in C++ for C++ callers.
-//! Currently, encoding-rs comes with a
-//! [C++ wrapper](https://github.com/hsivonen/encoding-rs/blob/master/include/encoding_rs_cpp.h)
+//! Currently, encoding_rs comes with a
+//! [C++ wrapper](https://github.com/hsivonen/encoding_rs/blob/master/include/encoding_rs_cpp.h)
 //! that uses STL+[GSL](https://github.com/Microsoft/GSL/) types, but this
 //! wrapper doesn't provide non-streaming convenience methods at this time. A
 //! C++ wrapper with XPCOM/MFBT types is planned but does not exist yet.
