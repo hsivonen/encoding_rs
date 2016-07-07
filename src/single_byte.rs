@@ -24,11 +24,11 @@ impl SingleByteDecoder {
         byte_length
     }
 
-    pub fn max_utf8_buffer_length(&self, byte_length: usize) -> usize {
+    pub fn max_utf8_buffer_length_without_replacement(&self, byte_length: usize) -> usize {
         byte_length * 3
     }
 
-    pub fn max_utf8_buffer_length_with_replacement(&self, byte_length: usize) -> usize {
+    pub fn max_utf8_buffer_length(&self, byte_length: usize) -> usize {
         byte_length * 3
     }
 
@@ -68,11 +68,11 @@ impl SingleByteEncoder {
                      VariantEncoder::SingleByte(SingleByteEncoder { table: data }))
     }
 
-    pub fn max_buffer_length_from_utf16(&self, u16_length: usize) -> usize {
+    pub fn max_buffer_length_from_utf16_without_replacement(&self, u16_length: usize) -> usize {
         u16_length
     }
 
-    pub fn max_buffer_length_from_utf8(&self, byte_length: usize) -> usize {
+    pub fn max_buffer_length_from_utf8_without_replacement(&self, byte_length: usize) -> usize {
         byte_length
     }
 

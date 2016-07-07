@@ -38,7 +38,7 @@ impl Big5Decoder {
         self.plus_one_if_lead(byte_length) + 1
     }
 
-    pub fn max_utf8_buffer_length(&self, byte_length: usize) -> usize {
+    pub fn max_utf8_buffer_length_without_replacement(&self, byte_length: usize) -> usize {
         // No need to account for REPLACEMENT CHARACTERS.
         // Cases:
         // ASCII: 1 to 1
@@ -57,7 +57,7 @@ impl Big5Decoder {
         self.plus_one_if_lead(byte_length) * 2
     }
 
-    pub fn max_utf8_buffer_length_with_replacement(&self, byte_length: usize) -> usize {
+    pub fn max_utf8_buffer_length(&self, byte_length: usize) -> usize {
         // If there is a lead but the next byte isn't a valid trail, an
         // error is generated for the lead (+(1*3)). Then another iteration
         // checks space, which needs +3 to account for the possibility of astral
@@ -160,14 +160,14 @@ impl Big5Encoder {
         Encoder::new(encoding, VariantEncoder::Big5(Big5Encoder))
     }
 
-    pub fn max_buffer_length_from_utf16(&self, u16_length: usize) -> usize {
+    pub fn max_buffer_length_from_utf16_without_replacement(&self, u16_length: usize) -> usize {
         // Astral: 2 to 2
         // ASCII: 1 to 1
         // Other: 1 to 2
         2 * u16_length
     }
 
-    pub fn max_buffer_length_from_utf8(&self, byte_length: usize) -> usize {
+    pub fn max_buffer_length_from_utf8_without_replacement(&self, byte_length: usize) -> usize {
         // Astral: 4 to 2
         // Upper BMP: 3 to 2
         // Lower BMP: 2 to 2

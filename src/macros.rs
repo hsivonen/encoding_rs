@@ -86,7 +86,7 @@ macro_rules! decoder_functions {
                       $destination_handle,
                       $unread_handle,
                       $destination_check,
-                      decode_to_utf8,
+                      decode_to_utf8_raw,
                       u8,
                       Utf8Destination);
     decoder_function!($preamble,
@@ -99,7 +99,7 @@ macro_rules! decoder_functions {
                       $destination_handle,
                       $unread_handle,
                       $destination_check,
-                      decode_to_utf16,
+                      decode_to_utf16_raw,
                       u16,
                       Utf16Destination);
     );
@@ -177,7 +177,7 @@ macro_rules! encoder_functions {
                       $destination_handle,
                       $unread_handle,
                       $destination_check,
-                      encode_from_utf8,
+                      encode_from_utf8_raw,
                       str,
                       Utf8Source);
     encoder_function!($eof,
@@ -190,7 +190,7 @@ macro_rules! encoder_functions {
                       $destination_handle,
                       $unread_handle,
                       $destination_check,
-                      encode_from_utf16,
+                      encode_from_utf16_raw,
                       [u16],
                       Utf16Source);
     );
@@ -198,6 +198,7 @@ macro_rules! encoder_functions {
 
 macro_rules! public_decode_function{
     ($decode_to_utf:ident,
+     $decode_to_utf_raw:ident,
      $decode_to_utf_checking_end:ident,
      $decode_to_utf_after_one_potential_bom_byte:ident,
      $decode_to_utf_after_two_potential_bom_bytes:ident,
@@ -428,7 +429,7 @@ macro_rules! public_decode_function{
             let mut out_read = 0usize;
             let (mut first_result, _, mut first_written) =
                 self.variant
-                    .$decode_to_utf(&first[..], dst, last);
+                    .$decode_to_utf_raw(&first[..], dst, last);
             match first_result {
                 DecoderResult::InputEmpty => {
                     let (result, read, written) =
@@ -463,7 +464,7 @@ macro_rules! public_decode_function{
             let ef_bb = [0xEFu8, 0xBBu8];
             let (mut first_result, mut first_read, mut first_written) =
                 self.variant
-                    .$decode_to_utf(&ef_bb[..], dst, last);
+                    .$decode_to_utf_raw(&ef_bb[..], dst, last);
             match first_result {
                 DecoderResult::InputEmpty => {
                     let (result, read, written) =
@@ -524,7 +525,7 @@ macro_rules! public_decode_function{
                                    -> (DecoderResult, usize, usize) {
         debug_assert!(self.life_cycle == DecoderLifeCycle::Converting);
         let (result, read, written) = self.variant
-                                          .$decode_to_utf(src, dst, last);
+                                          .$decode_to_utf_raw(src, dst, last);
         if last {
             match result {
                 DecoderResult::InputEmpty => {

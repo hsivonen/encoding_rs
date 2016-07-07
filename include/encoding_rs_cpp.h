@@ -131,47 +131,47 @@ public:
     return decoder_max_utf8_length_with_replacement(this, byte_length);
   }
 
-  inline std::tuple<uint32_t, size_t, size_t> decode_to_utf16(
+  inline std::tuple<uint32_t, size_t, size_t> decode_to_utf16_without_replacement(
     gsl::span<const uint8_t> src, gsl::span<char16_t> dst, bool last)
   {
     size_t src_read = src.size();
     size_t dst_written = dst.size();
-    uint32_t result = decoder_decode_to_utf16(this, src.data(), &src_read,
+    uint32_t result = decoder_decode_to_utf16_without_replacement(this, src.data(), &src_read,
                                               dst.data(), &dst_written, last);
     return std::make_tuple(result, src_read, dst_written);
   }
 
-  inline std::tuple<uint32_t, size_t, size_t> decode_to_utf8(
+  inline std::tuple<uint32_t, size_t, size_t> decode_to_utf8_without_replacement(
     gsl::span<const uint8_t> src, gsl::span<uint8_t> dst, bool last)
   {
     size_t src_read = src.size();
     size_t dst_written = dst.size();
-    uint32_t result = decoder_decode_to_utf8(this, src.data(), &src_read,
+    uint32_t result = decoder_decode_to_utf8_without_replacement(this, src.data(), &src_read,
                                              dst.data(), &dst_written, last);
     return std::make_tuple(result, src_read, dst_written);
   }
 
   inline std::tuple<uint32_t, size_t, size_t, bool>
-  decode_to_utf16_with_replacement(gsl::span<const uint8_t> src, gsl::span<char16_t> dst,
+  decode_to_utf16(gsl::span<const uint8_t> src, gsl::span<char16_t> dst,
                                    bool last)
   {
     size_t src_read = src.size();
     size_t dst_written = dst.size();
     bool had_replacements;
-    uint32_t result = decoder_decode_to_utf16_with_replacement(
+    uint32_t result = decoder_decode_to_utf16(
       this, src.data(), &src_read, dst.data(), &dst_written, last,
       &had_replacements);
     return std::make_tuple(result, src_read, dst_written, had_replacements);
   }
 
   inline std::tuple<uint32_t, size_t, size_t, bool>
-  decode_to_utf8_with_replacement(gsl::span<const uint8_t> src, gsl::span<uint8_t> dst,
+  decode_to_utf8(gsl::span<const uint8_t> src, gsl::span<uint8_t> dst,
                                   bool last)
   {
     size_t src_read = src.size();
     size_t dst_written = dst.size();
     bool had_replacements;
-    uint32_t result = decoder_decode_to_utf8_with_replacement(
+    uint32_t result = decoder_decode_to_utf8(
       this, src.data(), &src_read, dst.data(), &dst_written, last,
       &had_replacements);
     return std::make_tuple(result, src_read, dst_written, had_replacements);
@@ -189,71 +189,71 @@ public:
 
   inline const Encoding* encoding() const { return encoder_encoding(this); }
 
-  inline size_t max_buffer_length_from_utf16(size_t u16_length) const
+  inline size_t max_buffer_length_from_utf16_without_replacement(size_t u16_length) const
   {
-    return encoder_max_buffer_length_from_utf16(this, u16_length);
+    return encoder_max_buffer_length_from_utf16_without_replacement(this, u16_length);
   }
 
-  inline size_t max_buffer_length_from_utf8(size_t byte_length) const
+  inline size_t max_buffer_length_from_utf8_without_replacement(size_t byte_length) const
   {
-    return encoder_max_buffer_length_from_utf8(this, byte_length);
+    return encoder_max_buffer_length_from_utf8_without_replacement(this, byte_length);
   }
 
-  inline size_t max_buffer_length_from_utf16_with_replacement_if_no_unmappables(
+  inline size_t max_buffer_length_from_utf16_if_no_unmappables(
     size_t u16_length) const
   {
-    return encoder_max_buffer_length_from_utf16_with_replacement_if_no_unmappables(
+    return encoder_max_buffer_length_from_utf16_if_no_unmappables(
       this, u16_length);
   }
 
-  inline size_t max_buffer_length_from_utf8_with_replacement_if_no_unmappables(
+  inline size_t max_buffer_length_from_utf8_if_no_unmappables(
     size_t byte_length) const
   {
-    return encoder_max_buffer_length_from_utf8_with_replacement_if_no_unmappables(
+    return encoder_max_buffer_length_from_utf8_if_no_unmappables(
       this, byte_length);
   }
 
-  inline std::tuple<uint32_t, size_t, size_t> encode_from_utf16(
+  inline std::tuple<uint32_t, size_t, size_t> encode_from_utf16_without_replacement(
     gsl::span<const char16_t> src, gsl::span<uint8_t> dst, bool last)
   {
     size_t src_read = src.size();
     size_t dst_written = dst.size();
-    uint32_t result = encoder_encode_from_utf16(this, src.data(), &src_read,
+    uint32_t result = encoder_encode_from_utf16_without_replacement(this, src.data(), &src_read,
                                                 dst.data(), &dst_written, last);
     return std::make_tuple(result, src_read, dst_written);
   }
 
-  inline std::tuple<uint32_t, size_t, size_t> encode_from_utf8(
+  inline std::tuple<uint32_t, size_t, size_t> encode_from_utf8_without_replacement(
     gsl::span<const uint8_t> src, gsl::span<uint8_t> dst, bool last)
   {
     size_t src_read = src.size();
     size_t dst_written = dst.size();
-    uint32_t result = encoder_encode_from_utf8(this, src.data(), &src_read,
+    uint32_t result = encoder_encode_from_utf8_without_replacement(this, src.data(), &src_read,
                                                dst.data(), &dst_written, last);
     return std::make_tuple(result, src_read, dst_written);
   }
 
   inline std::tuple<uint32_t, size_t, size_t, bool>
-  encode_from_utf16_with_replacement(gsl::span<const char16_t> src,
+  encode_from_utf16(gsl::span<const char16_t> src,
                                      gsl::span<uint8_t> dst, bool last)
   {
     size_t src_read = src.size();
     size_t dst_written = dst.size();
     bool had_replacements;
-    uint32_t result = encoder_encode_from_utf16_with_replacement(
+    uint32_t result = encoder_encode_from_utf16(
       this, src.data(), &src_read, dst.data(), &dst_written, last,
       &had_replacements);
     return std::make_tuple(result, src_read, dst_written, had_replacements);
   }
 
   inline std::tuple<uint32_t, size_t, size_t, bool>
-  encode_from_utf8_with_replacement(gsl::span<const uint8_t> src, gsl::span<uint8_t> dst,
+  encode_from_utf8(gsl::span<const uint8_t> src, gsl::span<uint8_t> dst,
                                     bool last)
   {
     size_t src_read = src.size();
     size_t dst_written = dst.size();
     bool had_replacements;
-    uint32_t result = encoder_encode_from_utf8_with_replacement(
+    uint32_t result = encoder_encode_from_utf8(
       this, src.data(), &src_read, dst.data(), &dst_written, last,
       &had_replacements);
     return std::make_tuple(result, src_read, dst_written, had_replacements);

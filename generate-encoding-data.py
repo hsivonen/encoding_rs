@@ -737,15 +737,15 @@ def write_variant_method(name, mut, arg_list, ret, variants, excludes, kind):
 
 write_variant_method("max_utf16_buffer_length", False, [("byte_length", "usize")], "usize", decoder_variants, [], "Decoder")
 
+write_variant_method("max_utf8_buffer_length_without_replacement", False, [("byte_length", "usize")], "usize", decoder_variants, [], "Decoder")
+
 write_variant_method("max_utf8_buffer_length", False, [("byte_length", "usize")], "usize", decoder_variants, [], "Decoder")
 
-write_variant_method("max_utf8_buffer_length_with_replacement", False, [("byte_length", "usize")], "usize", decoder_variants, [], "Decoder")
-
-write_variant_method("decode_to_utf16", True, [("src", "&[u8]"),
+write_variant_method("decode_to_utf16_raw", True, [("src", "&[u8]"),
                            ("dst", "&mut [u16]"),
                            ("last", "bool")], "(DecoderResult, usize, usize)", decoder_variants, [], "Decoder")
 
-write_variant_method("decode_to_utf8", True, [("src", "&[u8]"),
+write_variant_method("decode_to_utf8_raw", True, [("src", "&[u8]"),
                            ("dst", "&mut [u8]"),
                            ("last", "bool")], "(DecoderResult, usize, usize)", decoder_variants, [], "Decoder")
 
@@ -763,15 +763,15 @@ variant_file.write('''}
 impl VariantEncoder {
 ''')
 
-write_variant_method("max_buffer_length_from_utf16", False, [("u16_length", "usize")], "usize", encoder_variants, [], "Encoder")
+write_variant_method("max_buffer_length_from_utf16_without_replacement", False, [("u16_length", "usize")], "usize", encoder_variants, [], "Encoder")
 
-write_variant_method("max_buffer_length_from_utf8", False, [("byte_length", "usize")], "usize", encoder_variants, [], "Encoder")
+write_variant_method("max_buffer_length_from_utf8_without_replacement", False, [("byte_length", "usize")], "usize", encoder_variants, [], "Encoder")
 
-write_variant_method("encode_from_utf16", True, [("src", "&[u16]"),
+write_variant_method("encode_from_utf16_raw", True, [("src", "&[u16]"),
                            ("dst", "&mut [u8]"),
                            ("last", "bool")], "(EncoderResult, usize, usize)", encoder_variants, [], "Encoder")
 
-write_variant_method("encode_from_utf8", True, [("src", "&str"),
+write_variant_method("encode_from_utf8_raw", True, [("src", "&str"),
                            ("dst", "&mut [u8]"),
                            ("last", "bool")], "(EncoderResult, usize, usize)", encoder_variants, [], "Encoder")
 

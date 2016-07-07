@@ -10,25 +10,26 @@
 use super::*;
 
 pub fn decode(encoding: &'static Encoding, bytes: &[u8], expect: &str) {
-    decode_to_utf8(encoding, bytes, expect);
-    decode_to_utf16(encoding, bytes, &utf16_from_utf8(expect)[..]);
+    decode_to_utf8_without_replacement(encoding, bytes, expect);
+    decode_to_utf16_without_replacement(encoding, bytes, &utf16_from_utf8(expect)[..]);
 }
 
 pub fn encode(encoding: &'static Encoding, string: &str, expect: &[u8]) {
-    encode_from_utf8(encoding, string, expect);
-    encode_from_utf16(encoding, &utf16_from_utf8(string)[..], expect);
+    encode_from_utf8_without_replacement(encoding, string, expect);
+    encode_from_utf16_without_replacement(encoding, &utf16_from_utf8(string)[..], expect);
 }
 
-pub fn decode_to_utf16(encoding: &'static Encoding, bytes: &[u8], expect: &[u16]) {
+pub fn decode_to_utf16_without_replacement(encoding: &'static Encoding,
+                                           bytes: &[u8],
+                                           expect: &[u16]) {
     let mut decoder = encoding.new_decoder();
     let mut dest: Vec<u16> = Vec::with_capacity(decoder.max_utf16_buffer_length(bytes.len()));
     let capacity = dest.capacity();
     dest.resize(capacity, 0u16);
-    let (complete, read, written, _) =
-        decoder.decode_to_utf16_with_replacement(bytes, &mut dest, true);
+    let (complete, read, written, _) = decoder.decode_to_utf16(bytes, &mut dest, true);
     match complete {
-        WithReplacementResult::InputEmpty => {}
-        WithReplacementResult::OutputFull => {
+        CoderResult::InputEmpty => {}
+        CoderResult::OutputFull => {
             unreachable!();
         }
     }
@@ -38,17 +39,17 @@ pub fn decode_to_utf16(encoding: &'static Encoding, bytes: &[u8], expect: &[u16]
     assert_eq!(&dest[..], expect);
 }
 
-pub fn decode_to_utf8(encoding: &'static Encoding, bytes: &[u8], expect: &str) {
+pub fn decode_to_utf8_without_replacement(encoding: &'static Encoding,
+                                          bytes: &[u8],
+                                          expect: &str) {
     let mut decoder = encoding.new_decoder();
-    let mut dest: Vec<u8> =
-        Vec::with_capacity(decoder.max_utf8_buffer_length_with_replacement(bytes.len()));
+    let mut dest: Vec<u8> = Vec::with_capacity(decoder.max_utf8_buffer_length(bytes.len()));
     let capacity = dest.capacity();
     dest.resize(capacity, 0u8);
-    let (complete, read, written, _) =
-        decoder.decode_to_utf8_with_replacement(bytes, &mut dest, true);
+    let (complete, read, written, _) = decoder.decode_to_utf8(bytes, &mut dest, true);
     match complete {
-        WithReplacementResult::InputEmpty => {}
-        WithReplacementResult::OutputFull => {
+        CoderResult::InputEmpty => {}
+        CoderResult::OutputFull => {
             unreachable!();
         }
     }
@@ -58,16 +59,17 @@ pub fn decode_to_utf8(encoding: &'static Encoding, bytes: &[u8], expect: &str) {
     assert_eq!(&dest[..], expect.as_bytes());
 }
 
-pub fn encode_from_utf8(encoding: &'static Encoding, string: &str, expect: &[u8]) {
+pub fn encode_from_utf8_without_replacement(encoding: &'static Encoding,
+                                            string: &str,
+                                            expect: &[u8]) {
     let mut encoder = encoding.new_encoder();
     let mut dest: Vec<u8> = Vec::with_capacity(10 * (string.len() + 1)); // 10 is replacement worst case
     let capacity = dest.capacity();
     dest.resize(capacity, 0u8);
-    let (complete, read, written, _) =
-        encoder.encode_from_utf8_with_replacement(string, &mut dest, true);
+    let (complete, read, written, _) = encoder.encode_from_utf8(string, &mut dest, true);
     match complete {
-        WithReplacementResult::InputEmpty => {}
-        WithReplacementResult::OutputFull => {
+        CoderResult::InputEmpty => {}
+        CoderResult::OutputFull => {
             unreachable!();
         }
     }
@@ -77,16 +79,17 @@ pub fn encode_from_utf8(encoding: &'static Encoding, string: &str, expect: &[u8]
     assert_eq!(&dest[..], expect);
 }
 
-pub fn encode_from_utf16(encoding: &'static Encoding, string: &[u16], expect: &[u8]) {
+pub fn encode_from_utf16_without_replacement(encoding: &'static Encoding,
+                                             string: &[u16],
+                                             expect: &[u8]) {
     let mut encoder = encoding.new_encoder();
     let mut dest: Vec<u8> = Vec::with_capacity(10 * (string.len() + 1)); // 10 is replacement worst case
     let capacity = dest.capacity();
     dest.resize(capacity, 0u8);
-    let (complete, read, written, _) =
-        encoder.encode_from_utf16_with_replacement(string, &mut dest, true);
+    let (complete, read, written, _) = encoder.encode_from_utf16(string, &mut dest, true);
     match complete {
-        WithReplacementResult::InputEmpty => {}
-        WithReplacementResult::OutputFull => {
+        CoderResult::InputEmpty => {}
+        CoderResult::OutputFull => {
             unreachable!();
         }
     }
@@ -102,7 +105,8 @@ pub fn utf16_from_utf8(string: &str) -> Vec<u16> {
     let capacity = vec.capacity();
     vec.resize(capacity, 0);
 
-    let (result, read, written) = decoder.decode_to_utf16(string.as_bytes(), &mut vec[..], true);
+    let (result, read, written) =
+        decoder.decode_to_utf16_without_replacement(string.as_bytes(), &mut vec[..], true);
     match result {
         DecoderResult::InputEmpty => {
             debug_assert_eq!(read, string.len());

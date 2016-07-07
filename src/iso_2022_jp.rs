@@ -63,13 +63,13 @@ impl Iso2022JpDecoder {
         self.plus_one_if_lead(byte_length) + self.one_if_pending_prepended()
     }
 
-    pub fn max_utf8_buffer_length(&self, byte_length: usize) -> usize {
+    pub fn max_utf8_buffer_length_without_replacement(&self, byte_length: usize) -> usize {
         // worst case: 2 to 3
         let len = self.plus_one_if_lead(byte_length);
         self.one_if_pending_prepended() * 3 + len + (len + 1) / 2
     }
 
-    pub fn max_utf8_buffer_length_with_replacement(&self, byte_length: usize) -> usize {
+    pub fn max_utf8_buffer_length(&self, byte_length: usize) -> usize {
         (self.one_if_pending_prepended() + self.plus_one_if_lead(byte_length)) * 3
     }
 
@@ -309,7 +309,7 @@ impl Iso2022JpEncoder {
                      }))
     }
 
-    pub fn max_buffer_length_from_utf16(&self, u16_length: usize) -> usize {
+    pub fn max_buffer_length_from_utf16_without_replacement(&self, u16_length: usize) -> usize {
         // Worst case: every other character is ASCII/Roman and every other
         // JIS0208.
         // Two UTF-16 input units:
@@ -321,7 +321,7 @@ impl Iso2022JpEncoder {
         (u16_length * 4) + ((u16_length + 1) / 2) + 3
     }
 
-    pub fn max_buffer_length_from_utf8(&self, byte_length: usize) -> usize {
+    pub fn max_buffer_length_from_utf8_without_replacement(&self, byte_length: usize) -> usize {
         // Worst case: every other character is ASCII/Roman and every other
         // JIS0208.
         // Three UTF-8 input units: 1 ASCII, 2 JIS0208

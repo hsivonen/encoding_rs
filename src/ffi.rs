@@ -188,11 +188,11 @@ pub static X_USER_DEFINED_ENCODING: *const Encoding = X_USER_DEFINED;
 
 // END GENERATED CODE
 
-impl WithReplacementResult {
+impl CoderResult {
     fn as_u32(&self) -> u32 {
         match self {
-            &WithReplacementResult::InputEmpty => INPUT_EMPTY,
-            &WithReplacementResult::OutputFull => OUTPUT_FULL,
+            &CoderResult::InputEmpty => INPUT_EMPTY,
+            &CoderResult::OutputFull => OUTPUT_FULL,
         }
     }
 }
@@ -413,14 +413,48 @@ pub unsafe extern "C" fn decoder_max_utf16_length(decoder: *const Decoder,
 pub unsafe extern "C" fn decoder_max_utf8_length(decoder: *const Decoder,
                                                  byte_length: usize)
                                                  -> usize {
-    (*decoder).max_utf8_buffer_length(byte_length)
+    (*decoder).max_utf8_buffer_length_without_replacement(byte_length)
 }
 
 #[no_mangle]
 pub unsafe extern "C" fn decoder_max_utf8_length_with_replacement(decoder: *const Decoder,
                                                                   byte_length: usize)
                                                                   -> usize {
-    (*decoder).max_utf8_buffer_length_with_replacement(byte_length)
+    (*decoder).max_utf8_buffer_length(byte_length)
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn decoder_decode_to_utf16_without_replacement(decoder: *mut Decoder,
+                                                                     src: *const u8,
+                                                                     src_len: *mut usize,
+                                                                     dst: *mut u16,
+                                                                     dst_len: *mut usize,
+                                                                     last: bool)
+                                                                     -> u32 {
+    let src_slice = ::std::slice::from_raw_parts(src, *src_len);
+    let dst_slice = ::std::slice::from_raw_parts_mut(dst, *dst_len);
+    let (result, read, written) = (*decoder)
+        .decode_to_utf16_without_replacement(src_slice, dst_slice, last);
+    *src_len = read;
+    *dst_len = written;
+    result.as_u32()
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn decoder_decode_to_utf8_without_replacement(decoder: *mut Decoder,
+                                                                    src: *const u8,
+                                                                    src_len: *mut usize,
+                                                                    dst: *mut u8,
+                                                                    dst_len: *mut usize,
+                                                                    last: bool)
+                                                                    -> u32 {
+    let src_slice = ::std::slice::from_raw_parts(src, *src_len);
+    let dst_slice = ::std::slice::from_raw_parts_mut(dst, *dst_len);
+    let (result, read, written) = (*decoder)
+        .decode_to_utf8_without_replacement(src_slice, dst_slice, last);
+    *src_len = read;
+    *dst_len = written;
+    result.as_u32()
 }
 
 #[no_mangle]
@@ -429,13 +463,15 @@ pub unsafe extern "C" fn decoder_decode_to_utf16(decoder: *mut Decoder,
                                                  src_len: *mut usize,
                                                  dst: *mut u16,
                                                  dst_len: *mut usize,
-                                                 last: bool)
+                                                 last: bool,
+                                                 had_replacements: *mut bool)
                                                  -> u32 {
     let src_slice = ::std::slice::from_raw_parts(src, *src_len);
     let dst_slice = ::std::slice::from_raw_parts_mut(dst, *dst_len);
-    let (result, read, written) = (*decoder).decode_to_utf16(src_slice, dst_slice, last);
+    let (result, read, written, replaced) = (*decoder).decode_to_utf16(src_slice, dst_slice, last);
     *src_len = read;
     *dst_len = written;
+    *had_replacements = replaced;
     result.as_u32()
 }
 
@@ -445,48 +481,12 @@ pub unsafe extern "C" fn decoder_decode_to_utf8(decoder: *mut Decoder,
                                                 src_len: *mut usize,
                                                 dst: *mut u8,
                                                 dst_len: *mut usize,
-                                                last: bool)
+                                                last: bool,
+                                                had_replacements: *mut bool)
                                                 -> u32 {
     let src_slice = ::std::slice::from_raw_parts(src, *src_len);
     let dst_slice = ::std::slice::from_raw_parts_mut(dst, *dst_len);
-    let (result, read, written) = (*decoder).decode_to_utf8(src_slice, dst_slice, last);
-    *src_len = read;
-    *dst_len = written;
-    result.as_u32()
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn decoder_decode_to_utf16_with_replacement(decoder: *mut Decoder,
-                                                                  src: *const u8,
-                                                                  src_len: *mut usize,
-                                                                  dst: *mut u16,
-                                                                  dst_len: *mut usize,
-                                                                  last: bool,
-                                                                  had_replacements: *mut bool)
-                                                                  -> u32 {
-    let src_slice = ::std::slice::from_raw_parts(src, *src_len);
-    let dst_slice = ::std::slice::from_raw_parts_mut(dst, *dst_len);
-    let (result, read, written, replaced) = (*decoder)
-        .decode_to_utf16_with_replacement(src_slice, dst_slice, last);
-    *src_len = read;
-    *dst_len = written;
-    *had_replacements = replaced;
-    result.as_u32()
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn decoder_decode_to_utf8_with_replacement(decoder: *mut Decoder,
-                                                                 src: *const u8,
-                                                                 src_len: *mut usize,
-                                                                 dst: *mut u8,
-                                                                 dst_len: *mut usize,
-                                                                 last: bool,
-                                                                 had_replacements: *mut bool)
-                                                                 -> u32 {
-    let src_slice = ::std::slice::from_raw_parts(src, *src_len);
-    let dst_slice = ::std::slice::from_raw_parts_mut(dst, *dst_len);
-    let (result, read, written, replaced) = (*decoder)
-        .decode_to_utf8_with_replacement(src_slice, dst_slice, last);
+    let (result, read, written, replaced) = (*decoder).decode_to_utf8(src_slice, dst_slice, last);
     *src_len = read;
     *dst_len = written;
     *had_replacements = replaced;
@@ -505,34 +505,69 @@ pub unsafe extern "C" fn encoder_encoding(encoder: *const Encoder) -> *const Enc
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn encoder_max_buffer_length_from_utf16(encoder: *const Encoder,
+pub unsafe extern "C" fn encoder_max_buffer_length_from_utf16_without_replacement(encoder: *const Encoder,
                                                               u16_length: usize)
                                                               -> usize {
-    (*encoder).max_buffer_length_from_utf16(u16_length)
+    (*encoder).max_buffer_length_from_utf16_without_replacement(u16_length)
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn encoder_max_buffer_length_from_utf8(encoder: *const Encoder,
+pub unsafe extern "C" fn encoder_max_buffer_length_from_utf8_without_replacement(encoder: *const Encoder,
                                                              byte_length: usize)
                                                              -> usize {
-    (*encoder).max_buffer_length_from_utf8(byte_length)
+    (*encoder).max_buffer_length_from_utf8_without_replacement(byte_length)
 }
 
 
 #[no_mangle]
-pub unsafe extern "C" fn encoder_max_buffer_length_from_utf16_with_replacement_if_no_unmappables
+pub unsafe extern "C" fn encoder_max_buffer_length_from_utf16_if_no_unmappables
     (encoder: *const Encoder,
      u16_length: usize)
      -> usize {
-    (*encoder).max_buffer_length_from_utf16_with_replacement_if_no_unmappables(u16_length)
+    (*encoder).max_buffer_length_from_utf16_if_no_unmappables(u16_length)
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn encoder_max_buffer_length_from_utf8_with_replacement_if_no_unmappables
+pub unsafe extern "C" fn encoder_max_buffer_length_from_utf8_if_no_unmappables
     (encoder: *const Encoder,
      byte_length: usize)
      -> usize {
-    (*encoder).max_buffer_length_from_utf8_with_replacement_if_no_unmappables(byte_length)
+    (*encoder).max_buffer_length_from_utf8_if_no_unmappables(byte_length)
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn encoder_encode_from_utf16_without_replacement(encoder: *mut Encoder,
+                                                                       src: *const u16,
+                                                                       src_len: *mut usize,
+                                                                       dst: *mut u8,
+                                                                       dst_len: *mut usize,
+                                                                       last: bool)
+                                                                       -> u32 {
+    let src_slice = ::std::slice::from_raw_parts(src, *src_len);
+    let dst_slice = ::std::slice::from_raw_parts_mut(dst, *dst_len);
+    let (result, read, written) = (*encoder)
+        .encode_from_utf16_without_replacement(src_slice, dst_slice, last);
+    *src_len = read;
+    *dst_len = written;
+    result.as_u32()
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn encoder_encode_from_utf8_without_replacement(encoder: *mut Encoder,
+                                                                      src: *const u8,
+                                                                      src_len: *mut usize,
+                                                                      dst: *mut u8,
+                                                                      dst_len: *mut usize,
+                                                                      last: bool)
+                                                                      -> u32 {
+    let src_slice = ::std::slice::from_raw_parts(src, *src_len);
+    let string = ::std::str::from_utf8_unchecked(src_slice);
+    let dst_slice = ::std::slice::from_raw_parts_mut(dst, *dst_len);
+    let (result, read, written) = (*encoder)
+        .encode_from_utf8_without_replacement(string, dst_slice, last);
+    *src_len = read;
+    *dst_len = written;
+    result.as_u32()
 }
 
 #[no_mangle]
@@ -541,13 +576,16 @@ pub unsafe extern "C" fn encoder_encode_from_utf16(encoder: *mut Encoder,
                                                    src_len: *mut usize,
                                                    dst: *mut u8,
                                                    dst_len: *mut usize,
-                                                   last: bool)
+                                                   last: bool,
+                                                   had_replacements: *mut bool)
                                                    -> u32 {
     let src_slice = ::std::slice::from_raw_parts(src, *src_len);
     let dst_slice = ::std::slice::from_raw_parts_mut(dst, *dst_len);
-    let (result, read, written) = (*encoder).encode_from_utf16(src_slice, dst_slice, last);
+    let (result, read, written, replaced) = (*encoder)
+        .encode_from_utf16(src_slice, dst_slice, last);
     *src_len = read;
     *dst_len = written;
+    *had_replacements = replaced;
     result.as_u32()
 }
 
@@ -557,50 +595,13 @@ pub unsafe extern "C" fn encoder_encode_from_utf8(encoder: *mut Encoder,
                                                   src_len: *mut usize,
                                                   dst: *mut u8,
                                                   dst_len: *mut usize,
-                                                  last: bool)
+                                                  last: bool,
+                                                  had_replacements: *mut bool)
                                                   -> u32 {
     let src_slice = ::std::slice::from_raw_parts(src, *src_len);
     let string = ::std::str::from_utf8_unchecked(src_slice);
     let dst_slice = ::std::slice::from_raw_parts_mut(dst, *dst_len);
-    let (result, read, written) = (*encoder).encode_from_utf8(string, dst_slice, last);
-    *src_len = read;
-    *dst_len = written;
-    result.as_u32()
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn encoder_encode_from_utf16_with_replacement(encoder: *mut Encoder,
-                                                                    src: *const u16,
-                                                                    src_len: *mut usize,
-                                                                    dst: *mut u8,
-                                                                    dst_len: *mut usize,
-                                                                    last: bool,
-                                                                    had_replacements: *mut bool)
-                                                                    -> u32 {
-    let src_slice = ::std::slice::from_raw_parts(src, *src_len);
-    let dst_slice = ::std::slice::from_raw_parts_mut(dst, *dst_len);
-    let (result, read, written, replaced) = (*encoder)
-        .encode_from_utf16_with_replacement(src_slice, dst_slice, last);
-    *src_len = read;
-    *dst_len = written;
-    *had_replacements = replaced;
-    result.as_u32()
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn encoder_encode_from_utf8_with_replacement(encoder: *mut Encoder,
-                                                                   src: *const u8,
-                                                                   src_len: *mut usize,
-                                                                   dst: *mut u8,
-                                                                   dst_len: *mut usize,
-                                                                   last: bool,
-                                                                   had_replacements: *mut bool)
-                                                                   -> u32 {
-    let src_slice = ::std::slice::from_raw_parts(src, *src_len);
-    let string = ::std::str::from_utf8_unchecked(src_slice);
-    let dst_slice = ::std::slice::from_raw_parts_mut(dst, *dst_len);
-    let (result, read, written, replaced) = (*encoder)
-        .encode_from_utf8_with_replacement(string, dst_slice, last);
+    let (result, read, written, replaced) = (*encoder).encode_from_utf8(string, dst_slice, last);
     *src_len = read;
     *dst_len = written;
     *had_replacements = replaced;

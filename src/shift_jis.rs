@@ -34,13 +34,13 @@ impl ShiftJisDecoder {
         self.plus_one_if_lead(byte_length)
     }
 
-    pub fn max_utf8_buffer_length(&self, byte_length: usize) -> usize {
+    pub fn max_utf8_buffer_length_without_replacement(&self, byte_length: usize) -> usize {
         // worst case: 2 to 3
         let len = self.plus_one_if_lead(byte_length);
         len + (len + 1) / 2
     }
 
-    pub fn max_utf8_buffer_length_with_replacement(&self, byte_length: usize) -> usize {
+    pub fn max_utf8_buffer_length(&self, byte_length: usize) -> usize {
         self.plus_one_if_lead(byte_length) * 3
     }
 
@@ -126,11 +126,11 @@ impl ShiftJisEncoder {
         Encoder::new(encoding, VariantEncoder::ShiftJis(ShiftJisEncoder))
     }
 
-    pub fn max_buffer_length_from_utf16(&self, u16_length: usize) -> usize {
+    pub fn max_buffer_length_from_utf16_without_replacement(&self, u16_length: usize) -> usize {
         u16_length * 2
     }
 
-    pub fn max_buffer_length_from_utf8(&self, byte_length: usize) -> usize {
+    pub fn max_buffer_length_from_utf8_without_replacement(&self, byte_length: usize) -> usize {
         byte_length
     }
 

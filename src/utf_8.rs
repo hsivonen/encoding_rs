@@ -34,11 +34,11 @@ impl Utf8Decoder {
         byte_length + 1
     }
 
-    pub fn max_utf8_buffer_length(&self, byte_length: usize) -> usize {
+    pub fn max_utf8_buffer_length_without_replacement(&self, byte_length: usize) -> usize {
         byte_length + 3
     }
 
-    pub fn max_utf8_buffer_length_with_replacement(&self, byte_length: usize) -> usize {
+    pub fn max_utf8_buffer_length(&self, byte_length: usize) -> usize {
         byte_length * 3 + 3
     }
 
@@ -140,19 +140,19 @@ impl Utf8Encoder {
         Encoder::new(encoding, VariantEncoder::Utf8(Utf8Encoder))
     }
 
-    pub fn max_buffer_length_from_utf16(&self, u16_length: usize) -> usize {
+    pub fn max_buffer_length_from_utf16_without_replacement(&self, u16_length: usize) -> usize {
         3 * u16_length
     }
 
-    pub fn max_buffer_length_from_utf8(&self, byte_length: usize) -> usize {
+    pub fn max_buffer_length_from_utf8_without_replacement(&self, byte_length: usize) -> usize {
         byte_length
     }
 
-    pub fn encode_from_utf16(&mut self,
-                             src: &[u16],
-                             dst: &mut [u8],
-                             _last: bool)
-                             -> (EncoderResult, usize, usize) {
+    pub fn encode_from_utf16_raw(&mut self,
+                                 src: &[u16],
+                                 dst: &mut [u8],
+                                 _last: bool)
+                                 -> (EncoderResult, usize, usize) {
         let mut source = Utf16Source::new(src);
         let mut dest = Utf8Destination::new(dst);
         loop {
@@ -179,11 +179,11 @@ impl Utf8Encoder {
         }
     }
 
-    pub fn encode_from_utf8(&mut self,
-                            src: &str,
-                            dst: &mut [u8],
-                            _last: bool)
-                            -> (EncoderResult, usize, usize) {
+    pub fn encode_from_utf8_raw(&mut self,
+                                src: &str,
+                                dst: &mut [u8],
+                                _last: bool)
+                                -> (EncoderResult, usize, usize) {
         let mut to_write = src.len();
         if to_write <= dst.len() {
             unsafe {
@@ -210,11 +210,11 @@ mod tests {
     use super::super::*;
 
     fn decode_utf8_to_utf16(bytes: &[u8], expect: &[u16]) {
-        decode_to_utf16(UTF_8, bytes, expect);
+        decode_to_utf16_without_replacement(UTF_8, bytes, expect);
     }
 
     fn decode_utf8_to_utf8(bytes: &[u8], expect: &str) {
-        decode_to_utf8(UTF_8, bytes, expect);
+        decode_to_utf8_without_replacement(UTF_8, bytes, expect);
     }
 
     fn decode_valid_utf8(string: &str) {
@@ -222,11 +222,11 @@ mod tests {
     }
 
     fn encode_utf8_from_utf16(string: &[u16], expect: &[u8]) {
-        encode_from_utf16(UTF_8, string, expect);
+        encode_from_utf16_without_replacement(UTF_8, string, expect);
     }
 
     fn encode_utf8_from_utf8(string: &str, expect: &[u8]) {
-        encode_from_utf8(UTF_8, string, expect);
+        encode_from_utf8_without_replacement(UTF_8, string, expect);
     }
 
     #[test]

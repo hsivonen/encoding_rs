@@ -23,11 +23,11 @@ impl ReplacementDecoder {
         1
     }
 
-    pub fn max_utf8_buffer_length(&self, _byte_length: usize) -> usize {
+    pub fn max_utf8_buffer_length_without_replacement(&self, _byte_length: usize) -> usize {
         1 // really zero, but that might surprise callers
     }
 
-    pub fn max_utf8_buffer_length_with_replacement(&self, _byte_length: usize) -> usize {
+    pub fn max_utf8_buffer_length(&self, _byte_length: usize) -> usize {
         3
     }
 
@@ -45,19 +45,19 @@ impl ReplacementDecoder {
         }
     }
 
-    pub fn decode_to_utf16(&mut self,
-                           src: &[u8],
-                           _dst: &mut [u16],
-                           _last: bool)
-                           -> (DecoderResult, usize, usize) {
+    pub fn decode_to_utf16_raw(&mut self,
+                               src: &[u8],
+                               _dst: &mut [u16],
+                               _last: bool)
+                               -> (DecoderResult, usize, usize) {
         self.decode(src)
     }
 
-    pub fn decode_to_utf8(&mut self,
-                          src: &[u8],
-                          _dst: &mut [u8],
-                          _last: bool)
-                          -> (DecoderResult, usize, usize) {
+    pub fn decode_to_utf8_raw(&mut self,
+                              src: &[u8],
+                              _dst: &mut [u8],
+                              _last: bool)
+                              -> (DecoderResult, usize, usize) {
         self.decode(src)
     }
 }
