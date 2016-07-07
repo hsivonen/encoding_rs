@@ -95,11 +95,11 @@
 //! <tr><td><a href="https://encoding.spec.whatwg.org/#name">name</a></td><td><code><var>encoding</var>.name()</code></td><td><code><var>encoding</var>.name()</code></td></tr>
 //! <tr><td><a href="https://encoding.spec.whatwg.org/#get-an-output-encoding">get an output encoding</a></td><td><code><var>encoding</var>.output_encoding()</code></td><td><code><var>encoding</var>.output_encoding()</code></td></tr>
 //! <tr><td><a href="https://encoding.spec.whatwg.org/#decode">decode</a></td><td><code>let d = <var>encoding</var>.new_decoder();<br>let res = d.decode_to_<var>*</var>(<var>src</var>, <var>dst</var>, false);<br>// &hellip;</br>let last_res = d.decode_to_<var>*</var>(<var>src</var>, <var>dst</var>, true);</code></td><td><code><var>encoding</var>.decode(<var>src</var>)</code></td></tr>
-//! <tr><td><a href="https://encoding.spec.whatwg.org/#utf-8-decode">UTF-8 decode</a></td><td><code>let d = UTF_8.new_decoder_with_bom_removal();<br>let res = d.decode_to_<var>*</var>(<var>src</var>, <var>dst</var>, false);<br>// &hellip;</br>let last_res = d.decode_to_<var>*</var>(<var>src</var>, <var>dst</var>, true);</code></td><td><code>UTF_8.TODO(<var>src</var>)</code></td></tr>
-//! <tr><td><a href="https://encoding.spec.whatwg.org/#utf-8-decode-without-bom">UTF-8 decode without BOM</a></td><td><code>let d = UTF_8.new_decoder_without_bom_handling();<br>let res = d.decode_to_<var>*</var>(<var>src</var>, <var>dst</var>, false);<br>// &hellip;</br>let last_res = d.decode_to_<var>*</var>(<var>src</var>, <var>dst</var>, true);</code></td><td><code>UTF_8.TODO(<var>src</var>)</code></td></tr>
-//! <tr><td><a href="https://encoding.spec.whatwg.org/#utf-8-decode-without-bom-or-fail">UTF-8 decode without BOM or fail</a></td><td><code>let d = UTF_8.new_decoder_without_bom_handling();<br>let res = d.decode_to_<var>*</var>_without_replacement(<var>src</var>, <var>dst</var>, false);<br>// &hellip; (fail if malformed)</br>let last_res = d.decode_to_<var>*</var>_without_replacement(<var>src</var>, <var>dst</var>, true);<br>// (fail if malformed)</code></td><td><code>UTF_8.TODO(<var>src</var>)</code></td></tr>
+//! <tr><td><a href="https://encoding.spec.whatwg.org/#utf-8-decode">UTF-8 decode</a></td><td><code>let d = UTF_8.new_decoder_with_bom_removal();<br>let res = d.decode_to_<var>*</var>(<var>src</var>, <var>dst</var>, false);<br>// &hellip;</br>let last_res = d.decode_to_<var>*</var>(<var>src</var>, <var>dst</var>, true);</code></td><td><code>UTF_8.decode_with_bom_removal(<var>src</var>)</code></td></tr>
+//! <tr><td><a href="https://encoding.spec.whatwg.org/#utf-8-decode-without-bom">UTF-8 decode without BOM</a></td><td><code>let d = UTF_8.new_decoder_without_bom_handling();<br>let res = d.decode_to_<var>*</var>(<var>src</var>, <var>dst</var>, false);<br>// &hellip;</br>let last_res = d.decode_to_<var>*</var>(<var>src</var>, <var>dst</var>, true);</code></td><td><code>UTF_8.decode_without_bom_handling(<var>src</var>)</code></td></tr>
+//! <tr><td><a href="https://encoding.spec.whatwg.org/#utf-8-decode-without-bom-or-fail">UTF-8 decode without BOM or fail</a></td><td><code>let d = UTF_8.new_decoder_without_bom_handling();<br>let res = d.decode_to_<var>*</var>_without_replacement(<var>src</var>, <var>dst</var>, false);<br>// &hellip; (fail if malformed)</br>let last_res = d.decode_to_<var>*</var>_without_replacement(<var>src</var>, <var>dst</var>, true);<br>// (fail if malformed)</code></td><td><code>UTF_8.decode_without_bom_handling_and_without_replacement(<var>src</var>)</code></td></tr>
 //! <tr><td><a href="https://encoding.spec.whatwg.org/#encode">encode</a></td><td><code>let e = <var>encoding</var>.new_encoder();<br>let res = e.encode_to_<var>*</var>(<var>src</var>, <var>dst</var>, false);<br>// &hellip;</br>let last_res = e.encode_to_<var>*</var>(<var>src</var>, <var>dst</var>, true);</code></td><td><code><var>encoding</var>.encode(<var>src</var>)</code></td></tr>
-//! <tr><td><a href="https://encoding.spec.whatwg.org/#utf-8-encode">UTF-8 encode</a></td><td>Use the UTF-8 nature of Rust strings directly:<br><code><var>src</var>.as_bytes();<br><code><var>src</var>.as_bytes();<br><code><var>src</var>.as_bytes();<br>// &hellip;</code></td><td>Use the UTF-8 nature of Rust strings directly:<br><code><var>src</var>.as_bytes()</code></td></tr>
+//! <tr><td><a href="https://encoding.spec.whatwg.org/#utf-8-encode">UTF-8 encode</a></td><td>Use the UTF-8 nature of Rust strings directly:<br><code><var>write</var>(<var>src</var>.as_bytes());<br><var>write</var>(<var>src</var>.as_bytes());<br><var>write</var>(<var>src</var>.as_bytes());<br>// &hellip;</code></td><td>Use the UTF-8 nature of Rust strings directly:<br><code><var>src</var>.as_bytes()</code></td></tr>
 //! </tbody>
 //! </table>
 
@@ -1150,71 +1150,144 @@ impl Encoding {
         enc.variant.new_encoder(enc)
     }
 
-    /// Convenience method for decoding to `String` with malformed sequences
-    /// treated as fatal when the entire input is available as a single buffer
-    /// (i.e. the end of the buffer marks the end of the stream). BOM sniffing
-    /// is performed.
+    /// Convenience method for decoding to `String` _with BOM sniffing_ and with
+    /// malformed sequences replaced with the REPLACEMENT CHARACTER when the
+    /// entire input is available as a single buffer (i.e. the end of the
+    /// buffer marks the end of the stream).
     ///
-    /// Returns `None` (as the first item of the pair) if a malformed sequence
-    /// was encountered and the resull of the decode as `Some(String)`
-    /// otherwise.
+    /// This method implements the (non-streaming version of) the
+    /// [_decode_](https://encoding.spec.whatwg.org/#decode) spec concept.
     ///
-    /// The second item in the returned pair is the encoding that was actually
+    /// The second item in the returned tuple is the encoding that was actually
     /// used (which may differ from this encoding thanks to BOM sniffing).
+    ///
+    /// The third item in the returned tuple indicates whether there were
+    /// malformed sequences (that were replaced with the REPLACEMENT CHARACTER).
     ///
     /// _Note:_ It is wrong to use this when the input buffer represents only
     /// a segment of the input instead of the whole input. Use `new_decoder()`
-    /// when parsing segmented input.
+    /// when decoding segmented input.
     ///
     /// This method performs a single heap allocation for the backing buffer
     /// of the `String`.
     ///
-    /// XXX Does this have use cases?
+    /// Available to Rust only.
+    pub fn decode(&'static self, bytes: &[u8]) -> (String, &'static Encoding, bool) {
+        let mut decoder = self.new_decoder();
+        let mut string = String::with_capacity(decoder.max_utf8_buffer_length(bytes.len()));
+        let (result, read, had_errors) = decoder.decode_to_string(bytes, &mut string, true);
+        match result {
+            CoderResult::InputEmpty => {
+                debug_assert_eq!(read, bytes.len());
+                (string, decoder.encoding(), had_errors)
+            }
+            CoderResult::OutputFull => unreachable!(),
+        }
+    }
+
+    /// Convenience method for decoding to `String` _with BOM removal_ and with
+    /// malformed sequences replaced with the REPLACEMENT CHARACTER when the
+    /// entire input is available as a single buffer (i.e. the end of the
+    /// buffer marks the end of the stream).
+    ///
+    /// When invoked on `UTF_8`, this method implements the (non-streaming
+    /// version of) the
+    /// [_UTF-8 decode_](https://encoding.spec.whatwg.org/#utf-8-decode) spec
+    /// concept.
+    ///
+    /// The second item in the returned pair indicates whether there were
+    /// malformed sequences (that were replaced with the REPLACEMENT CHARACTER).
+    ///
+    /// _Note:_ It is wrong to use this when the input buffer represents only
+    /// a segment of the input instead of the whole input. Use
+    /// `new_decoder_with_bom_removal()` when decoding segmented input.
+    ///
+    /// This method performs a single heap allocation for the backing buffer
+    /// of the `String`.
     ///
     /// Available to Rust only.
-    pub fn decode_without_replacement(&'static self,
-                                      bytes: &[u8])
-                                      -> (Option<String>, &'static Encoding) {
-        let mut decoder = self.new_decoder();
+    pub fn decode_with_bom_removal(&'static self, bytes: &[u8]) -> (String, bool) {
+        let mut decoder = self.new_decoder_with_bom_removal();
+        let mut string = String::with_capacity(decoder.max_utf8_buffer_length(bytes.len()));
+        let (result, read, had_errors) = decoder.decode_to_string(bytes, &mut string, true);
+        match result {
+            CoderResult::InputEmpty => {
+                debug_assert_eq!(read, bytes.len());
+                (string, had_errors)
+            }
+            CoderResult::OutputFull => unreachable!(),
+        }
+    }
+
+    /// Convenience method for decoding to `String` _without BOM handling_ and
+    /// with malformed sequences replaced with the REPLACEMENT CHARACTER when
+    /// the entire input is available as a single buffer (i.e. the end of the
+    /// buffer marks the end of the stream).
+    ///
+    /// When invoked on `UTF_8`, this method implements the (non-streaming
+    /// version of) the
+    /// [_UTF-8 decode without BOM_](https://encoding.spec.whatwg.org/#utf-8-decode-without-bom)
+    /// spec concept.
+    ///
+    /// The second item in the returned pair indicates whether there were
+    /// malformed sequences (that were replaced with the REPLACEMENT CHARACTER).
+    ///
+    /// _Note:_ It is wrong to use this when the input buffer represents only
+    /// a segment of the input instead of the whole input. Use
+    /// `new_decoder_without_bom_handling()` when decoding segmented input.
+    ///
+    /// This method performs a single heap allocation for the backing buffer
+    /// of the `String`.
+    ///
+    /// Available to Rust only.
+    pub fn decode_without_bom_handling(&'static self, bytes: &[u8]) -> (String, bool) {
+        let mut decoder = self.new_decoder_without_bom_handling();
+        let mut string = String::with_capacity(decoder.max_utf8_buffer_length(bytes.len()));
+        let (result, read, had_errors) = decoder.decode_to_string(bytes, &mut string, true);
+        match result {
+            CoderResult::InputEmpty => {
+                debug_assert_eq!(read, bytes.len());
+                (string, had_errors)
+            }
+            CoderResult::OutputFull => unreachable!(),
+        }
+    }
+
+    /// Convenience method for decoding to `String` _without BOM handling_ and
+    /// _with malformed sequences treated as fatal_ when the entire input is
+    /// available as a single buffer (i.e. the end of the buffer marks the end
+    /// of the stream).
+    ///
+    /// When invoked on `UTF_8`, this method implements the (non-streaming
+    /// version of) the
+    /// [_UTF-8 decode without BOM or fail_](https://encoding.spec.whatwg.org/#utf-8-decode-without-bom-or-fail)
+    /// spec concept.
+    ///
+    /// Returns `None` if a malformed sequence was encountered and the result
+    /// of the decode as `Some(String)` otherwise.
+    ///
+    /// _Note:_ It is wrong to use this when the input buffer represents only
+    /// a segment of the input instead of the whole input. Use
+    /// `new_decoder_without_bom_handling()` when decoding segmented input.
+    ///
+    /// This method performs a single heap allocation for the backing buffer
+    /// of the `String`.
+    ///
+    /// Available to Rust only.
+    pub fn decode_without_bom_handling_and_without_replacement(&'static self,
+                                                               bytes: &[u8])
+                                                               -> Option<String> {
+        let mut decoder = self.new_decoder_without_bom_handling();
         let mut string =
             String::with_capacity(decoder.max_utf8_buffer_length_without_replacement(bytes.len()));
         let (result, read) = decoder.decode_to_string_without_replacement(bytes, &mut string, true);
         match result {
             DecoderResult::InputEmpty => {
                 debug_assert_eq!(read, bytes.len());
-                (Some(string), decoder.encoding())
+                Some(string)
             }
-            DecoderResult::Malformed(_, _) => (None, decoder.encoding()),
+            DecoderResult::Malformed(_, _) => None,
             DecoderResult::OutputFull => unreachable!(),
-        }
-    }
-
-    /// Convenience method for decoding to `String` with malformed sequences
-    /// replaced with the REPLACEMENT CHARACTER when the entire input is
-    /// available as a single buffer (i.e. the end of the buffer marks the end
-    /// of the stream). BOM sniffing is performed.
-    ///
-    /// The second item in the returned pair is the encoding that was actually
-    /// used (which may differ from this encoding thanks to BOM sniffing).
-    ///
-    /// _Note:_ It is wrong to use this when the input buffer represents only
-    /// a segment of the input instead of the whole input. Use `new_decoder()`
-    /// when parsing segmented input.
-    ///
-    /// This method performs a single heap allocation for the backing buffer
-    /// of the `String`.
-    ///
-    /// Available to Rust only.
-    pub fn decode(&'static self, bytes: &[u8]) -> (String, &'static Encoding) {
-        let mut decoder = self.new_decoder();
-        let mut string = String::with_capacity(decoder.max_utf8_buffer_length(bytes.len()));
-        let (result, read, _) = decoder.decode_to_string(bytes, &mut string, true);
-        match result {
-            CoderResult::InputEmpty => {
-                debug_assert_eq!(read, bytes.len());
-                (string, decoder.encoding())
-            }
-            CoderResult::OutputFull => unreachable!(),
         }
     }
 
@@ -1223,13 +1296,23 @@ impl Encoding {
     /// is available as a single buffer (i.e. the end of the buffer marks the
     /// end of the stream).
     ///
-    /// The second item in the returned pair is the encoding that was actually
+    /// This method implements the (non-streaming version of) the
+    /// [_encode_](https://encoding.spec.whatwg.org/#encode) spec concept. For
+    /// the [_UTF-8 encode_](https://encoding.spec.whatwg.org/#utf-8-encode)
+    /// spec concept, use <code><var>string</var>.as_bytes()</code> instead of
+    /// invoking this method on `UTF_8`.
+    ///
+    /// The second item in the returned tuple is the encoding that was actually
     /// used (which may differ from this encoding thanks to some encodings
     /// having UTF-8 as their output encoding).
     ///
+    /// The third item in the returned tuple indicates whether there were
+    /// unmappable characters (that were replaced with HTML numeric character
+    /// references).
+    ///
     /// _Note:_ It is wrong to use this when the input buffer represents only
     /// a segment of the input instead of the whole input. Use `new_encoder()`
-    /// when parsing segmented input.
+    /// when encoding segmented output.
     ///
     /// This method performs a single heap allocation for the backing buffer
     /// of the `Vec<u8>` if there are no unmappable characters and potentially
@@ -1238,20 +1321,24 @@ impl Encoding {
     /// that doesn't use power-of-two buckets.
     ///
     /// Available to Rust only.
-    pub fn encode(&'static self, string: &str) -> (Vec<u8>, &'static Encoding) {
+    pub fn encode(&'static self, string: &str) -> (Vec<u8>, &'static Encoding, bool) {
         let mut encoder = self.new_encoder();
         let mut total_read = 0usize;
         let mut vec: Vec<u8> =
             Vec::with_capacity(encoder.max_buffer_length_from_utf8_if_no_unmappables(string.len())
                 .next_power_of_two());
+        let mut total_had_errors = false;
         loop {
-            let (result, read, _) =
+            let (result, read, had_errors) =
                 encoder.encode_from_utf8_to_vec(&string[total_read..], &mut vec, true);
             total_read += read;
+            if had_errors {
+                total_had_errors = true;
+            }
             match result {
                 CoderResult::InputEmpty => {
                     debug_assert_eq!(total_read, string.len());
-                    return (vec, encoder.encoding());
+                    return (vec, encoder.encoding(), total_had_errors);
                 }
                 CoderResult::OutputFull => {
                     // reserve_exact wants to know how much more on top of current
