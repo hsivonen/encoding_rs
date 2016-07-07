@@ -116,19 +116,19 @@ public:
 
   inline const Encoding* encoding() const { return decoder_encoding(this); }
 
-  inline size_t max_utf16_length(size_t u16_length) const
+  inline size_t max_utf16_buffer_length(size_t u16_length) const
   {
-    return decoder_max_utf16_length(this, u16_length);
+    return decoder_max_utf16_buffer_length(this, u16_length);
   }
 
-  inline size_t max_utf8_length(size_t byte_length) const
+  inline size_t max_utf8_buffer_length_without_replacement(size_t byte_length) const
   {
-    return decoder_max_utf8_length(this, byte_length);
+    return decoder_max_utf8_buffer_length_without_replacement(this, byte_length);
   }
 
-  inline size_t max_utf8_length_with_replacement(size_t byte_length) const
+  inline size_t max_utf8_buffer_length(size_t byte_length) const
   {
-    return decoder_max_utf8_length_with_replacement(this, byte_length);
+    return decoder_max_utf8_buffer_length(this, byte_length);
   }
 
   inline std::tuple<uint32_t, size_t, size_t> decode_to_utf16_without_replacement(

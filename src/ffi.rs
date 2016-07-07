@@ -403,23 +403,23 @@ pub unsafe extern "C" fn decoder_encoding(decoder: *const Decoder) -> *const Enc
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn decoder_max_utf16_length(decoder: *const Decoder,
-                                                  u16_length: usize)
-                                                  -> usize {
+pub unsafe extern "C" fn decoder_max_utf16_buffer_length(decoder: *const Decoder,
+                                                         u16_length: usize)
+                                                         -> usize {
     (*decoder).max_utf16_buffer_length(u16_length)
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn decoder_max_utf8_length(decoder: *const Decoder,
-                                                 byte_length: usize)
-                                                 -> usize {
+pub unsafe extern "C" fn decoder_max_utf8_buffer_length_without_replacement(decoder: *const Decoder,
+                                                                            byte_length: usize)
+                                                                            -> usize {
     (*decoder).max_utf8_buffer_length_without_replacement(byte_length)
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn decoder_max_utf8_length_with_replacement(decoder: *const Decoder,
-                                                                  byte_length: usize)
-                                                                  -> usize {
+pub unsafe extern "C" fn decoder_max_utf8_buffer_length(decoder: *const Decoder,
+                                                        byte_length: usize)
+                                                        -> usize {
     (*decoder).max_utf8_buffer_length(byte_length)
 }
 
