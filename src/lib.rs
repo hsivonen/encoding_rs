@@ -1850,7 +1850,7 @@ impl Decoder {
     }
 }
 
-/// Result of a (potentially partial) encode operation.
+/// Result of a (potentially partial) encode operation without replacement.
 #[derive(Debug)]
 pub enum EncoderResult {
     /// The input was exhausted.
