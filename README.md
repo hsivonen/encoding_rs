@@ -17,6 +17,11 @@ _You should not expect the above-stated aspiration to be fulfilled yet._
 
 Please see the file named COPYRIGHT.
 
+## API Documentation
+
+Generated [API documentation](https://hsivonen.fi/rs/encoding_rs/) is available
+online.
+
 ## Design
 
 For design considerations, please see the associated [technical proposal to
