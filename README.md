@@ -1,5 +1,7 @@
 # encoding_rs
 
+[![Build Status](https://travis-ci.org/hsivonen/encoding_rs.svg?branch=master)](https://travis-ci.org/hsivonen/encoding_rs)
+
 encoding_rs aspires to become an implementation of the
 [Encoding Standard](https://encoding.spec.whatwg.org/) that
 
