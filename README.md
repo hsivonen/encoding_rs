@@ -67,9 +67,9 @@ along as a prototype.
 - [x] Provide an stl/gsl-flavored C++ API.
 - [x] Implement all decoders and encoders.
 - [ ] Add unit tests for all decoders and encoders.
-- [ ] Finish BOM sniffing variants in Rust-only convenience features.
+- [x] Finish BOM sniffing variants in Rust-only convenience features.
 - [ ] Document the API.
-- [ ] Publish the crate on crates.io.
+- [x] Publish the crate on crates.io.
 - [ ] Create a solution for measuring performance.
 - [ ] Test the performance impact of omitting duplicate bound checks using
       `unsafe`.
