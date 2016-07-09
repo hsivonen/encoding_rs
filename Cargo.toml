@@ -1,5 +1,6 @@
 [package]
 name = "encoding_rs"
+description = "A Gecko-oriented implementation of the Encoding Standard"
 version = "0.2.0"
 authors = ["Henri Sivonen <hsivonen@hsivonen.fi>"]
 license = "MIT/Apache-2.0"
