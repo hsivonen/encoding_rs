@@ -838,7 +838,7 @@ ffi_file.write("""
 for name in preferred:
   ffi_file.write('''/// The %s encoding.
 #[no_mangle]
-pub static %s_ENCODING: *const Encoding = %s;
+pub static %s_ENCODING: ConstEncoding = ConstEncoding(%s);
 
 ''' % (to_dom_name(name), to_constant_name(name), to_constant_name(name)))
 

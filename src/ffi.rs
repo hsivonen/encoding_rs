@@ -23,168 +23,175 @@ pub const OUTPUT_FULL: u32 = 0xFFFFFFFF;
 /// The minimum length of buffers that may be passed to `encoding_name()`.
 pub const ENCODING_NAME_MAX_LENGTH: usize = super::LONGEST_NAME_LENGTH;
 
+/// Newtype for `*const Encoding` in order to be able to implement `Sync` for
+/// it.
+pub struct ConstEncoding(*const Encoding);
+
+/// Required for `static` fields.
+unsafe impl Sync for ConstEncoding { }
+
 // BEGIN GENERATED CODE. PLEASE DO NOT EDIT.
 // Instead, please regenerate using generate-encoding-data.py
 
 /// The Big5 encoding.
 #[no_mangle]
-pub static BIG5_ENCODING: *const Encoding = BIG5;
+pub static BIG5_ENCODING: ConstEncoding = ConstEncoding(BIG5);
 
 /// The EUC-JP encoding.
 #[no_mangle]
-pub static EUC_JP_ENCODING: *const Encoding = EUC_JP;
+pub static EUC_JP_ENCODING: ConstEncoding = ConstEncoding(EUC_JP);
 
 /// The EUC-KR encoding.
 #[no_mangle]
-pub static EUC_KR_ENCODING: *const Encoding = EUC_KR;
+pub static EUC_KR_ENCODING: ConstEncoding = ConstEncoding(EUC_KR);
 
 /// The GBK encoding.
 #[no_mangle]
-pub static GBK_ENCODING: *const Encoding = GBK;
+pub static GBK_ENCODING: ConstEncoding = ConstEncoding(GBK);
 
 /// The IBM866 encoding.
 #[no_mangle]
-pub static IBM866_ENCODING: *const Encoding = IBM866;
+pub static IBM866_ENCODING: ConstEncoding = ConstEncoding(IBM866);
 
 /// The ISO-2022-JP encoding.
 #[no_mangle]
-pub static ISO_2022_JP_ENCODING: *const Encoding = ISO_2022_JP;
+pub static ISO_2022_JP_ENCODING: ConstEncoding = ConstEncoding(ISO_2022_JP);
 
 /// The ISO-8859-10 encoding.
 #[no_mangle]
-pub static ISO_8859_10_ENCODING: *const Encoding = ISO_8859_10;
+pub static ISO_8859_10_ENCODING: ConstEncoding = ConstEncoding(ISO_8859_10);
 
 /// The ISO-8859-13 encoding.
 #[no_mangle]
-pub static ISO_8859_13_ENCODING: *const Encoding = ISO_8859_13;
+pub static ISO_8859_13_ENCODING: ConstEncoding = ConstEncoding(ISO_8859_13);
 
 /// The ISO-8859-14 encoding.
 #[no_mangle]
-pub static ISO_8859_14_ENCODING: *const Encoding = ISO_8859_14;
+pub static ISO_8859_14_ENCODING: ConstEncoding = ConstEncoding(ISO_8859_14);
 
 /// The ISO-8859-15 encoding.
 #[no_mangle]
-pub static ISO_8859_15_ENCODING: *const Encoding = ISO_8859_15;
+pub static ISO_8859_15_ENCODING: ConstEncoding = ConstEncoding(ISO_8859_15);
 
 /// The ISO-8859-16 encoding.
 #[no_mangle]
-pub static ISO_8859_16_ENCODING: *const Encoding = ISO_8859_16;
+pub static ISO_8859_16_ENCODING: ConstEncoding = ConstEncoding(ISO_8859_16);
 
 /// The ISO-8859-2 encoding.
 #[no_mangle]
-pub static ISO_8859_2_ENCODING: *const Encoding = ISO_8859_2;
+pub static ISO_8859_2_ENCODING: ConstEncoding = ConstEncoding(ISO_8859_2);
 
 /// The ISO-8859-3 encoding.
 #[no_mangle]
-pub static ISO_8859_3_ENCODING: *const Encoding = ISO_8859_3;
+pub static ISO_8859_3_ENCODING: ConstEncoding = ConstEncoding(ISO_8859_3);
 
 /// The ISO-8859-4 encoding.
 #[no_mangle]
-pub static ISO_8859_4_ENCODING: *const Encoding = ISO_8859_4;
+pub static ISO_8859_4_ENCODING: ConstEncoding = ConstEncoding(ISO_8859_4);
 
 /// The ISO-8859-5 encoding.
 #[no_mangle]
-pub static ISO_8859_5_ENCODING: *const Encoding = ISO_8859_5;
+pub static ISO_8859_5_ENCODING: ConstEncoding = ConstEncoding(ISO_8859_5);
 
 /// The ISO-8859-6 encoding.
 #[no_mangle]
-pub static ISO_8859_6_ENCODING: *const Encoding = ISO_8859_6;
+pub static ISO_8859_6_ENCODING: ConstEncoding = ConstEncoding(ISO_8859_6);
 
 /// The ISO-8859-7 encoding.
 #[no_mangle]
-pub static ISO_8859_7_ENCODING: *const Encoding = ISO_8859_7;
+pub static ISO_8859_7_ENCODING: ConstEncoding = ConstEncoding(ISO_8859_7);
 
 /// The ISO-8859-8 encoding.
 #[no_mangle]
-pub static ISO_8859_8_ENCODING: *const Encoding = ISO_8859_8;
+pub static ISO_8859_8_ENCODING: ConstEncoding = ConstEncoding(ISO_8859_8);
 
 /// The ISO-8859-8-I encoding.
 #[no_mangle]
-pub static ISO_8859_8_I_ENCODING: *const Encoding = ISO_8859_8_I;
+pub static ISO_8859_8_I_ENCODING: ConstEncoding = ConstEncoding(ISO_8859_8_I);
 
 /// The KOI8-R encoding.
 #[no_mangle]
-pub static KOI8_R_ENCODING: *const Encoding = KOI8_R;
+pub static KOI8_R_ENCODING: ConstEncoding = ConstEncoding(KOI8_R);
 
 /// The KOI8-U encoding.
 #[no_mangle]
-pub static KOI8_U_ENCODING: *const Encoding = KOI8_U;
+pub static KOI8_U_ENCODING: ConstEncoding = ConstEncoding(KOI8_U);
 
 /// The Shift_JIS encoding.
 #[no_mangle]
-pub static SHIFT_JIS_ENCODING: *const Encoding = SHIFT_JIS;
+pub static SHIFT_JIS_ENCODING: ConstEncoding = ConstEncoding(SHIFT_JIS);
 
 /// The UTF-16BE encoding.
 #[no_mangle]
-pub static UTF_16BE_ENCODING: *const Encoding = UTF_16BE;
+pub static UTF_16BE_ENCODING: ConstEncoding = ConstEncoding(UTF_16BE);
 
 /// The UTF-16LE encoding.
 #[no_mangle]
-pub static UTF_16LE_ENCODING: *const Encoding = UTF_16LE;
+pub static UTF_16LE_ENCODING: ConstEncoding = ConstEncoding(UTF_16LE);
 
 /// The UTF-8 encoding.
 #[no_mangle]
-pub static UTF_8_ENCODING: *const Encoding = UTF_8;
+pub static UTF_8_ENCODING: ConstEncoding = ConstEncoding(UTF_8);
 
 /// The gb18030 encoding.
 #[no_mangle]
-pub static GB18030_ENCODING: *const Encoding = GB18030;
+pub static GB18030_ENCODING: ConstEncoding = ConstEncoding(GB18030);
 
 /// The macintosh encoding.
 #[no_mangle]
-pub static MACINTOSH_ENCODING: *const Encoding = MACINTOSH;
+pub static MACINTOSH_ENCODING: ConstEncoding = ConstEncoding(MACINTOSH);
 
 /// The replacement encoding.
 #[no_mangle]
-pub static REPLACEMENT_ENCODING: *const Encoding = REPLACEMENT;
+pub static REPLACEMENT_ENCODING: ConstEncoding = ConstEncoding(REPLACEMENT);
 
 /// The windows-1250 encoding.
 #[no_mangle]
-pub static WINDOWS_1250_ENCODING: *const Encoding = WINDOWS_1250;
+pub static WINDOWS_1250_ENCODING: ConstEncoding = ConstEncoding(WINDOWS_1250);
 
 /// The windows-1251 encoding.
 #[no_mangle]
-pub static WINDOWS_1251_ENCODING: *const Encoding = WINDOWS_1251;
+pub static WINDOWS_1251_ENCODING: ConstEncoding = ConstEncoding(WINDOWS_1251);
 
 /// The windows-1252 encoding.
 #[no_mangle]
-pub static WINDOWS_1252_ENCODING: *const Encoding = WINDOWS_1252;
+pub static WINDOWS_1252_ENCODING: ConstEncoding = ConstEncoding(WINDOWS_1252);
 
 /// The windows-1253 encoding.
 #[no_mangle]
-pub static WINDOWS_1253_ENCODING: *const Encoding = WINDOWS_1253;
+pub static WINDOWS_1253_ENCODING: ConstEncoding = ConstEncoding(WINDOWS_1253);
 
 /// The windows-1254 encoding.
 #[no_mangle]
-pub static WINDOWS_1254_ENCODING: *const Encoding = WINDOWS_1254;
+pub static WINDOWS_1254_ENCODING: ConstEncoding = ConstEncoding(WINDOWS_1254);
 
 /// The windows-1255 encoding.
 #[no_mangle]
-pub static WINDOWS_1255_ENCODING: *const Encoding = WINDOWS_1255;
+pub static WINDOWS_1255_ENCODING: ConstEncoding = ConstEncoding(WINDOWS_1255);
 
 /// The windows-1256 encoding.
 #[no_mangle]
-pub static WINDOWS_1256_ENCODING: *const Encoding = WINDOWS_1256;
+pub static WINDOWS_1256_ENCODING: ConstEncoding = ConstEncoding(WINDOWS_1256);
 
 /// The windows-1257 encoding.
 #[no_mangle]
-pub static WINDOWS_1257_ENCODING: *const Encoding = WINDOWS_1257;
+pub static WINDOWS_1257_ENCODING: ConstEncoding = ConstEncoding(WINDOWS_1257);
 
 /// The windows-1258 encoding.
 #[no_mangle]
-pub static WINDOWS_1258_ENCODING: *const Encoding = WINDOWS_1258;
+pub static WINDOWS_1258_ENCODING: ConstEncoding = ConstEncoding(WINDOWS_1258);
 
 /// The windows-874 encoding.
 #[no_mangle]
-pub static WINDOWS_874_ENCODING: *const Encoding = WINDOWS_874;
+pub static WINDOWS_874_ENCODING: ConstEncoding = ConstEncoding(WINDOWS_874);
 
 /// The x-mac-cyrillic encoding.
 #[no_mangle]
-pub static X_MAC_CYRILLIC_ENCODING: *const Encoding = X_MAC_CYRILLIC;
+pub static X_MAC_CYRILLIC_ENCODING: ConstEncoding = ConstEncoding(X_MAC_CYRILLIC);
 
 /// The x-user-defined encoding.
 #[no_mangle]
-pub static X_USER_DEFINED_ENCODING: *const Encoding = X_USER_DEFINED;
+pub static X_USER_DEFINED_ENCODING: ConstEncoding = ConstEncoding(X_USER_DEFINED);
 
 // END GENERATED CODE
 
