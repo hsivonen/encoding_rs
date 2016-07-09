@@ -28,7 +28,7 @@ pub const ENCODING_NAME_MAX_LENGTH: usize = super::LONGEST_NAME_LENGTH;
 pub struct ConstEncoding(*const Encoding);
 
 /// Required for `static` fields.
-unsafe impl Sync for ConstEncoding { }
+unsafe impl Sync for ConstEncoding {}
 
 // BEGIN GENERATED CODE. PLEASE DO NOT EDIT.
 // Instead, please regenerate using generate-encoding-data.py

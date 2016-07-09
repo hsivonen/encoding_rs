@@ -209,9 +209,9 @@ mod tests {
     use super::super::testing::*;
     use super::super::*;
 
-    fn decode_utf8_to_utf16(bytes: &[u8], expect: &[u16]) {
-        decode_to_utf16_without_replacement(UTF_8, bytes, expect);
-    }
+    //    fn decode_utf8_to_utf16(bytes: &[u8], expect: &[u16]) {
+    //        decode_to_utf16_without_replacement(UTF_8, bytes, expect);
+    //    }
 
     fn decode_utf8_to_utf8(bytes: &[u8], expect: &str) {
         decode_to_utf8_without_replacement(UTF_8, bytes, expect);
@@ -221,13 +221,13 @@ mod tests {
         decode_utf8_to_utf8(string.as_bytes(), string);
     }
 
-    fn encode_utf8_from_utf16(string: &[u16], expect: &[u8]) {
-        encode_from_utf16_without_replacement(UTF_8, string, expect);
-    }
-
-    fn encode_utf8_from_utf8(string: &str, expect: &[u8]) {
-        encode_from_utf8_without_replacement(UTF_8, string, expect);
-    }
+    //    fn encode_utf8_from_utf16(string: &[u16], expect: &[u8]) {
+    //        encode_from_utf16_without_replacement(UTF_8, string, expect);
+    //    }
+    //
+    //    fn encode_utf8_from_utf8(string: &str, expect: &[u8]) {
+    //        encode_from_utf8_without_replacement(UTF_8, string, expect);
+    //    }
 
     #[test]
     fn test_utf8_decode() {

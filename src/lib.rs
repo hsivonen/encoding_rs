@@ -22,8 +22,7 @@
 //! [`COPYRIGHT`](https://github.com/hsivonen/encoding_rs/blob/master/COPYRIGHT)
 //! file for details.
 //! The [repository is on GitHub](https://github.com/hsivonen/encoding_rs). The
-//! plan is to publish the crate on crates.io, but the crate hasn't been
-//! published there, yet.
+//! [crate is available on crates.io](https://crates.io/crates/encoding_rs).
 //!
 //! ## Web / Browser Focus
 //!
@@ -2229,7 +2228,6 @@ fn write_ncr(unmappable: char, dst: &mut [u8]) -> usize {
 
 #[cfg(test)]
 mod tests {
-    use super::testing::*;
     use super::*;
 
     fn sniff_to_utf16(initial_encoding: &'static Encoding,

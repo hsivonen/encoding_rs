@@ -114,10 +114,3 @@ impl SingleByteEncoder {
                        unread_handle,
                        check_space_one);
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use super::super::*;
-
-}
