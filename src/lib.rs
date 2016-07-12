@@ -1087,6 +1087,18 @@ impl Encoding {
         self.output_encoding() == UTF_8
     }
 
+    /// Checks whether the bytes 0x00...0x7F map exclusively to the characters
+    /// U+0000...U+007F and vice versa.
+    ///
+    /// Available via the C wrapper.
+    pub fn is_ascii_compatible(&'static self) -> bool {
+        if self == REPLACEMENT || self == UTF_16BE || self == UTF_16LE || self == ISO_2022_JP {
+            false
+        } else {
+            true
+        }
+    }
+
     /// Returns the _output encoding_ of this encoding. This is UTF-8 for
     /// UTF-16BE, UTF-16LE and replacement and the encoding itself otherwise.
     ///

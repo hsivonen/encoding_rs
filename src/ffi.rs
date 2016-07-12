@@ -271,6 +271,11 @@ pub unsafe extern "C" fn encoding_can_encode_everything(encoding: *const Encodin
 }
 
 #[no_mangle]
+pub unsafe extern "C" fn encoding_is_ascii_compatible(encoding: *const Encoding) -> bool {
+    (*encoding).is_ascii_compatible()
+}
+
+#[no_mangle]
 pub unsafe extern "C" fn encoding_output_encoding(encoding: *const Encoding) -> *const Encoding {
     (*encoding).output_encoding()
 }

@@ -54,6 +54,11 @@ public:
     return encoding_can_encode_everything(this);
   }
 
+  inline bool is_ascii_compatible() const
+  {
+    return encoding_is_ascii_compatible(this);
+  }
+
   inline const Encoding* output_encoding() const
   {
     return encoding_output_encoding(this);
