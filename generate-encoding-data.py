@@ -105,11 +105,11 @@ def read_non_generated(path):
 
   generated_begin_index = full.find(generated_begin)
   if generated_begin_index < 0:
-    print "Can't find generated code start marker in lib.rs. Exiting."
+    print "Can't find generated code start marker in %s. Exiting." % path
     sys.exit(-1)
   generated_end_index = full.find(generated_end)
   if generated_end_index < 0:
-    print "Can't find generated code end marker in lib.rs. Exiting."
+    print "Can't find generated code end marker in %s. Exiting." % path
     sys.exit(-1)
 
   return (full[0:generated_begin_index + len(generated_begin)],
