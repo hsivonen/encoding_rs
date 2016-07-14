@@ -2425,4 +2425,18 @@ mod tests {
         sniff_to_utf16(WINDOWS_1252, UTF_16LE, b"\xFF\xFE", &[], &[]);
         sniff_to_utf16(WINDOWS_1252, UTF_16LE, b"\xFF\xFE", &[], &[1]);
     }
+    
+    #[test]
+    fn test_output_encoding() {
+        assert_eq!(REPLACEMENT.output_encoding(), UTF_8);
+        assert_eq!(UTF_16BE.output_encoding(), UTF_8);
+        assert_eq!(UTF_16LE.output_encoding(), UTF_8);
+        assert_eq!(UTF_8.output_encoding(), UTF_8);
+        assert_eq!(WINDOWS_1252.output_encoding(), WINDOWS_1252);
+        assert_eq!(REPLACEMENT.new_encoder().encoding(), UTF_8);
+        assert_eq!(UTF_16BE.new_encoder().encoding(), UTF_8);
+        assert_eq!(UTF_16LE.new_encoder().encoding(), UTF_8);
+        assert_eq!(UTF_8.new_encoder().encoding(), UTF_8);
+        assert_eq!(WINDOWS_1252.new_encoder().encoding(), WINDOWS_1252);
+    }
 }
