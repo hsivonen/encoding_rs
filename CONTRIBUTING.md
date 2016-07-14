@@ -11,6 +11,12 @@ under the Apache License 2.0 or MIT dual license stated in the `COPYRIGHT`
 file. Please do not contribute if you aren't willing or allowed to license your
 contributions in this manner.
 
+You are encouraged to dedicate test code that you contribute to the Public
+Domain using the CC0 dedication. If you contribute test code that is not
+dedicated to the Public Domain, please be sure not to put it in a part of
+source code that the comments designate as being dedicated to the Public
+Domain.
+
 ## Copyright Notices
 
 If you require the addition of your copyright notice, it's up to you to edit in
