@@ -1391,7 +1391,10 @@ impl Encoding {
 
 impl PartialEq for Encoding {
     fn eq(&self, other: &Encoding) -> bool {
-        (self as *const Encoding) == (other as *const Encoding)
+        //        (self as *const Encoding) == (other as *const Encoding)
+        // Compare by name rather than by pointer pending an answer to
+        // https://users.rust-lang.org/t/how-to-expose-a-static-reference-and-an-unmangled-static-pointer-to-the-same-memory-location/6529
+        self.name == other.name
     }
 }
 
@@ -2425,7 +2428,7 @@ mod tests {
         sniff_to_utf16(WINDOWS_1252, UTF_16LE, b"\xFF\xFE", &[], &[]);
         sniff_to_utf16(WINDOWS_1252, UTF_16LE, b"\xFF\xFE", &[], &[1]);
     }
-    
+
     #[test]
     fn test_output_encoding() {
         assert_eq!(REPLACEMENT.output_encoding(), UTF_8);
