@@ -40,6 +40,11 @@ public:
                              name.length());
   }
 
+  inline const Encoding* for_bom(gsl::span<const uint8_t> buffer)
+  {
+    return encoding_for_bom(buffer.data(), buffer.size());
+  }
+
   inline std::string name() const
   {
     std::string name(ENCODING_NAME_MAX_LENGTH, '\0');

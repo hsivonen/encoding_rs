@@ -1069,6 +1069,29 @@ impl Encoding {
         return None;
     }
 
+    /// Performs non-incremental BOM sniffing.
+    ///
+    /// The argument must either be a buffer representing the entire input
+    /// stream (non-streaming case) or a buffer representing at least the first
+    /// three bytes of the input stream (streaming case).
+    ///
+    /// Returns `Some(UTF_8)`, `Some(UTF_16LE)` or `Some(UTF_16BE)` if the
+    /// argument starts with the UTF-8, UTF-16LE or UTF-16BE BOM or `None`
+    /// otherwise.
+    ///
+    /// Available via the C wrapper.
+    pub fn for_bom(buffer: &[u8]) -> Option<&'static Encoding> {
+        if buffer.starts_with(b"\xEF\xBB\xBF") {
+            Some(UTF_8)
+        } else if buffer.starts_with(b"\xFF\xFE") {
+            Some(UTF_16LE)
+        } else if buffer.starts_with(b"\xFE\xFF") {
+            Some(UTF_16BE)
+        } else {
+            None
+        }
+    }
+
     /// Returns the name of this encoding.
     ///
     /// This name is appropriate to return as-is from the DOM

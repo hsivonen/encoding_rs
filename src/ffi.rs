@@ -251,6 +251,12 @@ pub unsafe extern "C" fn encoding_for_name(name: *const u8, name_len: usize) -> 
     option_to_ptr(Encoding::for_name(name_slice))
 }
 
+#[no_mangle]
+pub unsafe extern "C" fn encoding_for_bom(buffer: *const u8, buffer_len: usize) -> *const Encoding {
+    let buffer_slice = ::std::slice::from_raw_parts(buffer, buffer_len);
+    option_to_ptr(Encoding::for_bom(buffer_slice))
+}
+
 /// Writes the name of the given `Encoding` to a caller-supplied buffer as ASCII
 /// and returns the number of bytes / ASCII characters written.
 ///
