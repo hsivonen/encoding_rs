@@ -86,3 +86,20 @@ along as a prototype.
 - [ ] Implement the rust-encoding API in terms of encoding_rs.
 - [ ] Investigate the use of NEON on newer ARM CPUs that have a lesser penalty
       on data flow from NEON to ALU registers.
+
+## Release Notes
+
+### 0.2.1
+
+* Add `Encoding.is_ascii_compatible()`.
+
+* Add `Encoding::for_bom()`.
+
+* Make `==` for `Encoding` use name comparison instead of pointer comparison,
+  because uses of the encoding constants in different crates result in
+  different addresses and the constant cannot be turned into statics without
+  breaking other things.
+
+### 0.2.0
+
+The initial release.
