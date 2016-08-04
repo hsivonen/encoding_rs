@@ -10,8 +10,9 @@
 //! encoding_rs is a Gecko-oriented Free Software / Open Source implementation
 //! of the [Encoding Standard](https://encoding.spec.whatwg.org/) in Rust.
 //! Gecko-oriented means that converting to and from UTF-16 is supported in
-//! addition to converting to and from UTF-8 and that the performance and
-//! streamability goals are browser-oriented.
+//! addition to converting to and from UTF-8, that the performance and
+//! streamability goals are browser-oriented and that FFI-friendliness is a
+//! goal.
 //!
 //! ## Availability
 //!
@@ -44,7 +45,11 @@
 //! multiplication operations.
 //!
 //! Additionally, performance is a non-goal for the ASCII-incompatible
-//! ISO-2022-JP and UTF-16 encodings, which are rarely used on the Web.
+//! ISO-2022-JP and UTF-16 encodings, which are rarely used on the Web. For
+//! clarity, this means that performance is a non-goal for UTF-16 as used on
+//! the wire as an interchange encoding (UTF-16 on the `[u8]` side of the API).
+//! Good performance for UTF-16 used as an in-RAM Unicode representation
+//! (UTF-16 the `[u16]` side of the API) is a goal.
 //!
 //! Despite the focus on the Web, encoding_rs may well be useful for decoding
 //! email, although you'll need to implement UTF-7 decoding and label handling
