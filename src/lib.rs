@@ -86,6 +86,60 @@
 //! performed using methods on `Encoding` objects themselves, so the `Decoder`
 //! and `Encoder` objects are not used at all.
 //!
+//! ## Memory management
+//!
+//! The non-streaming mode never performs heap allocations (even the methods
+//! that write into a `Vec<u8>` or a `String` by taking them as arguments do
+//! not reallocate the backing buffer of the `Vec<u8>` or the `String`. That
+//! is, the non-streaming mode uses caller-allocated buffers exclusively.
+//!
+//! The methods of the streaming mode that return a `Vec<u8>` or a `String`
+//! perform heap allocations but only to allocate the backing buffer of the
+//! `Vec<u8>` or the `String`.
+//!
+//! `Encoding` is always statically allocated. `Decoder` and `Encoder` need no
+//! `Drop` cleanup.
+//!
+//! ## Buffer reading and writing behavior
+//!
+//! Based on experience gathered with the `java.nio.charset` encoding converter
+//! API and with the Gecko uconv encoding converter API, the buffer reading
+//! and writing behaviors of encoding_rs are asymmetric: input buffers are
+//! fully drained but output buffers are not always fully filled.
+//!
+//! When reading from an input buffer, encoding_rs always consumes all input
+//! up to the next error or to the end of the buffer. In particular, when
+//! decoding, even if the input buffer ends in the middle of a byte sequence
+//! for a character, the decoder consumes all input. This has the benefit that
+//! the caller of the API can always fill the next buffer from the start from
+//! whatever source the bytes come from and never has to first copy the last
+//! bytes of the previous buffer to the start of the next buffer. However, when
+//! encoding, the UTF-8 input buffers have to end at a character boundary, which
+//! is a requirement for the Rust `str` type anyway, and UTF-16 input buffer
+//! boundaries falling in the middle of a surrogate pair result in both
+//! suggorates being treated individually as unpaired surrogates.
+//!
+//! Additionally, decoders guarantee that they can be fed even one byte at a
+//! time and encoders guarantee that they can be fed even one code point at a
+//! time. This has the benefit of not placing restrictions on the size of
+//! chunks the content arrives e.g. from network.
+//!
+//! When writing into an output buffer, encoding_rs makes sure that the code
+//! unit sequence for a character is never split across output buffer
+//! boundaries. This may result in wasted space at the end of an output buffer,
+//! but the advantages are that the output side of both decoders and encoders
+//! is greatly simplified compared to designs that attempt to fill output
+//! buffers exactly even when that entails splitting a code unit sequence and
+//! when encoding_rs methods return to the caller, the output produces thus
+//! far is always valid taken as whole. (In the case of encoding to ISO-2022-JP,
+//! the output needs to be considered as a whole, because the latest output
+//! buffer taken alone might not be valid taken alone if the transition away
+//! from the ASCII state occurred in an earlier output buffer. However, since
+//! the ISO-2022-JP decoder doesn't treat streams that don't end in the ASCII
+//! state as being in error despite the encoder generating a transition to the
+//! ASCII state at the end, the claim about the partial output taken as a whole
+//! being valid is true even for ISO-2022-JP.)
+//!
 //! ## Mapping Spec Concepts onto the API
 //!
 //! <table>
