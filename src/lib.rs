@@ -157,10 +157,47 @@
 //! <tr><td><a href="https://encoding.spec.whatwg.org/#utf-8-decode-without-bom">UTF-8 decode without BOM</a></td><td><code>let d = UTF_8.new_decoder_without_bom_handling();<br>let res = d.decode_to_<var>*</var>(<var>src</var>, <var>dst</var>, false);<br>// &hellip;</br>let last_res = d.decode_to_<var>*</var>(<var>src</var>, <var>dst</var>, true);</code></td><td><code>UTF_8.decode_without_bom_handling(<var>src</var>)</code></td></tr>
 //! <tr><td><a href="https://encoding.spec.whatwg.org/#utf-8-decode-without-bom-or-fail">UTF-8 decode without BOM or fail</a></td><td><code>let d = UTF_8.new_decoder_without_bom_handling();<br>let res = d.decode_to_<var>*</var>_without_replacement(<var>src</var>, <var>dst</var>, false);<br>// &hellip; (fail if malformed)</br>let last_res = d.decode_to_<var>*</var>_without_replacement(<var>src</var>, <var>dst</var>, true);<br>// (fail if malformed)</code></td><td><code>UTF_8.decode_without_bom_handling_and_without_replacement(<var>src</var>)</code></td></tr>
 //! <tr><td><a href="https://encoding.spec.whatwg.org/#encode">encode</a></td><td><code>let e = <var>encoding</var>.new_encoder();<br>let res = e.encode_to_<var>*</var>(<var>src</var>, <var>dst</var>, false);<br>// &hellip;</br>let last_res = e.encode_to_<var>*</var>(<var>src</var>, <var>dst</var>, true);</code></td><td><code><var>encoding</var>.encode(<var>src</var>)</code></td></tr>
-//! <tr><td><a href="https://encoding.spec.whatwg.org/#utf-8-encode">UTF-8 encode</a></td><td>Use the UTF-8 nature of Rust strings directly:<br><code><var>write</var>(<var>src</var>.as_bytes());<br><var>write</var>(<var>src</var>.as_bytes());<br><var>write</var>(<var>src</var>.as_bytes());<br>// &hellip;</code></td><td>Use the UTF-8 nature of Rust strings directly:<br><code><var>src</var>.as_bytes()</code></td></tr>
+//! <tr><td><a href="https://encoding.spec.whatwg.org/#utf-8-encode">UTF-8 encode</a></td><td>Use the UTF-8 nature of Rust strings directly:<br><code><var>write</var>(<var>src</var>.as_bytes());<br>// refill src<br><var>write</var>(<var>src</var>.as_bytes());<br>// refill src<br><var>write</var>(<var>src</var>.as_bytes());<br>// &hellip;</code></td><td>Use the UTF-8 nature of Rust strings directly:<br><code><var>src</var>.as_bytes()</code></td></tr>
 //! </tbody>
 //! </table>
-
+//!
+//! ## Migrating from rust-encoding
+//!
+//! The crate
+//! [encoding_rs_compat](https://github.com/hsivonen/encoding_rs_compat/)
+//! is a drop-in replacement for rust-encoding 0.2.32 that implements (most of)
+//! the API of rust-encoding 0.2.32 on top of encoding_rs.
+//!
+//! The following table provides a mapping from rust-encoding constructs to
+//! encoding_rs ones.
+//!
+//! <table>
+//! <thead>
+//! <tr><th>rust-encoding</th><th>encoding_rs</th></tr>
+//! </thead>
+//! <tbody>
+//! <tr><td><code>encoding::EncodingRef</code></td><td><code>&amp;'static encoding_rs::Encoding</code></td></tr>
+//! <tr><td><code>encoding::all::<var>WINDOWS_31J</var></code> (not based on the WHATWG name for some encodings)</td><td><code>encoding_rs::<var>SHIFT_JIS</var></code> (always the WHATWG name uppercased and hyphens replaced with underscores)</td></tr>
+//! <tr><td><code>encoding::all::ERROR</code></td><td>Not available because not in the Encoding Standard</td></tr>
+//! <tr><td><code>encoding::all::ASCII</code></td><td>Not available because not in the Encoding Standard</td></tr>
+//! <tr><td><code>encoding::all::ISO_8859_1</code></td><td>Not available because not in the Encoding Standard</td></tr>
+//! <tr><td><code>encoding::all::HZ</code></td><td>Not available because not in the Encoding Standard</td></tr>
+//! <tr><td><code>encoding::label::encoding_from_whatwg_label(<var>string</var>)</code></td><td><code>encoding_rs::Encoding::for_label(<var>string</var>)</code></td></tr>
+//! <tr><td><code>encoding::all::<var>WINDOWS_31J</var>.whatwg_name()</code> (always lower case)</td><td><code>encoding_rs::<var>SHIFT_JIS</var>.name()</code> (potentially mixed case)</td></tr>
+//! <tr><td><code>encoding::all::<var>WINDOWS_31J</var>.name()</code></td><td>Not available because not in the Encoding Standard</td></tr>
+//! <tr><td><code>encoding::decode(<var>bytes</var>, encoding::DecoderTrap::Replace, encoding::all::<var>WINDOWS_31J</var>)</code></td><td><code>encoding_rs::<var>SHIFT_JIS</var>.decode(<var>bytes</var>)</code></td></tr>
+//! <tr><td><code>encoding::all::<var>WINDOWS_31J</var>.decode(<var>bytes</var>, encoding::DecoderTrap::Replace)</code></td><td><code>encoding_rs::<var>SHIFT_JIS</var>.decode_without_bom_handling(<var>bytes</var>)</code></td></tr>
+//! <tr><td><code>encoding::all::<var>WINDOWS_31J</var>.encode(<var>string</var>, encoding::EncoderTrap::Replace)</code></td><td><code>encoding_rs::<var>SHIFT_JIS</var>.encode(<var>string</var>)</code></td></tr>
+//! <tr><td><code>encoding::all::<var>WINDOWS_31J</var>.raw_decoder()</code></td><td><code>encoding_rs::<var>SHIFT_JIS</var>.new_decoder_without_bom_handling()</code></td></tr>
+//! <tr><td><code>encoding::all::<var>WINDOWS_31J</var>.raw_encoder()</code></td><td><code>encoding_rs::<var>SHIFT_JIS</var>.new_encoder()</code></td></tr>
+//! <tr><td><code>encoding::RawDecoder</code></td><td><code>encoding_rs::Decoder</code></td></tr>
+//! <tr><td><code>encoding::RawEncoder</code></td><td><code>encoding_rs::Encoder</code></td></tr>
+//! <tr><td><code><var>raw_decoder</var>.raw_feed(<var>src</var>, <var>dst</var>)</code></td><td><code><var>decoder</var>.decode_to_utf8_without_replacement(<var>src</var>, <var>dst</var>, false)</code></td></tr>
+//! <tr><td><code><var>raw_decoder</var>.raw_finish(<var>dst</var>)</code></td><td><code><var>decoder</var>.decode_to_utf8_without_replacement(b"", <var>dst</var>, true)</code></td></tr>
+//! <tr><td><code><var>raw_encoder</var>.raw_feed(<var>src</var>, <var>dst</var>)</code></td><td><code><var>encoder</var>.encode_from_utf8_without_replacement(<var>src</var>, <var>dst</var>, false)</code></td></tr>
+//! <tr><td><code><var>raw_encoder</var>.raw_finish(<var>dst</var>)</code></td><td><code><var>encoder</var>.encode_from_utf8_without_replacement("", <var>dst</var>, true)</code></td></tr>
+//! </tbody>
+//! </table>
 
 #[macro_use]
 mod macros;
