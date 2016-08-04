@@ -1651,13 +1651,15 @@ impl Decoder {
         self.variant.max_utf8_buffer_length(byte_length)
     }
 
-    /// Incrementally decode a byte stream into UTF-16.
-    ///
-    /// See the documentation of the struct for documentation for `decode_*`
-    /// methods collectively.
-    ///
-    /// Available via the C wrapper.
-    public_decode_function!(decode_to_utf16_without_replacement,
+    public_decode_function!(/// Incrementally decode a byte stream into UTF-16.
+                            ///
+                            /// See the documentation of the struct for
+                            /// documentation for `decode_*` methods
+                            /// collectively.
+                            ///
+                            /// Available via the C wrapper.
+                            ,
+                            decode_to_utf16_without_replacement,
                             decode_to_utf16_raw,
                             decode_to_utf16_checking_end,
                             decode_to_utf16_after_one_potential_bom_byte,
@@ -1665,13 +1667,15 @@ impl Decoder {
                             decode_to_utf16_checking_end_with_offset,
                             u16);
 
-    /// Incrementally decode a byte stream into UTF-8.
-    ///
-    /// See the documentation of the struct for documentation for `decode_*`
-    /// methods collectively.
-    ///
-    /// Available via the C wrapper.
-    public_decode_function!(decode_to_utf8_without_replacement,
+    public_decode_function!(/// Incrementally decode a byte stream into UTF-8.
+                            ///
+                            /// See the documentation of the struct for
+                            /// documentation for `decode_*` methods
+                            /// collectively.
+                            ///
+                            /// Available via the C wrapper.
+                            ,
+                            decode_to_utf8_without_replacement,
                             decode_to_utf8_raw,
                             decode_to_utf8_checking_end,
                             decode_to_utf8_after_one_potential_bom_byte,

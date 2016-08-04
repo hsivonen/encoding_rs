@@ -197,13 +197,15 @@ macro_rules! encoder_functions {
 }
 
 macro_rules! public_decode_function{
-    ($decode_to_utf:ident,
+    ($(#[$meta:meta])*,
+     $decode_to_utf:ident,
      $decode_to_utf_raw:ident,
      $decode_to_utf_checking_end:ident,
      $decode_to_utf_after_one_potential_bom_byte:ident,
      $decode_to_utf_after_two_potential_bom_bytes:ident,
      $decode_to_utf_checking_end_with_offset:ident,
      $code_unit:ty) => (
+    $(#[$meta])*
     pub fn $decode_to_utf(&mut self,
                            src: &[u8],
                            dst: &mut [$code_unit],
