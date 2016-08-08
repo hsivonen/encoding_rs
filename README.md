@@ -15,8 +15,6 @@ encoding_rs aspires to become an implementation of the
    compatible with at least the most common ways of using
    [rust-encoding](https://github.com/lifthrasiir/rust-encoding/).)
 
-_You should not expect the above-stated aspiration to be fulfilled yet._
-
 ## Licensing
 
 Please see the file named
@@ -46,18 +44,12 @@ encodings should not be optimized for speed at the expense of code size as long
 as form submission and URL parsing in Gecko don't become noticeably too slow
 in real-world use.
 
-## Relationship with rust-encoding
+## Compatibility with rust-encoding
 
-This code is being prototyped as a new project as opposed to patches to
-rust-encoding both to avoid breaking rust-encoding with in-progress exploration
-and to be able to see where the API design would go from scratch given the
-goals.
-
-It is expected that encoding_rs will use code from rust-encoding.
-
-Evaluation of whether it makes sense to propose portions of encoding_rs to be
-adopted into rust-encoding will be best deferred until encoding_rs is further
-along as a prototype.
+A compatibility layer that implements the rust-encoding API on top of
+encoding_rs is
+[provided as a separate crate](https://github.com/hsivonen/encoding_rs_compat)
+(not on crates.io at this time).
 
 ## Roadmap
 
@@ -83,11 +75,15 @@ along as a prototype.
       end of the label/name to the start.
 - [ ] Provide an XPCOM/MFBT-flavored C++ API.
 - [ ] Replace uconv with encoding_rs in Gecko.
-- [ ] Implement the rust-encoding API in terms of encoding_rs.
+- [x] Implement the rust-encoding API in terms of encoding_rs.
 - [ ] Investigate the use of NEON on newer ARM CPUs that have a lesser penalty
       on data flow from NEON to ALU registers.
 
 ## Release Notes
+
+### 0.2.2
+
+* Add `Encoder.encode_from_utf8_to_vec_without_replacement()`.
 
 ### 0.2.1
 
