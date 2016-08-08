@@ -8,6 +8,7 @@ readme = "README.md"
 documentation = "https://hsivonen.fi/rs/encoding_rs/"
 homepage = "https://hsivonen.fi/rs/encoding_rs/"
 repository = "https://github.com/hsivonen/encoding_rs"
+keywords = ["encoding", "web", "unicode", "charset"]
 build = "build.rs"
 
 [lib]
