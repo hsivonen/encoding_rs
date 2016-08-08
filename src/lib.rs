@@ -2196,6 +2196,28 @@ impl Encoder {
         self.variant.encode_from_utf8_raw(src, dst, last)
     }
 
+    /// Incrementally encode into byte stream from UTF-8 with replacement.
+    ///
+    /// See the documentation of the struct for documentation for `encode_*`
+    /// methods collectively.
+    ///
+    /// Available to Rust only.
+    pub fn encode_from_utf8_to_vec_without_replacement(&mut self,
+                                                       src: &str,
+                                                       dst: &mut Vec<u8>,
+                                                       last: bool)
+                                                       -> (EncoderResult, usize) {
+        unsafe {
+            let old_len = dst.len();
+            let capacity = dst.capacity();
+            dst.set_len(capacity);
+            let (result, read, written) =
+                self.encode_from_utf8_without_replacement(src, &mut dst[old_len..], last);
+            dst.set_len(old_len + written);
+            (result, read)
+        }
+    }
+
     /// Incrementally encode into byte stream from UTF-16 with replacement.
     ///
     /// See the documentation of the struct for documentation for `encode_*`
@@ -2305,7 +2327,7 @@ impl Encoder {
     /// See the documentation of the struct for documentation for `encode_*`
     /// methods collectively.
     ///
-    /// Available via the C wrapper.
+    /// Available to Rust only.
     pub fn encode_from_utf8_to_vec(&mut self,
                                    src: &str,
                                    dst: &mut Vec<u8>,
