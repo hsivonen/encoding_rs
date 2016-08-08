@@ -162,11 +162,11 @@
 //! the job of an encoding conversion library.
 //!
 //! On the decoder side, errors are triggered in more complex ways. For
-//! example, when decoding the sequence ESC, '$', _buffer boundary_, 'A', the
-//! ESC byte is in error, but this is discovered only after the buffer boundary
-//! when processing 'A'. Thus, the bytes in error might not be the ones most
-//! recently pushed to the decoder and the error might not even be in the
-//! current buffer.
+//! example, when decoding the sequence ESC, '$', _buffer boundary_, 'A' as
+//! ISO-2022-JP, the ESC byte is in error, but this is discovered only after
+//! the buffer boundary when processing 'A'. Thus, the bytes in error might not
+//! be the ones most recently pushed to the decoder and the error might not even
+//! be in the current buffer.
 //!
 //! Some encoding conversion APIs address the problem by not acknowledging
 //! trailing bytes of an input buffer as consumed if it's still possible for
@@ -188,9 +188,9 @@
 //! it possible to develop applications, such as HTML validators, that care
 //! about which bytes were in error, encoding_rs reports the length of the
 //! erroneous sequence and the number of bytes consumed after the erroneous
-//! sequence. As long as the caller doesn't discard the most recent input, this
-//! makes it possible for callers that care about the erroneous bytes to locate
-//! them
+//! sequence. As long as the caller doesn't discard the XXX most recent bytes,
+//! this makes it possible for callers that care about the erroneous bytes to
+//! locate them.
 //!
 //! ## No Convenience API for Custom Replacements
 //!
