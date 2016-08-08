@@ -102,7 +102,7 @@
 //!
 //! ## Buffer reading and writing behavior
 //!
-//! Based on experience gathered with the `java.nio.charset` encoding converter
+//! Based on experience gained with the `java.nio.charset` encoding converter
 //! API and with the Gecko uconv encoding converter API, the buffer reading
 //! and writing behaviors of encoding_rs are asymmetric: input buffers are
 //! fully drained but output buffers are not always fully filled.
@@ -139,6 +139,70 @@
 //! state as being in error despite the encoder generating a transition to the
 //! ASCII state at the end, the claim about the partial output taken as a whole
 //! being valid is true even for ISO-2022-JP.)
+//!
+//! ## Error Reporting
+//!
+//! Based on experience gained with the `java.nio.charset` encoding converter
+//! API and with the Gecko uconv encoding converter API, the error reporting
+//! behaviors of encoding_rs are asymmetric: decoder errors include offsets
+//! that leave it up to the caller to extract the erroneous bytes from the
+//! input stream if the caller wishes to do so but encoder errors provide the
+//! code point associated with the error without requiring the caller to
+//! extract it from the input on its own.
+//!
+//! On the encoder side, an error is always triggered by the most recently
+//! pushed Unicode scalar, which makes it simple to pass the `char` to the
+//! caller. Also, it's very typical for the caller to wish to do something with
+//! this data: generate a numeric escape for the character. Additionally, the
+//! ISO-2022-JP encoder reports U+FFFD instead of the actual input character in
+//! certain cases, so requiring the caller to extract the character from the
+//! input buffer would require the caller to handle ISO-2022-JP details.
+//! Furthermore, requiring the caller to extract the character from the input
+//! buffer would require the caller to implement UTF-8 or UTF-16 math, which is
+//! the job of an encoding conversion library.
+//!
+//! On the decoder side, errors are triggered in more complex ways. For
+//! example, when decoding the sequence ESC, '$', _buffer boundary_, 'A', the
+//! ESC byte is in error, but this is discovered only after the buffer boundary
+//! when processing 'A'. Thus, the bytes in error might not be the ones most
+//! recently pushed to the decoder and the error might not even be in the
+//! current buffer.
+//!
+//! Some encoding conversion APIs address the problem by not acknowledging
+//! trailing bytes of an input buffer as consumed if it's still possible for
+//! future bytes to cause the trailing bytes to be in error. This way, error
+//! reporting can always refer to the most recently pushed buffer. This has the
+//! problem that the caller of the API has to copy the unconsumed trailing
+//! bytes to the start of the next buffer before being able to fill the rest
+//! of the next buffer. This is annoying, error-prone and inefficient.
+//!
+//! A possible solution would be making the decoder remember recently consumed
+//! bytes in order to be able to include a copy of the erroneous bytes when
+//! reporting an error. This has two problem: First, callers a rarely
+//! interested in the erroneous bytes, so attempts to identify them are most
+//! often just overhead anyway. Second, the rare applications that are
+//! interested typically care about the location of the error in the input
+//! stream.
+//!
+//! To keep the API convenient for common uses and the overhead low while making
+//! it possible to develop applications, such as HTML validators, that care
+//! about which bytes were in error, encoding_rs reports the length of the
+//! erroneous sequence and the number of bytes consumed after the erroneous
+//! sequence. As long as the caller doesn't discard the most recent input, this
+//! makes it possible for callers that care about the erroneous bytes to locate
+//! them
+//!
+//! ## No Convenience API for Custom Replacements
+//!
+//! TODO
+//!
+//! ## No Extensibility by Design
+//!
+//! TODO
+//!
+//! ## Panics
+//!
+//! TODO
 //!
 //! ## Mapping Spec Concepts onto the API
 //!
