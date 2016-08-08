@@ -161,12 +161,14 @@
 //! </tbody>
 //! </table>
 //!
-//! ## Migrating from rust-encoding
+//! ## Compatibility with the rust-encoding API
 //!
 //! The crate
 //! [encoding_rs_compat](https://github.com/hsivonen/encoding_rs_compat/)
 //! is a drop-in replacement for rust-encoding 0.2.32 that implements (most of)
 //! the API of rust-encoding 0.2.32 on top of encoding_rs.
+//!
+//! ## Mapping rust-encoding concepts to encoding_rs concepts
 //!
 //! The following table provides a mapping from rust-encoding constructs to
 //! encoding_rs ones.
@@ -183,19 +185,28 @@
 //! <tr><td><code>encoding::all::ISO_8859_1</code></td><td>Not available because not in the Encoding Standard</td></tr>
 //! <tr><td><code>encoding::all::HZ</code></td><td>Not available because not in the Encoding Standard</td></tr>
 //! <tr><td><code>encoding::label::encoding_from_whatwg_label(<var>string</var>)</code></td><td><code>encoding_rs::Encoding::for_label(<var>string</var>)</code></td></tr>
-//! <tr><td><code>encoding::all::<var>WINDOWS_31J</var>.whatwg_name()</code> (always lower case)</td><td><code>encoding_rs::<var>SHIFT_JIS</var>.name()</code> (potentially mixed case)</td></tr>
-//! <tr><td><code>encoding::all::<var>WINDOWS_31J</var>.name()</code></td><td>Not available because not in the Encoding Standard</td></tr>
-//! <tr><td><code>encoding::decode(<var>bytes</var>, encoding::DecoderTrap::Replace, encoding::all::<var>WINDOWS_31J</var>)</code></td><td><code>encoding_rs::<var>SHIFT_JIS</var>.decode(<var>bytes</var>)</code></td></tr>
-//! <tr><td><code>encoding::all::<var>WINDOWS_31J</var>.decode(<var>bytes</var>, encoding::DecoderTrap::Replace)</code></td><td><code>encoding_rs::<var>SHIFT_JIS</var>.decode_without_bom_handling(<var>bytes</var>)</code></td></tr>
-//! <tr><td><code>encoding::all::<var>WINDOWS_31J</var>.encode(<var>string</var>, encoding::EncoderTrap::Replace)</code></td><td><code>encoding_rs::<var>SHIFT_JIS</var>.encode(<var>string</var>)</code></td></tr>
-//! <tr><td><code>encoding::all::<var>WINDOWS_31J</var>.raw_decoder()</code></td><td><code>encoding_rs::<var>SHIFT_JIS</var>.new_decoder_without_bom_handling()</code></td></tr>
-//! <tr><td><code>encoding::all::<var>WINDOWS_31J</var>.raw_encoder()</code></td><td><code>encoding_rs::<var>SHIFT_JIS</var>.new_encoder()</code></td></tr>
+//! <tr><td><code><var>enc</var>.whatwg_name()</code> (always lower case)</td><td><code><var>enc</var>.name()</code> (potentially mixed case)</td></tr>
+//! <tr><td><code><var>enc</var>.name()</code></td><td>Not available because not in the Encoding Standard</td></tr>
+//! <tr><td><code>encoding::decode(<var>bytes</var>, encoding::DecoderTrap::Replace, <var>enc</var>)</code></td><td><code><var>enc</var>.decode(<var>bytes</var>)</code></td></tr>
+//! <tr><td><code><var>enc</var>.decode(<var>bytes</var>, encoding::DecoderTrap::Replace)</code></td><td><code><var>enc</var>.decode_without_bom_handling(<var>bytes</var>)</code></td></tr>
+//! <tr><td><code><var>enc</var>.encode(<var>string</var>, encoding::EncoderTrap::Replace)</code></td><td><code><var>enc</var>.encode(<var>string</var>)</code></td></tr>
+//! <tr><td><code><var>enc</var>.raw_decoder()</code></td><td><code><var>enc</var>.new_decoder_without_bom_handling()</code></td></tr>
+//! <tr><td><code><var>enc</var>.raw_encoder()</code></td><td><code><var>enc</var>.new_encoder()</code></td></tr>
 //! <tr><td><code>encoding::RawDecoder</code></td><td><code>encoding_rs::Decoder</code></td></tr>
 //! <tr><td><code>encoding::RawEncoder</code></td><td><code>encoding_rs::Encoder</code></td></tr>
-//! <tr><td><code><var>raw_decoder</var>.raw_feed(<var>src</var>, <var>dst</var>)</code></td><td><code><var>decoder</var>.decode_to_utf8_without_replacement(<var>src</var>, <var>dst</var>, false)</code></td></tr>
-//! <tr><td><code><var>raw_decoder</var>.raw_finish(<var>dst</var>)</code></td><td><code><var>decoder</var>.decode_to_utf8_without_replacement(b"", <var>dst</var>, true)</code></td></tr>
-//! <tr><td><code><var>raw_encoder</var>.raw_feed(<var>src</var>, <var>dst</var>)</code></td><td><code><var>encoder</var>.encode_from_utf8_without_replacement(<var>src</var>, <var>dst</var>, false)</code></td></tr>
-//! <tr><td><code><var>raw_encoder</var>.raw_finish(<var>dst</var>)</code></td><td><code><var>encoder</var>.encode_from_utf8_without_replacement("", <var>dst</var>, true)</code></td></tr>
+//! <tr><td><code><var>raw_decoder</var>.raw_feed(<var>src</var>, <var>dst</var>)</code></td><td><code><var>decoder</var>.decode_to_string_without_replacement(<var>src</var>, <var>dst</var>, false)</code></td></tr>
+//! <tr><td><code><var>raw_encoder</var>.raw_feed(<var>src</var>, <var>dst</var>)</code></td><td><code><var>encoder</var>.encode_from_utf8_to_vec_without_replacement(<var>src</var>, <var>dst</var>, false)</code></td></tr>
+//! <tr><td><code><var>raw_decoder</var>.raw_finish(<var>dst</var>)</code></td><td><code><var>decoder</var>.decode_to_string_without_replacement(b"", <var>dst</var>, true)</code></td></tr>
+//! <tr><td><code><var>raw_encoder</var>.raw_finish(<var>dst</var>)</code></td><td><code><var>encoder</var>.encode_from_utf8_to_vec_without_replacement("", <var>dst</var>, true)</code></td></tr>
+//! <tr><td><code>encoding::DecoderTrap::Strict</code></td><td><code>decode*</code> methods that have <code>_without_replacement</code> in their name (and treating the `Malformed` result as fatal).</td></tr>
+//! <tr><td><code>encoding::DecoderTrap::Replace</code></td><td><code>decode*</code> methods that <i>do not</i> have <code>_without_replacement</code> in their name.</td></tr>
+//! <tr><td><code>encoding::DecoderTrap::Ignore</code></td><td>It is a bad idea to ignore errors due to security issues, but this could be implemented using <code>decode*</code> methods that have <code>_without_replacement</code> in their name.</td></tr>
+//! <tr><td><code>encoding::DecoderTrap::Call(DecoderTrapFunc)</code></td><td>Can be implemented using <code>decode*</code> methods that have <code>_without_replacement</code> in their name.</td></tr>
+//! <tr><td><code>encoding::EncoderTrap::Strict</code></td><td><code>encode*</code> methods that have <code>_without_replacement</code> in their name (and treating the `Unmappable` result as fatal).</td></tr>
+//! <tr><td><code>encoding::EncoderTrap::Replace</code></td><td>Can be implemented using <code>encode*</code> methods that have <code>_without_replacement</code> in their name.</td></tr>
+//! <tr><td><code>encoding::EncoderTrap::Ignore</code></td><td>It is a bad idea to ignore errors due to security issues, but this could be implemented using <code>encode*</code> methods that have <code>_without_replacement</code> in their name.</td></tr>
+//! <tr><td><code>encoding::EncoderTrap::NcrEscape</code></td><td><code>encode*</code> methods that <i>do not</i> have <code>_without_replacement</code> in their name.</td></tr>
+//! <tr><td><code>encoding::EncoderTrap::Call(EncoderTrapFunc)</code></td><td>Can be implemented using <code>encode*</code> methods that have <code>_without_replacement</code> in their name.</td></tr>
 //! </tbody>
 //! </table>
 
