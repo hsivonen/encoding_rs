@@ -90,7 +90,7 @@
 //!
 //! The non-streaming mode never performs heap allocations (even the methods
 //! that write into a `Vec<u8>` or a `String` by taking them as arguments do
-//! not reallocate the backing buffer of the `Vec<u8>` or the `String`. That
+//! not reallocate the backing buffer of the `Vec<u8>` or the `String`). That
 //! is, the non-streaming mode uses caller-allocated buffers exclusively.
 //!
 //! The methods of the streaming mode that return a `Vec<u8>` or a `String`
