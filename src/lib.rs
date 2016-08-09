@@ -194,15 +194,93 @@
 //!
 //! ## No Convenience API for Custom Replacements
 //!
-//! TODO
+//! The Web Platform and, therefore, the Encoding Standard supports only one
+//! error recovery mode for decoders and only one error recovery mode for
+//! encoders. The supported error recovery mode for decoders is emitting the
+//! REPLACEMENT CHARACTER on error. The supported error recovery mode for
+//! encoders is emitting an HTML decimal numeric character reference for
+//! unmappable characters.
+//!
+//! Since encoding_rs is Web-focused, these are the only error recovery modes
+//! for which convenient support is provided. Moreover, on the decoder side,
+//! there aren't really good alternatives for emitting the REPLACEMENT CHARACTER
+//! on error (other than treating errors as fatal). In particular, simply
+//! ignoring errors is a
+//! [security problem](http://www.unicode.org/reports/tr36/#Substituting_for_Ill_Formed_Subsequences),
+//! so it would be a bad idea for encoding_rs to provide a mode that encouraged
+//! callers to ignore errors.
+//!
+//! On the encoder side, there are plausible alternatives for HTML decimal
+//! numeric character references. For example, when outputting CSS, CSS-style
+//! escapes would seem to make sense. However, instead of facilitating the
+//! output of CSS, JS, etc. in non-UTF-8 encodings, encoding_rs takes the design
+//! position that you shouldn't generate output in encodings other than UTF-8,
+//! except where backward compatibility with interacting with the legacy Web
+//! requires it. The legacy Web requires it only when parsing the query strings
+//! of URLs and when submitting forms, and those two both use HTML decimal
+//! numeric character references.
+//!
+//! While encoding_rs doesn't make encoder replacements other than HTML decimal
+//! numeric character references easy, it does make them _possible_.
+//! `encode_from_utf8()`, which emits HTML decimal numeric character references
+//! for unmappable characters, is implemented on top of
+//! `encode_from_utf8_without_replacement()`. Applications that really, really
+//! want other replacement schemes for unmappable characters can likewise
+//! implement them on top of `encode_from_utf8_without_replacement()`.
 //!
 //! ## No Extensibility by Design
 //!
-//! TODO
+//! The set of encodings supported by encoding_rs is not extensible by design.
+//! That is, `Encoding`, `Decoder` and `Encoder` are intentionally `struct`s
+//! rather than `trait`s. encoding_rs takes the design position that all future
+//! text interchange should be done using UTF-8, which can represent all of
+//! Unicode. (It is, in fact, the only encoding supported by the Encoding
+//! Standard and encoding_rs that can represent all of Unicode and that has
+//! encoder support. UTF-16LE and UTF-16BE don't have encoder support, and
+//! gb18030 cannot encode U+E5E5.) The other encodings are supported merely for
+//! legacy compatibility and not due to non-UTF-8 encodings having benefits
+//! other than being able to consume legacy content.
+//!
+//! Considering that UTF-8 can represent all of Unicode and is already supported
+//! by all Web browsers, introducing a new encoding wouldn't add to the
+//! expressiveness but would add to compatibility problems. In that sense,
+//! adding new encodings to the Web Platform doesn't make sense, and, in fact,
+//! post-UTF-8 attempts at encodings, such as BOCU-1, have been rejected from
+//! the Web Platform. On the other hand, the set of legacy encodings that must
+//! be supported for a Web browser to be able to be successful is not going to
+//! expand. Empirically, the set of encodings specified in the Encoding Standard
+//! is already sufficient and the set of legacy encodings won't grow
+//! retroactively.
+//!
+//! Since extensibility doesn't make sense considering the Web focus of
+//! encoding_rs and adding encodings to Web clients would be actively harmful,
+//! it makes sense to make the set of encodings that encoding_rs supports
+//! non-extensible and to take the (admittedly small) benefits arising from
+//! that, such as the size of `Decoder` and `Encoder` objects being known ahead
+//!  of time, which enables stack allocation thereof.
+//!
+//! This does have downsides for applications that might want to put encoding_rs
+//! to non-Web uses if those non-Web uses involve legacy encodings that aren't
+//! needed for Web uses. The needs of such applications should not complicate
+//! encoding_rs itself, though. It is up to those applications to provide a
+//! framework that delegates the operations with encodings that encoding_rs
+//! supports to encoding_rs and operations with other encodings to something
+//! else (as opposed to encoding_rs itself providing an extensibility
+//! framework).
 //!
 //! ## Panics
 //!
-//! TODO
+//! Methods in encoding_rs can panic if the API is used against the requirements
+//! stated in the documentation, if a state that's supposed to be impossible
+//! is reached due to an internal bug or on integer overflow. When used
+//! according to documentation with buffer sizes that stay below integer
+//! overflow, in the absence of internal bugs, encoding_rs does not panic.
+//!
+//! Panics aren't documented beyond this on individual methods.
+//!
+//! The FFI code does not deal with unwinding across the FFI boundary.
+//! Therefore, when using FFI, encoding_rs must be compiled with panics aborting
+//! in order to avoid Undefined Behavior.
 //!
 //! ## Mapping Spec Concepts onto the API
 //!
