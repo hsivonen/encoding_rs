@@ -1865,7 +1865,7 @@ impl Decoder {
     ///
     /// Since the REPLACEMENT CHARACTER fits into one UTF-16 code unit, the
     /// return value of this method applies also in the
-    /// `_with_replacement` case.
+    /// `_without_replacement` case.
     ///
     /// Available via the C wrapper.
     pub fn max_utf16_buffer_length(&self, byte_length: usize) -> usize {

@@ -9,14 +9,14 @@
 
 use super::*;
 
-/// Return value for `*_decode_*` and `*_encode_*` methods that indicates that
+/// Return value for `*_decode_*` and `*_encode_*` functions that indicates that
 /// the input has been exhausted.
 ///
 /// (This is zero as a micro optimization. U+0000 is never unmappable and
 /// malformed sequences always have a positive length.)
 pub const INPUT_EMPTY: u32 = 0;
 
-/// Return value for `*_decode_*` and `*_encode_*` methods that indicates that
+/// Return value for `*_decode_*` and `*_encode_*` functions that indicates that
 /// the output space has been exhausted.
 pub const OUTPUT_FULL: u32 = 0xFFFFFFFF;
 
@@ -231,12 +231,31 @@ fn option_to_ptr(opt: Option<&'static Encoding>) -> *const Encoding {
     }
 }
 
+/// Implements the
+/// [_get an encoding_](https://encoding.spec.whatwg.org/#concept-encoding-get)
+/// algorithm.
+///
+/// If, after ASCII-lowercasing and removing leading and trailing
+/// whitespace, the argument matches a label defined in the Encoding
+/// Standard, `const Encoding*` representing the corresponding
+/// encoding is returned. If there is no match, `NULL` is returned.
+///
+/// The argument buffer can be in any ASCII-compatible encoding. It is not
+/// required to be UTF-8.
 #[no_mangle]
 pub unsafe extern "C" fn encoding_for_label(label: *const u8, label_len: usize) -> *const Encoding {
     let label_slice = ::std::slice::from_raw_parts(label, label_len);
     option_to_ptr(Encoding::for_label(label_slice))
 }
 
+/// This function behaves the same as `encoding_for_label()`, except when
+/// `encoding_for_label()` would return `REPLACEMENT_ENCODING`, this method
+/// returns `NULL` instead.
+///
+/// This method is useful in scenarios where a fatal error is required
+/// upon invalid label, because in those cases the caller typically wishes
+/// to treat the labels that map to the replacement encoding as fatal
+/// errors, too.
 #[no_mangle]
 pub unsafe extern "C" fn encoding_for_label_no_replacement(label: *const u8,
                                                            label_len: usize)
@@ -245,12 +264,30 @@ pub unsafe extern "C" fn encoding_for_label_no_replacement(label: *const u8,
     option_to_ptr(Encoding::for_label_no_replacement(label_slice))
 }
 
+/// If the argument matches exactly (case-sensitively; no whitespace
+/// removal performed) the name of an encoding, returns
+/// `const Encoding*` representing that encoding. Otherwise,
+/// return `NULL`.
+///
+/// The motivating use case for this function is interoperability with
+/// legacy Gecko code that represents encodings as name string instead of
+/// type-safe `Encoding` objects. Using this function for other purposes is
+/// most likely the wrong thing to do.
 #[no_mangle]
 pub unsafe extern "C" fn encoding_for_name(name: *const u8, name_len: usize) -> *const Encoding {
     let name_slice = ::std::slice::from_raw_parts(name, name_len);
     option_to_ptr(Encoding::for_name(name_slice))
 }
 
+/// Performs non-incremental BOM sniffing.
+///
+/// The argument must either be a buffer representing the entire input
+/// stream (non-streaming case) or a buffer representing at least the first
+/// three bytes of the input stream (streaming case).
+///
+/// Returns `UTF_8_ENCODING`, `UTF_16LE_ENCODING` or `UTF_16BE_ENCODING` if the
+/// argument starts with the UTF-8, UTF-16LE or UTF-16BE BOM or `None`
+/// otherwise.
 #[no_mangle]
 pub unsafe extern "C" fn encoding_for_bom(buffer: *const u8, buffer_len: usize) -> *const Encoding {
     let buffer_slice = ::std::slice::from_raw_parts(buffer, buffer_len);
@@ -271,16 +308,22 @@ pub unsafe extern "C" fn encoding_name(encoding: *const Encoding, name_out: *mut
     bytes.len()
 }
 
+/// Checks whether the _output encoding_ of this encoding can encode every
+/// Unicode scalar. (Only true if the output encoding is UTF-8.)
 #[no_mangle]
 pub unsafe extern "C" fn encoding_can_encode_everything(encoding: *const Encoding) -> bool {
     (*encoding).can_encode_everything()
 }
 
+/// Checks whether the bytes 0x00...0x7F map exclusively to the characters
+/// U+0000...U+007F and vice versa.
 #[no_mangle]
 pub unsafe extern "C" fn encoding_is_ascii_compatible(encoding: *const Encoding) -> bool {
     (*encoding).is_ascii_compatible()
 }
 
+/// Returns the _output encoding_ of this encoding. This is UTF-8 for
+/// UTF-16BE, UTF-16LE and replacement and the encoding itself otherwise.
 #[no_mangle]
 pub unsafe extern "C" fn encoding_output_encoding(encoding: *const Encoding) -> *const Encoding {
     (*encoding).output_encoding()
@@ -344,7 +387,7 @@ pub unsafe extern "C" fn encoding_new_decoder_without_bom_handling(encoding: *co
 /// likely be a pointer previously returned by `encoding_new_decoder()`.)
 ///
 /// Note: If the caller has already performed BOM sniffing but has
-/// not removed the BOM, the caller should still use this method in
+/// not removed the BOM, the caller should still use this function in
 /// order to cause the BOM to be ignored.
 #[no_mangle]
 pub unsafe extern "C" fn encoding_new_decoder_into(encoding: *const Encoding,
@@ -415,11 +458,24 @@ pub unsafe extern "C" fn decoder_free(decoder: *mut Decoder) {
     let _ = Box::from_raw(decoder);
 }
 
+/// The `Encoding` this `Decoder` is for.
+///
+/// BOM sniffing can change the return value of this method during the life
+/// of the decoder.
 #[no_mangle]
 pub unsafe extern "C" fn decoder_encoding(decoder: *const Decoder) -> *const Encoding {
     (*decoder).encoding()
 }
 
+/// Query the worst-case UTF-16 output size (with or without replacement).
+///
+/// Returns the size of the output buffer in UTF-16 code units (`char16_t`)
+/// that will not overflow given the current state of the decoder and
+/// `byte_length` number of additional input bytes.
+///
+/// Since the REPLACEMENT CHARACTER fits into one UTF-16 code unit, the
+/// return value of this method applies also in the
+/// `_without_replacement` case.
 #[no_mangle]
 pub unsafe extern "C" fn decoder_max_utf16_buffer_length(decoder: *const Decoder,
                                                          u16_length: usize)
