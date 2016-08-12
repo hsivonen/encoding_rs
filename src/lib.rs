@@ -25,6 +25,121 @@
 //! The [repository is on GitHub](https://github.com/hsivonen/encoding_rs). The
 //! [crate is available on crates.io](https://crates.io/crates/encoding_rs).
 //!
+//! ## Examples
+//!
+//! Decode using the non-streaming API:
+//!
+//! ```
+//! use encoding_rs::*;
+//! 
+//! let expectation = "\u{30CF}\u{30ED}\u{30FC}\u{30FB}\u{30EF}\u{30FC}\u{30EB}\u{30C9}";
+//! let bytes = b"\x83n\x83\x8D\x81[\x81E\x83\x8F\x81[\x83\x8B\x83h";
+//!
+//! let (string, encoding_used, had_errors) = SHIFT_JIS.decode(bytes);
+//! assert_eq!(&string[..], expectation);
+//! assert_eq!(encoding_used, SHIFT_JIS);
+//! assert!(!had_errors);
+//! ```
+//!
+//! Decode using the streaming API with minimal `unsafe`:
+//!
+//! ```
+//! use encoding_rs::*;
+//! 
+//! let expectation = "\u{30CF}\u{30ED}\u{30FC}\u{30FB}\u{30EF}\u{30FC}\u{30EB}\u{30C9}";
+//!
+//! // Use an array of byte slices to demonstrate content arriving piece by
+//! // piece from the network.
+//! let bytes: [&'static [u8]; 4] = [b"\x83",
+//!                                  b"n\x83\x8D\x81",
+//!                                  b"[\x81E\x83\x8F\x81[\x83",
+//!                                  b"\x8B\x83h"];
+//!
+//! // Very short output buffer to demonstrate the output buffer getting full.
+//! let mut buffer_bytes = [0u8; 8];
+//! // Rust doesn't allow us to stack-allocate a `mut str` without `unsafe`.
+//! let mut buffer: &mut str = unsafe {
+//!     std::mem::transmute(&mut buffer_bytes[..])
+//! };
+//!
+//! // How many bytes in the buffer currently hold significant data.
+//! let mut bytes_in_buffer = 0usize;
+//!
+//! // Collect the output to a string for demonstration purposes.
+//! let mut output = String::new();
+//!
+//! // The `Decoder`
+//! let mut decoder = SHIFT_JIS.new_decoder();
+//!
+//! // Track whether we see errors.
+//! let mut total_had_errors = false;
+//!
+//! // Decode using a fixed-size intermediate buffer (for demonstrating the
+//! // use of a fixed-size buffer; normally when the output of an incremental
+//! // decode goes to a `String` one would use `Decoder.decode_to_string()` to
+//! // avoid the intermediate buffer).
+//! for input in &bytes[..] {
+//!     // The number of bytes already read from current `input` in total.
+//!     let mut total_read_from_current_input = 0usize;
+//!     
+//!     loop {
+//!         let (result, read, written, had_errors) =
+//!             decoder.decode_to_str(&input[total_read_from_current_input..],
+//!                                   &mut buffer[bytes_in_buffer..], 
+//!                                   false);
+//!         total_read_from_current_input += read;
+//!         bytes_in_buffer += written;
+//!         if had_errors {
+//!             total_had_errors = true;
+//!         }
+//!         match result {
+//!             CoderResult::InputEmpty => {
+//!                 // We have consumed the current input buffer. Break out of
+//!                 // the inner loop to get the next input buffer from the
+//!                 // outer loop.
+//!                 break;
+//!             },
+//!             CoderResult::OutputFull => {
+//!                 // Write the current buffer out and consider the buffer
+//!                 // empty.
+//!                 output.push_str(&buffer[..bytes_in_buffer]);
+//!                 bytes_in_buffer = 0usize;
+//!                 continue;
+//!             }
+//!         }
+//!     }
+//! }
+//!
+//! // Process EOF
+//! loop {
+//!     let (result, _, written, had_errors) =
+//!         decoder.decode_to_str(b"",
+//!                               &mut buffer[bytes_in_buffer..], 
+//!                               true);
+//!     bytes_in_buffer += written;
+//!     if had_errors {
+//!         total_had_errors = true;
+//!     }
+//!     // Write the current buffer out and consider the buffer empty.
+//!     // Need to do this here for both `match` arms, because we exit the
+//!     // loop on `CoderResult::InputEmpty`.
+//!     output.push_str(&buffer[..bytes_in_buffer]);
+//!     bytes_in_buffer = 0usize;
+//!     match result {
+//!         CoderResult::InputEmpty => {
+//!             // Done!
+//!             break;
+//!         },
+//!         CoderResult::OutputFull => {
+//!             continue;
+//!         }
+//!     }
+//! }
+//! 
+//! assert_eq!(&output[..], expectation);
+//! assert!(!total_had_errors);
+//! ```
+//!
 //! ## Web / Browser Focus
 //!
 //! Both in terms of scope and performance, the focus is on the Web. For scope,
