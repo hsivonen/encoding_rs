@@ -31,7 +31,7 @@
 //!
 //! ```
 //! use encoding_rs::*;
-//! 
+//!
 //! let expectation = "\u{30CF}\u{30ED}\u{30FC}\u{30FB}\u{30EF}\u{30FC}\u{30EB}\u{30C9}";
 //! let bytes = b"\x83n\x83\x8D\x81[\x81E\x83\x8F\x81[\x83\x8B\x83h";
 //!
@@ -45,7 +45,7 @@
 //!
 //! ```
 //! use encoding_rs::*;
-//! 
+//!
 //! let expectation = "\u{30CF}\u{30ED}\u{30FC}\u{30FB}\u{30EF}\u{30FC}\u{30EB}\u{30C9}";
 //!
 //! // Use an array of byte slices to demonstrate content arriving piece by
@@ -81,11 +81,11 @@
 //! for input in &bytes[..] {
 //!     // The number of bytes already read from current `input` in total.
 //!     let mut total_read_from_current_input = 0usize;
-//!     
+//!
 //!     loop {
 //!         let (result, read, written, had_errors) =
 //!             decoder.decode_to_str(&input[total_read_from_current_input..],
-//!                                   &mut buffer[bytes_in_buffer..], 
+//!                                   &mut buffer[bytes_in_buffer..],
 //!                                   false);
 //!         total_read_from_current_input += read;
 //!         bytes_in_buffer += written;
@@ -114,7 +114,7 @@
 //! loop {
 //!     let (result, _, written, had_errors) =
 //!         decoder.decode_to_str(b"",
-//!                               &mut buffer[bytes_in_buffer..], 
+//!                               &mut buffer[bytes_in_buffer..],
 //!                               true);
 //!     bytes_in_buffer += written;
 //!     if had_errors {
@@ -135,7 +135,7 @@
 //!         }
 //!     }
 //! }
-//! 
+//!
 //! assert_eq!(&output[..], expectation);
 //! assert!(!total_had_errors);
 //! ```
@@ -1724,11 +1724,12 @@ impl Encoding {
         let mut total_read = 0usize;
         let mut vec: Vec<u8> =
             Vec::with_capacity(encoder.max_buffer_length_from_utf8_if_no_unmappables(string.len())
-                .next_power_of_two());
+                                      .next_power_of_two());
         let mut total_had_errors = false;
         loop {
-            let (result, read, had_errors) =
-                encoder.encode_from_utf8_to_vec(&string[total_read..], &mut vec, true);
+            let (result, read, had_errors) = encoder.encode_from_utf8_to_vec(&string[total_read..],
+                                                                             &mut vec,
+                                                                             true);
             total_read += read;
             if had_errors {
                 total_had_errors = true;
@@ -2247,8 +2248,9 @@ impl Decoder {
             let old_len = vec.len();
             let capacity = vec.capacity();
             vec.set_len(capacity);
-            let (result, read, written, replaced) =
-                self.decode_to_utf8(src, &mut vec[old_len..], last);
+            let (result, read, written, replaced) = self.decode_to_utf8(src,
+                                                                        &mut vec[old_len..],
+                                                                        last);
             vec.set_len(old_len + written);
             (result, read, replaced)
         }
@@ -2605,8 +2607,9 @@ impl Encoder {
             let old_len = dst.len();
             let capacity = dst.capacity();
             dst.set_len(capacity);
-            let (result, read, written, replaced) =
-                self.encode_from_utf8(src, &mut dst[old_len..], last);
+            let (result, read, written, replaced) = self.encode_from_utf8(src,
+                                                                          &mut dst[old_len..],
+                                                                          last);
             dst.set_len(old_len + written);
             (result, read, replaced)
         }
@@ -2672,8 +2675,9 @@ mod tests {
         let mut total_written = 0usize;
         let mut start = 0usize;
         for br in breaks {
-            let (result, read, written, _) =
-                decoder.decode_to_utf16(&bytes[start..*br], &mut dest[total_written..], false);
+            let (result, read, written, _) = decoder.decode_to_utf16(&bytes[start..*br],
+                                                                     &mut dest[total_written..],
+                                                                     false);
             total_written += written;
             assert_eq!(read, *br - start);
             match result {
@@ -2684,8 +2688,9 @@ mod tests {
             }
             start = *br;
         }
-        let (result, read, written, _) =
-            decoder.decode_to_utf16(&bytes[start..], &mut dest[total_written..], true);
+        let (result, read, written, _) = decoder.decode_to_utf16(&bytes[start..],
+                                                                 &mut dest[total_written..],
+                                                                 true);
         total_written += written;
         match result {
             CoderResult::InputEmpty => {}

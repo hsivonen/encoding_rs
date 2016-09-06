@@ -105,8 +105,9 @@ pub fn utf16_from_utf8(string: &str) -> Vec<u16> {
     let capacity = vec.capacity();
     vec.resize(capacity, 0);
 
-    let (result, read, written) =
-        decoder.decode_to_utf16_without_replacement(string.as_bytes(), &mut vec[..], true);
+    let (result, read, written) = decoder.decode_to_utf16_without_replacement(string.as_bytes(),
+                                                                              &mut vec[..],
+                                                                              true);
     match result {
         DecoderResult::InputEmpty => {
             debug_assert_eq!(read, string.len());
