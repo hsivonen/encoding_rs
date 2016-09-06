@@ -428,7 +428,7 @@ impl<'a> Utf8Destination<'a> {
     fn write_char(&mut self, c: char) {
         if c <= '\u{7F}' {
             self.write_ascii(c as u8);
-        } else if c <= '\u{0800}' {
+        } else if c <= '\u{07FF}' {
             self.write_mid_bmp(c as u16);
         } else if c <= '\u{FFFF}' {
             self.write_upper_bmp(c as u16);

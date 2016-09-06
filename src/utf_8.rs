@@ -234,37 +234,159 @@ mod tests {
 
     #[test]
     fn test_utf8_decode() {
+        // Empty
         decode_valid_utf8("");
+        // ASCII
         decode_valid_utf8("ab");
-        decode_valid_utf8("a\u{E4}b");
-        decode_valid_utf8("a\u{2603}b");
-        decode_valid_utf8("a\u{1F4A9}b");
-        decode_utf8_to_utf8(b"a\xC3b", "a\u{FFFD}b");
+        // Low BMP
+        decode_valid_utf8("a\u{E4}Z");
+        // High BMP
+        decode_valid_utf8("a\u{2603}Z");
+        // Astral
+        decode_valid_utf8("a\u{1F4A9}Z");
+        // Low BMP with last byte missing
+        decode_utf8_to_utf8(b"a\xC3Z", "a\u{FFFD}Z");
         decode_utf8_to_utf8(b"a\xC3", "a\u{FFFD}");
-        decode_utf8_to_utf8(b"a\xE2\x98b", "a\u{FFFD}b");
+        // High BMP with last byte missing
+        decode_utf8_to_utf8(b"a\xE2\x98Z", "a\u{FFFD}Z");
         decode_utf8_to_utf8(b"a\xE2\x98", "a\u{FFFD}");
-        decode_utf8_to_utf8(b"a\xF0\x9F\x92b", "a\u{FFFD}b");
+        // Astral with last byte missing
+        decode_utf8_to_utf8(b"a\xF0\x9F\x92Z", "a\u{FFFD}Z");
         decode_utf8_to_utf8(b"a\xF0\x9F\x92", "a\u{FFFD}");
-        decode_utf8_to_utf8(b"a\x80b", "a\u{FFFD}b");
-        decode_utf8_to_utf8(b"a\x80", "a\u{FFFD}");
-        decode_utf8_to_utf8(b"a\xBFb", "a\u{FFFD}b");
+        // Lone highest continuation
+        decode_utf8_to_utf8(b"a\xBFZ", "a\u{FFFD}Z");
         decode_utf8_to_utf8(b"a\xBF", "a\u{FFFD}");
-        decode_utf8_to_utf8(b"a\x80\x80b", "a\u{FFFD}\u{FFFD}b");
-        decode_utf8_to_utf8(b"a\x80\x80", "a\u{FFFD}\u{FFFD}");
-        decode_utf8_to_utf8(b"a\xBF\xBFb", "a\u{FFFD}\u{FFFD}b");
+        // Two lone highest continuations
+        decode_utf8_to_utf8(b"a\xBF\xBFZ", "a\u{FFFD}\u{FFFD}Z");
         decode_utf8_to_utf8(b"a\xBF\xBF", "a\u{FFFD}\u{FFFD}");
-        decode_utf8_to_utf8(b"a\xC3\xA4\x80b", "a\u{E4}\u{FFFD}b");
+        // Low BMP followed by lowest lone continuation
+        decode_utf8_to_utf8(b"a\xC3\xA4\x80Z", "a\u{E4}\u{FFFD}Z");
         decode_utf8_to_utf8(b"a\xC3\xA4\x80", "a\u{E4}\u{FFFD}");
-        decode_utf8_to_utf8(b"a\xC3\xA4\xBFb", "a\u{E4}\u{FFFD}b");
+        // Low BMP followed by highest lone continuation
+        decode_utf8_to_utf8(b"a\xC3\xA4\xBFZ", "a\u{E4}\u{FFFD}Z");
         decode_utf8_to_utf8(b"a\xC3\xA4\xBF", "a\u{E4}\u{FFFD}");
-        decode_utf8_to_utf8(b"a\xE2\x98\x83\x80b", "a\u{2603}\u{FFFD}b");
+        // High BMP followed by lowest lone continuation
+        decode_utf8_to_utf8(b"a\xE2\x98\x83\x80Z", "a\u{2603}\u{FFFD}Z");
         decode_utf8_to_utf8(b"a\xE2\x98\x83\x80", "a\u{2603}\u{FFFD}");
-        decode_utf8_to_utf8(b"a\xE2\x98\x83\xBFb", "a\u{2603}\u{FFFD}b");
+        // High BMP followed by highest lone continuation
+        decode_utf8_to_utf8(b"a\xE2\x98\x83\xBFZ", "a\u{2603}\u{FFFD}Z");
         decode_utf8_to_utf8(b"a\xE2\x98\x83\xBF", "a\u{2603}\u{FFFD}");
-        decode_utf8_to_utf8(b"a\xF0\x9F\x92\xA9\x80b", "a\u{1F4A9}\u{FFFD}b");
+        // Astral followed by lowest lone continuation
+        decode_utf8_to_utf8(b"a\xF0\x9F\x92\xA9\x80Z", "a\u{1F4A9}\u{FFFD}Z");
         decode_utf8_to_utf8(b"a\xF0\x9F\x92\xA9\x80", "a\u{1F4A9}\u{FFFD}");
-        decode_utf8_to_utf8(b"a\xF0\x9F\x92\xA9\xBFb", "a\u{1F4A9}\u{FFFD}b");
+        // Astral followed by highest lone continuation
+        decode_utf8_to_utf8(b"a\xF0\x9F\x92\xA9\xBFZ", "a\u{1F4A9}\u{FFFD}Z");
         decode_utf8_to_utf8(b"a\xF0\x9F\x92\xA9\xBF", "a\u{1F4A9}\u{FFFD}");
+
+        // Boundary conditions
+        // Lowest single-byte
+        decode_valid_utf8("Z\x00");
+        decode_valid_utf8("Z\x00Z");
+        // Lowest single-byte as two-byte overlong sequence
+        decode_utf8_to_utf8(b"a\xC0\x80", "a\u{FFFD}\u{FFFD}");
+        decode_utf8_to_utf8(b"a\xC0\x80Z", "a\u{FFFD}\u{FFFD}Z");
+        // Lowest single-byte as three-byte overlong sequence
+        decode_utf8_to_utf8(b"a\xE0\x80\x80", "a\u{FFFD}\u{FFFD}\u{FFFD}");
+        decode_utf8_to_utf8(b"a\xE0\x80\x80Z", "a\u{FFFD}\u{FFFD}\u{FFFD}Z");
+        // Lowest single-byte as four-byte overlong sequence
+        decode_utf8_to_utf8(b"a\xF0\x80\x80\x80", "a\u{FFFD}\u{FFFD}\u{FFFD}\u{FFFD}");
+        decode_utf8_to_utf8(b"a\xF0\x80\x80\x80Z", "a\u{FFFD}\u{FFFD}\u{FFFD}\u{FFFD}Z");
+        // One below lowest single-byte
+        decode_utf8_to_utf8(b"a\xFF", "a\u{FFFD}");
+        decode_utf8_to_utf8(b"a\xFFZ", "a\u{FFFD}Z");
+        // Highest single-byte
+        decode_valid_utf8("a\x7F");
+        decode_valid_utf8("a\x7FZ");
+        // Highest single-byte as two-byte overlong sequence
+        decode_utf8_to_utf8(b"a\xC1\xBF", "a\u{FFFD}\u{FFFD}");
+        decode_utf8_to_utf8(b"a\xC1\xBFZ", "a\u{FFFD}\u{FFFD}Z");
+        // Highest single-byte as three-byte overlong sequence
+        decode_utf8_to_utf8(b"a\xE0\x81\xBF", "a\u{FFFD}\u{FFFD}\u{FFFD}");
+        decode_utf8_to_utf8(b"a\xE0\x81\xBFZ", "a\u{FFFD}\u{FFFD}\u{FFFD}Z");
+        // Highest single-byte as four-byte overlong sequence
+        decode_utf8_to_utf8(b"a\xF0\x80\x81\xBF", "a\u{FFFD}\u{FFFD}\u{FFFD}\u{FFFD}");
+        decode_utf8_to_utf8(b"a\xF0\x80\x81\xBFZ", "a\u{FFFD}\u{FFFD}\u{FFFD}\u{FFFD}Z");
+        // One past highest single byte (also lone continuation)
+        decode_utf8_to_utf8(b"a\x80Z", "a\u{FFFD}Z");
+        decode_utf8_to_utf8(b"a\x80", "a\u{FFFD}");
+        // Two lone continuations
+        decode_utf8_to_utf8(b"a\x80\x80Z", "a\u{FFFD}\u{FFFD}Z");
+        decode_utf8_to_utf8(b"a\x80\x80", "a\u{FFFD}\u{FFFD}");
+        // Three lone continuations
+        decode_utf8_to_utf8(b"a\x80\x80\x80Z", "a\u{FFFD}\u{FFFD}\u{FFFD}Z");
+        decode_utf8_to_utf8(b"a\x80\x80\x80", "a\u{FFFD}\u{FFFD}\u{FFFD}");
+        // Four lone continuations
+        decode_utf8_to_utf8(b"a\x80\x80\x80\x80Z", "a\u{FFFD}\u{FFFD}\u{FFFD}\u{FFFD}Z");
+        decode_utf8_to_utf8(b"a\x80\x80\x80\x80", "a\u{FFFD}\u{FFFD}\u{FFFD}\u{FFFD}");
+        // Lowest two-byte
+        decode_utf8_to_utf8(b"a\xC2\x80", "a\u{0080}");
+        decode_utf8_to_utf8(b"a\xC2\x80Z", "a\u{0080}Z");
+        // Lowest two-byte as three-byte overlong sequence
+        decode_utf8_to_utf8(b"a\xE0\x82\x80", "a\u{FFFD}\u{FFFD}\u{FFFD}");
+        decode_utf8_to_utf8(b"a\xE0\x82\x80Z", "a\u{FFFD}\u{FFFD}\u{FFFD}Z");
+        // Lowest two-byte as four-byte overlong sequence
+        decode_utf8_to_utf8(b"a\xF0\x80\x82\x80", "a\u{FFFD}\u{FFFD}\u{FFFD}\u{FFFD}");
+        decode_utf8_to_utf8(b"a\xF0\x80\x82\x80Z", "a\u{FFFD}\u{FFFD}\u{FFFD}\u{FFFD}Z");
+        // Lead one below lowest two-byte
+        decode_utf8_to_utf8(b"a\xC1\x80", "a\u{FFFD}\u{FFFD}");
+        decode_utf8_to_utf8(b"a\xC1\x80Z", "a\u{FFFD}\u{FFFD}Z");
+        // Trail one below lowest two-byte
+        decode_utf8_to_utf8(b"a\xC2\x7F", "a\u{FFFD}\u{007F}");
+        decode_utf8_to_utf8(b"a\xC2\x7FZ", "a\u{FFFD}\u{007F}Z");
+        // Highest two-byte
+        decode_utf8_to_utf8(b"a\xDF\xBF", "a\u{07FF}");
+        decode_utf8_to_utf8(b"a\xDF\xBFZ", "a\u{07FF}Z");
+        // Highest two-byte as three-byte overlong sequence
+        decode_utf8_to_utf8(b"a\xE0\x9F\xBF", "a\u{FFFD}\u{FFFD}\u{FFFD}");
+        decode_utf8_to_utf8(b"a\xE0\x9F\xBFZ", "a\u{FFFD}\u{FFFD}\u{FFFD}Z");
+        // Highest two-byte as four-byte overlong sequence
+        decode_utf8_to_utf8(b"a\xF0\x80\x9F\xBF", "a\u{FFFD}\u{FFFD}\u{FFFD}\u{FFFD}");
+        decode_utf8_to_utf8(b"a\xF0\x80\x9F\xBFZ", "a\u{FFFD}\u{FFFD}\u{FFFD}\u{FFFD}Z");
+        // Lowest three-byte
+        decode_utf8_to_utf8(b"a\xE0\xA0\x80", "a\u{0800}");
+        decode_utf8_to_utf8(b"a\xE0\xA0\x80Z", "a\u{0800}Z");
+        // Lowest three-byte as four-byte overlong sequence
+        decode_utf8_to_utf8(b"a\xF0\x80\xA0\x80", "a\u{FFFD}\u{FFFD}\u{FFFD}\u{FFFD}");
+        decode_utf8_to_utf8(b"a\xF0\x80\xA0\x80Z", "a\u{FFFD}\u{FFFD}\u{FFFD}\u{FFFD}Z");
+        // Highest below surrogates
+        decode_utf8_to_utf8(b"a\xED\x9F\xBF", "a\u{D7FF}");
+        decode_utf8_to_utf8(b"a\xED\x9F\xBFZ", "a\u{D7FF}Z");
+        // Highest below surrogates as four-byte overlong sequence
+        decode_utf8_to_utf8(b"a\xF0\x8D\x9F\xBF", "a\u{FFFD}\u{FFFD}\u{FFFD}\u{FFFD}");
+        decode_utf8_to_utf8(b"a\xF0\x8D\x9F\xBFZ", "a\u{FFFD}\u{FFFD}\u{FFFD}\u{FFFD}Z");
+        // First surrogate
+        decode_utf8_to_utf8(b"a\xED\xA0\x80", "a\u{FFFD}\u{FFFD}\u{FFFD}");
+        decode_utf8_to_utf8(b"a\xED\xA0\x80Z", "a\u{FFFD}\u{FFFD}\u{FFFD}Z");
+        // First surrogate as four-byte overlong sequence
+        decode_utf8_to_utf8(b"a\xF0\x8D\xA0\x80", "a\u{FFFD}\u{FFFD}\u{FFFD}\u{FFFD}");
+        decode_utf8_to_utf8(b"a\xF0\x8D\xA0\x80Z", "a\u{FFFD}\u{FFFD}\u{FFFD}\u{FFFD}Z");
+        // Last surrogate
+        decode_utf8_to_utf8(b"a\xED\xBF\xBF", "a\u{FFFD}\u{FFFD}\u{FFFD}");
+        decode_utf8_to_utf8(b"a\xED\xBF\xBFZ", "a\u{FFFD}\u{FFFD}\u{FFFD}Z");
+        // Last surrogate as four-byte overlong sequence
+        decode_utf8_to_utf8(b"a\xF0\x8D\xBF\xBF", "a\u{FFFD}\u{FFFD}\u{FFFD}\u{FFFD}");
+        decode_utf8_to_utf8(b"a\xF0\x8D\xBF\xBFZ", "a\u{FFFD}\u{FFFD}\u{FFFD}\u{FFFD}Z");
+        // Lowest above surrogates
+        decode_utf8_to_utf8(b"a\xEE\x80\x80", "a\u{E000}");
+        decode_utf8_to_utf8(b"a\xEE\x80\x80Z", "a\u{E000}Z");
+        // Lowest above surrogates as four-byte overlong sequence
+        decode_utf8_to_utf8(b"a\xF0\x8E\x80\x80", "a\u{FFFD}\u{FFFD}\u{FFFD}\u{FFFD}");
+        decode_utf8_to_utf8(b"a\xF0\x8E\x80\x80Z", "a\u{FFFD}\u{FFFD}\u{FFFD}\u{FFFD}Z");
+        // Highest three-byte
+        decode_utf8_to_utf8(b"a\xEF\xBF\xBF", "a\u{FFFF}");
+        decode_utf8_to_utf8(b"a\xEF\xBF\xBFZ", "a\u{FFFF}Z");
+        // Highest three-byte as four-byte overlong sequence
+        decode_utf8_to_utf8(b"a\xF0\x8F\xBF\xBF", "a\u{FFFD}\u{FFFD}\u{FFFD}\u{FFFD}");
+        decode_utf8_to_utf8(b"a\xF0\x8F\xBF\xBFZ", "a\u{FFFD}\u{FFFD}\u{FFFD}\u{FFFD}Z");
+        // Lowest four-byte
+        decode_utf8_to_utf8(b"a\xF0\x90\x80\x80", "a\u{10000}");
+        decode_utf8_to_utf8(b"a\xF0\x90\x80\x80Z", "a\u{10000}Z");
+        // Highest four-byte
+        decode_utf8_to_utf8(b"a\xF4\x8F\xBF\xBF", "a\u{10FFFF}");
+        decode_utf8_to_utf8(b"a\xF4\x8F\xBF\xBFZ", "a\u{10FFFF}Z");
+        // One past highest four-byte
+        decode_utf8_to_utf8(b"a\xF4\x90\x80\x80", "a\u{FFFD}\u{FFFD}\u{FFFD}\u{FFFD}");
+        decode_utf8_to_utf8(b"a\xF4\x90\x80\x80Z", "a\u{FFFD}\u{FFFD}\u{FFFD}\u{FFFD}Z");
     }
 
     #[test]
@@ -272,5 +394,20 @@ mod tests {
         // Empty
         encode_utf8_from_utf16(&[], b"");
         encode_utf8_from_utf8("", b"");
+
+        encode_utf8_from_utf16(&[0x0000], "\u{0000}".as_bytes());
+        encode_utf8_from_utf16(&[0x007F], "\u{007F}".as_bytes());
+        encode_utf8_from_utf16(&[0x0080], "\u{0080}".as_bytes());
+        encode_utf8_from_utf16(&[0x07FF], "\u{07FF}".as_bytes());
+        encode_utf8_from_utf16(&[0x0800], "\u{0800}".as_bytes());
+        encode_utf8_from_utf16(&[0xD7FF], "\u{D7FF}".as_bytes());
+        encode_utf8_from_utf16(&[0xD800], "\u{FFFD}".as_bytes());
+        encode_utf8_from_utf16(&[0xD800, 0x0062], "\u{FFFD}\u{0062}".as_bytes());
+        encode_utf8_from_utf16(&[0xDFFF], "\u{FFFD}".as_bytes());
+        encode_utf8_from_utf16(&[0xDFFF, 0x0062], "\u{FFFD}\u{0062}".as_bytes());
+        encode_utf8_from_utf16(&[0xE000], "\u{E000}".as_bytes());
+        encode_utf8_from_utf16(&[0xFFFF], "\u{FFFF}".as_bytes());
+        encode_utf8_from_utf16(&[0xD800, 0xDC00], "\u{10000}".as_bytes());
+        encode_utf8_from_utf16(&[0xDBFF, 0xDFFF], "\u{10FFFF}".as_bytes());
     }
 }
