@@ -81,6 +81,10 @@ encoding_rs is
 
 ## Release Notes
 
+### 0.2.3
+
+* Fix UTF-16 to UTF-8 encode.
+
 ### 0.2.2
 
 * Add `Encoder.encode_from_utf8_to_vec_without_replacement()`.
