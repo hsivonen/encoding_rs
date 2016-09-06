@@ -58,7 +58,7 @@ encoding_rs is
       TODO).
 - [x] Provide an stl/gsl-flavored C++ API.
 - [x] Implement all decoders and encoders.
-- [ ] Add unit tests for all decoders and encoders.
+- [x] Add unit tests for all decoders and encoders.
 - [x] Finish BOM sniffing variants in Rust-only convenience features.
 - [ ] Document the API.
 - [x] Publish the crate on crates.io.
