@@ -22,7 +22,7 @@ Please see the file named
 
 ## API Documentation
 
-Generated [API documentation](https://hsivonen.fi/rs/encoding_rs/) is available
+Generated [API documentation](https://docs.rs/encoding_rs/) is available
 online.
 
 ## Design
