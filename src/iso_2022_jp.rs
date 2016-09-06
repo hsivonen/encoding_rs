@@ -481,6 +481,9 @@ mod tests {
 
     #[test]
     fn test_iso_2022_jp_decode() {
+        // Empty
+        decode_iso_2022_jp(b"", &"");
+
         // ASCII
         decode_iso_2022_jp(b"\x61\x62", "\u{0061}\u{0062}");
 
@@ -633,6 +636,9 @@ mod tests {
 
     #[test]
     fn test_iso_2022_jp_encode() {
+        // Empty
+        encode_iso_2022_jp("", b"");
+
         // ASCII
         encode_iso_2022_jp("ab", b"ab");
         encode_iso_2022_jp("\u{1F4A9}", b"&#128169;");

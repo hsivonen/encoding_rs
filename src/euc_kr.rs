@@ -158,6 +158,9 @@ mod tests {
 
     #[test]
     fn test_euc_kr_decode() {
+        // Empty
+        decode_euc_kr(b"", &"");
+
         // ASCII
         decode_euc_kr(b"\x61\x62", "\u{0061}\u{0062}");
 
@@ -171,6 +174,9 @@ mod tests {
 
     #[test]
     fn test_euc_kr_encode() {
+        // Empty
+        encode_euc_kr("", b"");
+
         // ASCII
         encode_euc_kr("\u{0061}\u{0062}", b"\x61\x62");
 

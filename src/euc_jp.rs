@@ -194,6 +194,9 @@ mod tests {
 
     #[test]
     fn test_euc_jp_decode() {
+        // Empty
+        decode_euc_jp(b"", &"");
+
         // ASCII
         decode_euc_jp(b"\x61\x62", "\u{0061}\u{0062}");
 
@@ -239,6 +242,9 @@ mod tests {
 
     #[test]
     fn test_euc_jp_encode() {
+        // Empty
+        encode_euc_jp("", b"");
+
         // ASCII
         encode_euc_jp("\u{0061}\u{0062}", b"\x61\x62");
 

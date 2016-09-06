@@ -211,6 +211,9 @@ mod tests {
 
     #[test]
     fn test_shift_jis_decode() {
+        // Empty
+        decode_shift_jis(b"", &"");
+
         // ASCII
         decode_shift_jis(b"\x61\x62", "\u{0061}\u{0062}");
 
@@ -242,6 +245,9 @@ mod tests {
 
     #[test]
     fn test_shift_jis_encode() {
+        // Empty
+        encode_shift_jis("", b"");
+
         // ASCII
         encode_shift_jis("\u{0061}\u{0062}", b"\x61\x62");
 

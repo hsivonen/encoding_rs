@@ -224,16 +224,17 @@ mod tests {
         decode_utf8_to_utf8(string.as_bytes(), string);
     }
 
-    //    fn encode_utf8_from_utf16(string: &[u16], expect: &[u8]) {
-    //        encode_from_utf16_without_replacement(UTF_8, string, expect);
-    //    }
-    //
-    //    fn encode_utf8_from_utf8(string: &str, expect: &[u8]) {
-    //        encode_from_utf8_without_replacement(UTF_8, string, expect);
-    //    }
+    fn encode_utf8_from_utf16(string: &[u16], expect: &[u8]) {
+        encode_from_utf16_without_replacement(UTF_8, string, expect);
+    }
+
+    fn encode_utf8_from_utf8(string: &str, expect: &[u8]) {
+        encode_from_utf8_without_replacement(UTF_8, string, expect);
+    }
 
     #[test]
     fn test_utf8_decode() {
+        decode_valid_utf8("");
         decode_valid_utf8("ab");
         decode_valid_utf8("a\u{E4}b");
         decode_valid_utf8("a\u{2603}b");
@@ -266,4 +267,10 @@ mod tests {
         decode_utf8_to_utf8(b"a\xF0\x9F\x92\xA9\xBF", "a\u{1F4A9}\u{FFFD}");
     }
 
+    #[test]
+    fn test_utf8_encode() {
+        // Empty
+        encode_utf8_from_utf16(&[], b"");
+        encode_utf8_from_utf8("", b"");
+    }
 }

@@ -343,6 +343,9 @@ mod tests {
 
     #[test]
     fn test_gb18030_decode() {
+        // Empty
+        decode_gb18030(b"", &"");
+
         // ASCII
         decode_gb18030(b"\x61\x62", "\u{0061}\u{0062}");
 
@@ -384,6 +387,9 @@ mod tests {
 
     #[test]
     fn test_gb18030_encode() {
+        // Empty
+        encode_gb18030("", b"");
+
         // ASCII
         encode_gb18030("\u{0061}\u{0062}", b"\x61\x62");
 
@@ -414,6 +420,9 @@ mod tests {
 
     #[test]
     fn test_gbk_encode() {
+        // Empty
+        encode_gbk("", b"");
+
         // ASCII
         encode_gbk("\u{0061}\u{0062}", b"\x61\x62");
 

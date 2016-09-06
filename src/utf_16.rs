@@ -173,6 +173,9 @@ mod tests {
 
     #[test]
     fn test_utf_16_decode() {
+        decode_utf_16le(b"", "");
+        decode_utf_16be(b"", "");
+
         decode_utf_16le(b"\x61\x00\x62\x00", "\u{0061}\u{0062}");
         decode_utf_16be(b"\x00\x61\x00\x62", "\u{0061}\u{0062}");
 
@@ -197,6 +200,10 @@ mod tests {
 
     #[test]
     fn test_utf_16_encode() {
+        // Empty
+        encode_utf_16be("", b"");
+        encode_utf_16le("", b"");
+
         // Encodes as UTF-8
         assert_eq!(UTF_16LE.new_encoder().encoding(), UTF_8);
         assert_eq!(UTF_16BE.new_encoder().encoding(), UTF_8);

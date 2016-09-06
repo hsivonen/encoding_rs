@@ -87,6 +87,9 @@ mod tests {
 
     #[test]
     fn test_replacement_encode() {
+        // Empty
+        encode_replacement("", b"");
+
         assert_eq!(REPLACEMENT.new_encoder().encoding(), UTF_8);
         encode_replacement("\u{1F4A9}\u{2603}", "\u{1F4A9}\u{2603}".as_bytes());
     }

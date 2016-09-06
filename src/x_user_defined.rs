@@ -108,6 +108,9 @@ mod tests {
 
     #[test]
     fn test_x_user_defined_decode() {
+        // Empty
+        decode_x_user_defined(b"", "");
+
         // ASCII
         decode_x_user_defined(b"\x61\x62", "\u{0061}\u{0062}");
 
@@ -116,6 +119,9 @@ mod tests {
 
     #[test]
     fn test_x_user_defined_encode() {
+        // Empty
+        encode_x_user_defined("", b"");
+
         // ASCII
         encode_x_user_defined("\u{0061}\u{0062}", b"\x61\x62");
 

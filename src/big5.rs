@@ -237,8 +237,12 @@ mod tests {
 
     #[test]
     fn test_big5_decode() {
+        // Empty
+        decode_big5(b"", &"");
+
         // ASCII
         decode_big5(&[0x61u8, 0x62u8], &"\u{0061}\u{0062}");
+
         // Edge cases
         decode_big5(&[0x87u8, 0x40u8], &"\u{43F0}");
         decode_big5(&[0xFEu8, 0xFEu8], &"\u{79D4}");
@@ -252,6 +256,7 @@ mod tests {
         decode_big5(&[0x99u8, 0xD4u8], &"\u{8991}");
         decode_big5(&[0x99u8, 0xD5u8], &"\u{27967}");
         decode_big5(&[0x99u8, 0xD6u8], &"\u{8A29}");
+
         // Edge cases surrounded with ASCII
         decode_big5(&[0x61u8, 0x87u8, 0x40u8, 0x62u8],
                     &"\u{0061}\u{43F0}\u{0062}");
@@ -277,6 +282,7 @@ mod tests {
                     &"\u{0061}\u{27967}\u{0062}");
         decode_big5(&[0x61u8, 0x99u8, 0xD6u8, 0x62u8],
                     &"\u{0061}\u{8A29}\u{0062}");
+
         // Bad sequences
         decode_big5(&[0x80u8, 0x61u8], &"\u{FFFD}\u{0061}");
         decode_big5(&[0xFFu8, 0x61u8], &"\u{FFFD}\u{0061}");
@@ -288,8 +294,12 @@ mod tests {
 
     #[test]
     fn test_big5_encode() {
+        // Empty
+        encode_big5("", b"");
+
         // ASCII
         encode_big5("\u{0061}\u{0062}", b"\x61\x62");
+
         // Edge cases
         encode_big5("\u{9EA6}\u{0061}", b"&#40614;\x61");
         encode_big5("\u{2626B}\u{0061}", b"&#156267;\x61");
@@ -299,10 +309,13 @@ mod tests {
         encode_big5("\u{27607}", b"\xC8\xA4");
         encode_big5("\u{FFE2}", b"\xC8\xCD");
         encode_big5("\u{79D4}", b"\xFE\xFE");
+
         // Not in index
         encode_big5("\u{2603}\u{0061}", b"&#9731;\x61");
+
         // duplicate low bits
         encode_big5("\u{203B5}", b"\xFD\x6A");
+
         // prefer last
         encode_big5("\u{2550}", b"\xF9\xF9");
     }
