@@ -10,16 +10,16 @@
 use super::*;
 
 pub fn decode(encoding: &'static Encoding, bytes: &[u8], expect: &str) {
-    decode_to_utf8_without_replacement(encoding, bytes, expect);
-    decode_to_utf16_without_replacement(encoding, bytes, &utf16_from_utf8(expect)[..]);
+    decode_to_utf8(encoding, bytes, expect);
+    decode_to_utf16(encoding, bytes, &utf16_from_utf8(expect)[..]);
 }
 
 pub fn encode(encoding: &'static Encoding, string: &str, expect: &[u8]) {
-    encode_from_utf8_without_replacement(encoding, string, expect);
-    encode_from_utf16_without_replacement(encoding, &utf16_from_utf8(string)[..], expect);
+    encode_from_utf8(encoding, string, expect);
+    encode_from_utf16(encoding, &utf16_from_utf8(string)[..], expect);
 }
 
-pub fn decode_to_utf16_without_replacement(encoding: &'static Encoding,
+pub fn decode_to_utf16(encoding: &'static Encoding,
                                            bytes: &[u8],
                                            expect: &[u16]) {
     let mut decoder = encoding.new_decoder();
@@ -39,7 +39,7 @@ pub fn decode_to_utf16_without_replacement(encoding: &'static Encoding,
     assert_eq!(&dest[..], expect);
 }
 
-pub fn decode_to_utf8_without_replacement(encoding: &'static Encoding,
+pub fn decode_to_utf8(encoding: &'static Encoding,
                                           bytes: &[u8],
                                           expect: &str) {
     let mut decoder = encoding.new_decoder();
@@ -59,7 +59,7 @@ pub fn decode_to_utf8_without_replacement(encoding: &'static Encoding,
     assert_eq!(&dest[..], expect.as_bytes());
 }
 
-pub fn encode_from_utf8_without_replacement(encoding: &'static Encoding,
+pub fn encode_from_utf8(encoding: &'static Encoding,
                                             string: &str,
                                             expect: &[u8]) {
     let mut encoder = encoding.new_encoder();
@@ -79,7 +79,7 @@ pub fn encode_from_utf8_without_replacement(encoding: &'static Encoding,
     assert_eq!(&dest[..], expect);
 }
 
-pub fn encode_from_utf16_without_replacement(encoding: &'static Encoding,
+pub fn encode_from_utf16(encoding: &'static Encoding,
                                              string: &[u16],
                                              expect: &[u8]) {
     let mut encoder = encoding.new_encoder();

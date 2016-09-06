@@ -159,7 +159,7 @@ mod tests {
             }
         }
 
-        decode_to_utf16_without_replacement(encoding, HIGH_BYTES, &with_replacement[..]);
+        decode_to_utf16(encoding, HIGH_BYTES, &with_replacement[..]);
     }
 
     fn encode_single_byte(encoding: &'static Encoding, data: &'static [u16; 128]) {
@@ -180,7 +180,7 @@ mod tests {
             }
         }
 
-        encode_from_utf16_without_replacement(encoding, data, &with_zeros[..]);
+        encode_from_utf16(encoding, data, &with_zeros[..]);
     }
 
     // These tests are so self-referential that they are pretty useless.

@@ -217,7 +217,7 @@ mod tests {
     //    }
 
     fn decode_utf8_to_utf8(bytes: &[u8], expect: &str) {
-        decode_to_utf8_without_replacement(UTF_8, bytes, expect);
+        decode_to_utf8(UTF_8, bytes, expect);
     }
 
     fn decode_valid_utf8(string: &str) {
@@ -225,11 +225,11 @@ mod tests {
     }
 
     fn encode_utf8_from_utf16(string: &[u16], expect: &[u8]) {
-        encode_from_utf16_without_replacement(UTF_8, string, expect);
+        encode_from_utf16(UTF_8, string, expect);
     }
 
     fn encode_utf8_from_utf8(string: &str, expect: &[u8]) {
-        encode_from_utf8_without_replacement(UTF_8, string, expect);
+        encode_from_utf8(UTF_8, string, expect);
     }
 
     #[test]
