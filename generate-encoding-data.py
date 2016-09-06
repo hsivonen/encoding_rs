@@ -845,6 +845,45 @@ pub static %s_ENCODING: ConstEncoding = ConstEncoding(%s);
 ffi_file.write(ffi_rs_end)
 ffi_file.close()
 
+(single_byte_rs_begin, single_byte_rs_end) = read_non_generated("src/single_byte.rs")
+
+single_byte_file = open("src/single_byte.rs", "w")
+
+single_byte_file.write(single_byte_rs_begin)
+single_byte_file.write("""
+// Instead, please regenerate using generate-encoding-data.py
+
+    #[test]
+    fn test_single_byte_decode() {""")
+
+for name in preferred:
+  if name == u"ISO-8859-8-I":
+    continue;
+  if is_single_byte(name):
+    single_byte_file.write("""
+        decode_single_byte(%s, %s_DATA);""" % (to_constant_name(name), to_constant_name(name)))
+
+single_byte_file.write("""
+    }
+
+    #[test]
+    fn test_single_byte_encode() {""")
+
+for name in preferred:
+  if name == u"ISO-8859-8-I":
+    continue;
+  if is_single_byte(name):
+    single_byte_file.write("""
+        encode_single_byte(%s, %s_DATA);""" % (to_constant_name(name), to_constant_name(name)))
+
+
+single_byte_file.write("""
+    }
+""")
+
+single_byte_file.write(single_byte_rs_end)
+single_byte_file.close()
+
 static_file = open("include/encoding_rs_statics.h", "w")
 
 static_file.write("""// Copyright 2016 Mozilla Foundation. See the COPYRIGHT
