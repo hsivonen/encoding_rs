@@ -7,6 +7,10 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
+//! The C API for encoding_rs.
+//!
+//! 
+
 use super::*;
 
 /// Return value for `*_decode_*` and `*_encode_*` functions that indicates that
@@ -242,6 +246,10 @@ fn option_to_ptr(opt: Option<&'static Encoding>) -> *const Encoding {
 ///
 /// The argument buffer can be in any ASCII-compatible encoding. It is not
 /// required to be UTF-8.
+///
+/// # Undefined behavior
+///
+/// UB ensues if `label` and `label_len` don't designate a valid memory block.
 #[no_mangle]
 pub unsafe extern "C" fn encoding_for_label(label: *const u8, label_len: usize) -> *const Encoding {
     let label_slice = ::std::slice::from_raw_parts(label, label_len);
@@ -256,6 +264,10 @@ pub unsafe extern "C" fn encoding_for_label(label: *const u8, label_len: usize) 
 /// upon invalid label, because in those cases the caller typically wishes
 /// to treat the labels that map to the replacement encoding as fatal
 /// errors, too.
+///
+/// # Undefined behavior
+///
+/// UB ensues if `label` and `label_len` don't designate a valid memory block.
 #[no_mangle]
 pub unsafe extern "C" fn encoding_for_label_no_replacement(label: *const u8,
                                                            label_len: usize)
@@ -273,6 +285,10 @@ pub unsafe extern "C" fn encoding_for_label_no_replacement(label: *const u8,
 /// legacy Gecko code that represents encodings as name string instead of
 /// type-safe `Encoding` objects. Using this function for other purposes is
 /// most likely the wrong thing to do.
+///
+/// # Undefined behavior
+///
+/// UB ensues if `name` and `name_len` don't designate a valid memory block.
 #[no_mangle]
 pub unsafe extern "C" fn encoding_for_name(name: *const u8, name_len: usize) -> *const Encoding {
     let name_slice = ::std::slice::from_raw_parts(name, name_len);
@@ -288,6 +304,10 @@ pub unsafe extern "C" fn encoding_for_name(name: *const u8, name_len: usize) -> 
 /// Returns `UTF_8_ENCODING`, `UTF_16LE_ENCODING` or `UTF_16BE_ENCODING` if the
 /// argument starts with the UTF-8, UTF-16LE or UTF-16BE BOM or `None`
 /// otherwise.
+///
+/// # Undefined behavior
+///
+/// UB ensues if `buffer` and `buffer_len` don't designate a valid memory block.
 #[no_mangle]
 pub unsafe extern "C" fn encoding_for_bom(buffer: *const u8, buffer_len: usize) -> *const Encoding {
     let buffer_slice = ::std::slice::from_raw_parts(buffer, buffer_len);
@@ -301,6 +321,12 @@ pub unsafe extern "C" fn encoding_for_bom(buffer: *const u8, buffer_len: usize) 
 ///
 /// The caller _MUST_ ensure that `name_out` points to a buffer whose length
 /// is at least `ENCODING_NAME_MAX_LENGTH` bytes.
+///
+/// # Undefined behavior
+///
+/// UB ensues if either argument is `NULL` or if `name_out` doesn't point to
+/// a valid block of memory whose length is at least `ENCODING_NAME_MAX_LENGTH`
+/// bytes.
 #[no_mangle]
 pub unsafe extern "C" fn encoding_name(encoding: *const Encoding, name_out: *mut u8) -> usize {
     let bytes = (*encoding).name().as_bytes();
@@ -310,6 +336,10 @@ pub unsafe extern "C" fn encoding_name(encoding: *const Encoding, name_out: *mut
 
 /// Checks whether the _output encoding_ of this encoding can encode every
 /// Unicode scalar. (Only true if the output encoding is UTF-8.)
+///
+/// # Undefined behavior
+///
+/// UB ensues if the argument is `NULL`.
 #[no_mangle]
 pub unsafe extern "C" fn encoding_can_encode_everything(encoding: *const Encoding) -> bool {
     (*encoding).can_encode_everything()
@@ -317,6 +347,10 @@ pub unsafe extern "C" fn encoding_can_encode_everything(encoding: *const Encodin
 
 /// Checks whether the bytes 0x00...0x7F map exclusively to the characters
 /// U+0000...U+007F and vice versa.
+///
+/// # Undefined behavior
+///
+/// UB ensues if the argument is `NULL`.
 #[no_mangle]
 pub unsafe extern "C" fn encoding_is_ascii_compatible(encoding: *const Encoding) -> bool {
     (*encoding).is_ascii_compatible()
@@ -324,6 +358,10 @@ pub unsafe extern "C" fn encoding_is_ascii_compatible(encoding: *const Encoding)
 
 /// Returns the _output encoding_ of this encoding. This is UTF-8 for
 /// UTF-16BE, UTF-16LE and replacement and the encoding itself otherwise.
+///
+/// # Undefined behavior
+///
+/// UB ensues if the argument is `NULL`.
 #[no_mangle]
 pub unsafe extern "C" fn encoding_output_encoding(encoding: *const Encoding) -> *const Encoding {
     (*encoding).output_encoding()
@@ -338,6 +376,10 @@ pub unsafe extern "C" fn encoding_output_encoding(encoding: *const Encoding) -> 
 /// Once the allocated `Decoder` is no longer needed, the caller _MUST_
 /// deallocate it by passing the pointer returned by this function to
 /// `decoder_free()`.
+///
+/// # Undefined behavior
+///
+/// UB ensues if the argument is `NULL`.
 #[no_mangle]
 pub unsafe extern "C" fn encoding_new_decoder(encoding: *const Encoding) -> *mut Decoder {
     Box::into_raw(Box::new((*encoding).new_decoder()))
@@ -355,6 +397,10 @@ pub unsafe extern "C" fn encoding_new_decoder(encoding: *const Encoding) -> *mut
 /// Once the allocated `Decoder` is no longer needed, the caller _MUST_
 /// deallocate it by passing the pointer returned by this function to
 /// `decoder_free()`.
+///
+/// # Undefined behavior
+///
+/// UB ensues if the argument is `NULL`.
 #[no_mangle]
 pub unsafe extern "C" fn encoding_new_decoder_with_bom_removal(encoding: *const Encoding)
                                                                -> *mut Decoder {
@@ -376,6 +422,10 @@ pub unsafe extern "C" fn encoding_new_decoder_with_bom_removal(encoding: *const 
 /// Once the allocated `Decoder` is no longer needed, the caller _MUST_
 /// deallocate it by passing the pointer returned by this function to
 /// `decoder_free()`.
+///
+/// # Undefined behavior
+///
+/// UB ensues if the argument is `NULL`.
 #[no_mangle]
 pub unsafe extern "C" fn encoding_new_decoder_without_bom_handling(encoding: *const Encoding)
                                                                    -> *mut Decoder {
@@ -389,6 +439,10 @@ pub unsafe extern "C" fn encoding_new_decoder_without_bom_handling(encoding: *co
 /// Note: If the caller has already performed BOM sniffing but has
 /// not removed the BOM, the caller should still use this function in
 /// order to cause the BOM to be ignored.
+///
+/// # Undefined behavior
+///
+/// UB ensues if either argument is `NULL`.
 #[no_mangle]
 pub unsafe extern "C" fn encoding_new_decoder_into(encoding: *const Encoding,
                                                    decoder: *mut Decoder) {
@@ -407,6 +461,10 @@ pub unsafe extern "C" fn encoding_new_decoder_into(encoding: *const Encoding,
 /// Once the allocated `Decoder` is no longer needed, the caller _MUST_
 /// deallocate it by passing the pointer returned by this function to
 /// `decoder_free()`.
+///
+/// # Undefined behavior
+///
+/// UB ensues if either argument is `NULL`.
 #[no_mangle]
 pub unsafe extern "C" fn encoding_new_decoder_with_bom_removal_into(encoding: *const Encoding,
                                                                     decoder: *mut Decoder) {
@@ -424,6 +482,10 @@ pub unsafe extern "C" fn encoding_new_decoder_with_bom_removal_into(encoding: *c
 /// removed the BOM, the caller should use
 /// `encoding_new_decoder_with_bom_removal_into()` instead of this function to
 /// cause the BOM to be removed.
+///
+/// # Undefined behavior
+///
+/// UB ensues if either argument is `NULL`.
 #[no_mangle]
 pub unsafe extern "C" fn encoding_new_decoder_without_bom_handling_into(encoding: *const Encoding,
                                                                         decoder: *mut Decoder) {
@@ -438,6 +500,10 @@ pub unsafe extern "C" fn encoding_new_decoder_without_bom_handling_into(encoding
 /// Once the allocated `Encoder` is no longer needed, the caller _MUST_
 /// deallocate it by passing the pointer returned by this function to
 /// `encoder_free()`.
+///
+/// # Undefined behavior
+///
+/// UB ensues if the argument is `NULL`.
 #[no_mangle]
 pub unsafe extern "C" fn encoding_new_encoder(encoding: *const Encoding) -> *mut Encoder {
     Box::into_raw(Box::new((*encoding).new_encoder()))
@@ -453,6 +519,10 @@ pub unsafe extern "C" fn encoding_new_encoder_into(encoding: *const Encoding,
 }
 
 /// Deallocates a `Decoder` previously allocated by `encoding_new_decoder()`.
+///
+/// # Undefined behavior
+///
+/// UB ensues if the argument is `NULL`.
 #[no_mangle]
 pub unsafe extern "C" fn decoder_free(decoder: *mut Decoder) {
     let _ = Box::from_raw(decoder);
@@ -462,6 +532,10 @@ pub unsafe extern "C" fn decoder_free(decoder: *mut Decoder) {
 ///
 /// BOM sniffing can change the return value of this method during the life
 /// of the decoder.
+///
+/// # Undefined behavior
+///
+/// UB ensues if the argument is `NULL`.
 #[no_mangle]
 pub unsafe extern "C" fn decoder_encoding(decoder: *const Decoder) -> *const Encoding {
     (*decoder).encoding()

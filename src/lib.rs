@@ -14,7 +14,7 @@
 //! streamability goals are browser-oriented and that FFI-friendliness is a
 //! goal.
 //!
-//! ## Availability
+//! # Availability
 //!
 //! The code is available under the
 //! [Apache license, Version 2.0](https://www.apache.org/licenses/LICENSE-2.0)
@@ -25,7 +25,7 @@
 //! The [repository is on GitHub](https://github.com/hsivonen/encoding_rs). The
 //! [crate is available on crates.io](https://crates.io/crates/encoding_rs).
 //!
-//! ## Examples
+//! # Examples
 //!
 //! Decode using the non-streaming API:
 //!
@@ -56,6 +56,7 @@
 //!                                  b"\x8B\x83h"];
 //!
 //! // Very short output buffer to demonstrate the output buffer getting full.
+//! // Normally, you'd use something like `[0u8; 2048]`.
 //! let mut buffer_bytes = [0u8; 8];
 //! // Rust doesn't allow us to stack-allocate a `mut str` without `unsafe`.
 //! let mut buffer: &mut str = unsafe {
@@ -173,7 +174,7 @@
 //! non-browser applications that wish to consume Web content or submit Web
 //! forms in a Web-compatible way will find encoding_rs useful.
 //!
-//! ## Streaming & Non-Streaming; Rust & C/C++
+//! # Streaming & Non-Streaming; Rust & C/C++
 //!
 //! The API in Rust has two modes of operation: streaming and non-streaming.
 //! The streaming API is the foundation of the implementation and should be
@@ -201,7 +202,7 @@
 //! performed using methods on `Encoding` objects themselves, so the `Decoder`
 //! and `Encoder` objects are not used at all.
 //!
-//! ## Memory management
+//! # Memory management
 //!
 //! The non-streaming mode never performs heap allocations (even the methods
 //! that write into a `Vec<u8>` or a `String` by taking them as arguments do
@@ -215,7 +216,7 @@
 //! `Encoding` is always statically allocated. `Decoder` and `Encoder` need no
 //! `Drop` cleanup.
 //!
-//! ## Buffer reading and writing behavior
+//! # Buffer reading and writing behavior
 //!
 //! Based on experience gained with the `java.nio.charset` encoding converter
 //! API and with the Gecko uconv encoding converter API, the buffer reading
@@ -255,7 +256,7 @@
 //! ASCII state at the end, the claim about the partial output taken as a whole
 //! being valid is true even for ISO-2022-JP.)
 //!
-//! ## Error Reporting
+//! # Error Reporting
 //!
 //! Based on experience gained with the `java.nio.charset` encoding converter
 //! API and with the Gecko uconv encoding converter API, the error reporting
@@ -303,11 +304,11 @@
 //! it possible to develop applications, such as HTML validators, that care
 //! about which bytes were in error, encoding_rs reports the length of the
 //! erroneous sequence and the number of bytes consumed after the erroneous
-//! sequence. As long as the caller doesn't discard the XXX most recent bytes,
+//! sequence. As long as the caller doesn't discard the 6 most recent bytes,
 //! this makes it possible for callers that care about the erroneous bytes to
 //! locate them.
 //!
-//! ## No Convenience API for Custom Replacements
+//! # No Convenience API for Custom Replacements
 //!
 //! The Web Platform and, therefore, the Encoding Standard supports only one
 //! error recovery mode for decoders and only one error recovery mode for
@@ -343,7 +344,7 @@
 //! want other replacement schemes for unmappable characters can likewise
 //! implement them on top of `encode_from_utf8_without_replacement()`.
 //!
-//! ## No Extensibility by Design
+//! # No Extensibility by Design
 //!
 //! The set of encodings supported by encoding_rs is not extensible by design.
 //! That is, `Encoding`, `Decoder` and `Encoder` are intentionally `struct`s
@@ -383,7 +384,7 @@
 //! else (as opposed to encoding_rs itself providing an extensibility
 //! framework).
 //!
-//! ## Panics
+//! # Panics
 //!
 //! Methods in encoding_rs can panic if the API is used against the requirements
 //! stated in the documentation, if a state that's supposed to be impossible
@@ -397,7 +398,7 @@
 //! Therefore, when using FFI, encoding_rs must be compiled with panics aborting
 //! in order to avoid Undefined Behavior.
 //!
-//! ## Mapping Spec Concepts onto the API
+//! # Mapping Spec Concepts onto the API
 //!
 //! <table>
 //! <thead>
@@ -418,14 +419,14 @@
 //! </tbody>
 //! </table>
 //!
-//! ## Compatibility with the rust-encoding API
+//! # Compatibility with the rust-encoding API
 //!
 //! The crate
 //! [encoding_rs_compat](https://github.com/hsivonen/encoding_rs_compat/)
 //! is a drop-in replacement for rust-encoding 0.2.32 that implements (most of)
 //! the API of rust-encoding 0.2.32 on top of encoding_rs.
 //!
-//! ## Mapping rust-encoding concepts to encoding_rs concepts
+//! # Mapping rust-encoding concepts to encoding_rs concepts
 //!
 //! The following table provides a mapping from rust-encoding constructs to
 //! encoding_rs ones.
@@ -1223,8 +1224,7 @@ static ENCODINGS_IN_LABEL_SORT: [&'static Encoding; 218] = [IBM866,
 
 // END GENERATED CODE
 
-/// An encoding as defined in the
-/// [Encoding Standard](https://encoding.spec.whatwg.org/).
+/// An encoding as defined in the [Encoding Standard][1].
 ///
 /// An _encoding_ defines a mapping from a `u8` sequence to a `char` sequence
 /// and, in most cases, vice versa. Each encoding has a name, an output
@@ -1233,16 +1233,18 @@ static ENCODINGS_IN_LABEL_SORT: [&'static Encoding; 218] = [IBM866,
 /// _Labels_ are ASCII-case-insensitive strings that are used to identify an
 /// encoding in formats and protocols. The _name_ of the encoding is the
 /// preferred label in the case appropriate for returning from the
-/// [`characterSet`](https://dom.spec.whatwg.org/#dom-document-characterset)
-/// property of the `Document` DOM interface, except for the replacement
-/// encoding whose name is not one of its labels.
+/// [`characterSet`][2] property of the `Document` DOM interface, except for
+/// the replacement encoding whose name is not one of its labels.
 ///
 /// The _output encoding_ is the encoding used for form submission and URL
 /// parsing on Web pages in the encoding. This is UTF-8 for the replacement,
 /// UTF-16LE and UTF-16BE encodings and the encoding itself for other
 /// encodings.
 ///
-/// ## Instances
+/// [1]: https://encoding.spec.whatwg.org/
+/// [2]: https://dom.spec.whatwg.org/#dom-document-characterset
+///
+/// # Instances
 ///
 /// All instances of `Encoding` are statically allocated and have the `'static`
 /// lifetime. There is precisely one unique `Encoding` instance for each
@@ -1257,19 +1259,28 @@ static ENCODINGS_IN_LABEL_SORT: [&'static Encoding; 218] = [IBM866,
 ///
 /// If you don't know what encoding you need at compile time and need to
 /// dynamically get an encoding by label, use
-/// Encoding::for_label(<var>label</var>).
+/// <code>Encoding::<a href="#method.for_label">for_label</a>(<var>label</var>)</code>.
 ///
 /// Instances of `Encoding` can be compared with `==` (in both Rust and in
 /// C/C++).
 ///
-/// ## Streaming vs. Non-Streaming
+/// # Streaming vs. Non-Streaming
 ///
 /// When you have the entire input in a single buffer, you can use the
-/// convenience methods XXX. (These methods are available to Rust callers
-/// only and are not available in the C API.) Unlike the rest of the API
-/// available to Rust, these methods perform heap allocations. You should
-/// the `Decoder` and `Encoder` objects when your input is split into multiple
-/// buffers or when you want to control the allocation of the output buffers.
+/// convenience methods [`decode()`][1], [`decode_with_bom_removal()`][2],
+/// [`decode_without_bom_handling()`][3],
+/// [`decode_without_bom_handling_and_without_replacement()`][4] and
+/// [`encode()`][5]. (These methods are available to Rust callers only and are
+/// not available in the C API.) Unlike the rest of the API available to Rust,
+/// these methods perform heap allocations. You should the `Decoder` and
+/// `Encoder` objects when your input is split into multiple buffers or when
+/// you want to control the allocation of the output buffers.
+///
+/// [1]: #method.decode
+/// [2]: #method.decode_with_bom_removal
+/// [3]: #method.decode_without_bom_handling
+/// [4]: #method.decode_without_bom_handling_and_without_replacement
+/// [5]: #method.encode
 pub struct Encoding {
     name: &'static str,
     variant: VariantEncoding,
@@ -1858,6 +1869,11 @@ pub enum DecoderResult {
     /// integer is zero, the last byte that was consumed is the last byte of
     /// the malformed sequence. Note that the malformed bytes may have been part
     /// of an earlier input buffer.
+    ///
+    /// The first wrapped integer can have values 1, 2 or 3. The second
+    /// wrapped integer can have values 0, 1, 2 and 3. This makes the
+    /// worst-case sum of the two 6, and the worst case actually happens with
+    /// ISO-2022-JP.
     Malformed(u8, u8), // u8 instead of usize to avoid useless bloat
 }
 
@@ -1871,7 +1887,8 @@ pub enum DecoderResult {
 /// A `decode_*` method decodes bytes from `src` into Unicode characters stored
 /// into `dst` until one of the following three things happens:
 ///
-/// 1. A malformed byte sequence is encountered.
+/// 1. A malformed byte sequence is encountered (`*_without_replacement`
+///    variants only).
 ///
 /// 2. The output buffer has been filled so near capacity that the decoder
 ///    cannot be sure that processing an additional byte of input wouldn't
@@ -1888,7 +1905,7 @@ pub enum DecoderResult {
 /// replaced with the REPLACEMENT CHARACTER during the call.
 ///
 /// In the case of the `*_without_replacement` variants, the status is a
-/// `DecoderResult` enumeration (possibilities `Malformed`, `OutputFull` and
+/// [`DecoderResult`][1] enumeration (possibilities `Malformed`, `OutputFull` and
 /// `InputEmpty` corresponding to the three cases listed above).
 ///
 /// In the case of methods whose name does not end with
@@ -1902,14 +1919,14 @@ pub enum DecoderResult {
 ///
 /// When decoding to UTF-8 without replacement, the methods are guaranteed
 /// not to return indicating that more output space is needed if the length
-/// of the ouput buffer is at least the length returned by
-/// `max_utf8_buffer_length_without_replacement()`. When decoding to UTF-8 with
-/// replacement, the the length of the output buffer that guarantees the
+/// of the output buffer is at least the length returned by
+/// [`max_utf8_buffer_length_without_replacement()`][2]. When decoding to UTF-8
+/// with replacement, the length of the output buffer that guarantees the
 /// methods not to return indicating that more output space is needed is given
-/// by `max_utf8_buffer_length()`. When decoding to UTF-16 with
+/// by [`max_utf8_buffer_length()`][3]. When decoding to UTF-16 with
 /// or without replacement, the length of the output buffer that guarantees
 /// the methods not to return indicating that more output space is needed is
-/// given by `max_utf16_buffer_length()`.
+/// given by [`max_utf16_buffer_length()`][4].
 ///
 /// The output written into `dst` is guaranteed to be valid UTF-8 or UTF-16,
 /// and the output after each `decode_*` call is guaranteed to consist of
@@ -1936,6 +1953,18 @@ pub enum DecoderResult {
 /// `src` may not have been completely consumed. In that case, the caller must
 /// pass the unconsumed contents of `src` to `decode_*` again upon the next
 /// call.
+///
+/// [1]: enum.DecoderResult.html 
+/// [2]: #method.max_utf8_buffer_length_without_replacement
+/// [3]: #method.max_utf8_buffer_length
+/// [4]: #method.max_utf16_buffer_length
+///
+/// # Infinite loops
+///
+/// When converting with a fixed-size output buffer whose size is too small to
+/// accommodate one character of output, an infinite loop ensues. When
+/// converting with a fixed-size output buffer, it generally makes sense to
+/// make the buffer fairly large (e.g. couple of kilobytes).
 pub struct Decoder {
     encoding: &'static Encoding,
     variant: VariantDecoder,
@@ -2277,8 +2306,8 @@ pub enum EncoderResult {
     /// The encoder encountered an unmappable character.
     ///
     /// The caller must either treat this as a fatal error or must append
-    /// a placeholder to the output and then re-push the the remaining input to
-    /// the encoder.
+    /// a placeholder to the output and then re-push the remaining input to the
+    /// encoder.
     Unmappable(char),
 }
 
@@ -2289,10 +2318,11 @@ pub enum EncoderResult {
 /// buffer `dst` both of which are caller-allocated. There are variants for
 /// both UTF-8 and UTF-16 input buffers.
 ///
-/// A `encode_*` methods encode characters from `src` into bytes characters
+/// An `encode_*` method encode characters from `src` into bytes characters
 /// stored into `dst` until one of the following three things happens:
 ///
-/// 1. An unmappable character is encountered.
+/// 1. An unmappable character is encountered (`*_without_replacement` variants
+///    only).
 ///
 /// 2. The output buffer has been filled so near capacity that the decoder
 ///    cannot be sure that processing an additional character of input wouldn't
@@ -2309,7 +2339,7 @@ pub enum EncoderResult {
 /// character was replaced with a numeric character reference during the call.
 ///
 /// In the case of the methods whose name ends with
-/// `*_without_replacement`, the status is an `EncoderResult` enumeration
+/// `*_without_replacement`, the status is an [`EncoderResult`][1] enumeration
 /// (possibilities `Unmappable`, `OutputFull` and `InputEmpty` corresponding to
 /// the three cases listed above).
 ///
@@ -2318,16 +2348,26 @@ pub enum EncoderResult {
 /// with the corresponding numeric character references and unmappable
 /// characters do not cause the methods to return early.
 ///
-/// XXX: When decoding to UTF-8 without replacement, the methods are guaranteed
+/// When encoding from UTF-8 without replacement, the methods are guaranteed
 /// not to return indicating that more output space is needed if the length
-/// of the ouput buffer is at least the length returned by
-/// `max_utf8_buffer_length_without_replacement()`. When decoding to UTF-8 with replacement, the
-/// the length of the output buffer that guarantees the methods not to return
-/// indicating that more output space is needed is given by
-/// `max_utf8_buffer_length()`. When decoding to UTF-16 with
-/// or without replacement, the length of the output buffer that guarantees
-/// the methods not to return indicating that more output space is needed is
-/// given by `max_utf16_buffer_length()`.
+/// of the output buffer is at least the length returned by
+/// [`max_buffer_length_from_utf8_without_replacement()`][2]. When encoding from
+/// UTF-8 with replacement, the length of the output buffer that guarantees the
+/// methods not to return indicating that more output space is needed in the
+/// absence of unmappable characters is given by
+/// [`max_buffer_length_from_utf8_if_no_unmappables()`][3]. When encoding from
+/// UTF-16 without replacement, the methods are guaranteed not to return
+/// indicating that more output space is needed if the length of the output
+/// buffer is at least the length returned by
+/// [`max_buffer_length_from_utf16_without_replacement()`][4]. When encoding
+/// from UTF-16 with replacement, the the length of the output buffer that
+/// guarantees the methods not to return indicating that more output space is
+/// needed in the absence of unmappable characters is given by
+/// [`max_buffer_length_from_utf16_if_no_unmappables()`][5].
+/// When encoding with replacement, applications are not expected to size the
+/// buffer for the worst case ahead of time but to resize the buffer if there
+/// are unmappable characters. This is why max length queries are only available
+/// for the case where there are no unmappable characters.
 ///
 /// When encoding from UTF-8, each `src` buffer _must_ be valid UTF-8. (When
 /// calling from Rust, the type system takes care of this.) When encoding from
@@ -2336,10 +2376,13 @@ pub enum EncoderResult {
 /// pair of REPLACEMENT CHARACTERS, the caller must ensure that surrogate pairs
 /// are not split across input buffer boundaries.
 ///
-/// XXX: Except in the case of ISO-2022-JP, the output of each `encode_*` call is
-/// guaranteed to consist of a valid byte sequence of complete characters.
-/// (I.e. the code unit sequence for the last character is guaranteed not to be
-/// split across output buffers.)
+/// After an `encode_*` call returns, the output produced so far, taken as a
+/// whole from the start of the stream, is guaranteed to consist of a valid
+/// byte sequence in the target encoding. (I.e. the code unit sequence for a
+/// character is guaranteed not to be split across output buffers. However, due
+/// to the stateful nature of ISO-2022-JP, the stream needs to be considered
+/// from the start for it to be valid. For other encodings, the validity holds
+/// on a per-output buffer basis.)
 ///
 /// The boolean argument `last` indicates that the end of the stream is reached
 /// when all the characters in `src` have been consumed. This argument is needed
@@ -2362,6 +2405,19 @@ pub enum EncoderResult {
 /// `src` may not have been completely consumed. In that case, the caller must
 /// pass the unconsumed contents of `src` to `encode_*` again upon the next
 /// call.
+///
+/// [1]: enum.EncoderResult.html
+/// [2]: #method.max_buffer_length_from_utf8_without_replacement
+/// [3]: #method.max_buffer_length_from_utf8_if_no_unmappables
+/// [4]: #method.max_buffer_length_from_utf16_without_replacement
+/// [5]: #method.max_buffer_length_from_utf16_if_no_unmappables
+///
+/// # Infinite loops
+///
+/// When converting with a fixed-size output buffer whose size is too small to
+/// accommodate one character of output, an infinite loop ensues. When
+/// converting with a fixed-size output buffer, it generally makes sense to
+/// make the buffer fairly large (e.g. couple of kilobytes).
 pub struct Encoder {
     encoding: &'static Encoding,
     variant: VariantEncoder,
