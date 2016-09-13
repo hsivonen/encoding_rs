@@ -1871,7 +1871,7 @@ pub enum DecoderResult {
     /// of an earlier input buffer.
     ///
     /// The first wrapped integer can have values 1, 2 or 3. The second
-    /// wrapped integer can have values 0, 1, 2 and 3. This makes the
+    /// wrapped integer can have values 0, 1, 2 or 3. This makes the
     /// worst-case sum of the two 6, and the worst case actually happens with
     /// ISO-2022-JP.
     Malformed(u8, u8), // u8 instead of usize to avoid useless bloat
@@ -2025,7 +2025,7 @@ impl Decoder {
     /// replacement error handling.
     ///
     /// Note that this value may be too small for the `_with_replacement` case.
-    /// Use `max_utf8_buffer_length` for that case.
+    /// Use `max_utf8_buffer_length()` for that case.
     ///
     /// Available via the C wrapper.
     pub fn max_utf8_buffer_length_without_replacement(&self, byte_length: usize) -> usize {
@@ -2045,7 +2045,8 @@ impl Decoder {
         self.variant.max_utf8_buffer_length(byte_length)
     }
 
-    public_decode_function!(/// Incrementally decode a byte stream into UTF-16.
+    public_decode_function!(/// Incrementally decode a byte stream into UTF-16
+                            /// _without replacement_.
                             ///
                             /// See the documentation of the struct for
                             /// documentation for `decode_*` methods
@@ -2061,7 +2062,8 @@ impl Decoder {
                             decode_to_utf16_checking_end_with_offset,
                             u16);
 
-    public_decode_function!(/// Incrementally decode a byte stream into UTF-8.
+    public_decode_function!(/// Incrementally decode a byte stream into UTF-8
+                            /// _without replacement_.
                             ///
                             /// See the documentation of the struct for
                             /// documentation for `decode_*` methods
@@ -2465,7 +2467,8 @@ impl Encoder {
     ///
     /// Returns the size of the output buffer in bytes that will not overflow
     /// given the current state of the encoder and `u16_length` number of
-    /// additional input code units.
+    /// additional input code units if there are no unmappable characters in
+    /// the input.
     ///
     /// Available via the C wrapper.
     pub fn max_buffer_length_from_utf16_if_no_unmappables(&self, u16_length: usize) -> usize {
@@ -2482,7 +2485,8 @@ impl Encoder {
     ///
     /// Returns the size of the output buffer in bytes that will not overflow
     /// given the current state of the encoder and `byte_length` number of
-    /// additional input code units.
+    /// additional input code units if there are no unmappable characters in
+    /// the input.
     ///
     /// Available via the C wrapper.
     pub fn max_buffer_length_from_utf8_if_no_unmappables(&self, byte_length: usize) -> usize {
@@ -2494,7 +2498,7 @@ impl Encoder {
         }
     }
 
-    /// Incrementally encode into byte stream from UTF-16.
+    /// Incrementally encode into byte stream from UTF-16 _without replacement_.
     ///
     /// See the documentation of the struct for documentation for `encode_*`
     /// methods collectively.
@@ -2508,7 +2512,7 @@ impl Encoder {
         self.variant.encode_from_utf16_raw(src, dst, last)
     }
 
-    /// Incrementally encode into byte stream from UTF-8.
+    /// Incrementally encode into byte stream from UTF-8 _without replacement_.
     ///
     /// See the documentation of the struct for documentation for `encode_*`
     /// methods collectively.
@@ -2522,7 +2526,7 @@ impl Encoder {
         self.variant.encode_from_utf8_raw(src, dst, last)
     }
 
-    /// Incrementally encode into byte stream from UTF-8 with replacement.
+    /// Incrementally encode into byte stream from UTF-8 _without replacement_.
     ///
     /// See the documentation of the struct for documentation for `encode_*`
     /// methods collectively.
@@ -2544,7 +2548,8 @@ impl Encoder {
         }
     }
 
-    /// Incrementally encode into byte stream from UTF-16 with replacement.
+    /// Incrementally encode into byte stream from UTF-16 with unmappable
+    /// characters replaced with HTML (decimal) numeric character references.
     ///
     /// See the documentation of the struct for documentation for `encode_*`
     /// methods collectively.
@@ -2596,7 +2601,8 @@ impl Encoder {
         }
     }
 
-    /// Incrementally encode into byte stream from UTF-8 with replacement.
+    /// Incrementally encode into byte stream from UTF-8 with unmappable
+    /// characters replaced with HTML (decimal) numeric character references.
     ///
     /// See the documentation of the struct for documentation for `encode_*`
     /// methods collectively.
@@ -2648,7 +2654,8 @@ impl Encoder {
         }
     }
 
-    /// Incrementally encode into byte stream from UTF-8 with replacement.
+    /// Incrementally encode into byte stream from UTF-8 with unmappable
+    /// characters replaced with HTML (decimal) numeric character references.
     ///
     /// See the documentation of the struct for documentation for `encode_*`
     /// methods collectively.

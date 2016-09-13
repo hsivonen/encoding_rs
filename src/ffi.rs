@@ -9,7 +9,80 @@
 
 //! The C API for encoding_rs.
 //!
-//! 
+//! # Mapping from Rust
+//!
+//! ## Naming convention
+//!
+//! The wrapper function for each method has a name that starts with the name
+//! of the struct lower-cased, followed by an underscore and ends with the
+//! name of the method.
+//!
+//! For example, `Encoding::for_name()` is wrapped as `encoding_for_name()`.
+//!
+//! ## Arguments
+//!
+//! Functions that wrap non-static methods take the `self` object as their
+//! first argument.
+//!
+//! Slice argument `foo` is decomposed into a pointer `foo` and a length
+//! `foo_len`.
+//!
+//! ## Return values
+//!
+//! Multiple return values become out-params. When an out-param is
+//! length-related, `foo_len` for a slice becomes a pointer in order to become
+//! an in/out-param.
+//!
+//! `DecoderResult`, `EncoderResult` and `CoderResult` become `uint32_t`.
+//! `InputEmpty` becomes `INPUT_EMPTY`. `OutputFull` becomes `OUTPUT_FULL`.
+//! `Unmappable` becomes the scalar value of the unmappable character.
+//! `Malformed` becomes a number whose lowest 8 bits, which can have the decimal
+//! value 0, 1, 2 or 3, indicate the number of bytes that were consumed after
+//! the malformed sequence and whose next-lowest 8 bits, when shifted right by
+//! 8 indicate the length of the malformed byte sequence (possible decimal
+//! values 1, 2 and 3).
+//!
+//! # `Encoding` objects
+//!
+//! `const Encoding*` represents an encoding as defined in the
+//! [Encoding Standard][1].
+//!
+//! An _encoding_ defines a mapping from a `uint8_t` sequence to a `char32_t`
+//! sequence and, in most cases, vice versa. Each encoding has a name, an output
+//! encoding, and one or more labels.
+//!
+//! _Labels_ are ASCII-case-insensitive strings that are used to identify an
+//! encoding in formats and protocols. The _name_ of the encoding is the
+//! preferred label in the case appropriate for returning from the
+//! [`characterSet`][2] property of the `Document` DOM interface, except for
+//! the replacement encoding whose name is not one of its labels.
+//!
+//! The _output encoding_ is the encoding used for form submission and URL
+//! parsing on Web pages in the encoding. This is UTF-8 for the replacement,
+//! UTF-16LE and UTF-16BE encodings and the encoding itself for other
+//! encodings.
+//!
+//! [1]: https://encoding.spec.whatwg.org/
+//! [2]: https://dom.spec.whatwg.org/#dom-document-characterset
+//!
+//! ## Instances
+//!
+//! All instances of `Encoding` are statically allocated. There is precisely
+//! one unique `Encoding` instance for each encoding defined in the Encoding
+//! Standard.
+//!
+//! To obtain a reference to a particular encoding whose identity you know at
+//! compile time, use a constant. There is a constant for each encoding. The
+//! constants are named in all caps with hyphens replaced with underscores and
+//! `_ENCODING` appended to the name. For example, if you know
+//! at compile time that you will want to decode using the UTF-8 encoding, use
+//! the `UTF_8_ENCODING` constant.
+//!
+//! If you don't know what encoding you need at compile time and need to
+//! dynamically get an encoding by label, use
+//! <code>encoding_for_label(<var>label</var>)</code>.
+//!
+//! `const Encoding*` can be compared with `==`.
 
 use super::*;
 
@@ -512,6 +585,10 @@ pub unsafe extern "C" fn encoding_new_encoder(encoding: *const Encoding) -> *mut
 /// Allocates a new `Encoder` for the given `Encoding` into memory provided by
 /// the caller. (In practice, the target should likely be a pointer previously
 /// returned by `encoding_new_encoder()`.)
+///
+/// # Undefined behavior
+///
+/// UB ensues if either argument is `NULL`.
 #[no_mangle]
 pub unsafe extern "C" fn encoding_new_encoder_into(encoding: *const Encoding,
                                                    encoder: *mut Encoder) {
@@ -550,6 +627,10 @@ pub unsafe extern "C" fn decoder_encoding(decoder: *const Decoder) -> *const Enc
 /// Since the REPLACEMENT CHARACTER fits into one UTF-16 code unit, the
 /// return value of this method applies also in the
 /// `_without_replacement` case.
+///
+/// # Undefined behavior
+///
+/// UB ensues if `decoder` is `NULL`.
 #[no_mangle]
 pub unsafe extern "C" fn decoder_max_utf16_buffer_length(decoder: *const Decoder,
                                                          u16_length: usize)
@@ -557,6 +638,19 @@ pub unsafe extern "C" fn decoder_max_utf16_buffer_length(decoder: *const Decoder
     (*decoder).max_utf16_buffer_length(u16_length)
 }
 
+/// Query the worst-case UTF-8 output size _without replacement_.
+///
+/// Returns the size of the output buffer in UTF-8 code units (`uint8_t`)
+/// that will not overflow given the current state of the decoder and
+/// `byte_length` number of additional input bytes when decoding without
+/// replacement error handling.
+///
+/// Note that this value may be too small for the `_with_replacement` case.
+/// Use `decoder_max_utf8_buffer_length()` for that case.
+///
+/// # Undefined behavior
+///
+/// UB ensues if `decoder` is `NULL`.
 #[no_mangle]
 pub unsafe extern "C" fn decoder_max_utf8_buffer_length_without_replacement(decoder: *const Decoder,
                                                                             byte_length: usize)
@@ -564,6 +658,17 @@ pub unsafe extern "C" fn decoder_max_utf8_buffer_length_without_replacement(deco
     (*decoder).max_utf8_buffer_length_without_replacement(byte_length)
 }
 
+/// Query the worst-case UTF-8 output size _with replacement_.
+///
+/// Returns the size of the output buffer in UTF-8 code units (`uint8_t`)
+/// that will not overflow given the current state of the decoder and
+/// `byte_length` number of additional input bytes when decoding with
+/// errors handled by outputting a REPLACEMENT CHARACTER for each malformed
+/// sequence.
+///
+/// # Undefined behavior
+///
+/// UB ensues if `decoder` is `NULL`.
 #[no_mangle]
 pub unsafe extern "C" fn decoder_max_utf8_buffer_length(decoder: *const Decoder,
                                                         byte_length: usize)
@@ -571,6 +676,16 @@ pub unsafe extern "C" fn decoder_max_utf8_buffer_length(decoder: *const Decoder,
     (*decoder).max_utf8_buffer_length(byte_length)
 }
 
+/// Incrementally decode a byte stream into UTF-16 _without replacement_.
+///
+/// See the top-level FFI documentation for documentation for the
+/// `decoder_decode_*` functions collectively.
+///
+/// # Undefined behavior
+///
+/// UB ensues if `decoder` is `NULL`, `src` and `src_len` don't designate a
+/// valid block of memory or `dst` and `dst_len` don't designate a valid block
+/// of memory.
 #[no_mangle]
 pub unsafe extern "C" fn decoder_decode_to_utf16_without_replacement(decoder: *mut Decoder,
                                                                      src: *const u8,
@@ -589,6 +704,16 @@ pub unsafe extern "C" fn decoder_decode_to_utf16_without_replacement(decoder: *m
     result.as_u32()
 }
 
+/// Incrementally decode a byte stream into UTF-8 _without replacement_.
+///
+/// See the top-level FFI documentation for documentation for the
+/// `decoder_decode_*` functions collectively.
+///
+/// # Undefined behavior
+///
+/// UB ensues if `decoder` is `NULL`, `src` and `src_len` don't designate a
+/// valid block of memory or `dst` and `dst_len` don't designate a valid block
+/// of memory.
 #[no_mangle]
 pub unsafe extern "C" fn decoder_decode_to_utf8_without_replacement(decoder: *mut Decoder,
                                                                     src: *const u8,
@@ -607,6 +732,17 @@ pub unsafe extern "C" fn decoder_decode_to_utf8_without_replacement(decoder: *mu
     result.as_u32()
 }
 
+/// Incrementally decode a byte stream into UTF-16 with malformed sequences
+/// replaced with the REPLACEMENT CHARACTER.
+///
+/// See the top-level FFI documentation for documentation for the
+/// `decoder_decode_*` functions collectively.
+///
+/// # Undefined behavior
+///
+/// UB ensues if `decoder` is `NULL`, `src` and `src_len` don't designate a
+/// valid block of memory, `dst` and `dst_len` don't designate a valid block
+/// of memory or `had_replacements` is `NULL`.
 #[no_mangle]
 pub unsafe extern "C" fn decoder_decode_to_utf16(decoder: *mut Decoder,
                                                  src: *const u8,
@@ -625,6 +761,17 @@ pub unsafe extern "C" fn decoder_decode_to_utf16(decoder: *mut Decoder,
     result.as_u32()
 }
 
+/// Incrementally decode a byte stream into UTF-8 with malformed sequences
+/// replaced with the REPLACEMENT CHARACTER.
+///
+/// See the top-level FFI documentation for documentation for the
+/// `decoder_decode_*` functions collectively.
+///
+/// # Undefined behavior
+///
+/// UB ensues if `decoder` is `NULL`, `src` and `src_len` don't designate a
+/// valid block of memory, `dst` and `dst_len` don't designate a valid block
+/// of memory or `had_replacements` is `NULL`.
 #[no_mangle]
 pub unsafe extern "C" fn decoder_decode_to_utf8(decoder: *mut Decoder,
                                                 src: *const u8,
@@ -644,16 +791,31 @@ pub unsafe extern "C" fn decoder_decode_to_utf8(decoder: *mut Decoder,
 }
 
 /// Deallocates an `Encoder` previously allocated by `encoding_new_encoder()`.
+///
+/// # Undefined behavior
+///
+/// UB ensues if the argument is `NULL`.
 #[no_mangle]
 pub unsafe extern "C" fn encoder_free(encoder: *mut Encoder) {
     let _ = Box::from_raw(encoder);
 }
 
+/// The `Encoding` this `Encoder` is for.
+///
+/// # Undefined behavior
+///
+/// UB ensues if the argument is `NULL`.
 #[no_mangle]
 pub unsafe extern "C" fn encoder_encoding(encoder: *const Encoder) -> *const Encoding {
     (*encoder).encoding()
 }
 
+/// Query the worst-case output size when encoding from UTF-16 without
+/// replacement.
+///
+/// Returns the size of the output buffer in bytes that will not overflow
+/// given the current state of the encoder and `u16_length` number of
+/// additional input code units.
 #[no_mangle]
 pub unsafe extern "C" fn encoder_max_buffer_length_from_utf16_without_replacement(encoder: *const Encoder,
                                                               u16_length: usize)
@@ -661,6 +823,12 @@ pub unsafe extern "C" fn encoder_max_buffer_length_from_utf16_without_replacemen
     (*encoder).max_buffer_length_from_utf16_without_replacement(u16_length)
 }
 
+/// Query the worst-case output size when encoding from UTF-8 without
+/// replacement.
+///
+/// Returns the size of the output buffer in bytes that will not overflow
+/// given the current state of the encoder and `byte_length` number of
+/// additional input code units.
 #[no_mangle]
 pub unsafe extern "C" fn encoder_max_buffer_length_from_utf8_without_replacement(encoder: *const Encoder,
                                                              byte_length: usize)
@@ -668,7 +836,13 @@ pub unsafe extern "C" fn encoder_max_buffer_length_from_utf8_without_replacement
     (*encoder).max_buffer_length_from_utf8_without_replacement(byte_length)
 }
 
-
+/// Query the worst-case output size when encoding from UTF-16 with
+/// replacement.
+///
+/// Returns the size of the output buffer in bytes that will not overflow
+/// given the current state of the encoder and `u16_length` number of
+/// additional input code units if there are no unmappable characters in
+/// the input.
 #[no_mangle]
 pub unsafe extern "C" fn encoder_max_buffer_length_from_utf16_if_no_unmappables
     (encoder: *const Encoder,
@@ -677,6 +851,13 @@ pub unsafe extern "C" fn encoder_max_buffer_length_from_utf16_if_no_unmappables
     (*encoder).max_buffer_length_from_utf16_if_no_unmappables(u16_length)
 }
 
+/// Query the worst-case output size when encoding from UTF-8 with
+/// replacement.
+///
+/// Returns the size of the output buffer in bytes that will not overflow
+/// given the current state of the encoder and `byte_length` number of
+/// additional input code units if there are no unmappable characters in
+/// the input.
 #[no_mangle]
 pub unsafe extern "C" fn encoder_max_buffer_length_from_utf8_if_no_unmappables
     (encoder: *const Encoder,
@@ -685,6 +866,16 @@ pub unsafe extern "C" fn encoder_max_buffer_length_from_utf8_if_no_unmappables
     (*encoder).max_buffer_length_from_utf8_if_no_unmappables(byte_length)
 }
 
+/// Incrementally encode into byte stream from UTF-16 _without replacement_.
+///
+/// See the top-level FFI documentation for documentation for the
+/// `encoder_encode_*` functions collectively.
+///
+/// # Undefined behavior
+///
+/// UB ensues if `encoder` is `NULL`, `src` and `src_len` don't designate a
+/// valid block of memory or `dst` and `dst_len` don't designate a valid block
+/// of memory.
 #[no_mangle]
 pub unsafe extern "C" fn encoder_encode_from_utf16_without_replacement(encoder: *mut Encoder,
                                                                        src: *const u16,
@@ -703,6 +894,19 @@ pub unsafe extern "C" fn encoder_encode_from_utf16_without_replacement(encoder: 
     result.as_u32()
 }
 
+/// Incrementally encode into byte stream from UTF-8 _without replacement_.
+///
+/// See the top-level FFI documentation for documentation for the
+/// `encoder_encode_*` functions collectively.
+///
+/// The input absolutely _MUST_ be valid UTF-8 or the behavior is memory-unsafe!
+/// If in doubt, check the validity of input before using!
+///
+/// # Undefined behavior
+///
+/// UB ensues if `encoder` is `NULL`, `src` and `src_len` don't designate a
+/// valid block of memory, `dst` and `dst_len` don't designate a valid block
+/// of memory or the input is not valid UTF-8.
 #[no_mangle]
 pub unsafe extern "C" fn encoder_encode_from_utf8_without_replacement(encoder: *mut Encoder,
                                                                       src: *const u8,
@@ -722,6 +926,15 @@ pub unsafe extern "C" fn encoder_encode_from_utf8_without_replacement(encoder: *
     result.as_u32()
 }
 
+/// Incrementally encode into byte stream from UTF-16 with unmappable
+/// characters replaced with HTML (decimal) numeric character references.
+///
+/// See the top-level FFI documentation for documentation for the
+/// `encoder_encode_*` functions collectively.
+///
+/// UB ensues if `encoder` is `NULL`, `src` and `src_len` don't designate a
+/// valid block of memory, `dst` and `dst_len` don't designate a valid block
+/// of memory or `had_replacements` is `NULL`.
 #[no_mangle]
 pub unsafe extern "C" fn encoder_encode_from_utf16(encoder: *mut Encoder,
                                                    src: *const u16,
@@ -741,6 +954,18 @@ pub unsafe extern "C" fn encoder_encode_from_utf16(encoder: *mut Encoder,
     result.as_u32()
 }
 
+/// Incrementally encode into byte stream from UTF-8 with unmappable
+/// characters replaced with HTML (decimal) numeric character references.
+///
+/// The input absolutely _MUST_ be valid UTF-8 or the behavior is memory-unsafe!
+/// If in doubt, check the validity of input before using!
+///
+/// See the top-level FFI documentation for documentation for the
+/// `encoder_encode_*` functions collectively.
+///
+/// UB ensues if `encoder` is `NULL`, `src` and `src_len` don't designate a
+/// valid block of memory, `dst` and `dst_len` don't designate a valid block
+/// of memory, `had_replacements` is `NULL` or the input is not valid UTF-8.
 #[no_mangle]
 pub unsafe extern "C" fn encoder_encode_from_utf8(encoder: *mut Encoder,
                                                   src: *const u8,

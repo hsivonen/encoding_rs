@@ -19,9 +19,7 @@ pub fn encode(encoding: &'static Encoding, string: &str, expect: &[u8]) {
     encode_from_utf16(encoding, &utf16_from_utf8(string)[..], expect);
 }
 
-pub fn decode_to_utf16(encoding: &'static Encoding,
-                                           bytes: &[u8],
-                                           expect: &[u16]) {
+pub fn decode_to_utf16(encoding: &'static Encoding, bytes: &[u8], expect: &[u16]) {
     let mut decoder = encoding.new_decoder();
     let mut dest: Vec<u16> = Vec::with_capacity(decoder.max_utf16_buffer_length(bytes.len()));
     let capacity = dest.capacity();
@@ -39,9 +37,7 @@ pub fn decode_to_utf16(encoding: &'static Encoding,
     assert_eq!(&dest[..], expect);
 }
 
-pub fn decode_to_utf8(encoding: &'static Encoding,
-                                          bytes: &[u8],
-                                          expect: &str) {
+pub fn decode_to_utf8(encoding: &'static Encoding, bytes: &[u8], expect: &str) {
     let mut decoder = encoding.new_decoder();
     let mut dest: Vec<u8> = Vec::with_capacity(decoder.max_utf8_buffer_length(bytes.len()));
     let capacity = dest.capacity();
@@ -59,9 +55,7 @@ pub fn decode_to_utf8(encoding: &'static Encoding,
     assert_eq!(&dest[..], expect.as_bytes());
 }
 
-pub fn encode_from_utf8(encoding: &'static Encoding,
-                                            string: &str,
-                                            expect: &[u8]) {
+pub fn encode_from_utf8(encoding: &'static Encoding, string: &str, expect: &[u8]) {
     let mut encoder = encoding.new_encoder();
     let mut dest: Vec<u8> = Vec::with_capacity(10 * (string.len() + 1)); // 10 is replacement worst case
     let capacity = dest.capacity();
@@ -79,9 +73,7 @@ pub fn encode_from_utf8(encoding: &'static Encoding,
     assert_eq!(&dest[..], expect);
 }
 
-pub fn encode_from_utf16(encoding: &'static Encoding,
-                                             string: &[u16],
-                                             expect: &[u8]) {
+pub fn encode_from_utf16(encoding: &'static Encoding, string: &[u16], expect: &[u8]) {
     let mut encoder = encoding.new_encoder();
     let mut dest: Vec<u8> = Vec::with_capacity(10 * (string.len() + 1)); // 10 is replacement worst case
     let capacity = dest.capacity();
