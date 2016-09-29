@@ -60,7 +60,7 @@ encoding_rs is
 - [x] Implement all decoders and encoders.
 - [x] Add unit tests for all decoders and encoders.
 - [x] Finish BOM sniffing variants in Rust-only convenience features.
-- [ ] Document the API.
+- [x] Document the API.
 - [x] Publish the crate on crates.io.
 - [ ] Create a solution for measuring performance.
 - [ ] Test the performance impact of omitting duplicate bound checks using
@@ -80,6 +80,10 @@ encoding_rs is
       on data flow from NEON to ALU registers.
 
 ## Release Notes
+
+### 0.2.4
+
+* Polish FFI documentation.
 
 ### 0.2.3
 

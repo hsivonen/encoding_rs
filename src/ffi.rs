@@ -41,48 +41,6 @@
 //! the malformed sequence and whose next-lowest 8 bits, when shifted right by
 //! 8 indicate the length of the malformed byte sequence (possible decimal
 //! values 1, 2 and 3).
-//!
-//! # `Encoding` objects
-//!
-//! `const Encoding*` represents an encoding as defined in the
-//! [Encoding Standard][1].
-//!
-//! An _encoding_ defines a mapping from a `uint8_t` sequence to a `char32_t`
-//! sequence and, in most cases, vice versa. Each encoding has a name, an output
-//! encoding, and one or more labels.
-//!
-//! _Labels_ are ASCII-case-insensitive strings that are used to identify an
-//! encoding in formats and protocols. The _name_ of the encoding is the
-//! preferred label in the case appropriate for returning from the
-//! [`characterSet`][2] property of the `Document` DOM interface, except for
-//! the replacement encoding whose name is not one of its labels.
-//!
-//! The _output encoding_ is the encoding used for form submission and URL
-//! parsing on Web pages in the encoding. This is UTF-8 for the replacement,
-//! UTF-16LE and UTF-16BE encodings and the encoding itself for other
-//! encodings.
-//!
-//! [1]: https://encoding.spec.whatwg.org/
-//! [2]: https://dom.spec.whatwg.org/#dom-document-characterset
-//!
-//! ## Instances
-//!
-//! All instances of `Encoding` are statically allocated. There is precisely
-//! one unique `Encoding` instance for each encoding defined in the Encoding
-//! Standard.
-//!
-//! To obtain a reference to a particular encoding whose identity you know at
-//! compile time, use a constant. There is a constant for each encoding. The
-//! constants are named in all caps with hyphens replaced with underscores and
-//! `_ENCODING` appended to the name. For example, if you know
-//! at compile time that you will want to decode using the UTF-8 encoding, use
-//! the `UTF_8_ENCODING` constant.
-//!
-//! If you don't know what encoding you need at compile time and need to
-//! dynamically get an encoding by label, use
-//! <code>encoding_for_label(<var>label</var>)</code>.
-//!
-//! `const Encoding*` can be compared with `==`.
 
 use super::*;
 
@@ -678,14 +636,17 @@ pub unsafe extern "C" fn decoder_max_utf8_buffer_length(decoder: *const Decoder,
 
 /// Incrementally decode a byte stream into UTF-16 _without replacement_.
 ///
-/// See the top-level FFI documentation for documentation for the
-/// `decoder_decode_*` functions collectively.
+/// See the top-level FFI documentation for documentation for how the
+/// `decoder_decode_*` functions are mapped from Rust and the documentation
+/// for the [`Decoder`][1] struct for the semantics.
 ///
 /// # Undefined behavior
 ///
 /// UB ensues if `decoder` is `NULL`, `src` and `src_len` don't designate a
 /// valid block of memory or `dst` and `dst_len` don't designate a valid block
 /// of memory.
+///
+/// [1]: ../struct.Decoder.html
 #[no_mangle]
 pub unsafe extern "C" fn decoder_decode_to_utf16_without_replacement(decoder: *mut Decoder,
                                                                      src: *const u8,
@@ -706,14 +667,17 @@ pub unsafe extern "C" fn decoder_decode_to_utf16_without_replacement(decoder: *m
 
 /// Incrementally decode a byte stream into UTF-8 _without replacement_.
 ///
-/// See the top-level FFI documentation for documentation for the
-/// `decoder_decode_*` functions collectively.
+/// See the top-level FFI documentation for documentation for how the
+/// `decoder_decode_*` functions are mapped from Rust and the documentation
+/// for the [`Decoder`][1] struct for the semantics.
 ///
 /// # Undefined behavior
 ///
 /// UB ensues if `decoder` is `NULL`, `src` and `src_len` don't designate a
 /// valid block of memory or `dst` and `dst_len` don't designate a valid block
 /// of memory.
+///
+/// [1]: ../struct.Decoder.html
 #[no_mangle]
 pub unsafe extern "C" fn decoder_decode_to_utf8_without_replacement(decoder: *mut Decoder,
                                                                     src: *const u8,
@@ -735,14 +699,17 @@ pub unsafe extern "C" fn decoder_decode_to_utf8_without_replacement(decoder: *mu
 /// Incrementally decode a byte stream into UTF-16 with malformed sequences
 /// replaced with the REPLACEMENT CHARACTER.
 ///
-/// See the top-level FFI documentation for documentation for the
-/// `decoder_decode_*` functions collectively.
+/// See the top-level FFI documentation for documentation for how the
+/// `decoder_decode_*` functions are mapped from Rust and the documentation
+/// for the [`Decoder`][1] struct for the semantics.
 ///
 /// # Undefined behavior
 ///
 /// UB ensues if `decoder` is `NULL`, `src` and `src_len` don't designate a
 /// valid block of memory, `dst` and `dst_len` don't designate a valid block
 /// of memory or `had_replacements` is `NULL`.
+///
+/// [1]: ../struct.Decoder.html
 #[no_mangle]
 pub unsafe extern "C" fn decoder_decode_to_utf16(decoder: *mut Decoder,
                                                  src: *const u8,
@@ -764,14 +731,17 @@ pub unsafe extern "C" fn decoder_decode_to_utf16(decoder: *mut Decoder,
 /// Incrementally decode a byte stream into UTF-8 with malformed sequences
 /// replaced with the REPLACEMENT CHARACTER.
 ///
-/// See the top-level FFI documentation for documentation for the
-/// `decoder_decode_*` functions collectively.
+/// See the top-level FFI documentation for documentation for how the
+/// `decoder_decode_*` functions are mapped from Rust and the documentation
+/// for the [`Decoder`][1] struct for the semantics.
 ///
 /// # Undefined behavior
 ///
 /// UB ensues if `decoder` is `NULL`, `src` and `src_len` don't designate a
 /// valid block of memory, `dst` and `dst_len` don't designate a valid block
 /// of memory or `had_replacements` is `NULL`.
+///
+/// [1]: ../struct.Decoder.html
 #[no_mangle]
 pub unsafe extern "C" fn decoder_decode_to_utf8(decoder: *mut Decoder,
                                                 src: *const u8,
@@ -868,14 +838,17 @@ pub unsafe extern "C" fn encoder_max_buffer_length_from_utf8_if_no_unmappables
 
 /// Incrementally encode into byte stream from UTF-16 _without replacement_.
 ///
-/// See the top-level FFI documentation for documentation for the
-/// `encoder_encode_*` functions collectively.
+/// See the top-level FFI documentation for documentation for how the
+/// `encoder_encode_*` functions are mapped from Rust and the documentation
+/// for the [`Encoder`][1] struct for the semantics.
 ///
 /// # Undefined behavior
 ///
 /// UB ensues if `encoder` is `NULL`, `src` and `src_len` don't designate a
 /// valid block of memory or `dst` and `dst_len` don't designate a valid block
 /// of memory.
+///
+/// [1]: ../struct.Encoder.html
 #[no_mangle]
 pub unsafe extern "C" fn encoder_encode_from_utf16_without_replacement(encoder: *mut Encoder,
                                                                        src: *const u16,
@@ -896,8 +869,9 @@ pub unsafe extern "C" fn encoder_encode_from_utf16_without_replacement(encoder: 
 
 /// Incrementally encode into byte stream from UTF-8 _without replacement_.
 ///
-/// See the top-level FFI documentation for documentation for the
-/// `encoder_encode_*` functions collectively.
+/// See the top-level FFI documentation for documentation for how the
+/// `encoder_encode_*` functions are mapped from Rust and the documentation
+/// for the [`Encoder`][1] struct for the semantics.
 ///
 /// The input absolutely _MUST_ be valid UTF-8 or the behavior is memory-unsafe!
 /// If in doubt, check the validity of input before using!
@@ -907,6 +881,8 @@ pub unsafe extern "C" fn encoder_encode_from_utf16_without_replacement(encoder: 
 /// UB ensues if `encoder` is `NULL`, `src` and `src_len` don't designate a
 /// valid block of memory, `dst` and `dst_len` don't designate a valid block
 /// of memory or the input is not valid UTF-8.
+///
+/// [1]: ../struct.Encoder.html
 #[no_mangle]
 pub unsafe extern "C" fn encoder_encode_from_utf8_without_replacement(encoder: *mut Encoder,
                                                                       src: *const u8,
@@ -929,12 +905,15 @@ pub unsafe extern "C" fn encoder_encode_from_utf8_without_replacement(encoder: *
 /// Incrementally encode into byte stream from UTF-16 with unmappable
 /// characters replaced with HTML (decimal) numeric character references.
 ///
-/// See the top-level FFI documentation for documentation for the
-/// `encoder_encode_*` functions collectively.
+/// See the top-level FFI documentation for documentation for how the
+/// `encoder_encode_*` functions are mapped from Rust and the documentation
+/// for the [`Encoder`][1] struct for the semantics.
 ///
 /// UB ensues if `encoder` is `NULL`, `src` and `src_len` don't designate a
 /// valid block of memory, `dst` and `dst_len` don't designate a valid block
 /// of memory or `had_replacements` is `NULL`.
+///
+/// [1]: ../struct.Encoder.html
 #[no_mangle]
 pub unsafe extern "C" fn encoder_encode_from_utf16(encoder: *mut Encoder,
                                                    src: *const u16,
@@ -960,12 +939,15 @@ pub unsafe extern "C" fn encoder_encode_from_utf16(encoder: *mut Encoder,
 /// The input absolutely _MUST_ be valid UTF-8 or the behavior is memory-unsafe!
 /// If in doubt, check the validity of input before using!
 ///
-/// See the top-level FFI documentation for documentation for the
-/// `encoder_encode_*` functions collectively.
+/// See the top-level FFI documentation for documentation for how the
+/// `encoder_encode_*` functions are mapped from Rust and the documentation
+/// for the [`Encoder`][1] struct for the semantics.
 ///
 /// UB ensues if `encoder` is `NULL`, `src` and `src_len` don't designate a
 /// valid block of memory, `dst` and `dst_len` don't designate a valid block
 /// of memory, `had_replacements` is `NULL` or the input is not valid UTF-8.
+///
+/// [1]: ../struct.Encoder.html
 #[no_mangle]
 pub unsafe extern "C" fn encoder_encode_from_utf8(encoder: *mut Encoder,
                                                   src: *const u8,
