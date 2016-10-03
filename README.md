@@ -63,8 +63,6 @@ encoding_rs is
 - [x] Document the API.
 - [x] Publish the crate on crates.io.
 - [ ] Create a solution for measuring performance.
-- [ ] Test the performance impact of omitting duplicate bound checks using
-      `unsafe`.
 - [ ] Accelerate ASCII conversions using SSE2 on x86.
 - [ ] Accelerate ASCII conversions using ALU register-sized operations on
       non-x86 architectures (process an `usize` instead of `u8` at a time).
