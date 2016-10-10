@@ -43,4 +43,10 @@ it probably makes more sense to carry out an investigation to make sure that
 the compiler performs the omission. If not, it makes more sense to file a bug
 on the compiler than to omit the checks manually.
 
+==Manual loop unrolling for single-byte encodings==
 
+ICU currently outperforms encoding_rs (by over x2!) when decoding a single-byte
+encoding to UTF-16. This appears to be thanks to manually unrolling the
+conversion loop by 16. See [ucnv_MBCSSingleToBMPWithOffsets][1].
+
+[1]: https://ssl.icu-project.org/repos/icu/icu/tags/release-55-1/source/common/ucnvmbcs.cpp
