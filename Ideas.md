@@ -50,3 +50,12 @@ encoding to UTF-16. This appears to be thanks to manually unrolling the
 conversion loop by 16. See [ucnv_MBCSSingleToBMPWithOffsets][1].
 
 [1]: https://ssl.icu-project.org/repos/icu/icu/tags/release-55-1/source/common/ucnvmbcs.cpp
+
+Notably, none of the single-byte encodings have bytes that'd decode to the
+upper half of BMP. Therefore, if the unmappable marker has the highest bit set
+instead of being zero, the check for unmappables within a 16-character stride
+can be done either by ORing the BMP characters in the stride together and
+checking the high bit or by loading the upper halves of the BMP charaters
+in a `u8x8` register and checking the high bits using the `_mm_movemask_epi8`
+/ `pmovmskb` SSE2 instruction.
+
