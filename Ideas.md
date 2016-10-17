@@ -43,6 +43,16 @@ it probably makes more sense to carry out an investigation to make sure that
 the compiler performs the omission. If not, it makes more sense to file a bug
 on the compiler than to omit the checks manually.
 
+==Handling ASCII with table lookups when decoding single-byte to UTF-16==
+
+Both uconv and ICU outperform encoding_rs when decoding single-byte to UTF-16.
+unconv doesn't even do anything fancy to manually unroll the loop (see below).
+Both handle even the ASCII range using table lookup. That is, there's no branch
+for checking if we're in the lower or upper half of the encoding.
+
+However, adding SIMD acceleration for the ASCII half will likely be a bigger
+win than eliminating the branch to decide ASCII vs. non-ASCII.
+
 ==Manual loop unrolling for single-byte encodings==
 
 ICU currently outperforms encoding_rs (by over x2!) when decoding a single-byte
