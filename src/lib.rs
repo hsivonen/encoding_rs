@@ -486,6 +486,7 @@ mod replacement;
 mod x_user_defined;
 mod utf_16;
 
+mod ascii;
 mod handles;
 mod data;
 mod variant;
