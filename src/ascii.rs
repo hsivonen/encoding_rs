@@ -75,7 +75,9 @@ macro_rules! ascii_naive_impl {
 }
 
 cfg_if! {
-    if #[cfg(all(target_endian = "little", target_pointer_width = "64"))] {
+    // Compile out
+    if #[cfg(all(target_pointer_width = "64", target_pointer_width = "32"))] {
+//    if #[cfg(all(target_endian = "little", target_pointer_width = "64"))] {
         // Aligned ALU word, little endian, 64-bit
 
         const STRIDE_SIZE: usize = 8;
@@ -99,10 +101,7 @@ cfg_if! {
             |           ((0x00000000_000000FFusize & word) << 8);
             *dst = first;
             *(dst.offset(1)) = second;
-        }
-
-        #[inline(always)]
-        unsafe fn write_run(word: usize, dst: *mut usize) {
+            return true;
         }
 
         #[inline(always)]
@@ -114,7 +113,7 @@ cfg_if! {
             if (STRIDE_SIZE <= len && ((src as usize) & ALIGNMENT_MASK) == 0) && (((dst as usize) & ALIGNMENT_MASK) == 0) {
                 // XXX stdlib's UTF-8 validation reads two words at a time
                 loop {
-                    if !ascii_to_basic_latin_stride(src.offset(offset as isize) as *const usize, dst.offset(offset as isize) as *mut usize) {
+                    if !ascii_to_basic_latin_stride_little_64(src.offset(offset as isize) as *const usize, dst.offset(offset as isize) as *mut usize) {
                         break;
                     }
                     offset += STRIDE_SIZE;
@@ -125,7 +124,7 @@ cfg_if! {
             }
             while offset < len {
                 let code_unit = *(src.offset(offset as isize));
-                if (code_unit > 127) {
+                if code_unit > 127 {
                     return Some((code_unit, offset));
                 }
                 *(dst.offset(offset as isize)) = code_unit as u16;
