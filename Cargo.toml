@@ -16,6 +16,9 @@ name = "encoding_rs"
 # The below line confuses rustfmt. Uncomment to build a staticlib.
 # crate-type = ["rlib", "staticlib"]
 
+[dependencies]
+cfg-if = "0.1.0"
+
 [build-dependencies]
 rusty-cheddar = "0.3.1"
 

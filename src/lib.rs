@@ -469,6 +469,9 @@
 //! </table>
 
 #[macro_use]
+extern crate cfg_if;
+
+#[macro_use]
 mod macros;
 
 #[cfg(test)]
