@@ -494,6 +494,8 @@ pub mod ffi;
 use variant::*;
 pub use ffi::*;
 
+use std::borrow::Cow;
+
 const NCR_EXTRA: usize = 9; // #1114111;
 
 // BEGIN GENERATED CODE. PLEASE DO NOT EDIT.
@@ -1581,14 +1583,14 @@ impl Encoding {
     /// of the `String`.
     ///
     /// Available to Rust only.
-    pub fn decode(&'static self, bytes: &[u8]) -> (String, &'static Encoding, bool) {
+    pub fn decode<'a>(&'static self, bytes: &'a [u8]) -> (Cow<'a, str>, &'static Encoding, bool) {
         let mut decoder = self.new_decoder();
         let mut string = String::with_capacity(decoder.max_utf8_buffer_length(bytes.len()));
         let (result, read, had_errors) = decoder.decode_to_string(bytes, &mut string, true);
         match result {
             CoderResult::InputEmpty => {
                 debug_assert_eq!(read, bytes.len());
-                (string, decoder.encoding(), had_errors)
+                (Cow::Owned(string), decoder.encoding(), had_errors)
             }
             CoderResult::OutputFull => unreachable!(),
         }
@@ -1615,14 +1617,14 @@ impl Encoding {
     /// of the `String`.
     ///
     /// Available to Rust only.
-    pub fn decode_with_bom_removal(&'static self, bytes: &[u8]) -> (String, bool) {
+    pub fn decode_with_bom_removal<'a>(&'static self, bytes: &'a [u8]) -> (Cow<'a, str>, bool) {
         let mut decoder = self.new_decoder_with_bom_removal();
         let mut string = String::with_capacity(decoder.max_utf8_buffer_length(bytes.len()));
         let (result, read, had_errors) = decoder.decode_to_string(bytes, &mut string, true);
         match result {
             CoderResult::InputEmpty => {
                 debug_assert_eq!(read, bytes.len());
-                (string, had_errors)
+                (Cow::Owned(string), had_errors)
             }
             CoderResult::OutputFull => unreachable!(),
         }
@@ -1649,14 +1651,14 @@ impl Encoding {
     /// of the `String`.
     ///
     /// Available to Rust only.
-    pub fn decode_without_bom_handling(&'static self, bytes: &[u8]) -> (String, bool) {
+    pub fn decode_without_bom_handling<'a>(&'static self, bytes: &'a [u8]) -> (Cow<'a, str>, bool) {
         let mut decoder = self.new_decoder_without_bom_handling();
         let mut string = String::with_capacity(decoder.max_utf8_buffer_length(bytes.len()));
         let (result, read, had_errors) = decoder.decode_to_string(bytes, &mut string, true);
         match result {
             CoderResult::InputEmpty => {
                 debug_assert_eq!(read, bytes.len());
-                (string, had_errors)
+                (Cow::Owned(string), had_errors)
             }
             CoderResult::OutputFull => unreachable!(),
         }
@@ -1683,9 +1685,9 @@ impl Encoding {
     /// of the `String`.
     ///
     /// Available to Rust only.
-    pub fn decode_without_bom_handling_and_without_replacement(&'static self,
-                                                               bytes: &[u8])
-                                                               -> Option<String> {
+    pub fn decode_without_bom_handling_and_without_replacement<'a>(&'static self,
+                                                                   bytes: &'a [u8])
+                                                                   -> Option<Cow<'a, str>> {
         let mut decoder = self.new_decoder_without_bom_handling();
         let mut string =
             String::with_capacity(decoder.max_utf8_buffer_length_without_replacement(bytes.len()));
@@ -1693,7 +1695,7 @@ impl Encoding {
         match result {
             DecoderResult::InputEmpty => {
                 debug_assert_eq!(read, bytes.len());
-                Some(string)
+                Some(Cow::Owned(string))
             }
             DecoderResult::Malformed(_, _) => None,
             DecoderResult::OutputFull => unreachable!(),
@@ -1730,7 +1732,7 @@ impl Encoding {
     /// that doesn't use power-of-two buckets.
     ///
     /// Available to Rust only.
-    pub fn encode(&'static self, string: &str) -> (Vec<u8>, &'static Encoding, bool) {
+    pub fn encode<'a>(&'static self, string: &'a str) -> (Cow<'a, [u8]>, &'static Encoding, bool) {
         let mut encoder = self.new_encoder();
         let mut total_read = 0usize;
         let mut vec: Vec<u8> =
@@ -1748,7 +1750,7 @@ impl Encoding {
             match result {
                 CoderResult::InputEmpty => {
                     debug_assert_eq!(total_read, string.len());
-                    return (vec, encoder.encoding(), total_had_errors);
+                    return (Cow::Owned(vec), encoder.encoding(), total_had_errors);
                 }
                 CoderResult::OutputFull => {
                     // reserve_exact wants to know how much more on top of current
