@@ -69,3 +69,15 @@ checking the high bit or by loading the upper halves of the BMP charaters
 in a `u8x8` register and checking the high bits using the `_mm_movemask_epi8`
 / `pmovmskb` SSE2 instruction.
 
+==After non-ASCII, handle ASCII punctuation without SIMD==
+
+Since the failure mode of SIMD ASCII acceleration involves wasted aligment
+checks and a wasted SIMD read when the next code unit is non-ASCII and non-Latin
+scripts have runs of non-ASCII even if ASCII spaces and punctuation is used,
+consider handling the next two or three bytes following non-ASCII as non-SIMD
+before looping back to the SIMD mode. Maybe move back to SIMD ASCII faster if
+there's ASCII that's not space or punctuation. Maybe with the "space or
+punctuation" check in place, this code can be allowed to be in place even for
+UTF-8 and Latin single-byte (i.e. not having different code for Latin and
+non-Latin single-byte).
+
