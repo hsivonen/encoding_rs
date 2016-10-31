@@ -44,6 +44,10 @@ encodings should not be optimized for speed at the expense of code size as long
 as form submission and URL parsing in Gecko don't become noticeably too slow
 in real-world use.
 
+A framework for measuring performance is [available separately][1].
+
+[1]: https://github.com/hsivonen/encoding_bench/
+
 ## Compatibility with rust-encoding
 
 A compatibility layer that implements the rust-encoding API on top of
@@ -62,7 +66,7 @@ encoding_rs is
 - [x] Finish BOM sniffing variants in Rust-only convenience features.
 - [x] Document the API.
 - [x] Publish the crate on crates.io.
-- [ ] Create a solution for measuring performance.
+- [x] Create a solution for measuring performance.
 - [ ] Accelerate ASCII conversions using SSE2 on x86.
 - [ ] Accelerate ASCII conversions using ALU register-sized operations on
       non-x86 architectures (process an `usize` instead of `u8` at a time).
