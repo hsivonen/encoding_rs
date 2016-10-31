@@ -1739,7 +1739,11 @@ impl Encoding {
     ///
     /// Available to Rust only.
     pub fn encode<'a>(&'static self, string: &'a str) -> (Cow<'a, [u8]>, &'static Encoding, bool) {
-        let mut encoder = self.new_encoder();
+        let output_encoding = self.output_encoding();
+        if output_encoding == UTF_8 {
+            return (Cow::Borrowed(string.as_bytes()), output_encoding, false);
+        }
+        let mut encoder = output_encoding.new_encoder();
         let mut total_read = 0usize;
         let mut vec: Vec<u8> =
             Vec::with_capacity(encoder.max_buffer_length_from_utf8_if_no_unmappables(string.len())
@@ -1756,7 +1760,7 @@ impl Encoding {
             match result {
                 CoderResult::InputEmpty => {
                     debug_assert_eq!(total_read, string.len());
-                    return (Cow::Owned(vec), encoder.encoding(), total_had_errors);
+                    return (Cow::Owned(vec), output_encoding, total_had_errors);
                 }
                 CoderResult::OutputFull => {
                     // reserve_exact wants to know how much more on top of current
