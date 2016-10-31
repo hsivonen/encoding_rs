@@ -1324,6 +1324,7 @@ impl Encoding {
                             trimmed_pos = 1usize;
                             break;
                         }
+                        // XXX reject bytes that aren't allowed in labels
                         _ => {
                             trimmed[trimmed_pos] = *byte;
                             trimmed_pos = 1usize;
@@ -1347,16 +1348,17 @@ impl Encoding {
                         b'A'...b'Z' => {
                             trimmed[trimmed_pos] = *byte + 0x20u8;
                             trimmed_pos += 1usize;
-                            if trimmed_pos > LONGEST_LABEL_LENGTH {
+                            if trimmed_pos == LONGEST_LABEL_LENGTH {
                                 // There's no encoding with a label this long
                                 return None;
                             }
                             continue;
                         }
+                        // XXX reject bytes that aren't allowed in labels
                         _ => {
                             trimmed[trimmed_pos] = *byte;
                             trimmed_pos += 1usize;
-                            if trimmed_pos > LONGEST_LABEL_LENGTH {
+                            if trimmed_pos == LONGEST_LABEL_LENGTH {
                                 // There's no encoding with a label this long
                                 return None;
                             }
@@ -2902,4 +2904,17 @@ mod tests {
         assert_eq!(UTF_8.new_encoder().encoding(), UTF_8);
         assert_eq!(WINDOWS_1252.new_encoder().encoding(), WINDOWS_1252);
     }
+
+    #[test]
+    fn test_label_resolution() {
+        assert_eq!(Encoding::for_label(b"utf-8"), Some(UTF_8));
+        assert_eq!(Encoding::for_label(b"UTF-8"), Some(UTF_8));
+        assert_eq!(Encoding::for_label(b" \t \n \x0C \n utf-8 \r \n \t \x0C "),
+                   Some(UTF_8));
+        assert_eq!(Encoding::for_label(b"utf-8 _"), None);
+        assert_eq!(Encoding::for_label(b"bogus"), None);
+        assert_eq!(Encoding::for_label(b"bogusbogusbogusbogus"), None);
+    }
+
+    // XXX generate tests for all labels
 }

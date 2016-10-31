@@ -71,6 +71,7 @@ encoding_rs is
 - [ ] Compress consecutive zeros in CJK indices.
 - [ ] Make lookups by label or name use binary search that searches from the
       end of the label/name to the start.
+- [ ] Make labels with non-ASCII bytes fail fast.
 - [ ] Provide an XPCOM/MFBT-flavored C++ API.
 - [ ] Replace uconv with encoding_rs in Gecko.
 - [x] Implement the rust-encoding API in terms of encoding_rs.
@@ -78,6 +79,12 @@ encoding_rs is
       on data flow from NEON to ALU registers.
 
 ## Release Notes
+
+### 0.3
+
+* Fix panic with long bogus labels.
+* Map [0xCA to U+05BA in windows-1255](https://github.com/whatwg/encoding/issues/73).
+* Return `Cow`s from Rust-only convenience methods for encode and decode.
 
 ### 0.2.4
 
