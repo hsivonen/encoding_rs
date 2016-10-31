@@ -74,9 +74,9 @@ impl SingleByteDecoder {
         let mut converted = 0usize;
         loop {
             match unsafe {
-                ascii_to_basic_latin_impl(src.as_ptr().offset(converted as isize),
-                                          dst.as_mut_ptr().offset(converted as isize),
-                                          length - converted)
+                ascii_to_basic_latin(src.as_ptr().offset(converted as isize),
+                                     dst.as_mut_ptr().offset(converted as isize),
+                                     length - converted)
             } {
                 None => {
                     return (pending, length, length);
