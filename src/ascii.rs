@@ -80,7 +80,7 @@ cfg_if! {
         const ALIGNMENT_MASK: usize = 7;
 
         #[inline(always)]
-        unsafe fn ascii_to_ascii_stride_little_64(src: *const usize, dst: *mut usize) -> bool {
+        unsafe fn ascii_to_ascii_stride_64(src: *const usize, dst: *mut usize) -> bool {
             let word = *src;
 // Check if the word contains non-ASCII
             if (word & 0x80808080_80808080usize) != 0 {
@@ -110,7 +110,7 @@ cfg_if! {
             return true;
         }
 
-        ascii_alu!(ascii_to_ascii, u8, u8, ascii_to_ascii_stride_little_64);
+        ascii_alu!(ascii_to_ascii, u8, u8, ascii_to_ascii_stride_64);
         ascii_alu!(ascii_to_basic_latin, u8, u16, ascii_to_basic_latin_stride_little_64);
         ascii_naive!(basic_latin_to_ascii, u16, u8);
     } else {
