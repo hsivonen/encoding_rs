@@ -56,7 +56,7 @@ macro_rules! ascii_alu {
             if code_unit > 127 {
                 return Some((code_unit, offset));
             }
-            *(dst.offset(offset as isize)) = code_unit as u16;
+            *(dst.offset(offset as isize)) = code_unit as $dst_unit;
             offset += 1;
         }
         return None;
@@ -80,6 +80,17 @@ cfg_if! {
         const ALIGNMENT_MASK: usize = 7;
 
         #[inline(always)]
+        unsafe fn ascii_to_ascii_stride_little_64(src: *const usize, dst: *mut usize) -> bool {
+            let word = *src;
+// Check if the word contains non-ASCII
+            if (word & 0x80808080_80808080usize) != 0 {
+                return false;
+            }
+            *dst = word;
+            return true;
+        }
+
+        #[inline(always)]
         unsafe fn ascii_to_basic_latin_stride_little_64(src: *const usize, dst: *mut usize) -> bool {
             let word = *src;
 // Check if the word contains non-ASCII
@@ -99,8 +110,8 @@ cfg_if! {
             return true;
         }
 
+        ascii_alu!(ascii_to_ascii, u8, u8, ascii_to_ascii_stride_little_64);
         ascii_alu!(ascii_to_basic_latin, u8, u16, ascii_to_basic_latin_stride_little_64);
-        ascii_naive!(ascii_to_ascii, u8, u8);
         ascii_naive!(basic_latin_to_ascii, u16, u8);
     } else {
         ascii_naive!(ascii_to_ascii, u8, u8);
