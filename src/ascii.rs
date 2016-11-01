@@ -13,24 +13,16 @@ macro_rules! ascii_naive {
      $dst_unit:ty) => (
     #[inline(always)]
     pub unsafe fn $name(src: *const $src_unit, dst: *mut $dst_unit, len: usize) -> Option<($src_unit, usize)> {
-        let src_slice = ::std::slice::from_raw_parts(src, len);
-        let mut it = src_slice.iter().enumerate();
-        loop {
-            match it.next() {
-                Some((i, code_unit_ref)) => {
-                    let code_unit = *code_unit_ref;
-                    if code_unit > 127 {
-                        return Some((code_unit, i));
-                    }
 // Yes, manually omitting the bound check here matters
 // a lot for perf.
-                    *(dst.offset(i as isize)) = code_unit as $dst_unit;
-                }
-                None => {
-                    return None;
-                }
+        for i in 0..len {
+            let code_unit = *(src.offset(i as isize));
+            if code_unit > 127 {
+                return Some((code_unit, i));
             }
+            *(dst.offset(i as isize)) = code_unit as $dst_unit;
         }
+        return None;
     });
 }
 
