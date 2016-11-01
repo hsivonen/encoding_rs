@@ -26,10 +26,53 @@ macro_rules! ascii_naive {
     });
 }
 
+macro_rules! ascii_alu {
+    ($name:ident,
+     $src_unit:ty,
+     $dst_unit:ty,
+     $stride_fn:ident) => (
+    #[inline(always)]
+    pub unsafe fn $name(src: *const $src_unit, dst: *mut $dst_unit, len: usize) -> Option<($src_unit, usize)> {
+        let mut offset = 0usize;
+// XXX should we have more branchy code to move the pointers to
+// alignment if they aren't aligned but could align after
+// processing a few code units?
+        if (STRIDE_SIZE <= len && ((src as usize) & ALIGNMENT_MASK) == 0) &&
+           (((dst as usize) & ALIGNMENT_MASK) == 0) {
+// XXX stdlib's UTF-8 validation reads two words at a time
+            loop {
+                if !$stride_fn(src.offset(offset as isize) as *const usize,
+                               dst.offset(offset as isize) as *mut usize) {
+                    break;
+                }
+                offset += STRIDE_SIZE;
+                if offset + STRIDE_SIZE > len {
+                    break;
+                }
+            }
+        }
+        while offset < len {
+            let code_unit = *(src.offset(offset as isize));
+            if code_unit > 127 {
+                return Some((code_unit, offset));
+            }
+            *(dst.offset(offset as isize)) = code_unit as u16;
+            offset += 1;
+        }
+        return None;
+    });
+}
+
+//    let first = (0xFF000000_00000000usize & word) | ((0x00FF0000_00000000usize & word) >> 8) |
+//                ((0x0000FF00_00000000usize & word) >> 16) |
+//                ((0x000000FF_00000000usize & word) >> 24);
+//    let second = ((0x00000000_FF000000usize & word) << 32) |
+//                 ((0x00000000_00FF0000usize & word) << 24) |
+//                 ((0x00000000_0000FF00usize & word) << 16) |
+//                 ((0x00000000_000000FFusize & word) << 8);
+
 cfg_if! {
-// Compile out
-    if #[cfg(all(target_pointer_width = "64", target_pointer_width = "32"))] {
-//    if #[cfg(all(target_endian = "little", target_pointer_width = "64"))] {
+    if #[cfg(all(target_endian = "little", target_pointer_width = "64"))] {
 // Aligned ALU word, little endian, 64-bit
 
         const STRIDE_SIZE: usize = 8;
@@ -43,47 +86,20 @@ cfg_if! {
             if (word & 0x80808080_80808080usize) != 0 {
                 return false;
             }
-            let first = (0xFF000000_00000000usize & word)
-            |          ((0x00FF0000_00000000usize & word) >> 8)
-            |          ((0x0000FF00_00000000usize & word) >> 16)
-            |          ((0x000000FF_00000000usize & word) >> 24);
-            let second = ((0x00000000_FF000000usize & word) << 32)
-            |           ((0x00000000_00FF0000usize & word) << 24)
-            |           ((0x00000000_0000FF00usize & word) << 16)
-            |           ((0x00000000_000000FFusize & word) << 8);
+            let first = ((0x00000000_FF000000usize & word) << 24) |
+                        ((0x00000000_00FF0000usize & word) << 16) |
+                        ((0x00000000_0000FF00usize & word) << 8) |
+                        (0x00000000_000000FFusize & word);
+            let second = ((0xFF000000_00000000usize & word) >> 8) |
+                         ((0x00FF0000_00000000usize & word) >> 16) |
+                         ((0x0000FF00_00000000usize & word) >> 24) |
+                         ((0x000000FF_00000000usize & word) >> 32);
             *dst = first;
             *(dst.offset(1)) = second;
             return true;
         }
 
-        #[inline(always)]
-        pub unsafe fn ascii_to_basic_latin(src: *const u8, dst: *mut u16, len: usize) -> Option<(u8, usize)> {
-            let mut offset = 0usize;
-// XXX should we have more branchy code to move the pointers to
-// alignment if they aren't aligned but could align after
-// processing a few code units?
-            if (STRIDE_SIZE <= len && ((src as usize) & ALIGNMENT_MASK) == 0) && (((dst as usize) & ALIGNMENT_MASK) == 0) {
-// XXX stdlib's UTF-8 validation reads two words at a time
-                loop {
-                    if !ascii_to_basic_latin_stride_little_64(src.offset(offset as isize) as *const usize, dst.offset(offset as isize) as *mut usize) {
-                        break;
-                    }
-                    offset += STRIDE_SIZE;
-                    if offset + STRIDE_SIZE > len {
-                        break;
-                    }
-                }
-            }
-            while offset < len {
-                let code_unit = *(src.offset(offset as isize));
-                if code_unit > 127 {
-                    return Some((code_unit, offset));
-                }
-                *(dst.offset(offset as isize)) = code_unit as u16;
-                offset += 1;
-            }
-            return None;
-        }
+        ascii_alu!(ascii_to_basic_latin, u8, u16, ascii_to_basic_latin_stride_little_64);
         ascii_naive!(ascii_to_ascii, u8, u8);
         ascii_naive!(basic_latin_to_ascii, u16, u8);
     } else {
