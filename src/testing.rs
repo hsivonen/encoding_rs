@@ -10,12 +10,46 @@
 use super::*;
 
 pub fn decode(encoding: &'static Encoding, bytes: &[u8], expect: &str) {
+    let mut vec = Vec::with_capacity(bytes.len() + 32);
+    let mut string = String::with_capacity(expect.len() + 32);
+    for i in 0usize..32usize {
+        vec.clear();
+        string.clear();
+        for j in 0usize..i {
+            let c = 0x40u8 + (j as u8);
+            vec.push(c);
+            string.push(c as char);
+        }
+        vec.extend_from_slice(bytes);
+        string.push_str(expect);
+        decode_without_padding(encoding, &vec[..], &string[..]);
+    }
+}
+
+pub fn decode_without_padding(encoding: &'static Encoding, bytes: &[u8], expect: &str) {
     decode_to_utf8(encoding, bytes, expect);
     decode_to_utf16(encoding, bytes, &utf16_from_utf8(expect)[..]);
     decode_to_string(encoding, bytes, expect);
 }
 
-pub fn encode(encoding: &'static Encoding, string: &str, expect: &[u8]) {
+pub fn encode(encoding: &'static Encoding, str: &str, expect: &[u8]) {
+    let mut vec = Vec::with_capacity(expect.len() + 32);
+    let mut string = String::with_capacity(str.len() + 32);
+    for i in 0usize..32usize {
+        vec.clear();
+        string.clear();
+        for j in 0usize..i {
+            let c = 0x40u8 + (j as u8);
+            vec.push(c);
+            string.push(c as char);
+        }
+        vec.extend_from_slice(expect);
+        string.push_str(str);
+        encode_without_padding(encoding, &string[..], &vec[..]);
+    }
+}
+
+pub fn encode_without_padding(encoding: &'static Encoding, string: &str, expect: &[u8]) {
     encode_from_utf8(encoding, string, expect);
     encode_from_utf16(encoding, &utf16_from_utf8(string)[..], expect);
     encode_to_vec(encoding, string, expect);

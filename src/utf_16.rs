@@ -156,11 +156,11 @@ mod tests {
     use super::super::*;
 
     fn decode_utf_16le(bytes: &[u8], expect: &str) {
-        decode(UTF_16LE, bytes, expect);
+        decode_without_padding(UTF_16LE, bytes, expect);
     }
 
     fn decode_utf_16be(bytes: &[u8], expect: &str) {
-        decode(UTF_16BE, bytes, expect);
+        decode_without_padding(UTF_16BE, bytes, expect);
     }
 
     fn encode_utf_16le(string: &str, expect: &[u8]) {

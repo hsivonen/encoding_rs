@@ -71,7 +71,7 @@ mod tests {
     use super::super::*;
 
     fn decode_replacement(bytes: &[u8], expect: &str) {
-        decode(REPLACEMENT, bytes, expect);
+        decode_without_padding(REPLACEMENT, bytes, expect);
     }
 
     fn encode_replacement(string: &str, expect: &[u8]) {
