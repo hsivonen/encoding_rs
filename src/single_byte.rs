@@ -117,7 +117,7 @@ impl SingleByteDecoder {
                         if converted == length {
                             return (pending, length, length);
                         }
-                        let b = unsafe {*(src.get_unchecked(converted))};
+                        let b = unsafe { *(src.get_unchecked(converted)) };
                         if b > 127 {
                             non_ascii = b;
                             continue;
@@ -126,7 +126,9 @@ impl SingleByteDecoder {
                         // alignment-sensitive, re-test if it makes sense to
                         // write what we've alread read or to go back to
                         // ASCII acceleration without writing.
-                        unsafe {*(dst.get_unchecked_mut(converted)) = b as u16;}
+                        unsafe {
+                            *(dst.get_unchecked_mut(converted)) = b as u16;
+                        }
                         converted += 1;
                         if b < 60 {
                             // We've got punctuation
