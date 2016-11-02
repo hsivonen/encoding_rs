@@ -81,21 +81,60 @@ impl SingleByteDecoder {
                 None => {
                     return (pending, length, length);
                 }
-                Some((non_ascii, consumed)) => {
+                Some((mut non_ascii, consumed)) => {
                     converted += consumed;
-                    // Converted doesn't count the reading of `non_ascii` yet.
-                    let mapped = self.table[non_ascii as usize - 0x80usize];
-                    if mapped == 0u16 {
-                        return (DecoderResult::Malformed(1, 0),
-                                converted + 1, // +1 `for non_ascii`
-                                converted);
+                    loop {
+                        // `converted` doesn't count the reading of `non_ascii` yet.
+                        // Since the non-ASCIIness of `non_ascii` is hidden from
+                        // the optimizer, it can't figure out that it's OK to
+                        // statically omit the bound check when accessing
+                        // `[u16; 128]` with an index
+                        // `non_ascii as usize - 0x80usize`.
+                        let mapped = unsafe {
+                            *(self.table.get_unchecked(non_ascii as usize - 0x80usize))
+                        };
+                        // let mapped = self.table[non_ascii as usize - 0x80usize];
+                        if mapped == 0u16 {
+                            return (DecoderResult::Malformed(1, 0),
+                                    converted + 1, // +1 `for non_ascii`
+                                    converted);
+                        }
+                        unsafe {
+                            // The bound check has already been performed
+                            *(dst.get_unchecked_mut(converted)) = mapped;
+                        }
+                        converted += 1;
+                        // Next, handle ASCII punctuation and non-ASCII without
+                        // going back to ASCII acceleration. Non-ASCII scripts
+                        // use ASCII punctuation, so this avoid going to
+                        // acceleration just for punctuation/space and then
+                        // failing. This is a significant boost to non-ASCII
+                        // scripts.
+                        // TODO: Once ASCII acceleration is less
+                        // alignment-sensitive, re-test whether it's worthwhile
+                        // to have distinct LatinSingleByte decoders that omit
+                        // this part.
+                        if converted == length {
+                            return (pending, length, length);
+                        }
+                        let b = unsafe {*(src.get_unchecked(converted))};
+                        if b > 127 {
+                            non_ascii = b;
+                            continue;
+                        }
+                        // TODO: Once ASCII acceleration is less
+                        // alignment-sensitive, re-test if it makes sense to
+                        // write what we've alread read or to go back to
+                        // ASCII acceleration without writing.
+                        unsafe {*(dst.get_unchecked_mut(converted)) = b as u16;}
+                        converted += 1;
+                        if b < 60 {
+                            // We've got punctuation
+                            continue;
+                        }
+                        // We've got markup or ASCII text
+                        break; // continue outer
                     }
-                    unsafe {
-                        // The bound check has already been performed
-                        *(dst.as_mut_ptr().offset(converted as isize)) = mapped;
-                    }
-                    converted += 1;
-                    continue;
                 }
             }
         }
