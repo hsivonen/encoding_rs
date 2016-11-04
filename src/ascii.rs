@@ -7,6 +7,8 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
+use simd_funcs::*;
+
 macro_rules! ascii_naive {
     ($name:ident,
      $src_unit:ty,
@@ -63,6 +65,136 @@ macro_rules! ascii_alu {
     });
 }
 
+macro_rules! ascii_simd {
+    ($name:ident,
+     $src_unit:ty,
+     $dst_unit:ty,
+     $stride_both_aligned:ident,
+     $stride_src_aligned:ident,
+     $stride_dst_aligned:ident,
+     $stride_neither_aligned:ident) => (
+    #[inline(always)]
+    pub unsafe fn $name(src: *const $src_unit, dst: *mut $dst_unit, len: usize) -> Option<($src_unit, usize)> {
+        let mut offset = 0usize;
+// XXX should we have more branchy code to move the pointers to
+// alignment if they aren't aligned but could align after
+// processing a few code units?
+        if STRIDE_SIZE <= len {
+// XXX Should we first process one stride unconditinoally as unaligned to
+// avoid the cost of the branchiness below if the first stride fails anyway?
+            let dst_masked = (dst as usize) & ALIGNMENT_MASK;
+            if ((src as usize) & ALIGNMENT_MASK) == 0 {
+                if dst_masked == 0 {
+                    loop {
+                        if !$stride_both_aligned(src.offset(offset as isize),
+                                                 dst.offset(offset as isize)) {
+                            break;
+                        }
+                        offset += STRIDE_SIZE;
+                        if offset + STRIDE_SIZE > len {
+                            break;
+                        }
+                    }
+                } else {
+                    loop {
+                        if !$stride_src_aligned(src.offset(offset as isize),
+                                                dst.offset(offset as isize)) {
+                            break;
+                        }
+                        offset += STRIDE_SIZE;
+                        if offset + STRIDE_SIZE > len {
+                            break;
+                        }
+                    }
+                }
+            } else {
+                if dst_masked == 0 {
+                    loop {
+                        if !$stride_dst_aligned(src.offset(offset as isize),
+                                                dst.offset(offset as isize)) {
+                            break;
+                        }
+                        offset += STRIDE_SIZE;
+                        if offset + STRIDE_SIZE > len {
+                            break;
+                        }
+                    }
+                } else {
+                    loop {
+                        if !$stride_neither_aligned(src.offset(offset as isize),
+                                                    dst.offset(offset as isize)) {
+                            break;
+                        }
+                        offset += STRIDE_SIZE;
+                        if offset + STRIDE_SIZE > len {
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        while offset < len {
+            let code_unit = *(src.offset(offset as isize));
+            if code_unit > 127 {
+                return Some((code_unit, offset));
+            }
+            *(dst.offset(offset as isize)) = code_unit as $dst_unit;
+            offset += 1;
+        }
+        return None;
+    });
+}
+
+macro_rules! ascii_to_ascii_simd_stride {
+    ($name:ident,
+     $load:ident,
+     $store:ident) => (
+    #[inline(always)]
+    pub unsafe fn $name(src: *const u8, dst: *mut u8) -> bool {
+        let simd = $load(src);
+        if !is_ascii(simd) {
+            return false;
+        }
+        $store(dst, simd);
+        return true;
+    });
+}
+
+macro_rules! ascii_to_basic_latin_simd_stride {
+    ($name:ident,
+     $load:ident,
+     $store:ident) => (
+    #[inline(always)]
+    pub unsafe fn $name(src: *const u8, dst: *mut u16) -> bool {
+        let simd = $load(src);
+        if !is_ascii(simd) {
+            return false;
+        }
+        let (first, second) = unpack(simd);
+        $store(dst, first);
+        $store(dst.offset(8), second);
+        return true;
+    });
+}
+
+macro_rules! basic_latin_to_ascii_simd_stride {
+    ($name:ident,
+     $load:ident,
+     $store:ident) => (
+    #[inline(always)]
+    pub unsafe fn $name(src: *const u16, dst: *mut u8) -> bool {
+        let first = $load(src);
+        let second = $load(src.offset(8));
+        match pack_basic_latin(first, second) {
+            Some(packed) => {
+                $store(dst, packed);
+                true
+            },
+            None => false,
+        }
+    });
+}
+
 //    let first = (0xFF000000_00000000usize & word) | ((0x00FF0000_00000000usize & word) >> 8) |
 //                ((0x0000FF00_00000000usize & word) >> 16) |
 //                ((0x000000FF_00000000usize & word) >> 24);
@@ -72,7 +204,32 @@ macro_rules! ascii_alu {
 //                 ((0x00000000_000000FFusize & word) << 8);
 
 cfg_if! {
-    if #[cfg(all(target_endian = "little", target_pointer_width = "64"))] {
+    if #[cfg(target_feature = "sse2")] {
+// SIMD
+
+        const STRIDE_SIZE: usize = 16;
+
+        const ALIGNMENT_MASK: usize = 15;
+
+        ascii_to_ascii_simd_stride!(ascii_to_ascii_stride_both_aligned, load16_aligned, store16_aligned);
+        ascii_to_ascii_simd_stride!(ascii_to_ascii_stride_src_aligned, load16_aligned, store16_unaligned);
+        ascii_to_ascii_simd_stride!(ascii_to_ascii_stride_dst_aligned, load16_unaligned, store16_aligned);
+        ascii_to_ascii_simd_stride!(ascii_to_ascii_stride_neither_aligned, load16_unaligned, store16_unaligned);
+
+        ascii_to_basic_latin_simd_stride!(ascii_to_basic_latin_stride_both_aligned, load16_aligned, store8_aligned);
+        ascii_to_basic_latin_simd_stride!(ascii_to_basic_latin_stride_src_aligned, load16_aligned, store8_unaligned);
+        ascii_to_basic_latin_simd_stride!(ascii_to_basic_latin_stride_dst_aligned, load16_unaligned, store8_aligned);
+        ascii_to_basic_latin_simd_stride!(ascii_to_basic_latin_stride_neither_aligned, load16_unaligned, store8_unaligned);
+
+        basic_latin_to_ascii_simd_stride!(basic_latin_to_ascii_stride_both_aligned, load8_aligned, store16_aligned);
+        basic_latin_to_ascii_simd_stride!(basic_latin_to_ascii_stride_src_aligned, load8_aligned, store16_unaligned);
+        basic_latin_to_ascii_simd_stride!(basic_latin_to_ascii_stride_dst_aligned, load8_unaligned, store16_aligned);
+        basic_latin_to_ascii_simd_stride!(basic_latin_to_ascii_stride_neither_aligned, load8_unaligned, store16_unaligned);
+
+        ascii_simd!(ascii_to_ascii, u8, u8, ascii_to_ascii_stride_both_aligned, ascii_to_ascii_stride_src_aligned, ascii_to_ascii_stride_dst_aligned, ascii_to_ascii_stride_neither_aligned);
+        ascii_simd!(ascii_to_basic_latin, u8, u16, ascii_to_basic_latin_stride_both_aligned, ascii_to_basic_latin_stride_src_aligned, ascii_to_basic_latin_stride_dst_aligned, ascii_to_basic_latin_stride_neither_aligned);
+        ascii_simd!(basic_latin_to_ascii, u16, u8, basic_latin_to_ascii_stride_both_aligned, basic_latin_to_ascii_stride_src_aligned, basic_latin_to_ascii_stride_dst_aligned, basic_latin_to_ascii_stride_neither_aligned);
+    } else if #[cfg(all(target_endian = "little", target_pointer_width = "64"))] {
 // Aligned ALU word, little endian, 64-bit
 
         const STRIDE_SIZE: usize = 8;

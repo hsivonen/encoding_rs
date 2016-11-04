@@ -468,8 +468,12 @@
 //! </tbody>
 //! </table>
 
+#![feature(simd, simd_ffi, link_llvm_intrinsics, platform_intrinsics, const_fn, cfg_target_feature)]
+
 #[macro_use]
 extern crate cfg_if;
+
+extern crate simd;
 
 #[macro_use]
 mod macros;
@@ -489,6 +493,7 @@ mod replacement;
 mod x_user_defined;
 mod utf_16;
 
+mod simd_funcs;
 mod ascii;
 mod handles;
 mod data;

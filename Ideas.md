@@ -81,3 +81,13 @@ punctuation" check in place, this code can be allowed to be in place even for
 UTF-8 and Latin single-byte (i.e. not having different code for Latin and
 non-Latin single-byte).
 
+==Prefer maintaining aligment==
+
+Instead of returning to acceleration directly after non-ASCII, consider
+continuing to the alignment boundary without acceleration.
+
+==Validate UTF-8 without copying immediately==
+
+When decoding UTF-8 to UTF-8, consider performing validation only for non-ASCII
+and then performing the copy afterwards using `copy_nonoverlapping`, which
+hopefully does the writes using SIMD even if it involves re-reading.

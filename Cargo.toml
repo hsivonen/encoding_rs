@@ -18,6 +18,7 @@ name = "encoding_rs"
 
 [dependencies]
 cfg-if = "0.1.0"
+simd = { git = "https://github.com/huonw/simd" }
 
 [build-dependencies]
 rusty-cheddar = "0.3.1"
