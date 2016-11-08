@@ -86,6 +86,12 @@ non-Latin single-byte).
 Instead of returning to acceleration directly after non-ASCII, consider
 continuing to the alignment boundary without acceleration.
 
+==Read from SIMD lanes instead of RAM (cache) when ASCII check fails==
+
+When the SIMD ASCII check fails, the data has already been read from memory.
+Test whether it's faster to read the data by lane from the SIMD register than
+to read it again from RAM (cache).
+
 ==Validate UTF-8 without copying immediately==
 
 When decoding UTF-8 to UTF-8, consider performing validation only for non-ASCII
