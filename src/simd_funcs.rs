@@ -19,39 +19,14 @@ extern "platform-intrinsic" {
     fn x86_mm_movemask_epi8(x: i8x16) -> i32;
 }
 
-#[repr(packed)]
-#[derive(Debug, Copy, Clone)]
-struct Unalign<T>(T);
-
-// extern "C" {
-//    #[link_name = "llvm.shufflevector"]
-//    fn shufflevector(a: u8x16,
-//                     b: u8x16,
-//                     l0: usize,
-//                     l1: usize,
-//                     l2: usize,
-//                     l3: usize,
-//                     l4: usize,
-//                     l5: usize,
-//                     l6: usize,
-//                     l7: usize,
-//                     l8: usize,
-//                     l9: usize,
-//                     l10: usize,
-//                     l11: usize,
-//                     l12: usize,
-//                     l13: usize,
-//                     l14: usize,
-//                     l15: usize)
-//                     -> u8x16;
-// }
+// TODO: Migrate unaligned access to stdlib code if/when the RFC
+// https://github.com/rust-lang/rfcs/pull/1725 is implemented.
 
 #[inline(always)]
 pub unsafe fn load16_unaligned(ptr: *const u8) -> u8x16 {
-    // A local intermediate variable is needed due to
-    // https://github.com/rust-lang/rust/issues/27060
-    let loaded = *(ptr as *const Unalign<u8x16>);
-    loaded.0
+    let mut simd = ::std::mem::uninitialized();
+    ::std::ptr::copy_nonoverlapping(ptr, &mut simd as *mut u8x16 as *mut u8, 16);
+    simd
 }
 
 #[inline(always)]
@@ -61,7 +36,7 @@ pub unsafe fn load16_aligned(ptr: *const u8) -> u8x16 {
 
 #[inline(always)]
 pub unsafe fn store16_unaligned(ptr: *mut u8, s: u8x16) {
-    *(ptr as *mut Unalign<u8x16>) = Unalign(s);
+    ::std::ptr::copy_nonoverlapping(&s as *const u8x16 as *const u8, ptr, 16);
 }
 
 #[inline(always)]
@@ -71,10 +46,9 @@ pub unsafe fn store16_aligned(ptr: *mut u8, s: u8x16) {
 
 #[inline(always)]
 pub unsafe fn load8_unaligned(ptr: *const u16) -> u16x8 {
-    // A local intermediate variable is needed due to
-    // https://github.com/rust-lang/rust/issues/27060
-    let loaded = *(ptr as *const Unalign<u16x8>);
-    loaded.0
+    let mut simd = ::std::mem::uninitialized();
+    ::std::ptr::copy_nonoverlapping(ptr as *const u8, &mut simd as *mut u16x8 as *mut u8, 16);
+    simd
 }
 
 #[inline(always)]
@@ -84,7 +58,7 @@ pub unsafe fn load8_aligned(ptr: *const u16) -> u16x8 {
 
 #[inline(always)]
 pub unsafe fn store8_unaligned(ptr: *mut u16, s: u16x8) {
-    *(ptr as *mut Unalign<u16x8>) = Unalign(s);
+    ::std::ptr::copy_nonoverlapping(&s as *const u16x8 as *const u8, ptr as *mut u8, 16);
 }
 
 #[inline(always)]
@@ -205,5 +179,21 @@ mod tests {
         unsafe {
             assert!(pack_basic_latin(first, second).is_none());
         }
+    }
+
+    #[test]
+    fn test_is_ascii_success() {
+        let ascii: [u8; 16] = [0x61, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69, 0x70, 0x71,
+                               0x72, 0x73, 0x74, 0x75, 0x76];
+        let simd = unsafe { load16_unaligned(ascii.as_ptr()) };
+        assert!(is_ascii(simd));
+    }
+
+    #[test]
+    fn test_is_ascii_failure() {
+        let input: [u8; 16] = [0x61, 0x62, 0x63, 0x64, 0x81, 0x66, 0x67, 0x68, 0x69, 0x70, 0x71,
+                               0x72, 0x73, 0x74, 0x75, 0x76];
+        let simd = unsafe { load16_unaligned(input.as_ptr()) };
+        assert!(!is_ascii(simd));
     }
 }

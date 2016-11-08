@@ -82,6 +82,9 @@ macro_rules! ascii_simd {
         if STRIDE_SIZE <= len {
 // XXX Should we first process one stride unconditinoally as unaligned to
 // avoid the cost of the branchiness below if the first stride fails anyway?
+// XXX Should we just use unaligned SSE2 access unconditionally? It seems that
+// on Haswell, it would make sense to just use unaligned and not bother
+// checking. Need to benchmark older architectures before deciding.
             let dst_masked = (dst as usize) & ALIGNMENT_MASK;
             if ((src as usize) & ALIGNMENT_MASK) == 0 {
                 if dst_masked == 0 {
