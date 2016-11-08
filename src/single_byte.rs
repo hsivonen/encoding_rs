@@ -33,33 +33,36 @@ impl SingleByteDecoder {
         byte_length * 3
     }
 
-    decoder_function!({},
-                      {},
-                      {
-                          if b < 0x80 {
-                              // XXX optimize ASCII
-                              destination_handle.write_ascii(b);
-                              continue;
-                          }
-                          let mapped = self.table[b as usize - 0x80usize];
-                          if mapped == 0u16 {
-                              return (DecoderResult::Malformed(1, 0),
-                                      unread_handle.consumed(),
-                                      destination_handle.written());
-                          }
-                          destination_handle.write_bmp_excl_ascii(mapped);
-                          continue;
-                      },
-                      self,
-                      src_consumed,
-                      dest,
-                      b,
-                      destination_handle,
-                      unread_handle,
-                      check_space_bmp,
-                      decode_to_utf8_raw,
-                      u8,
-                      Utf8Destination);
+    pub fn decode_to_utf8_raw(&mut self,
+                              src: &[u8],
+                              dst: &mut [u8],
+                              _last: bool)
+                              -> (DecoderResult, usize, usize) {
+        let mut source = ByteSource::new(src);
+        let mut dest = Utf8Destination::new(dst);
+        loop {
+            match dest.copy_ascii_from_check_space_bmp(&mut source) {
+                CopyAsciiResult::Stop(ret) => return ret,
+                CopyAsciiResult::GoOn((non_ascii, handle)) => {
+                    // Since the non-ASCIIness of `non_ascii` is hidden from
+                    // the optimizer, it can't figure out that it's OK to
+                    // statically omit the bound check when accessing
+                    // `[u16; 128]` with an index
+                    // `non_ascii as usize - 0x80usize`.
+                    let mapped = unsafe {
+                        *(self.table.get_unchecked(non_ascii as usize - 0x80usize))
+                    };
+                    // let mapped = self.table[non_ascii as usize - 0x80usize];
+                    if mapped == 0u16 {
+                        return (DecoderResult::Malformed(1, 0),
+                                source.consumed(),
+                                handle.written());
+                    }
+                    handle.write_bmp(mapped);
+                }
+            }
+        }
+    }
 
     pub fn decode_to_utf16_raw(&mut self,
                                src: &[u8],
@@ -122,10 +125,9 @@ impl SingleByteDecoder {
                             non_ascii = b;
                             continue;
                         }
-                        // TODO: Once ASCII acceleration is less
-                        // alignment-sensitive, re-test if it makes sense to
-                        // write what we've alread read or to go back to
-                        // ASCII acceleration without writing.
+                        // Testing on Haswell says that we should write the
+                        // byte unconditionally instead of trying to unread it
+                        // to make it part of the next SIMD stride.
                         unsafe {
                             *(dst.get_unchecked_mut(converted)) = b as u16;
                         }

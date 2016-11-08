@@ -16,6 +16,9 @@
 //! the plan is to replace the internals with unsafe code that omits the
 //! bound check at the read/write time.
 
+use super::DecoderResult;
+use ascii::*;
+
 pub enum Space<T> {
     Available(T),
     Full(usize),
@@ -56,7 +59,7 @@ impl<'a> ByteSource<'a> {
         self.pos
     }
     #[inline(always)]
-    fn consumed(&self) -> usize {
+    pub fn consumed(&self) -> usize {
         self.pos
     }
 }
@@ -492,6 +495,48 @@ impl<'a> Utf8Destination<'a> {
         self.write_mid_bmp(combined);
         self.write_mid_bmp(combining);
     }
+    #[inline(always)]
+    pub fn copy_ascii_from_check_space_bmp<'b>
+        (&'b mut self,
+         source: &mut ByteSource)
+         -> CopyAsciiResult<(DecoderResult, usize, usize), (u8, Utf8BmpHandle<'b, 'a>)> {
+        let non_ascii_ret = {
+            let dst_len = self.slice.len();
+            let src_remaining = &source.slice[source.pos..];
+            let mut dst_remaining = &mut self.slice[self.pos..];
+            let (pending, length) = if dst_remaining.len() < src_remaining.len() {
+                (DecoderResult::OutputFull, dst_remaining.len())
+            } else {
+                (DecoderResult::InputEmpty, src_remaining.len())
+            };
+            match unsafe {
+                ascii_to_ascii(src_remaining.as_ptr(), dst_remaining.as_mut_ptr(), length)
+            } {
+                None => {
+                    source.pos += length;
+                    self.pos += length;
+                    return CopyAsciiResult::Stop((pending, source.pos, self.pos));
+                }
+                Some((non_ascii, consumed)) => {
+                    source.pos += consumed + 1; // +1 for non_ascii
+                    self.pos += consumed;
+                    if self.pos + 2 < dst_len {
+                        non_ascii
+                    } else {
+                        return CopyAsciiResult::Stop((DecoderResult::OutputFull,
+                                                      source.pos,
+                                                      self.pos));
+                    }
+                }
+            }
+        };
+        return CopyAsciiResult::GoOn((non_ascii_ret, Utf8BmpHandle::new(self)));
+    }
+}
+
+pub enum CopyAsciiResult<T, U> {
+    Stop(T),
+    GoOn(U),
 }
 
 // UTF-16 source
