@@ -40,27 +40,94 @@ impl SingleByteDecoder {
                               -> (DecoderResult, usize, usize) {
         let mut source = ByteSource::new(src);
         let mut dest = Utf8Destination::new(dst);
-        loop {
+        'outermost: loop {
             match dest.copy_ascii_from_check_space_bmp(&mut source) {
                 CopyAsciiResult::Stop(ret) => return ret,
-                CopyAsciiResult::GoOn((non_ascii, handle)) => {
-                    // Since the non-ASCIIness of `non_ascii` is hidden from
-                    // the optimizer, it can't figure out that it's OK to
-                    // statically omit the bound check when accessing
-                    // `[u16; 128]` with an index
-                    // `non_ascii as usize - 0x80usize`.
-                    let mapped = unsafe {
-                        *(self.table.get_unchecked(non_ascii as usize - 0x80usize))
-                    };
-                    // let mapped = self.table[non_ascii as usize - 0x80usize];
-                    if mapped == 0u16 {
-                        return (DecoderResult::Malformed(1, 0),
-                                source.consumed(),
-                                handle.written());
+                CopyAsciiResult::GoOn((mut non_ascii, mut handle)) => {
+                    'middle: loop {
+                        // Since the non-ASCIIness of `non_ascii` is hidden from
+                        // the optimizer, it can't figure out that it's OK to
+                        // statically omit the bound check when accessing
+                        // `[u16; 128]` with an index
+                        // `non_ascii as usize - 0x80usize`.
+                        let mapped = unsafe {
+                            *(self.table.get_unchecked(non_ascii as usize - 0x80usize))
+                        };
+                        // let mapped = self.table[non_ascii as usize - 0x80usize];
+                        if mapped == 0u16 {
+                            return (DecoderResult::Malformed(1, 0),
+                                    source.consumed(),
+                                    handle.written());
+                        }
+                        handle.write_bmp(mapped);
+                        continue 'outermost;
+/*                        
+                        match source.check_available() {
+                            Space::Full(src_consumed) => {
+                                return (DecoderResult::InputEmpty, src_consumed, dest.written());
+                            }
+                            Space::Available(source_handle) => {
+                                match dest.check_space_bmp() {
+                                    Space::Full(dst_written) => {
+                                        return (DecoderResult::OutputFull,
+                                                source_handle.consumed(),
+                                                dst_written);
+                                    }
+                                    Space::Available(destination_handle) => {
+                                        let (b, unread_handle) = source_handle.read();
+                                        'innermost: loop {
+                                            // Start non-boilerplate
+                                            if b > 127 {
+                                                non_ascii = b;
+                                                handle = destination_handle;
+                                                continue 'middle;
+                                            }
+                                            // Testing on Haswell says that we should write the
+                                            // byte unconditionally instead of trying to unread it
+                                            // to make it part of the next SIMD stride.
+                                            destination_handle.write_ascii(b);
+                                            if b < 60 {
+                                                // We've got punctuation
+                                                match source.check_available() {
+                                                    Space::Full(src_consumed) => {
+                                                        return (DecoderResult::InputEmpty,
+                                                                src_consumed,
+                                                                dest.written());
+                                                    }
+                                                    Space::Available(source_handle) => {
+                                                        match dest.check_space_bmp() {
+                                                            Space::Full(dst_written) => {
+                                                                return (DecoderResult::OutputFull,
+                                                                        source_handle.consumed(),
+                                                                        dst_written);
+                                                            }
+                                                            Space::Available(destination_handle) => {
+                                                                {
+                                                                    let (b, unread_handle) =
+                                                                        source_handle.read();
+                                                                    non_ascii = b;
+                                                                    handle = destination_handle;
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                                continue 'innermost;
+                                            }
+                                            // End non-boilerplate
+                                            // We've got markup or ASCII text
+                                            continue 'outermost;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        */
+                        unreachable!("Should always continue earlier.");
                     }
-                    handle.write_bmp(mapped);
                 }
             }
+            unreachable!("Should always continue earlier.");
         }
     }
 
@@ -75,7 +142,7 @@ impl SingleByteDecoder {
             (DecoderResult::InputEmpty, src.len())
         };
         let mut converted = 0usize;
-        loop {
+        'outermost: loop {
             match unsafe {
                 ascii_to_basic_latin(src.as_ptr().offset(converted as isize),
                                      dst.as_mut_ptr().offset(converted as isize),
@@ -86,7 +153,7 @@ impl SingleByteDecoder {
                 }
                 Some((mut non_ascii, consumed)) => {
                     converted += consumed;
-                    loop {
+                    'middle: loop {
                         // `converted` doesn't count the reading of `non_ascii` yet.
                         // Since the non-ASCIIness of `non_ascii` is hidden from
                         // the optimizer, it can't figure out that it's OK to
@@ -113,34 +180,40 @@ impl SingleByteDecoder {
                         // acceleration just for punctuation/space and then
                         // failing. This is a significant boost to non-ASCII
                         // scripts.
-                        // TODO: Once ASCII acceleration is less
-                        // alignment-sensitive, re-test whether it's worthwhile
-                        // to have distinct LatinSingleByte decoders that omit
-                        // this part.
+                        // TODO: Split out Latin converters without this part
+                        // this stuff makes Latin script-conversion slower.
                         if converted == length {
                             return (pending, length, length);
                         }
-                        let b = unsafe { *(src.get_unchecked(converted)) };
-                        if b > 127 {
-                            non_ascii = b;
-                            continue;
+                        let mut b = unsafe { *(src.get_unchecked(converted)) };
+                        'innermost: loop {
+                            if b > 127 {
+                                non_ascii = b;
+                                continue 'middle;
+                            }
+                            // Testing on Haswell says that we should write the
+                            // byte unconditionally instead of trying to unread it
+                            // to make it part of the next SIMD stride.
+                            unsafe {
+                                *(dst.get_unchecked_mut(converted)) = b as u16;
+                            }
+                            converted += 1;
+                            if b < 60 {
+                                // We've got punctuation
+                                if converted == length {
+                                    return (pending, length, length);
+                                }
+                                b = unsafe { *(src.get_unchecked(converted)) };
+                                continue 'innermost;
+                            }
+                            // We've got markup or ASCII text
+                            continue 'outermost;
                         }
-                        // Testing on Haswell says that we should write the
-                        // byte unconditionally instead of trying to unread it
-                        // to make it part of the next SIMD stride.
-                        unsafe {
-                            *(dst.get_unchecked_mut(converted)) = b as u16;
-                        }
-                        converted += 1;
-                        if b < 60 {
-                            // We've got punctuation
-                            continue;
-                        }
-                        // We've got markup or ASCII text
-                        break; // continue outer
+                        unreachable!("Should always continue earlier.");
                     }
                 }
             }
+            unreachable!("Should always continue earlier.");
         }
     }
 }
@@ -215,6 +288,18 @@ mod tests {
     fn test_windows_1255_ca() {
         decode(WINDOWS_1255, b"\xCA", "\u{05BA}");
         encode(WINDOWS_1255, "\u{05BA}", b"\xCA");
+    }
+
+    #[test]
+    fn test_ascii_punctuation() {
+        let bytes = b"\xC1\xF5\xF4\xFC \xE5\xDF\xED\xE1\xE9 \xDD\xED\xE1 \xF4\xE5\xF3\xF4. \xC1\xF5\xF4\xFC \xE5\xDF\xED\xE1\xE9 \xDD\xED\xE1 \xF4\xE5\xF3\xF4.";
+        let characters = "\u{0391}\u{03C5}\u{03C4}\u{03CC} \
+                          \u{03B5}\u{03AF}\u{03BD}\u{03B1}\u{03B9} \u{03AD}\u{03BD}\u{03B1} \
+                          \u{03C4}\u{03B5}\u{03C3}\u{03C4}. \u{0391}\u{03C5}\u{03C4}\u{03CC} \
+                          \u{03B5}\u{03AF}\u{03BD}\u{03B1}\u{03B9} \u{03AD}\u{03BD}\u{03B1} \
+                          \u{03C4}\u{03B5}\u{03C3}\u{03C4}.";
+        decode(WINDOWS_1253, bytes, characters);
+        encode(WINDOWS_1253, characters, bytes);
     }
 
     pub const HIGH_BYTES: &'static [u8; 128] = &[0x80, 0x81, 0x82, 0x83, 0x84, 0x85, 0x86, 0x87,
