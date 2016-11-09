@@ -243,7 +243,10 @@ impl<'a> Utf16Destination<'a> {
     }
     #[inline(always)]
     fn write_code_unit(&mut self, u: u16) {
-        self.slice[self.pos] = u;
+        unsafe {
+            // OK, because we checked before handing out a handle.
+            *(self.slice.get_unchecked_mut(self.pos)) = u;
+        }
         self.pos += 1;
     }
     #[inline(always)]
@@ -433,7 +436,10 @@ impl<'a> Utf8Destination<'a> {
     }
     #[inline(always)]
     fn write_code_unit(&mut self, u: u8) {
-        self.slice[self.pos] = u;
+        unsafe {
+            // OK, because we checked before handing out a handle.
+            *(self.slice.get_unchecked_mut(self.pos)) = u;
+        }
         self.pos += 1;
     }
     #[inline(always)]

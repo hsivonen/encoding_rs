@@ -62,7 +62,9 @@ impl SingleByteDecoder {
                         let dest_again = handle.write_bmp_excl_ascii(mapped);
                         match source.check_available() {
                             Space::Full(src_consumed) => {
-                                return (DecoderResult::InputEmpty, src_consumed, dest_again.written());
+                                return (DecoderResult::InputEmpty,
+                                        src_consumed,
+                                        dest_again.written());
                             }
                             Space::Available(source_handle) => {
                                 match dest_again.check_space_bmp() {
@@ -84,7 +86,8 @@ impl SingleByteDecoder {
                                             // Testing on Haswell says that we should write the
                                             // byte unconditionally instead of trying to unread it
                                             // to make it part of the next SIMD stride.
-                                            let dest_again_again = destination_handle.write_ascii(b);
+                                            let dest_again_again =
+                                                destination_handle.write_ascii(b);
                                             if b < 60 {
                                                 // We've got punctuation
                                                 match source_again.check_available() {
