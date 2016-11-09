@@ -237,43 +237,178 @@ impl SingleByteEncoder {
         byte_length
     }
 
-    encoder_functions!({},
-                       {
-                           if c <= '\u{7F}' {
-                               // TODO optimize ASCII run
-                               destination_handle.write_one(c as u8);
-                               continue;
-                           }
-                           if c > '\u{FFFF}' {
-                               return (EncoderResult::Unmappable(c),
-                                       unread_handle.consumed(),
-                                       destination_handle.written());
-                           }
-                           let bmp = c as u16;
-                           // Loop backwards, because the lowest quarter
-                           // is the least probable.
-                           let mut i = 127usize;
-                           loop {
-                               if self.table[i] == bmp {
-                                   destination_handle.write_one((i + 128) as u8);
-                                   break; // i.e. continue outer loop
-                               }
-                               if i == 0 {
-                                   return (EncoderResult::Unmappable(c),
-                                           unread_handle.consumed(),
-                                           destination_handle.written());
-                               }
-                               i -= 1;
-                           }
-                       },
-                       self,
-                       src_consumed,
-                       source,
-                       dest,
-                       c,
-                       destination_handle,
-                       unread_handle,
-                       check_space_one);
+    encoder_function!({},
+                      {
+                          if c <= '\u{7F}' {
+                              // TODO optimize ASCII run
+                              destination_handle.write_one(c as u8);
+                              continue;
+                          }
+                          if c > '\u{FFFF}' {
+                              return (EncoderResult::Unmappable(c),
+                                      unread_handle.consumed(),
+                                      destination_handle.written());
+                          }
+                          let bmp = c as u16;
+                          // Loop backwards, because the lowest quarter
+                          // is the least probable.
+                          let mut i = 127usize;
+                          loop {
+                              if self.table[i] == bmp {
+                                  destination_handle.write_one((i + 128) as u8);
+                                  break; // i.e. continue outer loop
+                              }
+                              if i == 0 {
+                                  return (EncoderResult::Unmappable(c),
+                                          unread_handle.consumed(),
+                                          destination_handle.written());
+                              }
+                              i -= 1;
+                          }
+                      },
+                      self,
+                      src_consumed,
+                      source,
+                      dest,
+                      c,
+                      destination_handle,
+                      unread_handle,
+                      check_space_one,
+                      encode_from_utf8_raw,
+                      str,
+                      Utf8Source);
+
+    fn encode_u16(&self, code_unit: u16) -> Option<u8> {
+        // The lowest quadrant is the least probable
+        for i in 32..128 {
+            if self.table[i] == code_unit {
+                return Some((i + 128) as u8);
+            }
+        }
+        for i in 0..32 {
+            if self.table[i] == code_unit {
+                return Some((i + 128) as u8);
+            }
+        }
+        None
+    }
+
+    pub fn encode_from_utf16_raw(&mut self,
+                                 src: &[u16],
+                                 dst: &mut [u8],
+                                 last: bool)
+                                 -> (EncoderResult, usize, usize) {
+        let (pending, length) = if dst.len() < src.len() {
+            (EncoderResult::OutputFull, dst.len())
+        } else {
+            (EncoderResult::InputEmpty, src.len())
+        };
+        let mut converted = 0usize;
+        'outermost: loop {
+            match unsafe {
+                basic_latin_to_ascii(src.as_ptr().offset(converted as isize),
+                                     dst.as_mut_ptr().offset(converted as isize),
+                                     length - converted)
+            } {
+                None => {
+                    return (pending, length, length);
+                }
+                Some((mut non_ascii, consumed)) => {
+                    converted += consumed;
+                    'middle: loop {
+                        // `converted` doesn't count the reading of `non_ascii` yet.
+                        match self.encode_u16(non_ascii) {
+                            Some(byte) => {
+                                unsafe {
+                                    *(dst.get_unchecked_mut(converted)) = byte;
+                                }
+                                converted += 1;
+                            }
+                            None => {
+                                // At this point, we need to know if we
+                                // have a surrogate.
+                                let high_bits = non_ascii & 0xFC00u16;
+                                if high_bits == 0xD800u16 {
+                                    // high surrogate
+                                    if converted + 1 == length {
+                                        // End of buffer. This surrogate is unpaired.
+                                        return (EncoderResult::Unmappable('\u{FFFD}'),
+                                                converted + 1, // +1 `for non_ascii`
+                                                converted);
+                                    }
+                                    let second = unsafe {
+                                        *src.get_unchecked(converted + 1)
+                                    } as u32;
+                                    if second & 0xFC00u32 != 0xDC00u32 {
+                                        return (EncoderResult::Unmappable('\u{FFFD}'),
+                                                converted + 1, // +1 `for non_ascii`
+                                                converted);
+                                    }
+                                    // The next code unit is a low surrogate.
+                                    let astral: char = unsafe {
+                                        ::std::mem::transmute(((non_ascii as u32) << 10) + second -
+                                                              (((0xD800u32 << 10) - 0x10000u32) +
+                                                               0xDC00u32))
+                                    };
+                                    return (EncoderResult::Unmappable(astral),
+                                            converted + 2, // +2 `for non_ascii` and `second`
+                                            converted);
+                                }
+                                if high_bits == 0xDC00u16 {
+                                    // Unpaired low surrogate
+                                    return (EncoderResult::Unmappable('\u{FFFD}'),
+                                            converted + 1, // +1 `for non_ascii`
+                                            converted);
+                                }
+                                let thirty_two = non_ascii as u32;
+                                let bmp: char = unsafe { ::std::mem::transmute(thirty_two) };
+                                return (EncoderResult::Unmappable(bmp),
+                                        converted + 1, // +1 `for non_ascii`
+                                        converted);
+                            }
+                        }
+                        // Next, handle ASCII punctuation and non-ASCII without
+                        // going back to ASCII acceleration. Non-ASCII scripts
+                        // use ASCII punctuation, so this avoid going to
+                        // acceleration just for punctuation/space and then
+                        // failing. This is a significant boost to non-ASCII
+                        // scripts.
+                        // TODO: Split out Latin converters without this part
+                        // this stuff makes Latin script-conversion slower.
+                        if converted == length {
+                            return (pending, length, length);
+                        }
+                        let mut unit = unsafe { *(src.get_unchecked(converted)) };
+                        'innermost: loop {
+                            if unit > 127 {
+                                non_ascii = unit;
+                                continue 'middle;
+                            }
+                            // Testing on Haswell says that we should write the
+                            // byte unconditionally instead of trying to unread it
+                            // to make it part of the next SIMD stride.
+                            unsafe {
+                                *(dst.get_unchecked_mut(converted)) = unit as u8;
+                            }
+                            converted += 1;
+                            if unit < 60 {
+                                // We've got punctuation
+                                if converted == length {
+                                    return (pending, length, length);
+                                }
+                                unit = unsafe { *(src.get_unchecked(converted)) };
+                                continue 'innermost;
+                            }
+                            // We've got markup or ASCII text
+                            continue 'outermost;
+                        }
+                        unreachable!("Should always continue earlier.");
+                    }
+                }
+            }
+            unreachable!("Should always continue earlier.");
+        }
+    }
 }
 
 // Any copyright to the test code below this comment is dedicated to the
@@ -301,6 +436,36 @@ mod tests {
                           \u{03C4}\u{03B5}\u{03C3}\u{03C4}.";
         decode(WINDOWS_1253, bytes, characters);
         encode(WINDOWS_1253, characters, bytes);
+    }
+
+    #[test]
+    fn test_decode_malformed() {
+        decode(WINDOWS_1253,
+               b"\xC1\xF5\xD2\xF4\xFC",
+               "\u{0391}\u{03C5}\u{FFFD}\u{03C4}\u{03CC}");
+    }
+
+    #[test]
+    fn test_encode_unmappables() {
+        encode(WINDOWS_1253,
+               "\u{0391}\u{03C5}\u{2603}\u{03C4}\u{03CC}",
+               b"\xC1\xF5&#9731;\xF4\xFC");
+        encode(WINDOWS_1253,
+               "\u{0391}\u{03C5}\u{1F4A9}\u{03C4}\u{03CC}",
+               b"\xC1\xF5&#128169;\xF4\xFC");
+    }
+
+    #[test]
+    fn test_encode_unpaired_surrogates() {
+        encode_from_utf16(WINDOWS_1253,
+                          &[0x0391u16, 0x03C5u16, 0xDCA9u16, 0x03C4u16, 0x03CCu16],
+                          b"\xC1\xF5&#65533;\xF4\xFC");
+        encode_from_utf16(WINDOWS_1253,
+                          &[0x0391u16, 0x03C5u16, 0xD83Du16, 0x03C4u16, 0x03CCu16],
+                          b"\xC1\xF5&#65533;\xF4\xFC");
+        encode_from_utf16(WINDOWS_1253,
+                          &[0x0391u16, 0x03C5u16, 0x03C4u16, 0x03CCu16, 0xD83Du16],
+                          b"\xC1\xF5\xF4\xFC&#65533;");
     }
 
     pub const HIGH_BYTES: &'static [u8; 128] = &[0x80, 0x81, 0x82, 0x83, 0x84, 0x85, 0x86, 0x87,
