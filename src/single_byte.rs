@@ -59,22 +59,21 @@ impl SingleByteDecoder {
                                     source.consumed(),
                                     handle.written());
                         }
-                        handle.write_bmp(mapped);
-                        continue 'outermost;
-/*                        
+                        let dest_again = handle.write_bmp_excl_ascii(mapped);
                         match source.check_available() {
                             Space::Full(src_consumed) => {
-                                return (DecoderResult::InputEmpty, src_consumed, dest.written());
+                                return (DecoderResult::InputEmpty, src_consumed, dest_again.written());
                             }
                             Space::Available(source_handle) => {
-                                match dest.check_space_bmp() {
+                                match dest_again.check_space_bmp() {
                                     Space::Full(dst_written) => {
                                         return (DecoderResult::OutputFull,
                                                 source_handle.consumed(),
                                                 dst_written);
                                     }
-                                    Space::Available(destination_handle) => {
-                                        let (b, unread_handle) = source_handle.read();
+                                    Space::Available(mut destination_handle) => {
+                                        let (mut b, unread_handle) = source_handle.read();
+                                        let source_again = unread_handle.decommit();
                                         'innermost: loop {
                                             // Start non-boilerplate
                                             if b > 127 {
@@ -85,34 +84,34 @@ impl SingleByteDecoder {
                                             // Testing on Haswell says that we should write the
                                             // byte unconditionally instead of trying to unread it
                                             // to make it part of the next SIMD stride.
-                                            destination_handle.write_ascii(b);
+                                            let dest_again_again = destination_handle.write_ascii(b);
                                             if b < 60 {
                                                 // We've got punctuation
-                                                match source.check_available() {
-                                                    Space::Full(src_consumed) => {
+                                                match source_again.check_available() {
+                                                    Space::Full(src_consumed_again) => {
                                                         return (DecoderResult::InputEmpty,
-                                                                src_consumed,
-                                                                dest.written());
+                                                                src_consumed_again,
+                                                                dest_again_again.written());
                                                     }
-                                                    Space::Available(source_handle) => {
-                                                        match dest.check_space_bmp() {
-                                                            Space::Full(dst_written) => {
+                                                    Space::Available(source_handle_again) => {
+                                                        match dest_again_again.check_space_bmp() {
+                                                            Space::Full(dst_written_again) => {
                                                                 return (DecoderResult::OutputFull,
-                                                                        source_handle.consumed(),
-                                                                        dst_written);
+                                                                        source_handle_again.consumed(),
+                                                                        dst_written_again);
                                                             }
-                                                            Space::Available(destination_handle) => {
+                                                            Space::Available(destination_handle_again) => {
                                                                 {
-                                                                    let (b, unread_handle) =
-                                                                        source_handle.read();
-                                                                    non_ascii = b;
-                                                                    handle = destination_handle;
+                                                                    let (b_again, unread_handle_again) =
+                                                                        source_handle_again.read();
+                                                                    b = b_again;
+                                                                    destination_handle = destination_handle_again;
+                                                                    continue 'innermost;
                                                                 }
                                                             }
                                                         }
                                                     }
                                                 }
-                                                continue 'innermost;
                                             }
                                             // End non-boilerplate
                                             // We've got markup or ASCII text
@@ -122,7 +121,6 @@ impl SingleByteDecoder {
                                 }
                             }
                         }
-                        */
                         unreachable!("Should always continue earlier.");
                     }
                 }
