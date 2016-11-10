@@ -31,8 +31,7 @@ pub enum CopyAsciiResult<T, U> {
 }
 
 pub enum NonAscii {
-    MidBmp(u16),
-    UpperBmp(u16),
+    BmpExclAscii(u16),
     Astral(char),
 }
 
@@ -746,14 +745,14 @@ impl<'a> Utf8Source<'a> {
             let point = (((unit as u32) & 0x1Fu32) << 6) |
                         (self.slice[self.pos + 1] as u32 & 0x3Fu32);
             self.pos += 2;
-            return Unicode::NonAscii(NonAscii::MidBmp(point as u16));
+            return Unicode::NonAscii(NonAscii::BmpExclAscii(point as u16));
         }
         if unit < 0xF0u8 {
             let point = (((unit as u32) & 0xFu32) << 12) |
                         ((self.slice[self.pos + 1] as u32 & 0x3Fu32) << 6) |
                         (self.slice[self.pos + 2] as u32 & 0x3Fu32);
             self.pos += 3;
-            return Unicode::NonAscii(NonAscii::UpperBmp(point as u16));
+            return Unicode::NonAscii(NonAscii::BmpExclAscii(point as u16));
         }
         let point = (((unit as u32) & 0x7u32) << 18) |
                     ((self.slice[self.pos + 1] as u32 & 0x3Fu32) << 12) |
@@ -802,13 +801,13 @@ impl<'a> Utf8Source<'a> {
                             let point = ((non_ascii32 & 0x1Fu32) << 6) |
                                         (self.slice[self.pos + 1] as u32 & 0x3Fu32);
                             self.pos += 2;
-                            NonAscii::MidBmp(point as u16)
+                            NonAscii::BmpExclAscii(point as u16)
                         } else if non_ascii32 < 0xF0u32 {
                             let point = ((non_ascii32 & 0xFu32) << 12) |
                                         ((self.slice[self.pos + 1] as u32 & 0x3Fu32) << 6) |
                                         (self.slice[self.pos + 2] as u32 & 0x3Fu32);
                             self.pos += 3;
-                            NonAscii::UpperBmp(point as u16)
+                            NonAscii::BmpExclAscii(point as u16)
                         } else {
                             let point = ((non_ascii32 & 0x7u32) << 18) |
                                         ((self.slice[self.pos + 1] as u32 & 0x3Fu32) << 12) |
@@ -858,13 +857,13 @@ impl<'a> Utf8Source<'a> {
                             let point = ((non_ascii32 & 0x1Fu32) << 6) |
                                         (self.slice[self.pos + 1] as u32 & 0x3Fu32);
                             self.pos += 2;
-                            NonAscii::MidBmp(point as u16)
+                            NonAscii::BmpExclAscii(point as u16)
                         } else if non_ascii32 < 0xF0u32 {
                             let point = ((non_ascii32 & 0xFu32) << 12) |
                                         ((self.slice[self.pos + 1] as u32 & 0x3Fu32) << 6) |
                                         (self.slice[self.pos + 2] as u32 & 0x3Fu32);
                             self.pos += 3;
-                            NonAscii::UpperBmp(point as u16)
+                            NonAscii::BmpExclAscii(point as u16)
                         } else {
                             let point = ((non_ascii32 & 0x7u32) << 18) |
                                         ((self.slice[self.pos + 1] as u32 & 0x3Fu32) << 12) |
@@ -987,12 +986,14 @@ impl<'a, 'b> ByteTwoHandle<'a, 'b>
         self.dest.written()
     }
     #[inline(always)]
-    pub fn write_one(self, first: u8) {
+    pub fn write_one(self, first: u8) -> &'a mut ByteDestination<'b> {
         self.dest.write_one(first);
+        self.dest
     }
     #[inline(always)]
-    pub fn write_two(self, first: u8, second: u8) {
+    pub fn write_two(self, first: u8, second: u8) -> &'a mut ByteDestination<'b> {
         self.dest.write_two(first, second);
+        self.dest
     }
 }
 
@@ -1014,16 +1015,19 @@ impl<'a, 'b> ByteThreeHandle<'a, 'b>
         self.dest.written()
     }
     #[inline(always)]
-    pub fn write_one(self, first: u8) {
+    pub fn write_one(self, first: u8) -> &'a mut ByteDestination<'b> {
         self.dest.write_one(first);
+        self.dest
     }
     #[inline(always)]
-    pub fn write_two(self, first: u8, second: u8) {
+    pub fn write_two(self, first: u8, second: u8) -> &'a mut ByteDestination<'b> {
         self.dest.write_two(first, second);
+        self.dest
     }
     #[inline(always)]
-    pub fn write_three(self, first: u8, second: u8, third: u8) {
+    pub fn write_three(self, first: u8, second: u8, third: u8) -> &'a mut ByteDestination<'b> {
         self.dest.write_three(first, second, third);
+        self.dest
     }
     #[inline(always)]
     pub fn write_three_return_written(self, first: u8, second: u8, third: u8) -> usize {
@@ -1050,16 +1054,19 @@ impl<'a, 'b> ByteFourHandle<'a, 'b>
         self.dest.written()
     }
     #[inline(always)]
-    pub fn write_one(self, first: u8) {
+    pub fn write_one(self, first: u8) -> &'a mut ByteDestination<'b> {
         self.dest.write_one(first);
+        self.dest
     }
     #[inline(always)]
-    pub fn write_two(self, first: u8, second: u8) {
+    pub fn write_two(self, first: u8, second: u8) -> &'a mut ByteDestination<'b> {
         self.dest.write_two(first, second);
+        self.dest
     }
     #[inline(always)]
-    pub fn write_four(self, first: u8, second: u8, third: u8, fourth: u8) {
+    pub fn write_four(self, first: u8, second: u8, third: u8, fourth: u8) -> &'a mut ByteDestination<'b> {
         self.dest.write_four(first, second, third, fourth);
+        self.dest
     }
 }
 

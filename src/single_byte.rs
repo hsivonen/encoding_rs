@@ -251,15 +251,6 @@ impl SingleByteEncoder {
         None
     }
 
-    fn encode_u16(&self, code_unit: u16) -> Option<u8> {
-        for i in 0..128 {
-            if self.table[i] == code_unit {
-                return Some((i + 128) as u8);
-            }
-        }
-        None
-    }
-
     pub fn encode_from_utf8_raw(&mut self,
                                 src: &str,
                                 dst: &mut [u8],
@@ -274,26 +265,12 @@ impl SingleByteEncoder {
                     'middle: loop {
                         let dest_again = match non_ascii {
                             // Start non-boilerplate
-                            NonAscii::MidBmp(mid_bmp) => {
-                                match self.encode_u16_first_quadrant_last(mid_bmp) {
+                            NonAscii::BmpExclAscii(bmp) => {
+                                match self.encode_u16_first_quadrant_last(bmp) {
                                     Some(byte) => handle.write_one(byte),
                                     None => {
                                         return (EncoderResult::Unmappable(unsafe {
-                                            ::std::mem::transmute(mid_bmp as u32)
-                                        }),
-                                                source.consumed(),
-                                                handle.written());
-                                    }
-                                }
-                            }
-                            NonAscii::UpperBmp(upper_bmp) => {
-                                // The search order isn't optimal for
-                                // windows-874. :-(
-                                match self.encode_u16(upper_bmp) {
-                                    Some(byte) => handle.write_one(byte),
-                                    None => {
-                                        return (EncoderResult::Unmappable(unsafe {
-                                            ::std::mem::transmute(upper_bmp as u32)
+                                            ::std::mem::transmute(bmp as u32)
                                         }),
                                                 source.consumed(),
                                                 handle.written());

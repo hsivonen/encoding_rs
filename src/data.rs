@@ -8131,11 +8131,7 @@ pub fn euc_kr_decode(pointer: usize) -> u16 {
 }
 
 #[inline(always)]
-pub fn euc_kr_encode(c: char) -> usize {
-    if c > '\u{FFE6}' {
-        return usize::max_value();
-    }
-    let bmp = c as u16;
+pub fn euc_kr_encode(bmp: u16) -> usize {
     let mut it = EUC_KR_INDEX.iter().enumerate();
     loop {
         match it.next() {
