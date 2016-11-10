@@ -45,6 +45,8 @@ impl SingleByteDecoder {
                 CopyAsciiResult::Stop(ret) => return ret,
                 CopyAsciiResult::GoOn((mut non_ascii, mut handle)) => {
                     'middle: loop {
+                        // Start non-boilerplate
+                        //
                         // Since the non-ASCIIness of `non_ascii` is hidden from
                         // the optimizer, it can't figure out that it's OK to
                         // statically omit the bound check when accessing
@@ -60,6 +62,7 @@ impl SingleByteDecoder {
                                     handle.written());
                         }
                         let dest_again = handle.write_bmp_excl_ascii(mapped);
+                        // End non-boilerplate
                         match source.check_available() {
                             Space::Full(src_consumed) => {
                                 return (DecoderResult::InputEmpty,
@@ -77,7 +80,6 @@ impl SingleByteDecoder {
                                         let (mut b, unread_handle) = source_handle.read();
                                         let source_again = unread_handle.decommit();
                                         'innermost: loop {
-                                            // Start non-boilerplate
                                             if b > 127 {
                                                 non_ascii = b;
                                                 handle = destination_handle;
@@ -116,7 +118,6 @@ impl SingleByteDecoder {
                                                     }
                                                 }
                                             }
-                                            // End non-boilerplate
                                             // We've got markup or ASCII text
                                             continue 'outermost;
                                         }
@@ -237,49 +238,7 @@ impl SingleByteEncoder {
         byte_length
     }
 
-    encoder_function!({},
-                      {
-                          if c <= '\u{7F}' {
-                              // TODO optimize ASCII run
-                              destination_handle.write_one(c as u8);
-                              continue;
-                          }
-                          if c > '\u{FFFF}' {
-                              return (EncoderResult::Unmappable(c),
-                                      unread_handle.consumed(),
-                                      destination_handle.written());
-                          }
-                          let bmp = c as u16;
-                          // Loop backwards, because the lowest quarter
-                          // is the least probable.
-                          let mut i = 127usize;
-                          loop {
-                              if self.table[i] == bmp {
-                                  destination_handle.write_one((i + 128) as u8);
-                                  break; // i.e. continue outer loop
-                              }
-                              if i == 0 {
-                                  return (EncoderResult::Unmappable(c),
-                                          unread_handle.consumed(),
-                                          destination_handle.written());
-                              }
-                              i -= 1;
-                          }
-                      },
-                      self,
-                      src_consumed,
-                      source,
-                      dest,
-                      c,
-                      destination_handle,
-                      unread_handle,
-                      check_space_one,
-                      encode_from_utf8_raw,
-                      str,
-                      Utf8Source);
-
-    fn encode_u16(&self, code_unit: u16) -> Option<u8> {
-        // The lowest quadrant is the least probable
+    fn encode_u16_first_quadrant_last(&self, code_unit: u16) -> Option<u8> {
         for i in 32..128 {
             if self.table[i] == code_unit {
                 return Some((i + 128) as u8);
@@ -291,6 +250,135 @@ impl SingleByteEncoder {
             }
         }
         None
+    }
+
+    fn encode_u16(&self, code_unit: u16) -> Option<u8> {
+        for i in 0..128 {
+            if self.table[i] == code_unit {
+                return Some((i + 128) as u8);
+            }
+        }
+        None
+    }
+
+    pub fn encode_from_utf8_raw(&mut self,
+                                src: &str,
+                                dst: &mut [u8],
+                                _last: bool)
+                                -> (EncoderResult, usize, usize) {
+        let mut source = Utf8Source::new(src);
+        let mut dest = ByteDestination::new(dst);
+        'outermost: loop {
+            match source.copy_ascii_to_check_space_one(&mut dest) {
+                CopyAsciiResult::Stop(ret) => return ret,
+                CopyAsciiResult::GoOn((mut non_ascii, mut handle)) => {
+                    'middle: loop {
+                        let dest_again = match non_ascii {
+                            // Start non-boilerplate
+                            NonAscii::MidBmp(mid_bmp) => {
+                                match self.encode_u16_first_quadrant_last(mid_bmp) {
+                                    Some(byte) => handle.write_one(byte),
+                                    None => {
+                                        return (EncoderResult::Unmappable(unsafe {
+                                            ::std::mem::transmute(mid_bmp as u32)
+                                        }),
+                                                source.consumed(),
+                                                handle.written());
+                                    }
+                                }
+                            }
+                            NonAscii::UpperBmp(upper_bmp) => {
+                                // The search order isn't optimal for
+                                // windows-874. :-(
+                                match self.encode_u16(upper_bmp) {
+                                    Some(byte) => handle.write_one(byte),
+                                    None => {
+                                        return (EncoderResult::Unmappable(unsafe {
+                                            ::std::mem::transmute(upper_bmp as u32)
+                                        }),
+                                                source.consumed(),
+                                                handle.written());
+                                    }
+                                }
+                            }
+                            NonAscii::Astral(astral) => {
+                                return (EncoderResult::Unmappable(astral),
+                                        source.consumed(),
+                                        handle.written());
+                            }
+                            // End non-boilerplate
+                        };
+                        match source.check_available() {
+                            Space::Full(src_consumed) => {
+                                return (EncoderResult::InputEmpty,
+                                        src_consumed,
+                                        dest_again.written());
+                            }
+                            Space::Available(source_handle) => {
+                                match dest_again.check_space_one() {
+                                    Space::Full(dst_written) => {
+                                        return (EncoderResult::OutputFull,
+                                                source_handle.consumed(),
+                                                dst_written);
+                                    }
+                                    Space::Available(mut destination_handle) => {
+                                        let (mut c, unread_handle) = source_handle.read_enum();
+                                        let source_again = unread_handle.decommit();
+                                        'innermost: loop {
+                                            let ascii = match c {
+                                                Unicode::NonAscii(non_ascii_again) => {
+                                                    non_ascii = non_ascii_again;
+                                                    handle = destination_handle;
+                                                    continue 'middle;
+                                                }
+                                                Unicode::Ascii(a) => a,
+                                            };
+                                            // Testing on Haswell says that we should write the
+                                            // byte unconditionally instead of trying to unread it
+                                            // to make it part of the next SIMD stride.
+                                            let dest_again_again =
+                                                destination_handle.write_one(ascii);
+                                            if ascii < 60 {
+                                                // We've got punctuation
+                                                match source_again.check_available() {
+                                                    Space::Full(src_consumed_again) => {
+                                                        return (EncoderResult::InputEmpty,
+                                                                src_consumed_again,
+                                                                dest_again_again.written());
+                                                    }
+                                                    Space::Available(source_handle_again) => {
+                                                        match dest_again_again.check_space_one() {
+                                                            Space::Full(dst_written_again) => {
+                                                                return (EncoderResult::OutputFull,
+                                                                        source_handle_again.consumed(),
+                                                                        dst_written_again);
+                                                            }
+                                                            Space::Available(destination_handle_again) => {
+                                                                {
+                                                                    let (c_again, unread_handle_again) =
+                                                                        source_handle_again.read_enum();
+                                                                    c = c_again;
+                                                                    destination_handle = destination_handle_again;
+                                                                    continue 'innermost;
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                            // We've got markup or ASCII text
+                                            continue 'outermost;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        unreachable!("Should always continue earlier.");
+                    }
+                }
+            }
+            unreachable!("Should always continue earlier.");
+        }
     }
 
     pub fn encode_from_utf16_raw(&mut self,
@@ -317,7 +405,7 @@ impl SingleByteEncoder {
                     converted += consumed;
                     'middle: loop {
                         // `converted` doesn't count the reading of `non_ascii` yet.
-                        match self.encode_u16(non_ascii) {
+                        match self.encode_u16_first_quadrant_last(non_ascii) {
                             Some(byte) => {
                                 unsafe {
                                     *(dst.get_unchecked_mut(converted)) = byte;

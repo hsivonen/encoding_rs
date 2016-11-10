@@ -17,11 +17,28 @@
 //! bound check at the read/write time.
 
 use super::DecoderResult;
+use super::EncoderResult;
 use ascii::*;
 
 pub enum Space<T> {
     Available(T),
     Full(usize),
+}
+
+pub enum CopyAsciiResult<T, U> {
+    Stop(T),
+    GoOn(U),
+}
+
+pub enum NonAscii {
+    MidBmp(u16),
+    UpperBmp(u16),
+    Astral(char),
+}
+
+pub enum Unicode {
+    Ascii(u8),
+    NonAscii(NonAscii),
 }
 
 // Byte source
@@ -533,9 +550,10 @@ impl<'a> Utf8Destination<'a> {
                     return CopyAsciiResult::Stop((pending, source.pos, self.pos));
                 }
                 Some((non_ascii, consumed)) => {
-                    source.pos += consumed + 1; // +1 for non_ascii
+                    source.pos += consumed;
                     self.pos += consumed;
                     if self.pos + 2 < dst_len {
+                        source.pos += 1; // +1 for non_ascii
                         non_ascii
                     } else {
                         return CopyAsciiResult::Stop((DecoderResult::OutputFull,
@@ -547,11 +565,6 @@ impl<'a> Utf8Destination<'a> {
         };
         return CopyAsciiResult::GoOn((non_ascii_ret, Utf8BmpHandle::new(self)));
     }
-}
-
-pub enum CopyAsciiResult<T, U> {
-    Stop(T),
-    GoOn(U),
 }
 
 // UTF-16 source
@@ -722,13 +735,153 @@ impl<'a> Utf8Source<'a> {
         return unsafe { ::std::mem::transmute(point) };
     }
     #[inline(always)]
+    fn read_enum(&mut self) -> Unicode {
+        self.old_pos = self.pos;
+        let unit = self.slice[self.pos];
+        if unit < 0x80u8 {
+            self.pos += 1;
+            return Unicode::Ascii(unit);
+        }
+        if unit < 0xE0u8 {
+            let point = (((unit as u32) & 0x1Fu32) << 6) |
+                        (self.slice[self.pos + 1] as u32 & 0x3Fu32);
+            self.pos += 2;
+            return Unicode::NonAscii(NonAscii::MidBmp(point as u16));
+        }
+        if unit < 0xF0u8 {
+            let point = (((unit as u32) & 0xFu32) << 12) |
+                        ((self.slice[self.pos + 1] as u32 & 0x3Fu32) << 6) |
+                        (self.slice[self.pos + 2] as u32 & 0x3Fu32);
+            self.pos += 3;
+            return Unicode::NonAscii(NonAscii::UpperBmp(point as u16));
+        }
+        let point = (((unit as u32) & 0x7u32) << 18) |
+                    ((self.slice[self.pos + 1] as u32 & 0x3Fu32) << 12) |
+                    ((self.slice[self.pos + 2] as u32 & 0x3Fu32) << 6) |
+                    (self.slice[self.pos + 3] as u32 & 0x3Fu32);
+        self.pos += 4;
+        return Unicode::NonAscii(NonAscii::Astral(unsafe { ::std::mem::transmute(point) }));
+    }
+    #[inline(always)]
     fn unread(&mut self) -> usize {
         self.pos = self.old_pos;
         self.pos
     }
     #[inline(always)]
-    fn consumed(&self) -> usize {
+    pub fn consumed(&self) -> usize {
         self.pos
+    }
+    #[inline(always)]
+    pub fn copy_ascii_to_check_space_one<'b>
+        (&mut self,
+         dest: &'b mut ByteDestination<'a>)
+         -> CopyAsciiResult<(EncoderResult, usize, usize), (NonAscii, ByteOneHandle<'b, 'a>)> {
+        let non_ascii_ret = {
+            let dst_len = dest.slice.len();
+            let src_remaining = &self.slice[self.pos..];
+            let mut dst_remaining = &mut dest.slice[dest.pos..];
+            let (pending, length) = if dst_remaining.len() < src_remaining.len() {
+                (EncoderResult::OutputFull, dst_remaining.len())
+            } else {
+                (EncoderResult::InputEmpty, src_remaining.len())
+            };
+            match unsafe {
+                ascii_to_ascii(src_remaining.as_ptr(), dst_remaining.as_mut_ptr(), length)
+            } {
+                None => {
+                    self.pos += length;
+                    dest.pos += length;
+                    return CopyAsciiResult::Stop((pending, self.pos, dest.pos));
+                }
+                Some((non_ascii, consumed)) => {
+                    self.pos += consumed;
+                    dest.pos += consumed;
+                    if dest.pos + 1 < dst_len {
+                        let non_ascii32 = non_ascii as u32;
+                        if non_ascii32 < 0xE0u32 {
+                            let point = ((non_ascii32 & 0x1Fu32) << 6) |
+                                        (self.slice[self.pos + 1] as u32 & 0x3Fu32);
+                            self.pos += 2;
+                            NonAscii::MidBmp(point as u16)
+                        } else if non_ascii32 < 0xF0u32 {
+                            let point = ((non_ascii32 & 0xFu32) << 12) |
+                                        ((self.slice[self.pos + 1] as u32 & 0x3Fu32) << 6) |
+                                        (self.slice[self.pos + 2] as u32 & 0x3Fu32);
+                            self.pos += 3;
+                            NonAscii::UpperBmp(point as u16)
+                        } else {
+                            let point = ((non_ascii32 & 0x7u32) << 18) |
+                                        ((self.slice[self.pos + 1] as u32 & 0x3Fu32) << 12) |
+                                        ((self.slice[self.pos + 2] as u32 & 0x3Fu32) << 6) |
+                                        (self.slice[self.pos + 3] as u32 & 0x3Fu32);
+                            self.pos += 4;
+                            NonAscii::Astral(unsafe { ::std::mem::transmute(point) })
+                        }
+                    } else {
+                        return CopyAsciiResult::Stop((EncoderResult::OutputFull,
+                                                      self.pos,
+                                                      dest.pos));
+                    }
+                }
+            }
+        };
+        return CopyAsciiResult::GoOn((non_ascii_ret, ByteOneHandle::new(dest)));
+    }
+    #[inline(always)]
+    pub fn copy_ascii_to_check_space_two<'b>
+        (&mut self,
+         dest: &'b mut ByteDestination<'a>)
+         -> CopyAsciiResult<(EncoderResult, usize, usize), (NonAscii, ByteTwoHandle<'b, 'a>)> {
+        let non_ascii_ret = {
+            let dst_len = dest.slice.len();
+            let src_remaining = &self.slice[self.pos..];
+            let mut dst_remaining = &mut dest.slice[dest.pos..];
+            let (pending, length) = if dst_remaining.len() < src_remaining.len() {
+                (EncoderResult::OutputFull, dst_remaining.len())
+            } else {
+                (EncoderResult::InputEmpty, src_remaining.len())
+            };
+            match unsafe {
+                ascii_to_ascii(src_remaining.as_ptr(), dst_remaining.as_mut_ptr(), length)
+            } {
+                None => {
+                    self.pos += length;
+                    dest.pos += length;
+                    return CopyAsciiResult::Stop((pending, self.pos, dest.pos));
+                }
+                Some((non_ascii, consumed)) => {
+                    self.pos += consumed;
+                    dest.pos += consumed;
+                    if dest.pos + 1 < dst_len {
+                        let non_ascii32 = non_ascii as u32;
+                        if non_ascii32 < 0xE0u32 {
+                            let point = ((non_ascii32 & 0x1Fu32) << 6) |
+                                        (self.slice[self.pos + 1] as u32 & 0x3Fu32);
+                            self.pos += 2;
+                            NonAscii::MidBmp(point as u16)
+                        } else if non_ascii32 < 0xF0u32 {
+                            let point = ((non_ascii32 & 0xFu32) << 12) |
+                                        ((self.slice[self.pos + 1] as u32 & 0x3Fu32) << 6) |
+                                        (self.slice[self.pos + 2] as u32 & 0x3Fu32);
+                            self.pos += 3;
+                            NonAscii::UpperBmp(point as u16)
+                        } else {
+                            let point = ((non_ascii32 & 0x7u32) << 18) |
+                                        ((self.slice[self.pos + 1] as u32 & 0x3Fu32) << 12) |
+                                        ((self.slice[self.pos + 2] as u32 & 0x3Fu32) << 6) |
+                                        (self.slice[self.pos + 3] as u32 & 0x3Fu32);
+                            self.pos += 4;
+                            NonAscii::Astral(unsafe { ::std::mem::transmute(point) })
+                        }
+                    } else {
+                        return CopyAsciiResult::Stop((EncoderResult::OutputFull,
+                                                      self.pos,
+                                                      dest.pos));
+                    }
+                }
+            }
+        };
+        return CopyAsciiResult::GoOn((non_ascii_ret, ByteTwoHandle::new(dest)));
     }
 }
 
@@ -748,6 +901,12 @@ impl<'a, 'b> Utf8ReadHandle<'a, 'b>
     #[inline(always)]
     pub fn read(self) -> (char, Utf8UnreadHandle<'a, 'b>) {
         let character = self.source.read();
+        let handle = Utf8UnreadHandle::new(self.source);
+        (character, handle)
+    }
+    #[inline(always)]
+    pub fn read_enum(self) -> (Unicode, Utf8UnreadHandle<'a, 'b>) {
+        let character = self.source.read_enum();
         let handle = Utf8UnreadHandle::new(self.source);
         (character, handle)
     }
@@ -778,6 +937,10 @@ impl<'a, 'b> Utf8UnreadHandle<'a, 'b>
     pub fn consumed(&self) -> usize {
         self.source.consumed()
     }
+    #[inline(always)]
+    pub fn decommit(self) -> &'a mut Utf8Source<'b> {
+        self.source
+    }
 }
 
 // Byte destination
@@ -800,8 +963,9 @@ impl<'a, 'b> ByteOneHandle<'a, 'b>
         self.dest.written()
     }
     #[inline(always)]
-    pub fn write_one(self, first: u8) {
+    pub fn write_one(self, first: u8) -> &'a mut ByteDestination<'b> {
         self.dest.write_one(first);
+        self.dest
     }
 }
 
