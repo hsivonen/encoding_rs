@@ -107,7 +107,7 @@ impl SingleByteDecoder {
                                                             }
                                                             Space::Available(destination_handle_again) => {
                                                                 {
-                                                                    let (b_again, unread_handle_again) =
+                                                                    let (b_again, _unread_handle_again) =
                                                                         source_handle_again.read();
                                                                     b = b_again;
                                                                     destination_handle = destination_handle_again;
@@ -211,7 +211,6 @@ impl SingleByteDecoder {
                             // We've got markup or ASCII text
                             continue 'outermost;
                         }
-                        unreachable!("Should always continue earlier.");
                     }
                 }
             }
@@ -355,7 +354,7 @@ impl SingleByteEncoder {
                                                             }
                                                             Space::Available(destination_handle_again) => {
                                                                 {
-                                                                    let (c_again, unread_handle_again) =
+                                                                    let (c_again, _unread_handle_again) =
                                                                         source_handle_again.read_enum();
                                                                     c = c_again;
                                                                     destination_handle = destination_handle_again;
@@ -384,7 +383,7 @@ impl SingleByteEncoder {
     pub fn encode_from_utf16_raw(&mut self,
                                  src: &[u16],
                                  dst: &mut [u8],
-                                 last: bool)
+                                 _last: bool)
                                  -> (EncoderResult, usize, usize) {
         let (pending, length) = if dst.len() < src.len() {
             (EncoderResult::OutputFull, dst.len())
@@ -490,7 +489,6 @@ impl SingleByteEncoder {
                             // We've got markup or ASCII text
                             continue 'outermost;
                         }
-                        unreachable!("Should always continue earlier.");
                     }
                 }
             }
