@@ -110,7 +110,6 @@ pub unsafe fn pack_basic_latin(a: u16x8, b: u16x8) -> Option<u8x16> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use simd::u8x16;
 
     #[test]
     fn test_unpack() {
