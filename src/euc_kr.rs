@@ -150,9 +150,7 @@ impl EucKrEncoder {
     ascii_compatible_bmp_encoder_function!({
                                                let pointer = euc_kr_encode(bmp);
                                                if pointer == usize::max_value() {
-                                                   return (EncoderResult::Unmappable(unsafe {
-                                                       ::std::mem::transmute(bmp as u32)
-                                                   }),
+                                                   return (EncoderResult::unmappable_from_bmp(bmp),
                                                            source.consumed(),
                                                            handle.written());
                                                }

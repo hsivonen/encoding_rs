@@ -255,9 +255,7 @@ impl SingleByteEncoder {
                                                match self.encode_u16_first_quadrant_last(bmp) {
                                                    Some(byte) => handle.write_one(byte),
                                                    None => {
-                                                       return (EncoderResult::Unmappable(unsafe {
-                                                           ::std::mem::transmute(bmp as u32)
-                                                       }),
+                                                       return (EncoderResult::unmappable_from_bmp(bmp),
                                                                source.consumed(),
                                                                handle.written());
                                                    }

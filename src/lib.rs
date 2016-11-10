@@ -2330,6 +2330,12 @@ pub enum EncoderResult {
     Unmappable(char),
 }
 
+impl EncoderResult {
+    fn unmappable_from_bmp(bmp: u16) -> EncoderResult {
+        EncoderResult::Unmappable(::std::char::from_u32(bmp as u32).unwrap())
+    }
+}
+
 /// A converter that encodes a Unicode stream into bytes according to a
 /// character encoding in a streaming (incremental) manner.
 ///
