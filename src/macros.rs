@@ -273,7 +273,7 @@ macro_rules! ascii_compatible_encoder_function {
                                                                 dest_again_again.written());
                                                     }
                                                     Space::Available(source_handle_again) => {
-                                                        match dest_again_again.check_space_two() {
+                                                        match dest_again_again.$destination_check() {
                                                             Space::Full(dst_written_again) => {
                                                                 return (EncoderResult::OutputFull,
                                                                         source_handle_again.consumed(),

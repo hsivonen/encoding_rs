@@ -251,111 +251,28 @@ impl SingleByteEncoder {
         None
     }
 
-    pub fn encode_from_utf8_raw(&mut self,
-                                src: &str,
-                                dst: &mut [u8],
-                                _last: bool)
-                                -> (EncoderResult, usize, usize) {
-        let mut source = Utf8Source::new(src);
-        let mut dest = ByteDestination::new(dst);
-        'outermost: loop {
-            match source.copy_ascii_to_check_space_one(&mut dest) {
-                CopyAsciiResult::Stop(ret) => return ret,
-                CopyAsciiResult::GoOn((mut non_ascii, mut handle)) => {
-                    'middle: loop {
-                        let dest_again = match non_ascii {
-                            // Start non-boilerplate
-                            NonAscii::BmpExclAscii(bmp) => {
-                                match self.encode_u16_first_quadrant_last(bmp) {
-                                    Some(byte) => handle.write_one(byte),
-                                    None => {
-                                        return (EncoderResult::Unmappable(unsafe {
-                                            ::std::mem::transmute(bmp as u32)
-                                        }),
-                                                source.consumed(),
-                                                handle.written());
-                                    }
-                                }
-                            }
-                            NonAscii::Astral(astral) => {
-                                return (EncoderResult::Unmappable(astral),
-                                        source.consumed(),
-                                        handle.written());
-                            }
-                            // End non-boilerplate
-                        };
-                        match source.check_available() {
-                            Space::Full(src_consumed) => {
-                                return (EncoderResult::InputEmpty,
-                                        src_consumed,
-                                        dest_again.written());
-                            }
-                            Space::Available(source_handle) => {
-                                match dest_again.check_space_one() {
-                                    Space::Full(dst_written) => {
-                                        return (EncoderResult::OutputFull,
-                                                source_handle.consumed(),
-                                                dst_written);
-                                    }
-                                    Space::Available(mut destination_handle) => {
-                                        let (mut c, unread_handle) = source_handle.read_enum();
-                                        let source_again = unread_handle.decommit();
-                                        'innermost: loop {
-                                            let ascii = match c {
-                                                Unicode::NonAscii(non_ascii_again) => {
-                                                    non_ascii = non_ascii_again;
-                                                    handle = destination_handle;
-                                                    continue 'middle;
-                                                }
-                                                Unicode::Ascii(a) => a,
-                                            };
-                                            // Testing on Haswell says that we should write the
-                                            // byte unconditionally instead of trying to unread it
-                                            // to make it part of the next SIMD stride.
-                                            let dest_again_again =
-                                                destination_handle.write_one(ascii);
-                                            if ascii < 60 {
-                                                // We've got punctuation
-                                                match source_again.check_available() {
-                                                    Space::Full(src_consumed_again) => {
-                                                        return (EncoderResult::InputEmpty,
-                                                                src_consumed_again,
-                                                                dest_again_again.written());
-                                                    }
-                                                    Space::Available(source_handle_again) => {
-                                                        match dest_again_again.check_space_one() {
-                                                            Space::Full(dst_written_again) => {
-                                                                return (EncoderResult::OutputFull,
-                                                                        source_handle_again.consumed(),
-                                                                        dst_written_again);
-                                                            }
-                                                            Space::Available(destination_handle_again) => {
-                                                                {
-                                                                    let (c_again, _unread_handle_again) =
-                                                                        source_handle_again.read_enum();
-                                                                    c = c_again;
-                                                                    destination_handle = destination_handle_again;
-                                                                    continue 'innermost;
-                                                                }
-                                                            }
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                            // We've got markup or ASCII text
-                                            continue 'outermost;
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        unreachable!("Should always continue earlier.");
-                    }
-                }
-            }
-            unreachable!("Should always continue earlier.");
-        }
-    }
+    ascii_compatible_bmp_encoder_function!({
+                                               match self.encode_u16_first_quadrant_last(bmp) {
+                                                   Some(byte) => handle.write_one(byte),
+                                                   None => {
+                                                       return (EncoderResult::Unmappable(unsafe {
+                                                           ::std::mem::transmute(bmp as u32)
+                                                       }),
+                                                               source.consumed(),
+                                                               handle.written());
+                                                   }
+                                               }
+                                           },
+                                           bmp,
+                                           self,
+                                           source,
+                                           handle,
+                                           copy_ascii_to_check_space_one,
+                                           check_space_one,
+                                           encode_from_utf8_raw,
+                                           str,
+                                           Utf8Source,
+                                           true);
 
     pub fn encode_from_utf16_raw(&mut self,
                                  src: &[u16],
