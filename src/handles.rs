@@ -66,7 +66,8 @@ impl<'a> ByteSource<'a> {
     }
     #[inline(always)]
     fn read(&mut self) -> u8 {
-        let ret = self.slice[self.pos];
+        // OK, because check_available() has already checked bounds
+        let ret = unsafe { *(self.slice.get_unchecked(self.pos)) };
         self.pos += 1;
         ret
     }
@@ -595,7 +596,8 @@ impl<'a> Utf16Source<'a> {
     #[inline(always)]
     fn read(&mut self) -> char {
         self.old_pos = self.pos;
-        let unit = self.slice[self.pos] as u32;
+        // OK because `check_available()` has already checked bounds.
+        let unit = unsafe { *(self.slice.get_unchecked(self.pos)) as u32 };
         self.pos += 1;
         let high_bits = unit & 0xFC00u32;
         if high_bits == 0xD800u32 {
@@ -711,26 +713,33 @@ impl<'a> Utf8Source<'a> {
     #[inline(always)]
     fn read(&mut self) -> char {
         self.old_pos = self.pos;
-        let unit = self.slice[self.pos] as u32;
+        // OK, because `check_available()` has already checked bounds.
+        let unit = unsafe { *(self.slice.get_unchecked(self.pos)) as u32 };
         if unit < 0x80u32 {
             self.pos += 1;
             return unsafe { ::std::mem::transmute(unit) };
         }
+        // Unchecked reads below are OK, because we are allowed assume valid
+        // UTF-8.
         if unit < 0xE0u32 {
-            let point = ((unit & 0x1Fu32) << 6) | (self.slice[self.pos + 1] as u32 & 0x3Fu32);
+            let point = ((unit & 0x1Fu32) << 6) |
+                        (unsafe { *(self.slice.get_unchecked(self.pos + 1)) as u32 } & 0x3Fu32);
             self.pos += 2;
             return unsafe { ::std::mem::transmute(point) };
         }
         if unit < 0xF0u32 {
             let point = ((unit & 0xFu32) << 12) |
-                        ((self.slice[self.pos + 1] as u32 & 0x3Fu32) << 6) |
-                        (self.slice[self.pos + 2] as u32 & 0x3Fu32);
+                        ((unsafe { *(self.slice.get_unchecked(self.pos + 1)) as u32 } &
+                          0x3Fu32) << 6) |
+                        (unsafe { *(self.slice.get_unchecked(self.pos + 2)) as u32 } & 0x3Fu32);
             self.pos += 3;
             return unsafe { ::std::mem::transmute(point) };
         }
-        let point = ((unit & 0x7u32) << 18) | ((self.slice[self.pos + 1] as u32 & 0x3Fu32) << 12) |
-                    ((self.slice[self.pos + 2] as u32 & 0x3Fu32) << 6) |
-                    (self.slice[self.pos + 3] as u32 & 0x3Fu32);
+        let point = ((unit & 0x7u32) << 18) |
+                    ((unsafe { *(self.slice.get_unchecked(self.pos + 1)) as u32 } & 0x3Fu32) <<
+                     12) |
+                    ((unsafe { *(self.slice.get_unchecked(self.pos + 2)) as u32 } & 0x3Fu32) << 6) |
+                    (unsafe { *(self.slice.get_unchecked(self.pos + 3)) as u32 } & 0x3Fu32);
         self.pos += 4;
         return unsafe { ::std::mem::transmute(point) };
     }
@@ -743,22 +752,24 @@ impl<'a> Utf8Source<'a> {
             return Unicode::Ascii(unit);
         }
         if unit < 0xE0u8 {
-            let point = (((unit as u32) & 0x1Fu32) << 6) |
-                        (self.slice[self.pos + 1] as u32 & 0x3Fu32);
+            let point = ((unit as u32 & 0x1Fu32) << 6) |
+                        (unsafe { *(self.slice.get_unchecked(self.pos + 1)) as u32 } & 0x3Fu32);
             self.pos += 2;
             return Unicode::NonAscii(NonAscii::MidBmp(point as u16));
         }
         if unit < 0xF0u8 {
-            let point = (((unit as u32) & 0xFu32) << 12) |
-                        ((self.slice[self.pos + 1] as u32 & 0x3Fu32) << 6) |
-                        (self.slice[self.pos + 2] as u32 & 0x3Fu32);
+            let point = ((unit as u32 & 0xFu32) << 12) |
+                        ((unsafe { *(self.slice.get_unchecked(self.pos + 1)) as u32 } &
+                          0x3Fu32) << 6) |
+                        (unsafe { *(self.slice.get_unchecked(self.pos + 2)) as u32 } & 0x3Fu32);
             self.pos += 3;
             return Unicode::NonAscii(NonAscii::UpperBmp(point as u16));
         }
-        let point = (((unit as u32) & 0x7u32) << 18) |
-                    ((self.slice[self.pos + 1] as u32 & 0x3Fu32) << 12) |
-                    ((self.slice[self.pos + 2] as u32 & 0x3Fu32) << 6) |
-                    (self.slice[self.pos + 3] as u32 & 0x3Fu32);
+        let point = ((unit as u32 & 0x7u32) << 18) |
+                    ((unsafe { *(self.slice.get_unchecked(self.pos + 1)) as u32 } & 0x3Fu32) <<
+                     12) |
+                    ((unsafe { *(self.slice.get_unchecked(self.pos + 2)) as u32 } & 0x3Fu32) << 6) |
+                    (unsafe { *(self.slice.get_unchecked(self.pos + 3)) as u32 } & 0x3Fu32);
         self.pos += 4;
         return Unicode::NonAscii(NonAscii::Astral(unsafe { ::std::mem::transmute(point) }));
     }
@@ -1114,28 +1125,40 @@ impl<'a> ByteDestination<'a> {
     }
     #[inline(always)]
     fn write_one(&mut self, first: u8) {
-        self.slice[self.pos] = first;
+        // OK, because `check_space_*()` has already checked bounds.
+        unsafe {
+            *(self.slice.get_unchecked_mut(self.pos)) = first;
+        }
         self.pos += 1;
     }
     #[inline(always)]
     fn write_two(&mut self, first: u8, second: u8) {
-        self.slice[self.pos] = first;
-        self.slice[self.pos + 1] = second;
+        // OK, because `check_space_*()` has already checked bounds.
+        unsafe {
+            *(self.slice.get_unchecked_mut(self.pos)) = first;
+            *(self.slice.get_unchecked_mut(self.pos + 1)) = second;
+        }
         self.pos += 2;
     }
     #[inline(always)]
     fn write_three(&mut self, first: u8, second: u8, third: u8) {
-        self.slice[self.pos] = first;
-        self.slice[self.pos + 1] = second;
-        self.slice[self.pos + 2] = third;
+        // OK, because `check_space_*()` has already checked bounds.
+        unsafe {
+            *(self.slice.get_unchecked_mut(self.pos)) = first;
+            *(self.slice.get_unchecked_mut(self.pos + 1)) = second;
+            *(self.slice.get_unchecked_mut(self.pos + 2)) = third;
+        }
         self.pos += 3;
     }
     #[inline(always)]
     fn write_four(&mut self, first: u8, second: u8, third: u8, fourth: u8) {
-        self.slice[self.pos] = first;
-        self.slice[self.pos + 1] = second;
-        self.slice[self.pos + 2] = third;
-        self.slice[self.pos + 3] = fourth;
+        // OK, because `check_space_*()` has already checked bounds.
+        unsafe {
+            *(self.slice.get_unchecked_mut(self.pos)) = first;
+            *(self.slice.get_unchecked_mut(self.pos + 1)) = second;
+            *(self.slice.get_unchecked_mut(self.pos + 2)) = third;
+            *(self.slice.get_unchecked_mut(self.pos + 3)) = fourth;
+        }
         self.pos += 4;
     }
 }
