@@ -147,35 +147,29 @@ impl EucKrEncoder {
                       [u16],
                       Utf16Source);
 
-    ascii_compatible_encoder_function!({
-                                           let pointer = euc_kr_encode(bmp);
-                                           if pointer == usize::max_value() {
-                                               return (EncoderResult::Unmappable(unsafe {
-                                                   ::std::mem::transmute(bmp as u32)
-                                               }),
-                                                       source.consumed(),
-                                                       handle.written());
-                                           }
-                                           let lead = (pointer / 190) + 0x81;
-                                           let trail = (pointer % 190) + 0x41;
-                                           handle.write_two(lead as u8, trail as u8)
-                                       },
-                                       {
-                                           return (EncoderResult::Unmappable(astral),
-                                                   source.consumed(),
-                                                   handle.written());
-                                       },
-                                       bmp,
-                                       astral,
-                                       self,
-                                       source,
-                                       handle,
-                                       copy_ascii_to_check_space_two,
-                                       check_space_two,
-                                       encode_from_utf8_raw,
-                                       str,
-                                       Utf8Source,
-                                       true);
+    ascii_compatible_bmp_encoder_function!({
+                                               let pointer = euc_kr_encode(bmp);
+                                               if pointer == usize::max_value() {
+                                                   return (EncoderResult::Unmappable(unsafe {
+                                                       ::std::mem::transmute(bmp as u32)
+                                                   }),
+                                                           source.consumed(),
+                                                           handle.written());
+                                               }
+                                               let lead = (pointer / 190) + 0x81;
+                                               let trail = (pointer % 190) + 0x41;
+                                               handle.write_two(lead as u8, trail as u8)
+                                           },
+                                           bmp,
+                                           self,
+                                           source,
+                                           handle,
+                                           copy_ascii_to_check_space_two,
+                                           check_space_two,
+                                           encode_from_utf8_raw,
+                                           str,
+                                           Utf8Source,
+                                           true);
 }
 
 // Any copyright to the test code below this comment is dedicated to the
