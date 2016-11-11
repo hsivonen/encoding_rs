@@ -11,6 +11,9 @@ repository = "https://github.com/hsivonen/encoding_rs"
 keywords = ["encoding", "web", "unicode", "charset"]
 build = "build.rs"
 
+[features]
+simd-accel = ["simd"]
+
 [lib]
 name = "encoding_rs"
 # The below line confuses rustfmt. Uncomment to build a staticlib.
@@ -18,7 +21,7 @@ name = "encoding_rs"
 
 [dependencies]
 cfg-if = "0.1.0"
-simd = { git = "https://github.com/huonw/simd" }
+simd = { git = "https://github.com/huonw/simd", optional = true }
 
 [build-dependencies]
 rusty-cheddar = "0.3.1"

@@ -7,6 +7,7 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
+#[cfg(feature = "simd-accel")]
 use simd_funcs::*;
 
 macro_rules! ascii_naive {
@@ -207,7 +208,7 @@ macro_rules! basic_latin_to_ascii_simd_stride {
 //                 ((0x00000000_000000FFusize & word) << 8);
 
 cfg_if! {
-    if #[cfg(target_feature = "sse2")] {
+    if #[cfg(all(feature = "simd-accel", target_feature = "sse2"))] {
 // SIMD
 
         const STRIDE_SIZE: usize = 16;
