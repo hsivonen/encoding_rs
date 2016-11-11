@@ -888,7 +888,6 @@ impl<'a> Utf8Source<'a> {
          dest: &'b mut ByteDestination<'a>)
          -> CopyAsciiResult<(EncoderResult, usize, usize), (NonAscii, ByteOneHandle<'b, 'a>)> {
         let non_ascii_ret = {
-            let dst_len = dest.slice.len();
             let src_remaining = &self.slice[self.pos..];
             let mut dst_remaining = &mut dest.slice[dest.pos..];
             let (pending, length) = if dst_remaining.len() < src_remaining.len() {
