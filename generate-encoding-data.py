@@ -386,11 +386,7 @@ pub fn jis0208_encode(bmp: u16) -> usize {
 
 data_file.write('''
 #[inline(always)]
-pub fn shift_jis_encode(c: char) -> usize {
-    if c > '\u{FFFF}' {
-        return usize::max_value();
-    }
-    let bmp = c as u16;
+pub fn shift_jis_encode(bmp: u16) -> usize {
     let mut i = 0usize;
     // No entries between 7807 and 8272
     while i < 7808 {
