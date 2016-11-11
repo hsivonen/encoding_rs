@@ -734,6 +734,73 @@ impl<'a> Utf16Source<'a> {
         };
         return CopyAsciiResult::GoOn((non_ascii_ret, ByteTwoHandle::new(dest)));
     }
+    #[inline(always)]
+    pub fn copy_ascii_to_check_space_four<'b>
+        (&mut self,
+         dest: &'b mut ByteDestination<'a>)
+         -> CopyAsciiResult<(EncoderResult, usize, usize), (NonAscii, ByteFourHandle<'b, 'a>)> {
+        let non_ascii_ret = {
+            let dst_len = dest.slice.len();
+            let src_remaining = &self.slice[self.pos..];
+            let mut dst_remaining = &mut dest.slice[dest.pos..];
+            let (pending, length) = if dst_remaining.len() < src_remaining.len() {
+                (EncoderResult::OutputFull, dst_remaining.len())
+            } else {
+                (EncoderResult::InputEmpty, src_remaining.len())
+            };
+            match unsafe {
+                basic_latin_to_ascii(src_remaining.as_ptr(), dst_remaining.as_mut_ptr(), length)
+            } {
+                None => {
+                    self.pos += length;
+                    dest.pos += length;
+                    return CopyAsciiResult::Stop((pending, self.pos, dest.pos));
+                }
+                Some((non_ascii, consumed)) => {
+                    self.pos += consumed;
+                    dest.pos += consumed;
+                    if dest.pos + 3 < dst_len {
+                        let non_ascii32 = non_ascii as u32;
+                        self.pos += 1; // commit to reading `non_ascii`
+                        let high_bits = non_ascii32 & 0xFC00u32;
+                        if high_bits == 0xD800u32 {
+                            // high surrogate
+                            if self.pos < self.slice.len() {
+                                let second = self.slice[self.pos] as u32;
+                                if second & 0xFC00u32 != 0xDC00u32 {
+                                    // The next code unit is not a low surrogate. Don't advance
+                                    // position and treat the high surrogate as unpaired.
+                                    NonAscii::BmpExclAscii(0xFFFDu16)
+                                } else {
+                                    // The next code unit is a low surrogate. Advance position.
+                                    self.pos += 1;
+                                    NonAscii::Astral(unsafe {
+                                        ::std::mem::transmute((non_ascii32 << 10) + second -
+                                                              (((0xD800u32 << 10) - 0x10000u32) +
+                                                               0xDC00u32))
+                                    })
+                                }
+                            } else {
+                                // End of buffer. This surrogate is unpaired.
+                                NonAscii::BmpExclAscii(0xFFFDu16)
+                            }
+                        } else if high_bits == 0xDC00u32 {
+                            // Unpaired low surrogate
+                            NonAscii::BmpExclAscii(0xFFFDu16)
+                        } else {
+                            NonAscii::BmpExclAscii(non_ascii)
+
+                        }
+                    } else {
+                        return CopyAsciiResult::Stop((EncoderResult::OutputFull,
+                                                      self.pos,
+                                                      dest.pos));
+                    }
+                }
+            }
+        };
+        return CopyAsciiResult::GoOn((non_ascii_ret, ByteFourHandle::new(dest)));
+    }
 }
 
 pub struct Utf16ReadHandle<'a, 'b>
@@ -988,6 +1055,62 @@ impl<'a> Utf8Source<'a> {
             }
         };
         return CopyAsciiResult::GoOn((non_ascii_ret, ByteTwoHandle::new(dest)));
+    }
+    #[inline(always)]
+    pub fn copy_ascii_to_check_space_four<'b>
+        (&mut self,
+         dest: &'b mut ByteDestination<'a>)
+         -> CopyAsciiResult<(EncoderResult, usize, usize), (NonAscii, ByteFourHandle<'b, 'a>)> {
+        let non_ascii_ret = {
+            let dst_len = dest.slice.len();
+            let src_remaining = &self.slice[self.pos..];
+            let mut dst_remaining = &mut dest.slice[dest.pos..];
+            let (pending, length) = if dst_remaining.len() < src_remaining.len() {
+                (EncoderResult::OutputFull, dst_remaining.len())
+            } else {
+                (EncoderResult::InputEmpty, src_remaining.len())
+            };
+            match unsafe {
+                ascii_to_ascii(src_remaining.as_ptr(), dst_remaining.as_mut_ptr(), length)
+            } {
+                None => {
+                    self.pos += length;
+                    dest.pos += length;
+                    return CopyAsciiResult::Stop((pending, self.pos, dest.pos));
+                }
+                Some((non_ascii, consumed)) => {
+                    self.pos += consumed;
+                    dest.pos += consumed;
+                    if dest.pos + 3 < dst_len {
+                        let non_ascii32 = non_ascii as u32;
+                        if non_ascii32 < 0xE0u32 {
+                            let point = ((non_ascii32 & 0x1Fu32) << 6) |
+                                        (self.slice[self.pos + 1] as u32 & 0x3Fu32);
+                            self.pos += 2;
+                            NonAscii::BmpExclAscii(point as u16)
+                        } else if non_ascii32 < 0xF0u32 {
+                            let point = ((non_ascii32 & 0xFu32) << 12) |
+                                        ((self.slice[self.pos + 1] as u32 & 0x3Fu32) << 6) |
+                                        (self.slice[self.pos + 2] as u32 & 0x3Fu32);
+                            self.pos += 3;
+                            NonAscii::BmpExclAscii(point as u16)
+                        } else {
+                            let point = ((non_ascii32 & 0x7u32) << 18) |
+                                        ((self.slice[self.pos + 1] as u32 & 0x3Fu32) << 12) |
+                                        ((self.slice[self.pos + 2] as u32 & 0x3Fu32) << 6) |
+                                        (self.slice[self.pos + 3] as u32 & 0x3Fu32);
+                            self.pos += 4;
+                            NonAscii::Astral(unsafe { ::std::mem::transmute(point) })
+                        }
+                    } else {
+                        return CopyAsciiResult::Stop((EncoderResult::OutputFull,
+                                                      self.pos,
+                                                      dest.pos));
+                    }
+                }
+            }
+        };
+        return CopyAsciiResult::GoOn((non_ascii_ret, ByteFourHandle::new(dest)));
     }
 }
 

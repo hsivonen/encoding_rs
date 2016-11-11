@@ -12671,11 +12671,7 @@ pub fn gb18030_decode(pointer: usize) -> u16 {
 }
 
 #[inline(always)]
-pub fn gb18030_encode(c: char) -> usize {
-    if c > '\u{FFE5}' {
-        return usize::max_value();
-    }
-    let bmp = c as u16;
+pub fn gb18030_encode(bmp: u16) -> usize {
     let mut it = GB18030_INDEX.iter().enumerate();
     loop {
         match it.next() {
@@ -12795,14 +12791,10 @@ pub fn gb18030_range_decode(pointer: usize) -> char {
 }
 
 #[inline(always)]
-pub fn gb18030_range_encode(c: char) -> usize {
-    if c > '\u{FFFF}' {
-        return 189000usize + (c as usize - 0x10000usize);
-    }
-    if c == '\u{E7C7}' {
+pub fn gb18030_range_encode(bmp: u16) -> usize {
+    if bmp == 0xE7C7 {
         return 7457;
     }
-    let bmp = c as u16;
     let mut it = GB18030_RANGE_OFFSETS.iter().enumerate();
     loop {
         match it.next() {

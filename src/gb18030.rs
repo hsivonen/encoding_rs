@@ -265,60 +265,73 @@ impl Gb18030Encoder {
         }
     }
 
-    encoder_functions!({},
-                       {
-                           if c <= '\u{7F}' {
-                               // TODO optimize ASCII run
-                               destination_handle.write_one(c as u8);
-                               continue;
-                           }
-                           if c == '\u{E5E5}' {
-                               return (EncoderResult::Unmappable(c),
-                                       unread_handle.consumed(),
-                                       destination_handle.written());
-                           }
-                           if !self.extended && c == '\u{20AC}' {
-                               destination_handle.write_one(0x80u8);
-                               continue;
-                           }
-                           let pointer = gb18030_encode(c);
-                           if pointer != usize::max_value() {
-                               let lead = (pointer / 190) + 0x81;
-                               let trail = pointer % 190;
-                               let offset = if trail < 0x3F {
-                                   0x40
-                               } else {
-                                   0x41
-                               };
-                               destination_handle.write_two(lead as u8, (trail + offset) as u8);
-                               continue;
-                           }
-                           if !self.extended {
-                               return (EncoderResult::Unmappable(c),
-                                       unread_handle.consumed(),
-                                       destination_handle.written());
-                           }
-                           let range_pointer = gb18030_range_encode(c);
-                           let first = range_pointer / (10 * 126 * 10);
-                           let rem_first = range_pointer % (10 * 126 * 10);
-                           let second = rem_first / (10 * 126);
-                           let rem_second = rem_first % (10 * 126);
-                           let third = rem_second / 10;
-                           let fourth = rem_second % 10;
-                           destination_handle.write_four((first + 0x81) as u8,
-                                                         (second + 0x30) as u8,
-                                                         (third + 0x81) as u8,
-                                                         (fourth + 0x30) as u8);
-                           continue;
-                       },
-                       self,
-                       src_consumed,
-                       source,
-                       dest,
-                       c,
-                       destination_handle,
-                       unread_handle,
-                       check_space_four);
+    ascii_compatible_encoder_functions!({
+                                            if bmp == 0xE5E5 {
+                                                return (EncoderResult::unmappable_from_bmp(bmp),
+                                                        source.consumed(),
+                                                        handle.written());
+                                            }
+                                            if bmp == 0x20AC && !self.extended {
+                                                handle.write_one(0x80u8)
+                                            } else {
+                                                let pointer = gb18030_encode(bmp);
+                                                if pointer != usize::max_value() {
+                                                    let lead = (pointer / 190) + 0x81;
+                                                    let trail = pointer % 190;
+                                                    let offset = if trail < 0x3F {
+                                                        0x40
+                                                    } else {
+                                                        0x41
+                                                    };
+                                                    handle.write_two(lead as u8,
+                                                                     (trail + offset) as u8)
+                                                } else {
+                                                    if !self.extended {
+                                                        return (EncoderResult::unmappable_from_bmp(bmp),
+                                                            source.consumed(),
+                                                            handle.written());
+                                                    }
+                                                    let range_pointer = gb18030_range_encode(bmp);
+                                                    let first = range_pointer / (10 * 126 * 10);
+                                                    let rem_first = range_pointer % (10 * 126 * 10);
+                                                    let second = rem_first / (10 * 126);
+                                                    let rem_second = rem_first % (10 * 126);
+                                                    let third = rem_second / 10;
+                                                    let fourth = rem_second % 10;
+                                                    handle.write_four((first + 0x81) as u8,
+                                                                      (second + 0x30) as u8,
+                                                                      (third + 0x81) as u8,
+                                                                      (fourth + 0x30) as u8)
+                                                }
+                                            }
+                                        },
+                                        {
+                                            if !self.extended {
+                                                return (EncoderResult::Unmappable(astral),
+                                                        source.consumed(),
+                                                        handle.written());
+                                            }
+                                            let range_pointer = astral as usize +
+                                                                (189000usize - 0x10000usize);
+                                            let first = range_pointer / (10 * 126 * 10);
+                                            let rem_first = range_pointer % (10 * 126 * 10);
+                                            let second = rem_first / (10 * 126);
+                                            let rem_second = rem_first % (10 * 126);
+                                            let third = rem_second / 10;
+                                            let fourth = rem_second % 10;
+                                            handle.write_four((first + 0x81) as u8,
+                                                              (second + 0x30) as u8,
+                                                              (third + 0x81) as u8,
+                                                              (fourth + 0x30) as u8)
+                                        },
+                                        bmp,
+                                        astral,
+                                        self,
+                                        source,
+                                        handle,
+                                        copy_ascii_to_check_space_four,
+                                        check_space_four,
+                                        false);
 }
 
 // Any copyright to the test code below this comment is dedicated to the
