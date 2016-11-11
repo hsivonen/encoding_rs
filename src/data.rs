@@ -4673,7 +4673,7 @@ pub fn jis0208_encode(bmp: u16) -> usize {
 
 #[inline(always)]
 pub fn shift_jis_encode(c: char) -> usize {
-    if c > '\u{FFE5}' {
+    if c > '\u{FFFF}' {
         return usize::max_value();
     }
     let bmp = c as u16;

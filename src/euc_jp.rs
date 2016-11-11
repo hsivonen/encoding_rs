@@ -145,8 +145,8 @@ impl EucJpEncoder {
                                                     let pointer = jis0208_encode(bmp);
                                                     if pointer == usize::max_value() {
                                                         return (EncoderResult::unmappable_from_bmp(bmp),
-                                       source.consumed(),
-                                       handle.written());
+                                                                source.consumed(),
+                                                                handle.written());
                                                     }
                                                     let lead = (pointer / 94) + 0xA1;
                                                     let trail = (pointer % 94) + 0xA1;
