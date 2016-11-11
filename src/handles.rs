@@ -907,31 +907,27 @@ impl<'a> Utf8Source<'a> {
                 Some((non_ascii, consumed)) => {
                     self.pos += consumed;
                     dest.pos += consumed;
-                    if dest.pos + 1 < dst_len {
-                        let non_ascii32 = non_ascii as u32;
-                        if non_ascii32 < 0xE0u32 {
-                            let point = ((non_ascii32 & 0x1Fu32) << 6) |
-                                        (self.slice[self.pos + 1] as u32 & 0x3Fu32);
-                            self.pos += 2;
-                            NonAscii::BmpExclAscii(point as u16)
-                        } else if non_ascii32 < 0xF0u32 {
-                            let point = ((non_ascii32 & 0xFu32) << 12) |
-                                        ((self.slice[self.pos + 1] as u32 & 0x3Fu32) << 6) |
-                                        (self.slice[self.pos + 2] as u32 & 0x3Fu32);
-                            self.pos += 3;
-                            NonAscii::BmpExclAscii(point as u16)
-                        } else {
-                            let point = ((non_ascii32 & 0x7u32) << 18) |
-                                        ((self.slice[self.pos + 1] as u32 & 0x3Fu32) << 12) |
-                                        ((self.slice[self.pos + 2] as u32 & 0x3Fu32) << 6) |
-                                        (self.slice[self.pos + 3] as u32 & 0x3Fu32);
-                            self.pos += 4;
-                            NonAscii::Astral(unsafe { ::std::mem::transmute(point) })
-                        }
+                    // We don't need to check space in destination, because
+                    // `ascii_to_ascii()` already did.
+                    let non_ascii32 = non_ascii as u32;
+                    if non_ascii32 < 0xE0u32 {
+                        let point = ((non_ascii32 & 0x1Fu32) << 6) |
+                                    (self.slice[self.pos + 1] as u32 & 0x3Fu32);
+                        self.pos += 2;
+                        NonAscii::BmpExclAscii(point as u16)
+                    } else if non_ascii32 < 0xF0u32 {
+                        let point = ((non_ascii32 & 0xFu32) << 12) |
+                                    ((self.slice[self.pos + 1] as u32 & 0x3Fu32) << 6) |
+                                    (self.slice[self.pos + 2] as u32 & 0x3Fu32);
+                        self.pos += 3;
+                        NonAscii::BmpExclAscii(point as u16)
                     } else {
-                        return CopyAsciiResult::Stop((EncoderResult::OutputFull,
-                                                      self.pos,
-                                                      dest.pos));
+                        let point = ((non_ascii32 & 0x7u32) << 18) |
+                                    ((self.slice[self.pos + 1] as u32 & 0x3Fu32) << 12) |
+                                    ((self.slice[self.pos + 2] as u32 & 0x3Fu32) << 6) |
+                                    (self.slice[self.pos + 3] as u32 & 0x3Fu32);
+                        self.pos += 4;
+                        NonAscii::Astral(unsafe { ::std::mem::transmute(point) })
                     }
                 }
             }
