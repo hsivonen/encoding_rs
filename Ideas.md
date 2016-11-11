@@ -97,3 +97,9 @@ to read it again from RAM (cache).
 When decoding UTF-8 to UTF-8, consider performing validation only for non-ASCII
 and then performing the copy afterwards using `copy_nonoverlapping`, which
 hopefully does the writes using SIMD even if it involves re-reading.
+
+==Fewer branches with more code for gb18030/gbk==
+
+Test the impact of instantiating two copies of the encode functions with
+the `extended` set to `true` or `false` statically.
+
