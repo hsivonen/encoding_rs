@@ -4654,11 +4654,7 @@ pub fn jis0208_decode(pointer: usize) -> u16 {
 }
 
 #[inline(always)]
-pub fn jis0208_encode(c: char) -> usize {
-    if c > '\u{FFE5}' {
-        return usize::max_value();
-    }
-    let bmp = c as u16;
+pub fn jis0208_encode(bmp: u16) -> usize {
     let mut it = JIS0208.iter().enumerate();
     loop {
         match it.next() {

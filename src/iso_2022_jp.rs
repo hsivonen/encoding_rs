@@ -369,10 +369,16 @@ impl Iso2022JpEncoder {
                                        unread_handle.unread();
                                        continue;
                                    }
+                                   if c > '\u{FFFF}' {
+                                       return (EncoderResult::Unmappable(c),
+                                               unread_handle.consumed(),
+                                               destination_handle.written());
+                                   }
                                    // Yes, if c is in index, we'll search
                                    // again in the Jis0208 state, but this
                                    // encoder is not worth optimizing.
-                                   if c == '\u{2212}' || jis0208_encode(c) != usize::max_value() {
+                                   if c == '\u{2212}' ||
+                                      jis0208_encode(c as u16) != usize::max_value() {
                                        self.state = Iso2022JpEncoderState::Jis0208;
                                        destination_handle.write_three(0x1Bu8, 0x24u8, 0x42u8);
                                        unread_handle.unread();
@@ -406,10 +412,16 @@ impl Iso2022JpEncoder {
                                        destination_handle.write_one(0x7Eu8);
                                        continue;
                                    }
+                                   if c > '\u{FFFF}' {
+                                       return (EncoderResult::Unmappable(c),
+                                               unread_handle.consumed(),
+                                               destination_handle.written());
+                                   }
                                    // Yes, if c is in index, we'll search
                                    // again in the Jis0208 state, but this
                                    // encoder is not worth optimizing.
-                                   if c == '\u{2212}' || jis0208_encode(c) != usize::max_value() {
+                                   if c == '\u{2212}' ||
+                                      jis0208_encode(c as u16) != usize::max_value() {
                                        self.state = Iso2022JpEncoderState::Jis0208;
                                        destination_handle.write_three(0x1Bu8, 0x24u8, 0x42u8);
                                        unread_handle.unread();
@@ -436,7 +448,16 @@ impl Iso2022JpEncoder {
                                        destination_handle.write_two(0x21, 0x5D);
                                        continue;
                                    }
-                                   let pointer = jis0208_encode(c);
+                                   if c > '\u{FFFF}' {
+                                       // Transition to ASCII here in order
+                                       // not to make it the responsibility
+                                       // of the caller.
+                                       self.state = Iso2022JpEncoderState::Ascii;
+                                       return (EncoderResult::Unmappable(c),
+                                               unread_handle.consumed(),
+                                               destination_handle.write_three_return_written(0x1Bu8, 0x28u8, 0x42u8));
+                                   }
+                                   let pointer = jis0208_encode(c as u16);
                                    if pointer == usize::max_value() {
                                        // Transition to ASCII here in order
                                        // not to make it the responsibility
