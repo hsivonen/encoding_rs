@@ -112,62 +112,24 @@ impl EucKrEncoder {
         byte_length
     }
 
-    encoder_function!({},
-                      {
-                          if c <= '\u{7F}' {
-                              // TODO optimize ASCII run
-                              destination_handle.write_one(c as u8);
-                              continue;
-                          }
-                          if c > '\u{FFFF}' {
-                              return (EncoderResult::Unmappable(c),
-                                      unread_handle.consumed(),
-                                      destination_handle.written());
-                          }
-                          let pointer = euc_kr_encode(c as u16);
-                          if pointer == usize::max_value() {
-                              return (EncoderResult::Unmappable(c),
-                                      unread_handle.consumed(),
-                                      destination_handle.written());
-                          }
-                          let lead = (pointer / 190) + 0x81;
-                          let trail = (pointer % 190) + 0x41;
-                          destination_handle.write_two(lead as u8, trail as u8);
-                          continue;
-                      },
-                      self,
-                      src_consumed,
-                      source,
-                      dest,
-                      c,
-                      destination_handle,
-                      unread_handle,
-                      check_space_two,
-                      encode_from_utf16_raw,
-                      [u16],
-                      Utf16Source);
-
-    ascii_compatible_bmp_encoder_function!({
-                                               let pointer = euc_kr_encode(bmp);
-                                               if pointer == usize::max_value() {
-                                                   return (EncoderResult::unmappable_from_bmp(bmp),
-                                                           source.consumed(),
-                                                           handle.written());
-                                               }
-                                               let lead = (pointer / 190) + 0x81;
-                                               let trail = (pointer % 190) + 0x41;
-                                               handle.write_two(lead as u8, trail as u8)
-                                           },
-                                           bmp,
-                                           self,
-                                           source,
-                                           handle,
-                                           copy_ascii_to_check_space_two,
-                                           check_space_two,
-                                           encode_from_utf8_raw,
-                                           str,
-                                           Utf8Source,
-                                           true);
+    ascii_compatible_bmp_encoder_functions!({
+                                                let pointer = euc_kr_encode(bmp);
+                                                if pointer == usize::max_value() {
+                                                    return (EncoderResult::unmappable_from_bmp(bmp),
+                                                            source.consumed(),
+                                                            handle.written());
+                                                }
+                                                let lead = (pointer / 190) + 0x81;
+                                                let trail = (pointer % 190) + 0x41;
+                                                handle.write_two(lead as u8, trail as u8)
+                                            },
+                                            bmp,
+                                            self,
+                                            source,
+                                            handle,
+                                            copy_ascii_to_check_space_two,
+                                            check_space_two,
+                                            true);
 }
 
 // Any copyright to the test code below this comment is dedicated to the
