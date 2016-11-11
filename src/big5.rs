@@ -175,48 +175,52 @@ impl Big5Encoder {
         byte_length
     }
 
-    encoder_functions!({},
-                       {
-                           if c <= '\u{7F}' {
-                               // TODO optimize ASCII run
-                               destination_handle.write_one(c as u8);
-                               continue;
-                           }
-                           let high_bits = c as u32 & 0xFF0000;
-                           let (low_bits, is_astral) = if high_bits == 0 {
-                               (c as u16, false)
-                           } else if high_bits == 0x20000 {
-                               ((c as u32 & 0xFFFF) as u16, true)
-                           } else {
-                               // Only BMP and Plane 2 are potentially mappable.
-                               return (EncoderResult::Unmappable(c),
-                                       unread_handle.consumed(),
-                                       destination_handle.written());
-                           };
-                           let pointer = big5_find_pointer(low_bits, is_astral);
-                           if pointer == 0 {
-                               return (EncoderResult::Unmappable(c),
-                                       unread_handle.consumed(),
-                                       destination_handle.written());
-                           }
-                           let lead = pointer / 157 + 0x81;
-                           let remainder = pointer % 157;
-                           let trail = if remainder < 0x3F {
-                               remainder + 0x40
-                           } else {
-                               remainder + 0x62
-                           };
-                           destination_handle.write_two(lead as u8, trail as u8);
-                           continue;
-                       },
-                       self,
-                       src_consumed,
-                       source,
-                       dest,
-                       c,
-                       destination_handle,
-                       unread_handle,
-                       check_space_two);
+    ascii_compatible_encoder_functions!({
+                                            let pointer = big5_find_pointer(bmp, false);
+                                            if pointer == 0 {
+                                                return (EncoderResult::unmappable_from_bmp(bmp),
+                                                        source.consumed(),
+                                                        handle.written());
+                                            }
+                                            let lead = pointer / 157 + 0x81;
+                                            let remainder = pointer % 157;
+                                            let trail = if remainder < 0x3F {
+                                                remainder + 0x40
+                                            } else {
+                                                remainder + 0x62
+                                            };
+                                            handle.write_two(lead as u8, trail as u8)
+                                        },
+                                        {
+                                            if astral as u32 & 0xFF0000 != 0x20000 {
+                                                // Only Plane 2 is potentially mappable of the astral planes.
+                                                return (EncoderResult::Unmappable(astral),
+                                                        source.consumed(),
+                                                        handle.written());
+                                            }
+                                            let pointer = big5_find_pointer(astral as u16, true);
+                                            if pointer == 0 {
+                                                return (EncoderResult::Unmappable(astral),
+                                                        source.consumed(),
+                                                        handle.written());
+                                            }
+                                            let lead = pointer / 157 + 0x81;
+                                            let remainder = pointer % 157;
+                                            let trail = if remainder < 0x3F {
+                                                remainder + 0x40
+                                            } else {
+                                                remainder + 0x62
+                                            };
+                                            handle.write_two(lead as u8, trail as u8)
+                                        },
+                                        bmp,
+                                        astral,
+                                        self,
+                                        source,
+                                        handle,
+                                        copy_ascii_to_check_space_two,
+                                        check_space_two,
+                                        false);
 }
 
 // Any copyright to the test code below this comment is dedicated to the
