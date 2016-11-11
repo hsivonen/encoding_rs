@@ -380,10 +380,6 @@ impl<'a, 'b> Utf8AstralHandle<'a, 'b>
         self.dest.written()
     }
     #[inline(always)]
-    pub fn write_char(self, c: char) {
-        self.dest.write_char(c);
-    }
-    #[inline(always)]
     pub fn write_char_excl_ascii(self, c: char) {
         self.dest.write_char(c);
     }
@@ -1291,6 +1287,11 @@ impl<'a, 'b> ByteFourHandle<'a, 'b>
     #[inline(always)]
     pub fn write_two(self, first: u8, second: u8) -> &'a mut ByteDestination<'b> {
         self.dest.write_two(first, second);
+        self.dest
+    }
+    #[inline(always)]
+    pub fn write_three(self, first: u8, second: u8, third: u8) -> &'a mut ByteDestination<'b> {
+        self.dest.write_three(first, second, third);
         self.dest
     }
     #[inline(always)]

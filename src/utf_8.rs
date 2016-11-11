@@ -148,36 +148,28 @@ impl Utf8Encoder {
         byte_length
     }
 
-    pub fn encode_from_utf16_raw(&mut self,
-                                 src: &[u16],
-                                 dst: &mut [u8],
-                                 _last: bool)
-                                 -> (EncoderResult, usize, usize) {
-        let mut source = Utf16Source::new(src);
-        let mut dest = Utf8Destination::new(dst);
-        loop {
-            match source.check_available() {
-                Space::Full(src_consumed) => {
-                    return (EncoderResult::InputEmpty, src_consumed, dest.written());
-                }
-                Space::Available(source_handle) => {
-                    match dest.check_space_astral() {
-                        Space::Full(dst_written) => {
-                            return (EncoderResult::OutputFull,
-                                    source_handle.consumed(),
-                                    dst_written);
-                        }
-                        Space::Available(destination_handle) => {
-                            let (c, _) = source_handle.read();
-                            // Start non-boilerplate
-                            destination_handle.write_char(c);
-                            // End non-boilerplate
-                        }
-                    }
-                }
-            }
-        }
-    }
+    ascii_compatible_encoder_function!({
+                                           if bmp < 0x800u16 {
+                                               handle.write_two(((bmp as u32 >> 6) | 0xC0u32) as u8,((bmp as u32 & 0x3Fu32) | 0x80u32) as u8)
+                                           } else {
+                                               handle.write_three(((bmp as u32 >> 12) | 0xE0u32) as u8,(((bmp as u32 & 0xFC0u32) >> 6) | 0x80u32) as u8,((bmp as u32 & 0x3Fu32) | 0x80u32) as u8)
+                                           }
+                                       },
+                                       {
+                                           let astral32 = astral as u32;
+                                           handle.write_four(((astral32 >> 18) | 0xF0u32) as u8,(((astral32 & 0x3F000u32) >> 12) | 0x80u32) as u8,(((astral32 & 0xFC0u32) >> 6) | 0x80u32) as u8,((astral32 & 0x3Fu32) | 0x80u32) as u8)
+                                       },
+                                       bmp,
+                                       astral,
+                                       self,
+                                       source,
+                                       handle,
+                                       copy_ascii_to_check_space_four,
+                                       check_space_four,
+                                       encode_from_utf16_raw,
+                                       [u16],
+                                       Utf16Source,
+                                       true);
 
     pub fn encode_from_utf8_raw(&mut self,
                                 src: &str,
