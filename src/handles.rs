@@ -336,7 +336,6 @@ impl<'a> Utf16Destination<'a> {
          source: &mut ByteSource)
          -> CopyAsciiResult<(DecoderResult, usize, usize), (u8, Utf16BmpHandle<'b, 'a>)> {
         let non_ascii_ret = {
-            let dst_len = self.slice.len();
             let src_remaining = &source.slice[source.pos..];
             let mut dst_remaining = &mut self.slice[self.pos..];
             let (pending, length) = if dst_remaining.len() < src_remaining.len() {

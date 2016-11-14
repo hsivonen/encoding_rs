@@ -13,20 +13,19 @@ use variant::*;
 use super::*;
 
 pub struct ShiftJisDecoder {
-    lead: u8,
+    lead: Option<u8>,
 }
 
 impl ShiftJisDecoder {
     pub fn new() -> VariantDecoder {
-        VariantDecoder::ShiftJis(ShiftJisDecoder { lead: 0 })
+        VariantDecoder::ShiftJis(ShiftJisDecoder { lead: None })
     }
 
     fn plus_one_if_lead(&self, byte_length: usize) -> usize {
         byte_length +
-        if self.lead == 0 {
-            0
-        } else {
-            1
+        match self.lead {
+            None => 0,
+            Some(_) => 1,
         }
     }
 
@@ -44,79 +43,90 @@ impl ShiftJisDecoder {
         self.plus_one_if_lead(byte_length) * 3
     }
 
-    decoder_functions!({},
-                       {
-                           if self.lead != 0 {
-                               self.lead = 0;
-                               return (DecoderResult::Malformed(1, 0),
-                                       src_consumed,
-                                       dest.written());
-                           }
-                       },
-                       {
-                           if self.lead == 0 {
-                               if b <= 0x7f {
-                                   // TODO optimize ASCII run
-                                   destination_handle.write_ascii(b);
-                                   continue;
-                               }
-                               if b == 0x80 {
-                                   destination_handle.write_mid_bmp(b as u16);
-                                   continue;
-                               }
-                               if b >= 0xA1 && b <= 0xDF {
-                                   destination_handle.write_upper_bmp(0xFF61 - 0xA1 + b as u16);
-                                   continue;
-                               }
-                               if (b >= 0x81 && b <= 0x9F) || (b >= 0xE0 && b <= 0xFC) {
-                                   self.lead = b;
-                                   continue;
-                               }
-                               return (DecoderResult::Malformed(1, 0),
-                                       unread_handle.consumed(),
-                                       destination_handle.written());
-                           }
-                           let lead = self.lead as usize;
-                           self.lead = 0;
-                           let offset = if b < 0x7F {
-                               0x40usize
-                           } else {
-                               0x41usize
-                           };
-                           let lead_offset = if lead < 0xA0 {
-                               0x81usize
-                           } else {
-                               0xC1usize
-                           };
-                           if (b >= 0x40 && b <= 0x7E) || (b >= 0x80 && b <= 0xFC) {
-                               let pointer = (lead as usize - lead_offset) * 188usize +
-                                             (b as usize - offset);
-                               if pointer >= 8836 && pointer <= 10528 {
-                                   destination_handle.write_upper_bmp((0xE000 - 8836 + pointer) as u16);
-                                   continue;
-                               }
-                               let bmp = jis0208_decode(pointer);
-                               if bmp != 0 {
-                                   destination_handle.write_bmp_excl_ascii(bmp);
-                                   continue;
-                               }
-                           }
-                           if b <= 0x7F {
-                               return (DecoderResult::Malformed(1, 0),
-                                       unread_handle.unread(),
-                                       destination_handle.written());
-                           }
-                           return (DecoderResult::Malformed(2, 0),
-                                   unread_handle.consumed(),
-                                   destination_handle.written());
-                       },
-                       self,
-                       src_consumed,
-                       dest,
-                       b,
-                       destination_handle,
-                       unread_handle,
-                       check_space_bmp);
+    ascii_compatible_two_byte_decoder_functions!({
+    // If lead is between 0x81 and 0x9F, inclusive,
+    // subtract offset 0x81. Else if lead is
+    // between 0xE0 and 0xFC, inclusive, subtract
+    // offset 0xC1. Else if lead is between
+    // 0xA1 and 0xDF, inclusive, map to half-width
+    // Katakana. Else if lead is 0x80, pass through.
+                                                     let mut non_ascii_minus_offset =
+                                                         non_ascii.wrapping_sub(0x81);
+                                                     if non_ascii_minus_offset > (0x9F - 0x81) {
+                                                         let non_ascii_minus_range_start = non_ascii.wrapping_sub(0xE0);
+                                                         if non_ascii_minus_range_start > (0xFC - 0xE0) {
+                                                             let non_ascii_minus_half_with_katakana_start = non_ascii.wrapping_sub(0xA1);
+                                                             if non_ascii_minus_half_with_katakana_start > (0xDF - 0xA1) {
+                                                                 if non_ascii == 0x80 {
+                                                                     handle.write_mid_bmp(0x80);
+    // Not caring about optimizing subsequent non-ASCII
+                                                                     continue 'outermost;
+                                                                 }
+                                                                 return (DecoderResult::Malformed(1, 0),
+                                                                         source.consumed(),
+                                                                         handle.written());
+                                                             }
+                                                             handle.write_upper_bmp(0xFF61 + non_ascii_minus_half_with_katakana_start as u16);
+                                                             // Not caring about optimizing subsequent non-ASCII
+                                                             continue 'outermost;
+                                                         }
+                                                         non_ascii_minus_offset = non_ascii - 0xC1;
+                                                     }
+                                                     non_ascii_minus_offset
+                                                 },
+                                                 {
+    // If trail is between 0x40 and 0x7E, inclusive,
+    // subtract offset 0x40. Else if trail is
+    // between 0x80 and 0xFC, inclusive, subtract
+    // offset 0x41.
+                                                     let mut trail_minus_offset =
+                                                         byte.wrapping_sub(0x40);
+                                                     if trail_minus_offset > (0x7E - 0x40) {
+                                                         let trail_minus_range_start =
+                                                             byte.wrapping_sub(0x80);
+                                                         if trail_minus_range_start > (0xFC - 0x80) {
+                                                             if byte < 0x80 {
+                                                                 return (DecoderResult::Malformed(1, 0),
+                                                                         unread_handle_trail.unread(),
+                                                                         handle.written());
+                                                             }
+                                                             return (DecoderResult::Malformed(2, 0),
+                                                                     unread_handle_trail.consumed(),
+                                                                     handle.written());
+                                                         }
+                                                         trail_minus_offset = byte - 0x41;
+                                                     }
+                                                     let pointer = lead_minus_offset as usize *
+                                                                   188usize +
+                                                                   trail_minus_offset as usize;
+                                                     if pointer >= 8836 && pointer <= 10528 {
+                                                         handle.write_upper_bmp((0xE000 - 8836 + pointer) as u16)
+                                                     } else {
+                                                         let bmp = jis0208_decode(pointer);
+                                                         if bmp == 0 {
+                                                             if byte < 0x80 {
+                                                                 return (DecoderResult::Malformed(1, 0),
+                                                                         unread_handle_trail.unread(),
+                                                                         handle.written());
+                                                             }
+                                                             return (DecoderResult::Malformed(2, 0),
+                                                                     unread_handle_trail.consumed(),
+                                                                     handle.written());
+                                                         }
+                                                         handle.write_bmp_excl_ascii(bmp)
+                                                     }
+                                                 },
+                                                 self,
+                                                 non_ascii,
+                                                 byte,
+                                                 lead_minus_offset,
+                                                 unread_handle_trail,
+                                                 source,
+                                                 handle,
+                                                 'outermost,
+                                                 copy_ascii_from_check_space_bmp,
+                                                 check_space_bmp,
+                                                 false);
 }
 
 pub struct ShiftJisEncoder;

@@ -13,20 +13,19 @@ use variant::*;
 use super::*;
 
 pub struct EucKrDecoder {
-    lead: u8,
+    lead: Option<u8>,
 }
 
 impl EucKrDecoder {
     pub fn new() -> VariantDecoder {
-        VariantDecoder::EucKr(EucKrDecoder { lead: 0 })
+        VariantDecoder::EucKr(EucKrDecoder { lead: None })
     }
 
     fn plus_one_if_lead(&self, byte_length: usize) -> usize {
         byte_length +
-        if self.lead == 0 {
-            0
-        } else {
-            1
+        match self.lead {
+            None => 0,
+            Some(_) => 1,
         }
     }
 
@@ -45,8 +44,8 @@ impl EucKrDecoder {
     }
 
     ascii_compatible_two_byte_decoder_functions!({
-                                                     // If lead is between 0x81 and 0xFE, inclusive,
-                                                     // subtract offset 0x81.
+    // If lead is between 0x81 and 0xFE, inclusive,
+    // subtract offset 0x81.
                                                      let non_ascii_minus_offset =
                                                          non_ascii.wrapping_sub(0x81);
                                                      if non_ascii_minus_offset > (0xFE - 0x81) {
@@ -57,8 +56,8 @@ impl EucKrDecoder {
                                                      non_ascii_minus_offset
                                                  },
                                                  {
-                                                     // If trail is between 0x41 and 0xFE, inclusive,
-                                                     // subtract offset 0x41.
+    // If trail is between 0x41 and 0xFE, inclusive,
+    // subtract offset 0x41.
                                                      let trail_minus_offset =
                                                          byte.wrapping_sub(0x41);
                                                      if trail_minus_offset > (0xFE - 0x41) {
@@ -94,6 +93,7 @@ impl EucKrDecoder {
                                                  unread_handle_trail,
                                                  source,
                                                  handle,
+                                                 'outermost,
                                                  copy_ascii_from_check_space_bmp,
                                                  check_space_bmp,
                                                  true);

@@ -13,20 +13,19 @@ use variant::*;
 use super::*;
 
 pub struct Big5Decoder {
-    lead: u8,
+    lead: Option<u8>,
 }
 
 impl Big5Decoder {
     pub fn new() -> VariantDecoder {
-        VariantDecoder::Big5(Big5Decoder { lead: 0 })
+        VariantDecoder::Big5(Big5Decoder { lead: None })
     }
 
     fn plus_one_if_lead(&self, byte_length: usize) -> usize {
         byte_length +
-        if self.lead == 0 {
-            0
-        } else {
-            1
+        match self.lead {
+            None => 0,
+            Some(_) => 1,
         }
     }
 
@@ -67,8 +66,8 @@ impl Big5Decoder {
     }
 
     ascii_compatible_two_byte_decoder_functions!({
-                                                     // If lead is between 0x81 and 0xFE, inclusive,
-                                                     // subtract offset 0x81.
+    // If lead is between 0x81 and 0xFE, inclusive,
+    // subtract offset 0x81.
                                                      let non_ascii_minus_offset =
                                                          non_ascii.wrapping_sub(0x81);
                                                      if non_ascii_minus_offset > (0xFE - 0x81) {
@@ -79,11 +78,11 @@ impl Big5Decoder {
                                                      non_ascii_minus_offset
                                                  },
                                                  {
-                                                     // If trail is between 0x40 and 0x7E, inclusive,
-                                                     // subtract offset 0x40. Else if trail is
-                                                     // between 0xA1 and 0xFE, inclusive, subtract
-                                                     // offset 0x62.
-                                                     // TODO: Find out which range is more probable.
+    // If trail is between 0x40 and 0x7E, inclusive,
+    // subtract offset 0x40. Else if trail is
+    // between 0xA1 and 0xFE, inclusive, subtract
+    // offset 0x62.
+    // TODO: Find out which range is more probable.
                                                      let mut trail_minus_offset =
                                                          byte.wrapping_sub(0x40);
                                                      if trail_minus_offset > (0x7E - 0x40) {
@@ -150,6 +149,7 @@ impl Big5Decoder {
                                                  unread_handle_trail,
                                                  source,
                                                  handle,
+                                                 'outermost,
                                                  copy_ascii_from_check_space_astral,
                                                  check_space_astral,
                                                  false);

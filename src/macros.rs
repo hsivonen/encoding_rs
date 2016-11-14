@@ -115,6 +115,7 @@ macro_rules! ascii_compatible_two_byte_decoder_function {
      $unread_handle_trail:ident,
      $source:ident,
      $handle:ident,
+     $outermost:tt,
      $copy_ascii:ident,
      $destination_check:ident,
      $name:ident,
@@ -128,40 +129,44 @@ macro_rules! ascii_compatible_two_byte_decoder_function {
                  -> (DecoderResult, usize, usize) {
         let mut $source = ByteSource::new(src);
         let mut dest_prolog = $dest_struct::new(dst);
-        let dest = if $slf.lead != 0 {
-            let $lead_minus_offset = $slf.lead;
+        let dest = match $slf.lead {
+            Some(lead) => {
+                let $lead_minus_offset = lead;
+                $slf.lead = None;
 // Since we don't have `goto` we could use to jump into the trail
 // handling part of the main loop, we need to repeat trail handling
 // here.
-            match $source.check_available() {
-                Space::Full(src_consumed_prolog) => {
-                    if last {
-                        return (DecoderResult::Malformed(1, 0),
-                                src_consumed_prolog,
-                                dest_prolog.written());
-                    }
-                    return (DecoderResult::InputEmpty, src_consumed_prolog, dest_prolog.written());
-                }
-                Space::Available(source_handle_prolog) => {
-                    match dest_prolog.$destination_check() {
-                        Space::Full(dst_written_prolog) => {
-                            return (DecoderResult::OutputFull,
-                                    source_handle_prolog.consumed(),
-                                    dst_written_prolog);
+                match $source.check_available() {
+                    Space::Full(src_consumed_prolog) => {
+                        if last {
+                            return (DecoderResult::Malformed(1, 0),
+                                    src_consumed_prolog,
+                                    dest_prolog.written());
                         }
-                        Space::Available($handle) => {
-                            let ($byte, $unread_handle_trail) = source_handle_prolog.read();
+                        return (DecoderResult::InputEmpty, src_consumed_prolog, dest_prolog.written());
+                    }
+                    Space::Available(source_handle_prolog) => {
+                        match dest_prolog.$destination_check() {
+                            Space::Full(dst_written_prolog) => {
+                                return (DecoderResult::OutputFull,
+                                        source_handle_prolog.consumed(),
+                                        dst_written_prolog);
+                            }
+                            Space::Available($handle) => {
+                                let ($byte, $unread_handle_trail) = source_handle_prolog.read();
 // Start non-boilerplate
-                            $trail
+                                $trail
 // End non-boilerplate
+                            }
                         }
                     }
                 }
+            },
+            None => {
+                &mut dest_prolog
             }
-        } else {
-            &mut dest_prolog
         };
-        'outermost: loop {
+        $outermost: loop {
             match dest.$copy_ascii(&mut $source) {
                 CopyAsciiResult::Stop(ret) => return ret,
                 CopyAsciiResult::GoOn((mut $non_ascii, mut $handle)) => {
@@ -179,7 +184,7 @@ macro_rules! ascii_compatible_two_byte_decoder_function {
                                                 src_consumed_trail,
                                                 $handle.written());
                                     }
-                                    $slf.lead = $lead_minus_offset;
+                                    $slf.lead = Some($lead_minus_offset);
                                     return (DecoderResult::InputEmpty,
                                             src_consumed_trail,
                                             $handle.written());
@@ -248,7 +253,7 @@ macro_rules! ascii_compatible_two_byte_decoder_function {
                                                 }
                                             }
                                             // We've got markup or ASCII text
-                                            continue 'outermost;
+                                            continue $outermost;
                                         }
                                     }
                                 }
@@ -273,6 +278,7 @@ macro_rules! ascii_compatible_two_byte_decoder_functions {
      $unread_handle_trail:ident,
      $source:ident,
      $handle:ident,
+     $outermost:tt,
      $copy_ascii:ident,
      $destination_check:ident,
      $ascii_punctuation:expr) => (
@@ -285,6 +291,7 @@ macro_rules! ascii_compatible_two_byte_decoder_functions {
                                                       $unread_handle_trail,
                                                       $source,
                                                       $handle,
+                                                      $outermost,
                                                       $copy_ascii,
                                                       $destination_check,
                                                       decode_to_utf8_raw,
@@ -300,6 +307,7 @@ macro_rules! ascii_compatible_two_byte_decoder_functions {
                                                       $unread_handle_trail,
                                                       $source,
                                                       $handle,
+                                                      $outermost,
                                                       $copy_ascii,
                                                       $destination_check,
                                                       decode_to_utf16_raw,
