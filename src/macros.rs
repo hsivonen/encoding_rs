@@ -105,6 +105,206 @@ macro_rules! decoder_functions {
     );
 }
 
+macro_rules! ascii_compatible_two_byte_decoder_function {
+    ($lead:block,
+     $trail:block,
+     $slf:ident,
+     $non_ascii:ident,
+     $byte:ident,
+     $lead_minus_offset:ident,
+     $unread_handle_trail:ident,
+     $source:ident,
+     $handle:ident,
+     $copy_ascii:ident,
+     $destination_check:ident,
+     $name:ident,
+     $code_unit:ty,
+     $dest_struct:ident) => (
+    pub fn $name(&mut $slf,
+                 src: &[u8],
+                 dst: &mut [$code_unit],
+                 last: bool)
+                 -> (DecoderResult, usize, usize) {
+        let mut $source = ByteSource::new(src);
+        let mut dest_prolog = $dest_struct::new(dst);
+        let dest = if $slf.lead != 0 {
+            let $lead_minus_offset = $slf.lead;
+// Since we don't have `goto` we could use to jump into the trail
+// handling part of the main loop, we need to repeat trail handling
+// here.
+            match $source.check_available() {
+                Space::Full(src_consumed_prolog) => {
+                    if last {
+                        return (DecoderResult::Malformed(1, 0),
+                                src_consumed_prolog,
+                                dest_prolog.written());
+                    }
+                    return (DecoderResult::InputEmpty, src_consumed_prolog, dest_prolog.written());
+                }
+                Space::Available(source_handle_prolog) => {
+                    match dest_prolog.$destination_check() {
+                        Space::Full(dst_written_prolog) => {
+                            return (DecoderResult::OutputFull,
+                                    source_handle_prolog.consumed(),
+                                    dst_written_prolog);
+                        }
+                        Space::Available($handle) => {
+                            let ($byte, $unread_handle_trail) = source_handle_prolog.read();
+// Start non-boilerplate
+                            $trail
+// End non-boilerplate
+                        }
+                    }
+                }
+            }
+        } else {
+            &mut dest_prolog
+        };
+        'outermost: loop {
+            match dest.$copy_ascii(&mut $source) {
+                CopyAsciiResult::Stop(ret) => return ret,
+                CopyAsciiResult::GoOn((mut $non_ascii, mut $handle)) => {
+                    'middle: loop {
+                        let dest_again = {
+                            let $lead_minus_offset = {
+// Start non-boilerplate
+                                $lead
+// End non-boilerplate
+                            };
+                            match $source.check_available() {
+                                Space::Full(src_consumed_trail) => {
+                                    if last {
+                                        return (DecoderResult::Malformed(1, 0),
+                                                src_consumed_trail,
+                                                $handle.written());
+                                    }
+                                    $slf.lead = $lead_minus_offset;
+                                    return (DecoderResult::InputEmpty,
+                                            src_consumed_trail,
+                                            $handle.written());
+                                }
+                                Space::Available(source_handle_trail) => {
+                                    let ($byte, $unread_handle_trail) = source_handle_trail.read();
+// Start non-boilerplate
+                                    $trail
+// End non-boilerplate
+                                }
+                            }
+                        };
+                        match $source.check_available() {
+                            Space::Full(src_consumed) => {
+                                return (DecoderResult::InputEmpty,
+                                        src_consumed,
+                                        dest_again.written());
+                            }
+                            Space::Available(source_handle) => {
+                                match dest_again.$destination_check() {
+                                    Space::Full(dst_written) => {
+                                        return (DecoderResult::OutputFull,
+                                                source_handle.consumed(),
+                                                dst_written);
+                                    }
+                                    Space::Available(mut destination_handle) => {
+                                        let (mut b, unread_handle) = source_handle.read();
+                                        let source_again = unread_handle.decommit();
+                                        'innermost: loop {
+                                            if b > 127 {
+                                                $non_ascii = b;
+                                                $handle = destination_handle;
+                                                continue 'middle;
+                                            }
+// Testing on Haswell says that we should write the
+// byte unconditionally instead of trying to unread it
+// to make it part of the next SIMD stride.
+                                            let dest_again_again =
+                                                destination_handle.write_ascii(b);
+                                            if b < 60 {
+// We've got punctuation
+                                                match source_again.check_available() {
+                                                    Space::Full(src_consumed_again) => {
+                                                        return (DecoderResult::InputEmpty,
+                                                                src_consumed_again,
+                                                                dest_again_again.written());
+                                                    }
+                                                    Space::Available(source_handle_again) => {
+                                                        match dest_again_again.$destination_check() {
+                                                            Space::Full(dst_written_again) => {
+                                                                return (DecoderResult::OutputFull,
+                                                                        source_handle_again.consumed(),
+                                                                        dst_written_again);
+                                                            }
+                                                            Space::Available(destination_handle_again) => {
+                                                                {
+                                                                    let (b_again, _unread_handle_again) =
+                                                                        source_handle_again.read();
+                                                                    b = b_again;
+                                                                    destination_handle = destination_handle_again;
+                                                                    continue 'innermost;
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                            // We've got markup or ASCII text
+                                            continue 'outermost;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        unreachable!("Should always continue earlier.");
+                    }
+                }
+            }
+            unreachable!("Should always continue earlier.");
+        }
+    });
+}
+
+macro_rules! ascii_compatible_two_byte_decoder_functions {
+    ($lead:block,
+     $trail:block,
+     $slf:ident,
+     $non_ascii:ident,
+     $byte:ident,
+     $lead_minus_offset:ident,
+     $unread_handle_trail:ident,
+     $source:ident,
+     $handle:ident,
+     $copy_ascii:ident,
+     $destination_check:ident) => (
+         ascii_compatible_two_byte_decoder_function!($lead,
+                                                      $trail,
+                                                      $slf,
+                                                      $non_ascii,
+                                                      $byte,
+                                                      $lead_minus_offset,
+                                                      $unread_handle_trail,
+                                                      $source,
+                                                      $handle,
+                                                      $copy_ascii,
+                                                      $destination_check,
+                                                      decode_to_utf8_raw,
+                                                      u8,
+                                                      Utf8Destination);
+         ascii_compatible_two_byte_decoder_function!($lead,
+                                                      $trail,
+                                                      $slf,
+                                                      $non_ascii,
+                                                      $byte,
+                                                      $lead_minus_offset,
+                                                      $unread_handle_trail,
+                                                      $source,
+                                                      $handle,
+                                                      $copy_ascii,
+                                                      $destination_check,
+                                                      decode_to_utf16_raw,
+                                                      u16,
+                                                      Utf16Destination);
+    );
+}
+
 macro_rules! encoder_function {
     ($eof:block,
      $body:block,

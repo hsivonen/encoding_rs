@@ -152,24 +152,29 @@ impl<'a, 'b> Utf16BmpHandle<'a, 'b>
         self.dest.written()
     }
     #[inline(always)]
-    pub fn write_ascii(self, ascii: u8) {
+    pub fn write_ascii(self, ascii: u8) -> &'a mut Utf16Destination<'b> {
         self.dest.write_ascii(ascii);
+        self.dest
     }
     #[inline(always)]
-    pub fn write_bmp(self, bmp: u16) {
+    pub fn write_bmp(self, bmp: u16) -> &'a mut Utf16Destination<'b> {
         self.dest.write_bmp(bmp);
+        self.dest
     }
     #[inline(always)]
-    pub fn write_bmp_excl_ascii(self, bmp: u16) {
+    pub fn write_bmp_excl_ascii(self, bmp: u16) -> &'a mut Utf16Destination<'b> {
         self.dest.write_bmp_excl_ascii(bmp);
+        self.dest
     }
     #[inline(always)]
-    pub fn write_mid_bmp(self, bmp: u16) {
+    pub fn write_mid_bmp(self, bmp: u16) -> &'a mut Utf16Destination<'b> {
         self.dest.write_mid_bmp(bmp);
+        self.dest
     }
     #[inline(always)]
-    pub fn write_upper_bmp(self, bmp: u16) {
+    pub fn write_upper_bmp(self, bmp: u16) -> &'a mut Utf16Destination<'b> {
         self.dest.write_upper_bmp(bmp);
+        self.dest
     }
 }
 
@@ -191,36 +196,47 @@ impl<'a, 'b> Utf16AstralHandle<'a, 'b>
         self.dest.written()
     }
     #[inline(always)]
-    pub fn write_char_excl_ascii(self, c: char) {
+    pub fn write_char_excl_ascii(self, c: char) -> &'a mut Utf16Destination<'b> {
         self.dest.write_char(c);
+        self.dest
     }
     #[inline(always)]
-    pub fn write_ascii(self, ascii: u8) {
+    pub fn write_ascii(self, ascii: u8) -> &'a mut Utf16Destination<'b> {
         self.dest.write_ascii(ascii);
+        self.dest
     }
     #[inline(always)]
-    pub fn write_bmp(self, bmp: u16) {
+    pub fn write_bmp(self, bmp: u16) -> &'a mut Utf16Destination<'b> {
         self.dest.write_bmp(bmp);
+        self.dest
     }
     #[inline(always)]
-    pub fn write_bmp_excl_ascii(self, bmp: u16) {
+    pub fn write_bmp_excl_ascii(self, bmp: u16) -> &'a mut Utf16Destination<'b> {
         self.dest.write_bmp_excl_ascii(bmp);
+        self.dest
     }
     #[inline(always)]
-    pub fn write_upper_bmp(self, bmp: u16) {
+    pub fn write_upper_bmp(self, bmp: u16) -> &'a mut Utf16Destination<'b> {
         self.dest.write_upper_bmp(bmp);
+        self.dest
     }
     #[inline(always)]
-    pub fn write_astral(self, astral: u32) {
+    pub fn write_astral(self, astral: u32) -> &'a mut Utf16Destination<'b> {
         self.dest.write_astral(astral);
+        self.dest
     }
     #[inline(always)]
-    pub fn write_surrogate_pair(self, high: u16, low: u16) {
+    pub fn write_surrogate_pair(self, high: u16, low: u16) -> &'a mut Utf16Destination<'b> {
         self.dest.write_surrogate_pair(high, low);
+        self.dest
     }
     #[inline(always)]
-    pub fn write_big5_combination(self, combined: u16, combining: u16) {
+    pub fn write_big5_combination(self,
+                                  combined: u16,
+                                  combining: u16)
+                                  -> &'a mut Utf16Destination<'b> {
         self.dest.write_big5_combination(combined, combining);
+        self.dest
     }
 }
 
@@ -314,6 +330,76 @@ impl<'a> Utf16Destination<'a> {
         self.write_bmp_excl_ascii(combined);
         self.write_bmp_excl_ascii(combining);
     }
+    #[inline(always)]
+    pub fn copy_ascii_from_check_space_bmp<'b>
+        (&'b mut self,
+         source: &mut ByteSource)
+         -> CopyAsciiResult<(DecoderResult, usize, usize), (u8, Utf16BmpHandle<'b, 'a>)> {
+        let non_ascii_ret = {
+            let dst_len = self.slice.len();
+            let src_remaining = &source.slice[source.pos..];
+            let mut dst_remaining = &mut self.slice[self.pos..];
+            let (pending, length) = if dst_remaining.len() < src_remaining.len() {
+                (DecoderResult::OutputFull, dst_remaining.len())
+            } else {
+                (DecoderResult::InputEmpty, src_remaining.len())
+            };
+            match unsafe {
+                ascii_to_basic_latin(src_remaining.as_ptr(), dst_remaining.as_mut_ptr(), length)
+            } {
+                None => {
+                    source.pos += length;
+                    self.pos += length;
+                    return CopyAsciiResult::Stop((pending, source.pos, self.pos));
+                }
+                Some((non_ascii, consumed)) => {
+                    source.pos += consumed;
+                    self.pos += consumed;
+                    source.pos += 1; // +1 for non_ascii
+                    non_ascii
+                }
+            }
+        };
+        return CopyAsciiResult::GoOn((non_ascii_ret, Utf16BmpHandle::new(self)));
+    }
+    #[inline(always)]
+    pub fn copy_ascii_from_check_space_astral<'b>
+        (&'b mut self,
+         source: &mut ByteSource)
+         -> CopyAsciiResult<(DecoderResult, usize, usize), (u8, Utf16AstralHandle<'b, 'a>)> {
+        let non_ascii_ret = {
+            let dst_len = self.slice.len();
+            let src_remaining = &source.slice[source.pos..];
+            let mut dst_remaining = &mut self.slice[self.pos..];
+            let (pending, length) = if dst_remaining.len() < src_remaining.len() {
+                (DecoderResult::OutputFull, dst_remaining.len())
+            } else {
+                (DecoderResult::InputEmpty, src_remaining.len())
+            };
+            match unsafe {
+                ascii_to_basic_latin(src_remaining.as_ptr(), dst_remaining.as_mut_ptr(), length)
+            } {
+                None => {
+                    source.pos += length;
+                    self.pos += length;
+                    return CopyAsciiResult::Stop((pending, source.pos, self.pos));
+                }
+                Some((non_ascii, consumed)) => {
+                    source.pos += consumed;
+                    self.pos += consumed;
+                    if self.pos + 3 < dst_len {
+                        source.pos += 1; // +1 for non_ascii
+                        non_ascii
+                    } else {
+                        return CopyAsciiResult::Stop((DecoderResult::OutputFull,
+                                                      source.pos,
+                                                      self.pos));
+                    }
+                }
+            }
+        };
+        return CopyAsciiResult::GoOn((non_ascii_ret, Utf16AstralHandle::new(self)));
+    }
 }
 
 // UTF-8 destination
@@ -380,36 +466,47 @@ impl<'a, 'b> Utf8AstralHandle<'a, 'b>
         self.dest.written()
     }
     #[inline(always)]
-    pub fn write_char_excl_ascii(self, c: char) {
+    pub fn write_char_excl_ascii(self, c: char) -> &'a mut Utf8Destination<'b> {
         self.dest.write_char(c);
+        self.dest
     }
     #[inline(always)]
-    pub fn write_ascii(self, ascii: u8) {
+    pub fn write_ascii(self, ascii: u8) -> &'a mut Utf8Destination<'b> {
         self.dest.write_ascii(ascii);
+        self.dest
     }
     #[inline(always)]
-    pub fn write_bmp(self, bmp: u16) {
+    pub fn write_bmp(self, bmp: u16) -> &'a mut Utf8Destination<'b> {
         self.dest.write_bmp(bmp);
+        self.dest
     }
     #[inline(always)]
-    pub fn write_bmp_excl_ascii(self, bmp: u16) {
+    pub fn write_bmp_excl_ascii(self, bmp: u16) -> &'a mut Utf8Destination<'b> {
         self.dest.write_bmp_excl_ascii(bmp);
+        self.dest
     }
     #[inline(always)]
-    pub fn write_upper_bmp(self, bmp: u16) {
+    pub fn write_upper_bmp(self, bmp: u16) -> &'a mut Utf8Destination<'b> {
         self.dest.write_upper_bmp(bmp);
+        self.dest
     }
     #[inline(always)]
-    pub fn write_astral(self, astral: u32) {
+    pub fn write_astral(self, astral: u32) -> &'a mut Utf8Destination<'b> {
         self.dest.write_astral(astral);
+        self.dest
     }
     #[inline(always)]
-    pub fn write_surrogate_pair(self, high: u16, low: u16) {
+    pub fn write_surrogate_pair(self, high: u16, low: u16) -> &'a mut Utf8Destination<'b> {
         self.dest.write_surrogate_pair(high, low);
+        self.dest
     }
     #[inline(always)]
-    pub fn write_big5_combination(self, combined: u16, combining: u16) {
+    pub fn write_big5_combination(self,
+                                  combined: u16,
+                                  combining: u16)
+                                  -> &'a mut Utf8Destination<'b> {
         self.dest.write_big5_combination(combined, combining);
+        self.dest
     }
 }
 
@@ -559,6 +656,44 @@ impl<'a> Utf8Destination<'a> {
             }
         };
         return CopyAsciiResult::GoOn((non_ascii_ret, Utf8BmpHandle::new(self)));
+    }
+    #[inline(always)]
+    pub fn copy_ascii_from_check_space_astral<'b>
+        (&'b mut self,
+         source: &mut ByteSource)
+         -> CopyAsciiResult<(DecoderResult, usize, usize), (u8, Utf8AstralHandle<'b, 'a>)> {
+        let non_ascii_ret = {
+            let dst_len = self.slice.len();
+            let src_remaining = &source.slice[source.pos..];
+            let mut dst_remaining = &mut self.slice[self.pos..];
+            let (pending, length) = if dst_remaining.len() < src_remaining.len() {
+                (DecoderResult::OutputFull, dst_remaining.len())
+            } else {
+                (DecoderResult::InputEmpty, src_remaining.len())
+            };
+            match unsafe {
+                ascii_to_ascii(src_remaining.as_ptr(), dst_remaining.as_mut_ptr(), length)
+            } {
+                None => {
+                    source.pos += length;
+                    self.pos += length;
+                    return CopyAsciiResult::Stop((pending, source.pos, self.pos));
+                }
+                Some((non_ascii, consumed)) => {
+                    source.pos += consumed;
+                    self.pos += consumed;
+                    if self.pos + 3 < dst_len {
+                        source.pos += 1; // +1 for non_ascii
+                        non_ascii
+                    } else {
+                        return CopyAsciiResult::Stop((DecoderResult::OutputFull,
+                                                      source.pos,
+                                                      self.pos));
+                    }
+                }
+            }
+        };
+        return CopyAsciiResult::GoOn((non_ascii_ret, Utf8AstralHandle::new(self)));
     }
 }
 
