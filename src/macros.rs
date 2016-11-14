@@ -119,7 +119,8 @@ macro_rules! ascii_compatible_two_byte_decoder_function {
      $destination_check:ident,
      $name:ident,
      $code_unit:ty,
-     $dest_struct:ident) => (
+     $dest_struct:ident,
+     $ascii_punctuation:expr) => (
     pub fn $name(&mut $slf,
                  src: &[u8],
                  dst: &mut [$code_unit],
@@ -218,7 +219,7 @@ macro_rules! ascii_compatible_two_byte_decoder_function {
 // to make it part of the next SIMD stride.
                                             let dest_again_again =
                                                 destination_handle.write_ascii(b);
-                                            if b < 60 {
+                                            if $ascii_punctuation && b < 60 {
 // We've got punctuation
                                                 match source_again.check_available() {
                                                     Space::Full(src_consumed_again) => {
@@ -273,7 +274,8 @@ macro_rules! ascii_compatible_two_byte_decoder_functions {
      $source:ident,
      $handle:ident,
      $copy_ascii:ident,
-     $destination_check:ident) => (
+     $destination_check:ident,
+     $ascii_punctuation:expr) => (
          ascii_compatible_two_byte_decoder_function!($lead,
                                                       $trail,
                                                       $slf,
@@ -287,7 +289,8 @@ macro_rules! ascii_compatible_two_byte_decoder_functions {
                                                       $destination_check,
                                                       decode_to_utf8_raw,
                                                       u8,
-                                                      Utf8Destination);
+                                                      Utf8Destination,
+                                                      $ascii_punctuation);
          ascii_compatible_two_byte_decoder_function!($lead,
                                                       $trail,
                                                       $slf,
@@ -301,7 +304,8 @@ macro_rules! ascii_compatible_two_byte_decoder_functions {
                                                       $destination_check,
                                                       decode_to_utf16_raw,
                                                       u16,
-                                                      Utf16Destination);
+                                                      Utf16Destination,
+                                                      $ascii_punctuation);
     );
 }
 

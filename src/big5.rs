@@ -151,7 +151,8 @@ impl Big5Decoder {
                                                  source,
                                                  handle,
                                                  copy_ascii_from_check_space_astral,
-                                                 check_space_astral);
+                                                 check_space_astral,
+                                                 false);
 }
 
 pub struct Big5Encoder;

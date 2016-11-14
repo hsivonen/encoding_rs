@@ -95,7 +95,8 @@ impl EucKrDecoder {
                                                  source,
                                                  handle,
                                                  copy_ascii_from_check_space_bmp,
-                                                 check_space_bmp);
+                                                 check_space_bmp,
+                                                 true);
 }
 
 pub struct EucKrEncoder;
