@@ -44,57 +44,258 @@ impl EucKrDecoder {
         self.plus_one_if_lead(byte_length) * 3
     }
 
-    decoder_functions!({},
-                       {
-                           if self.lead != 0 {
-                               self.lead = 0;
-                               return (DecoderResult::Malformed(1, 0),
-                                       src_consumed,
-                                       dest.written());
-                           }
-                       },
-                       {
-                           if self.lead == 0 {
-                               if b <= 0x7f {
-                                   // TODO optimize ASCII run
-                                   destination_handle.write_ascii(b);
-                                   continue;
-                               }
-                               if b >= 0x81 && b <= 0xFE {
-                                   self.lead = b;
-                                   continue;
-                               }
-                               return (DecoderResult::Malformed(1, 0),
-                                       unread_handle.consumed(),
-                                       destination_handle.written());
-                           }
-                           let lead = self.lead as usize;
-                           self.lead = 0;
-                           if b >= 0x41 && b <= 0xFE {
-                               let pointer = (lead as usize - 0x81) * 190usize +
-                                             (b as usize - 0x41);
-                               let bmp = euc_kr_decode(pointer);
-                               if bmp != 0 {
-                                   destination_handle.write_bmp_excl_ascii(bmp);
-                                   continue;
-                               }
-                           }
-                           if b <= 0x7F {
-                               return (DecoderResult::Malformed(1, 0),
-                                       unread_handle.unread(),
-                                       destination_handle.written());
-                           }
-                           return (DecoderResult::Malformed(2, 0),
-                                   unread_handle.consumed(),
-                                   destination_handle.written());
-                       },
-                       self,
-                       src_consumed,
-                       dest,
-                       b,
-                       destination_handle,
-                       unread_handle,
-                       check_space_bmp);
+    pub fn decode_to_utf8_raw(&mut self,
+                              src: &[u8],
+                              dst: &mut [u8],
+                              last: bool)
+                              -> (DecoderResult, usize, usize) {
+        let mut source = ByteSource::new(src);
+        let mut dest_prolog = Utf8Destination::new(dst);
+        let dest = if self.lead != 0 {
+            let lead_minus_offset = self.lead;
+            // Since we don't have `goto` we could use to jump into the trail
+            // handling part of the main loop, we need to repeat trail handling
+            // here.
+            match source.check_available() {
+                Space::Full(src_consumed_prolog) => {
+                    if last {
+                        return (DecoderResult::Malformed(1, 0),
+                                src_consumed_prolog,
+                                dest_prolog.written());
+                    }
+                    return (DecoderResult::InputEmpty, src_consumed_prolog, dest_prolog.written());
+                }
+                Space::Available(source_handle_prolog) => {
+                    match dest_prolog.check_space_bmp() {
+                        Space::Full(dst_written_prolog) => {
+                            return (DecoderResult::OutputFull,
+                                    source_handle_prolog.consumed(),
+                                    dst_written_prolog);
+                        }
+                        Space::Available(handle) => {
+                            let (byte, unread_handle_trail) = source_handle_prolog.read();
+                            // Start non-boilerplate
+                            // If trail is between 0x41 and 0xFE, inclusive,
+                            // subtract offset 0x41.
+                            let trail_minus_offset = byte.wrapping_sub(0x41);
+                            if trail_minus_offset > (0xFE - 0x41) {
+                                if byte <= 0x7F {
+                                    return (DecoderResult::Malformed(1, 0),
+                                            unread_handle_trail.unread(),
+                                            handle.written());
+                                }
+                                return (DecoderResult::Malformed(2, 0),
+                                        unread_handle_trail.consumed(),
+                                        handle.written());
+                            }
+                            let pointer = lead_minus_offset as usize * 190usize +
+                                          trail_minus_offset as usize;
+                            let bmp = euc_kr_decode(pointer);
+                            if bmp == 0 {
+                                if byte <= 0x7F {
+                                    return (DecoderResult::Malformed(1, 0),
+                                            unread_handle_trail.unread(),
+                                            handle.written());
+                                }
+                                return (DecoderResult::Malformed(2, 0),
+                                        unread_handle_trail.consumed(),
+                                        handle.written());
+                            }
+                            handle.write_bmp_excl_ascii(bmp)
+                            // End non-boilerplate
+                        }
+                    }
+                }
+            }
+        } else {
+            &mut dest_prolog
+        };
+        'outermost: loop {
+            match dest.copy_ascii_from_check_space_bmp(&mut source) {
+                CopyAsciiResult::Stop(ret) => return ret,
+                CopyAsciiResult::GoOn((mut non_ascii, mut handle)) => {
+                    'middle: loop {
+                        let dest_again = {
+                            let lead_minus_offset = {
+                                // Start non-boilerplate
+                                // If lead is between 0x81 and 0xFE, inclusive,
+                                // subtract offset 0x81.
+                                let non_ascii_minus_offset = non_ascii.wrapping_sub(0x81);
+                                if non_ascii_minus_offset > (0xFE - 0x81) {
+                                    return (DecoderResult::Malformed(1, 0),
+                                            source.consumed(),
+                                            handle.written());
+                                }
+                                non_ascii_minus_offset
+                                // End non-boilerplate
+                            };
+                            match source.check_available() {
+                                Space::Full(src_consumed_trail) => {
+                                    if last {
+                                        return (DecoderResult::Malformed(1, 0),
+                                                src_consumed_trail,
+                                                handle.written());
+                                    }
+                                    self.lead = lead_minus_offset;
+                                    return (DecoderResult::InputEmpty,
+                                            src_consumed_trail,
+                                            handle.written());
+                                }
+                                Space::Available(source_handle_trail) => {
+                                    let (byte, unread_handle_trail) = source_handle_trail.read();
+                                    // Start non-boilerplate
+                                    // If trail is between 0x41 and 0xFE, inclusive,
+                                    // subtract offset 0x41.
+                                    let trail_minus_offset = byte.wrapping_sub(0x41);
+                                    if trail_minus_offset > (0xFE - 0x41) {
+                                        if byte <= 0x7F {
+                                            return (DecoderResult::Malformed(1, 0),
+                                                    unread_handle_trail.unread(),
+                                                    handle.written());
+                                        }
+                                        return (DecoderResult::Malformed(2, 0),
+                                                unread_handle_trail.consumed(),
+                                                handle.written());
+                                    }
+                                    let pointer = lead_minus_offset as usize * 190usize +
+                                                  trail_minus_offset as usize;
+                                    let bmp = euc_kr_decode(pointer);
+                                    if bmp == 0 {
+                                        if byte <= 0x7F {
+                                            return (DecoderResult::Malformed(1, 0),
+                                                    unread_handle_trail.unread(),
+                                                    handle.written());
+                                        }
+                                        return (DecoderResult::Malformed(2, 0),
+                                                unread_handle_trail.consumed(),
+                                                handle.written());
+                                    }
+                                    handle.write_bmp_excl_ascii(bmp)
+                                    // End non-boilerplate
+                                }
+                            }
+                        };
+                        match source.check_available() {
+                            Space::Full(src_consumed) => {
+                                return (DecoderResult::InputEmpty,
+                                        src_consumed,
+                                        dest_again.written());
+                            }
+                            Space::Available(source_handle) => {
+                                match dest_again.check_space_bmp() {
+                                    Space::Full(dst_written) => {
+                                        return (DecoderResult::OutputFull,
+                                                source_handle.consumed(),
+                                                dst_written);
+                                    }
+                                    Space::Available(mut destination_handle) => {
+                                        let (mut b, unread_handle) = source_handle.read();
+                                        let source_again = unread_handle.decommit();
+                                        'innermost: loop {
+                                            if b > 127 {
+                                                non_ascii = b;
+                                                handle = destination_handle;
+                                                continue 'middle;
+                                            }
+                                            // Testing on Haswell says that we should write the
+                                            // byte unconditionally instead of trying to unread it
+                                            // to make it part of the next SIMD stride.
+                                            let dest_again_again =
+                                                destination_handle.write_ascii(b);
+                                            if b < 60 {
+                                                // We've got punctuation
+                                                match source_again.check_available() {
+                                                    Space::Full(src_consumed_again) => {
+                                                        return (DecoderResult::InputEmpty,
+                                                                src_consumed_again,
+                                                                dest_again_again.written());
+                                                    }
+                                                    Space::Available(source_handle_again) => {
+                                                        match dest_again_again.check_space_bmp() {
+                                                            Space::Full(dst_written_again) => {
+                                                                return (DecoderResult::OutputFull,
+                                                                        source_handle_again.consumed(),
+                                                                        dst_written_again);
+                                                            }
+                                                            Space::Available(destination_handle_again) => {
+                                                                {
+                                                                    let (b_again, _unread_handle_again) =
+                                                                        source_handle_again.read();
+                                                                    b = b_again;
+                                                                    destination_handle = destination_handle_again;
+                                                                    continue 'innermost;
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                            // We've got markup or ASCII text
+                                            continue 'outermost;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        unreachable!("Should always continue earlier.");
+                    }
+                }
+            }
+            unreachable!("Should always continue earlier.");
+        }
+    }
+
+    decoder_function!({},
+                      {
+                          if self.lead != 0 {
+                              self.lead = 0;
+                              return (DecoderResult::Malformed(1, 0), src_consumed, dest.written());
+                          }
+                      },
+                      {
+                          if self.lead == 0 {
+                              if b <= 0x7f {
+                                  // TODO optimize ASCII run
+                                  destination_handle.write_ascii(b);
+                                  continue;
+                              }
+                              if b >= 0x81 && b <= 0xFE {
+                                  self.lead = b;
+                                  continue;
+                              }
+                              return (DecoderResult::Malformed(1, 0),
+                                      unread_handle.consumed(),
+                                      destination_handle.written());
+                          }
+                          let lead = self.lead as usize;
+                          self.lead = 0;
+                          if b >= 0x41 && b <= 0xFE {
+                              let pointer = (lead as usize - 0x81) * 190usize + (b as usize - 0x41);
+                              let bmp = euc_kr_decode(pointer);
+                              if bmp != 0 {
+                                  destination_handle.write_bmp_excl_ascii(bmp);
+                                  continue;
+                              }
+                          }
+                          if b <= 0x7F {
+                              return (DecoderResult::Malformed(1, 0),
+                                      unread_handle.unread(),
+                                      destination_handle.written());
+                          }
+                          return (DecoderResult::Malformed(2, 0),
+                                  unread_handle.consumed(),
+                                  destination_handle.written());
+                      },
+                      self,
+                      src_consumed,
+                      dest,
+                      b,
+                      destination_handle,
+                      unread_handle,
+                      check_space_bmp,
+                      decode_to_utf16_raw,
+                      u16,
+                      Utf16Destination);
 }
 
 pub struct EucKrEncoder;
