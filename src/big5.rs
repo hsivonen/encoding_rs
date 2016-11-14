@@ -66,91 +66,92 @@ impl Big5Decoder {
         3 * self.plus_one_if_lead(byte_length) + 3
     }
 
-    decoder_functions!({},
-                       {
-                           if self.lead != 0 {
-                               self.lead = 0;
-                               return (DecoderResult::Malformed(1, 0),
-                                       src_consumed,
-                                       dest.written());
-                           }
-                       },
-                       {
-                           if self.lead == 0 {
-                               if b <= 0x7f {
-                                   // TODO optimize ASCII run
-                                   destination_handle.write_ascii(b);
-                                   continue;
-                               }
-                               if b >= 0x81 && b <= 0xFE {
-                                   self.lead = b;
-                                   continue;
-                               }
-                               return (DecoderResult::Malformed(1, 0),
-                                       unread_handle.consumed(),
-                                       destination_handle.written());
-                           }
-                           let lead = self.lead as usize;
-                           self.lead = 0;
-                           let offset = if b < 0x7F {
-                               0x40usize
-                           } else {
-                               0x62usize
-                           };
-                           if (b >= 0x40 && b <= 0x7E) || (b >= 0xA1 && b <= 0xFE) {
-                               let pointer = (lead as usize - 0x81usize) * 157usize +
-                                             (b as usize - offset);
-                               match pointer {
-                                   1133 => {
-                                       destination_handle.write_big5_combination(0x00CAu16,
-                                                                                 0x0304u16);
-                                       continue;
-                                   }
-                                   1135 => {
-                                       destination_handle.write_big5_combination(0x00CAu16,
-                                                                                 0x030Cu16);
-                                       continue;
-                                   }
-                                   1164 => {
-                                       destination_handle.write_big5_combination(0x00EAu16,
-                                                                                 0x0304u16);
-                                       continue;
-                                   }
-                                   1166 => {
-                                       destination_handle.write_big5_combination(0x00EAu16,
-                                                                                 0x030Cu16);
-                                       continue;
-                                   }
-                                   _ => {
-                                       let low_bits = big5_low_bits(pointer);
-                                       if low_bits != 0 {
-                                           if big5_is_astral(pointer) {
-                                               destination_handle.write_astral(low_bits as u32 |
-                                                                               0x20000u32);
-                                               continue;
-                                           }
-                                           destination_handle.write_bmp_excl_ascii(low_bits);
-                                           continue;
-                                       }
-                                   }
-                               }
-                           }
-                           if b <= 0x7F {
-                               return (DecoderResult::Malformed(1, 0),
-                                       unread_handle.unread(),
-                                       destination_handle.written());
-                           }
-                           return (DecoderResult::Malformed(2, 0),
-                                   unread_handle.consumed(),
-                                   destination_handle.written());
-                       },
-                       self,
-                       src_consumed,
-                       dest,
-                       b,
-                       destination_handle,
-                       unread_handle,
-                       check_space_astral);
+    ascii_compatible_two_byte_decoder_functions!({
+                                                     // If lead is between 0x81 and 0xFE, inclusive,
+                                                     // subtract offset 0x81.
+                                                     let non_ascii_minus_offset =
+                                                         non_ascii.wrapping_sub(0x81);
+                                                     if non_ascii_minus_offset > (0xFE - 0x81) {
+                                                         return (DecoderResult::Malformed(1, 0),
+                                                                 source.consumed(),
+                                                                 handle.written());
+                                                     }
+                                                     non_ascii_minus_offset
+                                                 },
+                                                 {
+                                                     // If trail is between 0x40 and 0x7E, inclusive,
+                                                     // subtract offset 0x40. Else if trail is
+                                                     // between 0xA1 and 0xFE, inclusive, subtract
+                                                     // offset 0x62.
+                                                     // TODO: Find out which range is more probable.
+                                                     let mut trail_minus_offset =
+                                                         byte.wrapping_sub(0x40);
+                                                     if trail_minus_offset > (0x7E - 0x40) {
+                                                         let trail_minus_range_start =
+                                                             byte.wrapping_sub(0xA1);
+                                                         if trail_minus_range_start >
+                                                            (0xFE - 0xA1) {
+                                                             if byte < 0x80 {
+                                                                 return (DecoderResult::Malformed(1, 0),
+                                                                         unread_handle_trail.unread(),
+                                                                         handle.written());
+                                                             }
+                                                             return (DecoderResult::Malformed(2, 0),
+                                                                     unread_handle_trail.consumed(),
+                                                                     handle.written());
+                                                         }
+                                                         trail_minus_offset = byte - 0x62;
+                                                     }
+                                                     let pointer = lead_minus_offset as usize *
+                                                                   157usize +
+                                                                   trail_minus_offset as usize;
+                                                     match pointer {
+                                                         1133 => {
+                                                             handle.write_big5_combination(0x00CAu16,
+                                                                                           0x0304u16)
+                                                         }
+                                                         1135 => {
+                                                             handle.write_big5_combination(0x00CAu16,
+                                                                                           0x030Cu16)
+                                                         }
+                                                         1164 => {
+                                                             handle.write_big5_combination(0x00EAu16,
+                                                                                           0x0304u16)
+                                                         }
+                                                         1166 => {
+                                                             handle.write_big5_combination(0x00EAu16,
+                                                                                           0x030Cu16)
+                                                         }
+                                                         _ => {
+                                                             let low_bits = big5_low_bits(pointer);
+                                                             if low_bits == 0 {
+                                                                 if byte < 0x80 {
+                                                                     return (DecoderResult::Malformed(1, 0),
+                                                                             unread_handle_trail.unread(),
+                                                                             handle.written());
+                                                                 }
+                                                                 return (DecoderResult::Malformed(2, 0),
+                                                                         unread_handle_trail.consumed(),
+                                                                         handle.written());
+                                                             }
+                                                             if big5_is_astral(pointer) {
+                                                                 handle.write_astral(low_bits as u32 |
+                                                                                     0x20000u32)
+                                                             } else {
+                                                                 handle.write_bmp_excl_ascii(low_bits)
+                                                             }
+                                                         }
+                                                     }
+                                                 },
+                                                 self,
+                                                 non_ascii,
+                                                 byte,
+                                                 lead_minus_offset,
+                                                 unread_handle_trail,
+                                                 source,
+                                                 handle,
+                                                 copy_ascii_from_check_space_astral,
+                                                 check_space_astral);
 }
 
 pub struct Big5Encoder;

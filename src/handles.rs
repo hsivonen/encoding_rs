@@ -387,7 +387,7 @@ impl<'a> Utf16Destination<'a> {
                 Some((non_ascii, consumed)) => {
                     source.pos += consumed;
                     self.pos += consumed;
-                    if self.pos + 3 < dst_len {
+                    if self.pos + 1 < dst_len {
                         source.pos += 1; // +1 for non_ascii
                         non_ascii
                     } else {
