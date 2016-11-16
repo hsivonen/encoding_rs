@@ -61,7 +61,7 @@ impl EucKrDecoder {
                                                      let trail_minus_offset =
                                                          byte.wrapping_sub(0x41);
                                                      if trail_minus_offset > (0xFE - 0x41) {
-                                                         if byte <= 0x7F {
+                                                         if byte < 0x80 {
                                                              return (DecoderResult::Malformed(1, 0),
                                                                      unread_handle_trail.unread(),
                                                                      handle.written());
@@ -75,7 +75,7 @@ impl EucKrDecoder {
                                                                    trail_minus_offset as usize;
                                                      let bmp = euc_kr_decode(pointer);
                                                      if bmp == 0 {
-                                                         if byte <= 0x7F {
+                                                         if byte < 0x80 {
                                                              return (DecoderResult::Malformed(1, 0),
                                                                      unread_handle_trail.unread(),
                                                                      handle.written());
