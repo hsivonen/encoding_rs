@@ -507,6 +507,10 @@ impl<'a, 'b> Utf8AstralHandle<'a, 'b>
         self.dest.write_big5_combination(combined, combining);
         self.dest
     }
+    #[inline(always)]
+    pub fn decommit(self) -> &'a mut Utf8Destination<'b> {
+        self.dest
+    }
 }
 
 pub struct Utf8Destination<'a> {
