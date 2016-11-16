@@ -317,6 +317,267 @@ macro_rules! ascii_compatible_two_byte_decoder_functions {
     );
 }
 
+macro_rules! gb18030_decoder_function {
+    ($first_body:block,
+     $second_body:block,
+     $third_body:block,
+     $fourth_body:block,
+     $slf:ident,
+     $non_ascii:ident,
+     $first_minus_offset:ident,
+     $second:ident,
+     $second_minus_offset:ident,
+     $unread_handle_second:ident,
+     $third:ident,
+     $third_minus_offset:ident,
+     $unread_handle_third:ident,
+     $fourth:ident,
+     $fourth_minus_offset:ident,
+     $unread_handle_fourth:ident,
+     $source:ident,
+     $handle:ident,
+     $outermost:tt,
+     $name:ident,
+     $code_unit:ty,
+     $dest_struct:ident) => (
+    pub fn $name(&mut $slf,
+                 src: &[u8],
+                 dst: &mut [$code_unit],
+                 last: bool)
+                 -> (DecoderResult, usize, usize) {
+        let mut $source = ByteSource::new(src);
+        let mut dest = $dest_struct::new(dst);
+        {
+            match $slf.pending_ascii {
+                Some(ascii) => {
+                    match dest.check_space_bmp() {
+                        Space::Full(_) => {
+                            return (DecoderResult::OutputFull, 0, 0);
+                        }
+                        Space::Available(pending_ascii_handle) => {
+                            $slf.pending_ascii = None;
+                            pending_ascii_handle.write_ascii(ascii);
+                        }
+                    }
+                }
+                None => {}
+            }
+        }
+        while !$slf.pending.is_none() {
+            match $source.check_available() {
+                Space::Full(src_consumed) => {
+                    if last {
+// Start non-boilerplate
+                        let count = $slf.pending.count();
+                        $slf.pending = Gb18030Pending::None;
+                        return (DecoderResult::Malformed(count as u8, 0),
+                                src_consumed,
+                                dest.written());
+// End non-boilerplate
+                    }
+                    return (DecoderResult::InputEmpty, src_consumed, dest.written());
+                }
+                Space::Available(source_handle) => {
+                    match dest.check_space_astral() {
+                        Space::Full(dst_written) => {
+                            return (DecoderResult::OutputFull,
+                                    source_handle.consumed(),
+                                    dst_written);
+                        }
+                        Space::Available($handle) => {
+                            let (byte, unread_handle) = source_handle.read();
+                            match $slf.pending {
+                                Gb18030Pending::One($first_minus_offset) => {
+                                    $slf.pending = Gb18030Pending::None;
+                                    let $second = byte;
+                                    let $unread_handle_second = unread_handle;
+// If second is between 0x40 and 0x7E,
+// inclusive, subtract offset 0x40. Else if
+// second is between 0x80 and 0xFE, inclusive,
+// subtract offset 0x41. In both cases,
+// handle as a two-byte sequence.
+// Else if second is between 0x30 and 0x39,
+// inclusive, subtract offset 0x30 and
+// handle as a four-byte sequence.
+                                    let $second_minus_offset = $second.wrapping_sub(0x30);
+// It's not optimal to do this check first,
+// but this results in more readable code.
+                                    if $second_minus_offset > (0x39 - 0x30) {
+// Start non-boilerplate
+                                        $second_body
+// End non-boilerplate
+                                    } else {
+// Four-byte!
+                                        $slf.pending = Gb18030Pending::Two($first_minus_offset,
+                                                                           $second_minus_offset);
+                                        $handle.decommit()
+                                    }
+                                }
+                                Gb18030Pending::Two($first_minus_offset, $second_minus_offset) => {
+                                    $slf.pending = Gb18030Pending::None;
+                                    let $third = byte;
+                                    let $unread_handle_third = unread_handle;
+                                    let $third_minus_offset = {
+// Start non-boilerplate
+                                    $third_body
+// End non-boilerplate
+                                    };
+                                    $slf.pending = Gb18030Pending::Three($first_minus_offset,
+                                                                         $second_minus_offset,
+                                                                         $third_minus_offset);
+                                    $handle.decommit()
+                                }
+                                Gb18030Pending::Three($first_minus_offset,
+                                                      $second_minus_offset,
+                                                      $third_minus_offset) => {
+                                    $slf.pending = Gb18030Pending::None;
+                                    let $fourth = byte;
+                                    let $unread_handle_fourth = unread_handle;
+// Start non-boilerplate
+                                    $fourth_body
+// End non-boilerplate
+                                }
+                                Gb18030Pending::None => unreachable!("Checked in loop condition"),
+                            };
+                        }
+                    }
+                }
+            }
+        }
+        $outermost: loop {
+            match dest.copy_ascii_from_check_space_astral(&mut $source) {
+                CopyAsciiResult::Stop(ret) => return ret,
+                CopyAsciiResult::GoOn((mut $non_ascii, mut $handle)) => {
+                    'middle: loop {
+                        let dest_again = {
+                            let $first_minus_offset = {
+                                // Start non-boilerplate
+                                $first_body
+                                // End non-boilerplate
+                            };
+                            match $source.check_available() {
+                                Space::Full(src_consumed_trail) => {
+                                    if last {
+                                        return (DecoderResult::Malformed(1, 0),
+                                                src_consumed_trail,
+                                                $handle.written());
+                                    }
+                                    $slf.pending = Gb18030Pending::One($first_minus_offset);
+                                    return (DecoderResult::InputEmpty,
+                                            src_consumed_trail,
+                                            $handle.written());
+                                }
+                                Space::Available(source_handle_trail) => {
+                                    let ($second, $unread_handle_second) = source_handle_trail.read();
+                                    // Start non-boilerplate
+                                    // If second is between 0x40 and 0x7E,
+                                    // inclusive, subtract offset 0x40. Else if
+                                    // second is between 0x80 and 0xFE, inclusive,
+                                    // subtract offset 0x41. In both cases,
+                                    // handle as a two-byte sequence.
+                                    // Else if second is between 0x30 and 0x39,
+                                    // inclusive, subtract offset 0x30 and
+                                    // handle as a four-byte sequence.
+                                    let $second_minus_offset = $second.wrapping_sub(0x30);
+                                    // It's not optimal to do this check first,
+// but this results in more readable code.
+                                    if $second_minus_offset > (0x39 - 0x30) {
+// Start non-boilerplate
+                                        $second_body
+// End non-boilerplate
+                                    } else {
+// Four-byte!
+                                        match $unread_handle_second.decommit().check_available() {
+                                            Space::Full(src_consumed_third) => {
+                                                if last {
+                                                    return (DecoderResult::Malformed(2, 0),
+                                                            src_consumed_third,
+                                                            $handle.written());
+                                                }
+                                                $slf.pending =
+                                                    Gb18030Pending::Two($first_minus_offset,
+                                                                        $second_minus_offset);
+                                                return (DecoderResult::InputEmpty,
+                                                        src_consumed_third,
+                                                        $handle.written());
+                                            }
+                                            Space::Available(source_handle_third) => {
+                                                let ($third, $unread_handle_third) =
+                                                    source_handle_third.read();
+                                                let $third_minus_offset = {
+// Start non-boilerplate
+                                                    $third_body
+// End non-boilerplate
+                                                };
+                                                match $unread_handle_third.decommit()
+                                                                         .check_available() {
+                                                    Space::Full(src_consumed_fourth) => {
+                                                        if last {
+                                                            return (DecoderResult::Malformed(3, 0),
+                                                                    src_consumed_fourth,
+                                                                    $handle.written());
+                                                        }
+                                                        $slf.pending = Gb18030Pending::Three($first_minus_offset, $second_minus_offset, $third_minus_offset);
+                                                        return (DecoderResult::InputEmpty,
+                                                                src_consumed_fourth,
+                                                                $handle.written());
+                                                    }
+                                                    Space::Available(source_handle_fourth) => {
+                                                        let ($fourth, $unread_handle_fourth) =
+                                                            source_handle_fourth.read();
+// Start non-boilerplate
+                                                        $fourth_body
+// End non-boilerplate
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+// End non-boilerplate
+                                }
+                            }
+                        };
+                        match $source.check_available() {
+                            Space::Full(src_consumed) => {
+                                return (DecoderResult::InputEmpty,
+                                        src_consumed,
+                                        dest_again.written());
+                            }
+                            Space::Available(source_handle) => {
+                                match dest_again.check_space_astral() {
+                                    Space::Full(dst_written) => {
+                                        return (DecoderResult::OutputFull,
+                                                source_handle.consumed(),
+                                                dst_written);
+                                    }
+                                    Space::Available(destination_handle) => {
+                                        let (b, _) = source_handle.read();
+                                        'innermost: loop {
+                                            if b > 127 {
+                                                $non_ascii = b;
+                                                $handle = destination_handle;
+                                                continue 'middle;
+                                            }
+// Testing on Haswell says that we should write the
+// byte unconditionally instead of trying to unread it
+// to make it part of the next SIMD stride.
+                                            destination_handle.write_ascii(b);
+// We've got markup or ASCII text
+                                            continue $outermost;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        unreachable!("Should always continue earlier.");
+                    }
+                }
+            }
+            unreachable!("Should always continue earlier.");
+        }
+    });
+}
+
 macro_rules! encoder_function {
     ($eof:block,
      $body:block,
