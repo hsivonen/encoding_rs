@@ -103,3 +103,17 @@ hopefully does the writes using SIMD even if it involves re-reading.
 Test the impact of instantiating two copies of the encode functions with
 the `extended` set to `true` or `false` statically.
 
+==Speed up EUC-KR encode with prefix lookup table==
+
+Have a lookup table indexable by the high 8 bits of a BMP code point and let
+the table yield the EUC-KR lead (zero-based) from which to start the search.
+When considering Hangul, prefer the location with the most common Hangul for
+a given high byte. (I.e. prefer Hangul on rows 16-40 of KS X 1001:2004 or
+Unicode 1.0.)
+
+==Speed up Kanji and Hanzi encode by accelerating the most common ones==
+
+Consider having an accelerated Kanji and Hanzi encode table for the N most
+common Kanji is JIS X 0208, most common Hanzi in GBK and Hanzi in Big, for some
+suitable value for N.
+
