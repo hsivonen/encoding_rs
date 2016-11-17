@@ -265,7 +265,7 @@ impl SingleByteEncoder {
                 return Some((i + 128) as u8);
             }
         }
-        
+
         // In Windows and ISO encodings, the second quadrant hold most of the
         // Thai letters. In other scripts, there tends to be symbols here.
         // Even though the two quadrants above are relevant for Thai, for Thai
@@ -275,7 +275,7 @@ impl SingleByteEncoder {
                 return Some((i + 128) as u8);
             }
         }
-        
+
         // The first quadrant is useless in ISO encodings. In Windows encodings,
         // there is useful punctuation here that might warrant searching
         // before the symbols in the second quadrant, but the second quadrant
