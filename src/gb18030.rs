@@ -111,271 +111,117 @@ impl Gb18030Decoder {
         (self.extra_from_state(byte_length) * 3) + 1
     }
 
-    gb18030_decoder_function!({
-    // If first is between 0x81 and 0xFE, inclusive,
-    // subtract offset 0x81.
-                                let non_ascii_minus_offset = non_ascii.wrapping_sub(0x81);
-                                if non_ascii_minus_offset > (0xFE - 0x81) {
-                                    if non_ascii == 0x80 {
-                                        handle.write_upper_bmp(0x20ACu16);
-                                        continue 'outermost;
-                                    }
-                                    return (DecoderResult::Malformed(1, 0),
-                                            source.consumed(),
-                                            handle.written());
-                                }
-                                non_ascii_minus_offset
-    },
-        {
-                                        // Two-byte (or error)
-                                        let mut trail_minus_offset = second.wrapping_sub(0x40);
-                                        if trail_minus_offset > (0x7E - 0x40) {
-                                            let trail_minus_range_start = second.wrapping_sub(0x80);
-                                            if trail_minus_range_start > (0xFE - 0x80) {
-                                                if second < 0x80 {
-                                                    return (DecoderResult::Malformed(1, 0),
-                                                            unread_handle_second.unread(),
-                                                            handle.written());
-                                                }
-                                                return (DecoderResult::Malformed(2, 0),
-                                                        unread_handle_second.consumed(),
-                                                        handle.written());
-                                            }
-                                            trail_minus_offset = second - 0x41;
-                                        }
-                                        let pointer = first_minus_offset as usize * 190usize +
-                                                      trail_minus_offset as usize;
-                                        let bmp = gb18030_decode(pointer);
-                                        if bmp == 0 {
-                                            if second < 0x80 {
-                                                return (DecoderResult::Malformed(1, 0),
-                                                        unread_handle_second.unread(),
-                                                        handle.written());
-                                            }
-                                            return (DecoderResult::Malformed(2, 0),
-                                                    unread_handle_second.consumed(),
-                                                    handle.written());
-                                        }
-                                        handle.write_bmp_excl_ascii(bmp)
-        },
-        {
-                                    // If third is between 0x81 and 0xFE, inclusive,
-                                    // subtract offset 0x81.
-                                    let third_minus_offset = third.wrapping_sub(0x81);
-                                    if third_minus_offset > (0xFE - 0x81) {
-                                        // We have an error. Let's inline what's going
-                                        // to happen when `second` is
-                                        // reprocessed. (`third` gets unread.)
-                                        // `second` is guaranteed ASCII, so let's
-    // put it in `pending_ascii`. Recompute
-    // `second` from `second_minus_offset`.
-                                        self.pending_ascii = Some(second_minus_offset + 0x30);
-    // Now unread `third` and designate the previous
-    // `first` as being in error.
-                                        return (DecoderResult::Malformed(1, 1),
-                                                unread_handle_third.unread(),
-                                                handle.written());
-                                    }
-                                    third_minus_offset
-        },
-        {
-    // If fourth is between 0x30 and 0x39, inclusive,
-    // subtract offset 0x30.
-                                    let fourth_minus_offset = fourth.wrapping_sub(0x30);
-                                    let c = call_gb18030_range_decode(first_minus_offset,
-                                                                      second_minus_offset,
-                                                                      third_minus_offset,
-                                                                      fourth_minus_offset);
-                                    if c == '\u{0}' {
-    // We have an error. Let's inline what's going
-    // to happen when `second` and `third` are
-    // reprocessed. (`fourth` gets unread.)
-    // `second` is guaranteed ASCII, so let's
-    // put it in `pending_ascii`. Recompute
-    // `second` from `second_minus_offset` to
-    // make this block reusable when `second`
-    // is not in scope.
-                                        self.pending_ascii = Some(second_minus_offset + 0x30);
-    // `third` is guaranteed to be in the range
-    // that makes it become the new `self.first`.
-                                        self.pending = Gb18030Pending::One(third_minus_offset);
-    // Now unread `fourth` and designate the previous
-    // `first` as being in error.
-                                        return (DecoderResult::Malformed(1, 2),
-                                                unread_handle_fourth.unread(),
-                                                handle.written());
-                                    }
-                                    handle.write_char_excl_ascii(c)
-        },
-     self,
-     non_ascii,
-     first_minus_offset,
-     second,
-     second_minus_offset,
-     unread_handle_second,
-     third,
-     third_minus_offset,
-     unread_handle_third,
-     fourth,
-     fourth_minus_offset,
-     unread_handle_fourth,
-     source,
-     handle,
-     'outermost,
-        decode_to_utf8_raw,
-                                                      u8,
-                                                      Utf8Destination
-    );
-
-
-    decoder_function!({
-                          if self.pending_ascii.is_some() {
-                              match dest.check_space_bmp() {
-                                  Space::Full(_) => {
-                                      return (DecoderResult::OutputFull, 0, 0);
-                                  }
-                                  Space::Available(destination_handle) => {
-                                      destination_handle.write_ascii(self.pending_ascii.unwrap());
-                                      self.pending_ascii = None;
-                                  }
-                              }
-                          }
-                      },
-                      {
-                          if self.third.is_some() {
-                              self.first = None;
-                              self.second = None;
-                              self.third = None;
-                              return (DecoderResult::Malformed(3, 0), src_consumed, dest.written());
-                          }
-                          if self.second.is_some() {
-                              self.first = None;
-                              self.second = None;
-                              self.third = None;
-                              return (DecoderResult::Malformed(2, 0), src_consumed, dest.written());
-                          }
-                          if self.first.is_some() {
-                              self.first = None;
-                              self.second = None;
-                              self.third = None;
-                              return (DecoderResult::Malformed(1, 0), src_consumed, dest.written());
-                          }
-                      },
-                      {
-                          if self.first.is_none() {
-                              if b <= 0x7f {
-                                  // TODO optimize ASCII run
-                                  destination_handle.write_ascii(b);
-                                  continue;
-                              }
-                              if b == 0x80 {
-                                  destination_handle.write_upper_bmp(0x20ACu16);
-                                  continue;
-                              }
-                              if b >= 0x81 && b <= 0xFE {
-                                  self.first = Some(b);
-                                  continue;
-                              }
-                              return (DecoderResult::Malformed(1, 0),
-                                      unread_handle.consumed(),
-                                      destination_handle.written());
-                          }
-                          if self.third.is_some() {
-                              let first = self.first.unwrap();
-                              let second = self.second.unwrap();
-                              let third = self.third.unwrap();
-                              self.first = None;
-                              self.second = None;
-                              self.third = None;
-                              if b >= 0x30 && b <= 0x39 {
-                                  let pointer = ((first as usize - 0x81) * (10 * 126 * 10)) +
-                                                ((second as usize - 0x30) * (10 * 126)) +
-                                                ((third as usize - 0x81) * 10) +
-                                                (b as usize - 0x30);
-                                  let c = gb18030_range_decode(pointer);
-                                  if c != '\u{0}' {
-                                      destination_handle.write_char_excl_ascii(c);
-                                      continue;
-                                  }
-                              }
-                              // We have an error. Let's inline what's going
-                              // to happen when `second` and `third` are
-                              // reprocessed. (`b` gets unread.)
-                              debug_assert!(second >= 0x30 && second <= 0x39);
-                              // `second` is guaranteed ASCII, so let's
-                              // put it in `pending_ascii`
-                              self.pending_ascii = Some(second);
-                              debug_assert!(third >= 0x81 && third <= 0xFE);
-                              // `third` is guaranteed to be in the range
-                              // that makes it become the new `self.first`.
-                              self.first = Some(third);
-                              // Now unread `b` and designate the previous
-                              // `first` as being in error.
-                              return (DecoderResult::Malformed(1, 2),
-                                      unread_handle.unread(),
-                                      destination_handle.written());
-                          }
-                          if self.second.is_some() {
-                              if b >= 0x81 && b <= 0xFE {
-                                  self.third = Some(b);
-                                  continue;
-                              }
-                              let second = self.second.unwrap();
-                              self.second = None;
-                              self.first = None;
-                              // We have an error. Let's inline what's going
-                              // to happen when `second` is
-                              // reprocessed. (`b` gets unread.)
-                              debug_assert!(second >= 0x30 && second <= 0x39);
-                              // `second` is guaranteed ASCII, so let's
-                              // put it in `pending_ascii`
-                              self.pending_ascii = Some(second);
-                              // Now unread `b` and designate the previous
-                              // `first` as being in error.
-                              return (DecoderResult::Malformed(1, 1),
-                                      unread_handle.unread(),
-                                      destination_handle.written());
-                          }
-                          // self.first != 0
-                          if b >= 0x30 && b <= 0x39 {
-                              self.second = Some(b);
-                              continue;
-                          }
-                          let lead = self.first.unwrap();
-                          self.first = None;
-                          let offset = if b < 0x7F {
-                              0x40usize
-                          } else {
-                              0x41usize
-                          };
-                          if (b >= 0x40 && b <= 0x7E) || (b >= 0x80 && b <= 0xFE) {
-                              let pointer = (lead as usize - 0x81) * 190usize +
-                                            (b as usize - offset);
-                              let bmp = gb18030_decode(pointer);
-                              if bmp != 0 {
-                                  destination_handle.write_bmp_excl_ascii(bmp);
-                                  continue;
-                              }
-                          }
-                          if b <= 0x7F {
-                              return (DecoderResult::Malformed(1, 0),
-                                      unread_handle.unread(),
-                                      destination_handle.written());
-                          }
-                          return (DecoderResult::Malformed(2, 0),
-                                  unread_handle.consumed(),
-                                  destination_handle.written());
-                      },
-                      self,
-                      src_consumed,
-                      dest,
-                      b,
-                      destination_handle,
-                      unread_handle,
-                      check_space_astral,
-                      decode_to_utf16_raw,
-                      u16,
-                      Utf16Destination);
+    gb18030_decoder_functions!({
+     // If first is between 0x81 and 0xFE, inclusive,
+     // subtract offset 0x81.
+                                   let non_ascii_minus_offset = non_ascii.wrapping_sub(0x81);
+                                   if non_ascii_minus_offset > (0xFE - 0x81) {
+                                       if non_ascii == 0x80 {
+                                           handle.write_upper_bmp(0x20ACu16);
+                                           continue 'outermost;
+                                       }
+                                       return (DecoderResult::Malformed(1, 0),
+                                               source.consumed(),
+                                               handle.written());
+                                   }
+                                   non_ascii_minus_offset
+                               },
+                               {
+                                   // Two-byte (or error)
+                                   let mut trail_minus_offset = second.wrapping_sub(0x40);
+                                   if trail_minus_offset > (0x7E - 0x40) {
+                                       let trail_minus_range_start = second.wrapping_sub(0x80);
+                                       if trail_minus_range_start > (0xFE - 0x80) {
+                                           if second < 0x80 {
+                                               return (DecoderResult::Malformed(1, 0),
+                                                       unread_handle_second.unread(),
+                                                       handle.written());
+                                           }
+                                           return (DecoderResult::Malformed(2, 0),
+                                                   unread_handle_second.consumed(),
+                                                   handle.written());
+                                       }
+                                       trail_minus_offset = second - 0x41;
+                                   }
+                                   let pointer = first_minus_offset as usize * 190usize +
+                                                 trail_minus_offset as usize;
+                                   let bmp = gb18030_decode(pointer);
+                                   if bmp == 0 {
+                                       if second < 0x80 {
+                                           return (DecoderResult::Malformed(1, 0),
+                                                   unread_handle_second.unread(),
+                                                   handle.written());
+                                       }
+                                       return (DecoderResult::Malformed(2, 0),
+                                               unread_handle_second.consumed(),
+                                               handle.written());
+                                   }
+                                   handle.write_bmp_excl_ascii(bmp)
+                               },
+                               {
+                                   // If third is between 0x81 and 0xFE, inclusive,
+                                   // subtract offset 0x81.
+                                   let third_minus_offset = third.wrapping_sub(0x81);
+                                   if third_minus_offset > (0xFE - 0x81) {
+                                       // We have an error. Let's inline what's going
+                                       // to happen when `second` is
+                                       // reprocessed. (`third` gets unread.)
+                                       // `second` is guaranteed ASCII, so let's
+     // put it in `pending_ascii`. Recompute
+     // `second` from `second_minus_offset`.
+                                       self.pending_ascii = Some(second_minus_offset + 0x30);
+     // Now unread `third` and designate the previous
+     // `first` as being in error.
+                                       return (DecoderResult::Malformed(1, 1),
+                                               unread_handle_third.unread(),
+                                               handle.written());
+                                   }
+                                   third_minus_offset
+                               },
+                               {
+     // If fourth is between 0x30 and 0x39, inclusive,
+     // subtract offset 0x30.
+                                   let fourth_minus_offset = fourth.wrapping_sub(0x30);
+                                   let c = call_gb18030_range_decode(first_minus_offset,
+                                                                     second_minus_offset,
+                                                                     third_minus_offset,
+                                                                     fourth_minus_offset);
+                                   if c == '\u{0}' {
+     // We have an error. Let's inline what's going
+     // to happen when `second` and `third` are
+     // reprocessed. (`fourth` gets unread.)
+     // `second` is guaranteed ASCII, so let's
+     // put it in `pending_ascii`. Recompute
+     // `second` from `second_minus_offset` to
+     // make this block reusable when `second`
+     // is not in scope.
+                                       self.pending_ascii = Some(second_minus_offset + 0x30);
+     // `third` is guaranteed to be in the range
+     // that makes it become the new `self.first`.
+                                       self.pending = Gb18030Pending::One(third_minus_offset);
+     // Now unread `fourth` and designate the previous
+     // `first` as being in error.
+                                       return (DecoderResult::Malformed(1, 2),
+                                               unread_handle_fourth.unread(),
+                                               handle.written());
+                                   }
+                                   handle.write_char_excl_ascii(c)
+                               },
+                               self,
+                               non_ascii,
+                               first_minus_offset,
+                               second,
+                               second_minus_offset,
+                               unread_handle_second,
+                               third,
+                               third_minus_offset,
+                               unread_handle_third,
+                               fourth,
+                               fourth_minus_offset,
+                               unread_handle_fourth,
+                               source,
+                               handle,
+                               'outermost);
 }
 
 pub struct Gb18030Encoder {
