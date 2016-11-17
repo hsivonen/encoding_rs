@@ -212,7 +212,7 @@ macro_rules! ascii_compatible_two_byte_decoder_function {
                                     }
                                     Space::Available(mut destination_handle) => {
                                         let (mut b, unread_handle) = source_handle.read();
-                                        let source_again = unread_handle.decommit();
+                                        let source_again = unread_handle.commit();
                                         'innermost: loop {
                                             if b > 127 {
                                                 $non_ascii = b;
@@ -410,7 +410,7 @@ macro_rules! gb18030_decoder_function {
 // Four-byte!
                                         $slf.pending = Gb18030Pending::Two($first_minus_offset,
                                                                            $second_minus_offset);
-                                        $handle.decommit()
+                                        $handle.commit()
                                     }
                                 }
                                 Gb18030Pending::Two($first_minus_offset, $second_minus_offset) => {
@@ -425,7 +425,7 @@ macro_rules! gb18030_decoder_function {
                                     $slf.pending = Gb18030Pending::Three($first_minus_offset,
                                                                          $second_minus_offset,
                                                                          $third_minus_offset);
-                                    $handle.decommit()
+                                    $handle.commit()
                                 }
                                 Gb18030Pending::Three($first_minus_offset,
                                                       $second_minus_offset,
@@ -487,7 +487,7 @@ macro_rules! gb18030_decoder_function {
 // End non-boilerplate
                                     } else {
 // Four-byte!
-                                        match $unread_handle_second.decommit().check_available() {
+                                        match $unread_handle_second.commit().check_available() {
                                             Space::Full(src_consumed_third) => {
                                                 if last {
                                                     return (DecoderResult::Malformed(2, 0),
@@ -509,7 +509,7 @@ macro_rules! gb18030_decoder_function {
                                                     $third_body
 // End non-boilerplate
                                                 };
-                                                match $unread_handle_third.decommit()
+                                                match $unread_handle_third.commit()
                                                                          .check_available() {
                                                     Space::Full(src_consumed_fourth) => {
                                                         if last {
@@ -789,7 +789,7 @@ macro_rules! ascii_compatible_encoder_function {
                                     }
                                     Space::Available(mut destination_handle) => {
                                         let (mut c, unread_handle) = source_handle.read_enum();
-                                        let source_again = unread_handle.decommit();
+                                        let source_again = unread_handle.commit();
                                         'innermost: loop {
                                             let ascii = match c {
                                                 Unicode::NonAscii(non_ascii_again) => {

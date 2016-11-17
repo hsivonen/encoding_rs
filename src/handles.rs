@@ -127,7 +127,7 @@ impl<'a, 'b> ByteUnreadHandle<'a, 'b>
         self.source.consumed()
     }
     #[inline(always)]
-    pub fn decommit(self) -> &'a mut ByteSource<'b> {
+    pub fn commit(self) -> &'a mut ByteSource<'b> {
         self.source
     }
 }
@@ -239,7 +239,7 @@ impl<'a, 'b> Utf16AstralHandle<'a, 'b>
         self.dest
     }
     #[inline(always)]
-    pub fn decommit(self) -> &'a mut Utf16Destination<'b> {
+    pub fn commit(self) -> &'a mut Utf16Destination<'b> {
         self.dest
     }
 }
@@ -512,7 +512,7 @@ impl<'a, 'b> Utf8AstralHandle<'a, 'b>
         self.dest
     }
     #[inline(always)]
-    pub fn decommit(self) -> &'a mut Utf8Destination<'b> {
+    pub fn commit(self) -> &'a mut Utf8Destination<'b> {
         self.dest
     }
 }
@@ -994,7 +994,7 @@ impl<'a, 'b> Utf16UnreadHandle<'a, 'b>
         self.source.consumed()
     }
     #[inline(always)]
-    pub fn decommit(self) -> &'a mut Utf16Source<'b> {
+    pub fn commit(self) -> &'a mut Utf16Source<'b> {
         self.source
     }
 }
@@ -1305,7 +1305,7 @@ impl<'a, 'b> Utf8UnreadHandle<'a, 'b>
         self.source.consumed()
     }
     #[inline(always)]
-    pub fn decommit(self) -> &'a mut Utf8Source<'b> {
+    pub fn commit(self) -> &'a mut Utf8Source<'b> {
         self.source
     }
 }

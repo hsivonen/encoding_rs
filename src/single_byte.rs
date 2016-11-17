@@ -78,7 +78,7 @@ impl SingleByteDecoder {
                                     }
                                     Space::Available(mut destination_handle) => {
                                         let (mut b, unread_handle) = source_handle.read();
-                                        let source_again = unread_handle.decommit();
+                                        let source_again = unread_handle.commit();
                                         'innermost: loop {
                                             if b > 127 {
                                                 non_ascii = b;
