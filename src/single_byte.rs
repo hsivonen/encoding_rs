@@ -237,12 +237,49 @@ impl SingleByteEncoder {
         byte_length
     }
 
-    fn encode_u16_first_quadrant_last(&self, code_unit: u16) -> Option<u8> {
-        for i in 32..128 {
+    fn encode_u16(&self, code_unit: u16) -> Option<u8> {
+        // We search the quadrants in reverse order, but we search forward
+        // within each quadrant. For Windows and ISO encodings, this is
+        // generally faster than just searching the whole table backwards.
+        // (Exceptions: English, German, Czech.) This order is also OK for
+        // KOI encodings. For IBM and Mac encodings, this order isn't optimal,
+        // but we don't really need to optimize for those encodings anyway.
+
+        // In Windows and ISO encodings, the fourth quadrant holds most of the
+        // lower-case letters for bicameral scripts as well as the Hebrew
+        // letters. There are some Thai letters and combining marks as well as
+        // Thai numerals here. (In KOI8-R, the upper-case letters are here.)
+        for i in 96..128 {
             if self.table[i] == code_unit {
                 return Some((i + 128) as u8);
             }
         }
+
+        // In Windows and ISO encodings, the third quadrant holds most of the
+        // upper-case letters for bicameral scripts as well as most of the
+        // Arabic letters. Searching this quadrant first would be better for
+        // Arabic. There are a number of Thai letters and combining marks here.
+        // (In KOI8-R, the lower-case letters are here.)
+        for i in 64..96 {
+            if self.table[i] == code_unit {
+                return Some((i + 128) as u8);
+            }
+        }
+        
+        // In Windows and ISO encodings, the second quadrant hold most of the
+        // Thai letters. In other scripts, there tends to be symbols here.
+        // Even though the two quadrants above are relevant for Thai, for Thai
+        // it would likely be optimal to search this quadrant first. :-(
+        for i in 32..64 {
+            if self.table[i] == code_unit {
+                return Some((i + 128) as u8);
+            }
+        }
+        
+        // The first quadrant is useless in ISO encodings. In Windows encodings,
+        // there is useful punctuation here that might warrant searching
+        // before the symbols in the second quadrant, but the second quadrant
+        // is searched before this one for the benefit of Thai.
         for i in 0..32 {
             if self.table[i] == code_unit {
                 return Some((i + 128) as u8);
@@ -252,7 +289,7 @@ impl SingleByteEncoder {
     }
 
     ascii_compatible_bmp_encoder_function!({
-                                               match self.encode_u16_first_quadrant_last(bmp) {
+                                               match self.encode_u16(bmp) {
                                                    Some(byte) => handle.write_one(byte),
                                                    None => {
                                                        return (EncoderResult::unmappable_from_bmp(bmp),
@@ -296,7 +333,7 @@ impl SingleByteEncoder {
                     converted += consumed;
                     'middle: loop {
                         // `converted` doesn't count the reading of `non_ascii` yet.
-                        match self.encode_u16_first_quadrant_last(non_ascii) {
+                        match self.encode_u16(non_ascii) {
                             Some(byte) => {
                                 unsafe {
                                     *(dst.get_unchecked_mut(converted)) = byte;
