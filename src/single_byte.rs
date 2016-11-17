@@ -242,7 +242,7 @@ impl SingleByteEncoder {
         // within each quadrant. For Windows and ISO encodings, this is
         // generally faster than just searching the whole table backwards.
         // (Exceptions: English, German, Czech.) This order is also OK for
-        // KOI encodings. For IBM and Mac encodings, this order isn't optimal,
+        // KOI encodings. For IBM and Mac encodings, this order is bad,
         // but we don't really need to optimize for those encodings anyway.
 
         // In Windows and ISO encodings, the fourth quadrant holds most of the
