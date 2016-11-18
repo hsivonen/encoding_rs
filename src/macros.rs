@@ -645,6 +645,290 @@ macro_rules! gb18030_decoder_functions {
     );
 }
 
+macro_rules! euc_jp_decoder_function {
+    ($jis0802_trail_body:block,
+     $jis0812_lead_body:block,
+     $jis0812_trail_body:block,
+     $half_width_katakana_body:block,
+     $slf:ident,
+     $non_ascii:ident,
+     $jis0208_lead_minus_offset:ident,
+     $byte:ident,
+     $unread_handle_trail:ident,
+     $jis0212_lead_minus_offset:ident,
+     $lead:ident,
+     $unread_handle_jis0212:ident,
+     $source:ident,
+     $handle:ident,
+     $name:ident,
+     $code_unit:ty,
+     $dest_struct:ident) => (
+    pub fn $name(&mut $slf,
+                 src: &[u8],
+                 dst: &mut [$code_unit],
+                 last: bool)
+                 -> (DecoderResult, usize, usize) {
+        let mut $source = ByteSource::new(src);
+        let mut dest = $dest_struct::new(dst);
+        while !$slf.pending.is_none() {
+            match $source.check_available() {
+                Space::Full(src_consumed) => {
+                    if last {
+// Start non-boilerplate
+                        let count = $slf.pending.count();
+                        $slf.pending = EucJpPending::None;
+                        return (DecoderResult::Malformed(count as u8, 0),
+                                src_consumed,
+                                dest.written());
+// End non-boilerplate
+                    }
+                    return (DecoderResult::InputEmpty, src_consumed, dest.written());
+                }
+                Space::Available(source_handle) => {
+                    match dest.check_space_astral() {
+                        Space::Full(dst_written) => {
+                            return (DecoderResult::OutputFull,
+                                    source_handle.consumed(),
+                                    dst_written);
+                        }
+                        Space::Available($handle) => {
+                            let ($byte, $unread_handle_trail) = source_handle.read();
+                            match $slf.pending {
+                                EucJpPending::Jis0208Lead($jis0208_lead_minus_offset) => {
+                                    $slf.pending = EucJpPending::None;
+// Start non-boilerplate
+                                    $jis0802_trail_body
+// End non-boilerplate
+                                }
+                                EucJpPending::Jis0212Shift => {
+                                    $slf.pending = EucJpPending::None;
+                                    let $lead = $byte;
+                                    let $unread_handle_jis0212 = $unread_handle_trail;
+                                    let $jis0212_lead_minus_offset = {
+// Start non-boilerplate
+                                        $jis0812_lead_body
+// End non-boilerplate
+                                    };
+                                    $slf.pending =
+                                        EucJpPending::Jis0212Lead($jis0212_lead_minus_offset);
+                                    $handle.commit()
+                                }
+                                EucJpPending::Jis0212Lead($jis0212_lead_minus_offset) => {
+                                    $slf.pending = EucJpPending::None;
+// Start non-boilerplate
+                                    $jis0812_trail_body
+// End non-boilerplate
+                                }
+                                EucJpPending::HalfWidthKatakana => {
+                                    $slf.pending = EucJpPending::None;
+// Start non-boilerplate
+                                    $half_width_katakana_body
+// End non-boilerplate
+                                }
+                                EucJpPending::None => unreachable!("Checked in loop condition"),
+                            };
+                        }
+                    }
+                }
+            }
+        }
+        'outermost: loop {
+            match dest.copy_ascii_from_check_space_bmp(&mut $source) {
+                CopyAsciiResult::Stop(ret) => return ret,
+                CopyAsciiResult::GoOn((mut $non_ascii, mut $handle)) => {
+                    'middle: loop {
+                        let dest_again = {
+// If lead is between 0xA1 and 0xFE, inclusive,
+// subtract 0xA1. Else if lead is 0x8E, handle the
+// next byte as half-width Katakana. Else if lead is
+// 0x8F, expect JIS 0212.
+                            let $jis0208_lead_minus_offset = $non_ascii.wrapping_sub(0xA1);
+                            if $jis0208_lead_minus_offset <= (0xFE - 0xA1) {
+// JIS 0208
+                                match $source.check_available() {
+                                    Space::Full(src_consumed_trail) => {
+                                        if last {
+                                            return (DecoderResult::Malformed(1, 0),
+                                                    src_consumed_trail,
+                                                    $handle.written());
+                                        }
+                                        $slf.pending =
+                                            EucJpPending::Jis0208Lead($jis0208_lead_minus_offset);
+                                        return (DecoderResult::InputEmpty,
+                                                src_consumed_trail,
+                                                $handle.written());
+                                    }
+                                    Space::Available(source_handle_trail) => {
+                                        let ($byte, $unread_handle_trail) =
+                                            source_handle_trail.read();
+// Start non-boilerplate
+                                        $jis0802_trail_body
+// End non-boilerplate
+                                    }
+                                }
+                            } else if $non_ascii == 0x8F {
+                                match $source.check_available() {
+                                    Space::Full(src_consumed_jis0212) => {
+                                        if last {
+                                            return (DecoderResult::Malformed(1, 0),
+                                                    src_consumed_jis0212,
+                                                    $handle.written());
+                                        }
+                                        $slf.pending = EucJpPending::Jis0212Shift;
+                                        return (DecoderResult::InputEmpty,
+                                                src_consumed_jis0212,
+                                                $handle.written());
+                                    }
+                                    Space::Available(source_handle_jis0212) => {
+                                        let ($lead, $unread_handle_jis0212) =
+                                            source_handle_jis0212.read();
+                                        let $jis0212_lead_minus_offset = {
+// Start non-boilerplate
+                                            $jis0812_lead_body
+// End non-boilerplate
+                                        };
+                                        match $unread_handle_jis0212.commit().check_available() {
+                                            Space::Full(src_consumed_trail) => {
+                                                if last {
+                                                    return (DecoderResult::Malformed(2, 0),
+                                                            src_consumed_trail,
+                                                            $handle.written());
+                                                }
+                                                $slf.pending = EucJpPending::Jis0212Lead($jis0212_lead_minus_offset);
+                                                return (DecoderResult::InputEmpty,
+                                                        src_consumed_trail,
+                                                        $handle.written());
+                                            }
+                                            Space::Available(source_handle_trail) => {
+                                                let ($byte, $unread_handle_trail) =
+                                                    source_handle_trail.read();
+// Start non-boilerplate
+                                                $jis0812_trail_body
+// End non-boilerplate
+                                            }
+                                        }
+                                    }
+                                }
+                            } else if $non_ascii == 0x8E {
+                                match $source.check_available() {
+                                    Space::Full(src_consumed_trail) => {
+                                        if last {
+                                            return (DecoderResult::Malformed(1, 0),
+                                                    src_consumed_trail,
+                                                    $handle.written());
+                                        }
+                                        $slf.pending = EucJpPending::HalfWidthKatakana;
+                                        return (DecoderResult::InputEmpty,
+                                                src_consumed_trail,
+                                                $handle.written());
+                                    }
+                                    Space::Available(source_handle_trail) => {
+                                        let ($byte, $unread_handle_trail) =
+                                            source_handle_trail.read();
+// Start non-boilerplate
+                                        $half_width_katakana_body
+// End non-boilerplate
+                                    }
+                                }
+                            } else {
+                                return (DecoderResult::Malformed(1, 0),
+                                        $source.consumed(),
+                                        $handle.written());
+                            }
+                        };
+                        match $source.check_available() {
+                            Space::Full(src_consumed) => {
+                                return (DecoderResult::InputEmpty,
+                                        src_consumed,
+                                        dest_again.written());
+                            }
+                            Space::Available(source_handle) => {
+                                match dest_again.check_space_bmp() {
+                                    Space::Full(dst_written) => {
+                                        return (DecoderResult::OutputFull,
+                                                source_handle.consumed(),
+                                                dst_written);
+                                    }
+                                    Space::Available(destination_handle) => {
+                                        let (b, _) = source_handle.read();
+                                        'innermost: loop {
+                                            if b > 127 {
+                                                $non_ascii = b;
+                                                $handle = destination_handle;
+                                                continue 'middle;
+                                            }
+// Testing on Haswell says that we should write the
+// byte unconditionally instead of trying to unread it
+// to make it part of the next SIMD stride.
+                                            destination_handle.write_ascii(b);
+// We've got markup or ASCII text
+                                            continue 'outermost;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        unreachable!("Should always continue earlier.");
+                    }
+                }
+            }
+            unreachable!("Should always continue earlier.");
+        }
+    });
+}
+
+macro_rules! euc_jp_decoder_functions {
+    ($jis0802_trail_body:block,
+     $jis0812_lead_body:block,
+     $jis0812_trail_body:block,
+     $half_width_katakana_body:block,
+     $slf:ident,
+     $non_ascii:ident,
+     $jis0208_lead_minus_offset:ident,
+     $byte:ident,
+     $unread_handle_trail:ident,
+     $jis0212_lead_minus_offset:ident,
+     $lead:ident,
+     $unread_handle_jis0212:ident,
+     $source:ident,
+     $handle:ident) => (
+    euc_jp_decoder_function!($jis0802_trail_body,
+                             $jis0812_lead_body,
+                             $jis0812_trail_body,
+                             $half_width_katakana_body,
+                             $slf,
+                             $non_ascii,
+                             $jis0208_lead_minus_offset,
+                             $byte,
+                             $unread_handle_trail,
+                             $jis0212_lead_minus_offset,
+                             $lead,
+                             $unread_handle_jis0212,
+                             $source,
+                             $handle,
+                             decode_to_utf8_raw,
+                             u8,
+                             Utf8Destination);
+    euc_jp_decoder_function!($jis0802_trail_body,
+                             $jis0812_lead_body,
+                             $jis0812_trail_body,
+                             $half_width_katakana_body,
+                             $slf,
+                             $non_ascii,
+                             $jis0208_lead_minus_offset,
+                             $byte,
+                             $unread_handle_trail,
+                             $jis0212_lead_minus_offset,
+                             $lead,
+                             $unread_handle_jis0212,
+                             $source,
+                             $handle,
+                             decode_to_utf16_raw,
+                             u16,
+                             Utf16Destination);
+        );
+}
+
 macro_rules! encoder_function {
     ($eof:block,
      $body:block,

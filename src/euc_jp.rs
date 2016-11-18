@@ -12,22 +12,47 @@ use data::*;
 use variant::*;
 use super::*;
 
+enum EucJpPending {
+    None,
+    Jis0208Lead(u8),
+    Jis0212Shift,
+    Jis0212Lead(u8),
+    HalfWidthKatakana,
+}
+
+impl EucJpPending {
+    fn is_none(&self) -> bool {
+        match self {
+            &EucJpPending::None => true,
+            _ => false,
+        }
+    }
+
+    fn count(&self) -> usize {
+        match self {
+            &EucJpPending::None => 0,
+            &EucJpPending::Jis0208Lead(_) |
+            &EucJpPending::Jis0212Shift |
+            &EucJpPending::HalfWidthKatakana => 1,
+            &EucJpPending::Jis0212Lead(_) => 2,
+        }
+    }
+}
+
 pub struct EucJpDecoder {
-    lead: u8,
-    jis0212: bool,
+    pending: EucJpPending,
 }
 
 impl EucJpDecoder {
     pub fn new() -> VariantDecoder {
         VariantDecoder::EucJp(EucJpDecoder {
-            lead: 0,
-            jis0212: false,
+            pending: EucJpPending::None,
         })
     }
 
     fn plus_one_if_lead(&self, byte_length: usize) -> usize {
         byte_length +
-        if self.lead == 0 {
+        if self.pending.is_none() {
             0
         } else {
             1
@@ -48,72 +73,106 @@ impl EucJpDecoder {
         self.plus_one_if_lead(byte_length) * 3
     }
 
-    decoder_functions!({},
-                       {
-                           if self.lead != 0 {
-                               self.lead = 0;
-                               return (DecoderResult::Malformed(1, 0),
-                                       src_consumed,
-                                       dest.written());
-                           }
-                       },
-                       {
-                           if self.lead == 0 {
-                               if b <= 0x7f {
-                                   // TODO optimize ASCII run
-                                   destination_handle.write_ascii(b);
-                                   continue;
-                               }
-                               if (b >= 0xA1 && b <= 0xFE) || b == 0x8E || b == 0x8F {
-                                   self.lead = b;
-                                   continue;
-                               }
-                               return (DecoderResult::Malformed(1, 0),
-                                       unread_handle.consumed(),
-                                       destination_handle.written());
-                           }
-                           let lead = self.lead as usize;
-                           self.lead = 0;
-                           // Comparison to 0xA1 could be hoisted, but the
-                           // form below matches the spec better.
-                           if lead == 0x8E && (b >= 0xA1 && b <= 0xDF) {
-                               destination_handle.write_upper_bmp(0xFF61 - 0xA1 + b as u16);
-                               continue;
-                           }
-                           if lead == 0x8F && (b >= 0xA1 && b <= 0xFE) {
-                               self.lead = b;
-                               self.jis0212 = true;
-                               continue;
-                           }
-                           if (b >= 0xA1 && b <= 0xFE) && (lead >= 0xA1 && lead <= 0xFE) {
-                               let pointer = (lead as usize - 0xA1) * 94usize + (b as usize - 0xA1);
-                               let bmp = if self.jis0212 {
-                                   self.jis0212 = false;
-                                   jis0212_decode(pointer)
-                               } else {
-                                   jis0208_decode(pointer)
-                               };
-                               if bmp != 0 {
-                                   destination_handle.write_bmp_excl_ascii(bmp);
-                                   continue;
-                               }
-                           }
-                           if b < 0xA1 || b == 0xFF {
-                               return (DecoderResult::Malformed(1, 0),
-                                       unread_handle.unread(),
-                                       destination_handle.written());
-                           }
-                           return (DecoderResult::Malformed(2, 0),
-                                   unread_handle.consumed(),
-                                   destination_handle.written());
-                       },
-                       self,
-                       src_consumed,
-                       dest,
-                       b,
-                       destination_handle,
-                       unread_handle,
-                       check_space_bmp);
+    euc_jp_decoder_functions!({
+                                   // If trail is between 0xA1 and 0xFE, inclusive,
+                                   // subtract 0xA1.
+                                   let trail_minus_offset = byte.wrapping_sub(0xA1);
+                                   if trail_minus_offset > (0xFE - 0xA1) {
+                                       if byte < 0x80 {
+                                           return (DecoderResult::Malformed(1, 0),
+                                                   unread_handle_trail.unread(),
+                                                   handle.written());
+                                       }
+                                       return (DecoderResult::Malformed(2, 0),
+                                               unread_handle_trail.consumed(),
+                                               handle.written());
+                                   }
+                                   let pointer = jis0208_lead_minus_offset as usize * 94usize +
+                                                 trail_minus_offset as usize;
+                                   let bmp = jis0208_decode(pointer);
+                                   if bmp == 0 {
+                                       if byte < 0x80 {
+                                           return (DecoderResult::Malformed(1, 0),
+                                                   unread_handle_trail.unread(),
+                                                   handle.written());
+                                       }
+                                       return (DecoderResult::Malformed(2, 0),
+                                               unread_handle_trail.consumed(),
+                                               handle.written());
+                                   }
+                                   handle.write_bmp_excl_ascii(bmp)
+                              },
+                              {
+                                   // If lead is between 0xA1 and 0xFE, inclusive,
+                                   // subtract 0xA1.
+                                   let jis0212_lead_minus_offset = lead.wrapping_sub(0xA1);
+                                   if jis0212_lead_minus_offset > (0xFE - 0xA1) {
+                                       if lead < 0x80 {
+                                           return (DecoderResult::Malformed(1, 0),
+                                                   unread_handle_jis0212.unread(),
+                                                   handle.written());
+                                       }
+                                       return (DecoderResult::Malformed(2, 0),
+                                               unread_handle_jis0212.consumed(),
+                                               handle.written());
+                                   }
+                                   jis0212_lead_minus_offset
+                              },
+                              {
+                                   // If trail is between 0xA1 and 0xFE, inclusive,
+                                   // subtract 0xA1.
+                                   let trail_minus_offset = byte.wrapping_sub(0xA1);
+                                   if trail_minus_offset > (0xFE - 0xA1) {
+                                       if byte < 0x80 {
+                                           return (DecoderResult::Malformed(2, 0),
+                                                   unread_handle_trail.unread(),
+                                                   handle.written());
+                                       }
+                                       return (DecoderResult::Malformed(3, 0),
+                                               unread_handle_trail.consumed(),
+                                               handle.written());
+                                   }
+                                   let pointer = jis0212_lead_minus_offset as usize * 94usize +
+                                                 trail_minus_offset as usize;
+                                   let bmp = jis0212_decode(pointer);
+                                   if bmp == 0 {
+                                       if byte < 0x80 {
+                                           return (DecoderResult::Malformed(2, 0),
+                                                   unread_handle_trail.unread(),
+                                                   handle.written());
+                                       }
+                                       return (DecoderResult::Malformed(3, 0),
+                                               unread_handle_trail.consumed(),
+                                               handle.written());
+                                   }
+                                   handle.write_bmp_excl_ascii(bmp)
+                              },
+                              {
+                                   // If trail is between 0xA1 and 0xDF, inclusive,
+                                   // subtract 0xA1 and map to half-width Katakana.
+                                   let trail_minus_offset = byte.wrapping_sub(0xA1);
+                                   if trail_minus_offset > (0xDF - 0xA1) {
+                                       if byte < 0x80 {
+                                           return (DecoderResult::Malformed(1, 0),
+                                                   unread_handle_trail.unread(),
+                                                   handle.written());
+                                       }
+                                       return (DecoderResult::Malformed(2, 0),
+                                               unread_handle_trail.consumed(),
+                                               handle.written());
+                                   }
+                                   handle.write_upper_bmp(0xFF61 + trail_minus_offset as u16)
+                              },
+                              self,
+                              non_ascii,
+                              jis0208_lead_minus_offset,
+                              byte,
+                              unread_handle_trail,
+                              jis0212_lead_minus_offset,
+                              lead,
+                              unread_handle_jis0212,
+                              source,
+                              handle);
 }
 
 pub struct EucJpEncoder;
@@ -189,20 +248,24 @@ mod tests {
         // Half-width
         decode_euc_jp(b"\x8E\xA1", "\u{FF61}");
         decode_euc_jp(b"\x8E\xDF", "\u{FF9F}");
-        decode_euc_jp(b"\x8E\xA0", "\u{FFFD}\u{FFFD}");
+        decode_euc_jp(b"\x8E\xA0", "\u{FFFD}");
         decode_euc_jp(b"\x8E\xE0", "\u{FFFD}");
-        decode_euc_jp(b"\x8E\xFF", "\u{FFFD}\u{FFFD}");
+        decode_euc_jp(b"\x8E\xFF", "\u{FFFD}");
+        decode_euc_jp(b"\x8E", "\u{FFFD}");
 
         // JIS 0212
         decode_euc_jp(b"\x8F\xA1\xA1", "\u{FFFD}");
         decode_euc_jp(b"\x8F\xA2\xAF", "\u{02D8}");
-        decode_euc_jp(b"\x8F\xA2\xFF", "\u{FFFD}\u{FFFD}");
+        decode_euc_jp(b"\x8F\xA2\xFF", "\u{FFFD}");
+        decode_euc_jp(b"\x8F\xA1", "\u{FFFD}");
+        decode_euc_jp(b"\x8F", "\u{FFFD}");
 
         // JIS 0208
         decode_euc_jp(b"\xA1\xA1", "\u{3000}");
-        decode_euc_jp(b"\xA1\xA0", "\u{FFFD}\u{FFFD}");
+        decode_euc_jp(b"\xA1\xA0", "\u{FFFD}");
         decode_euc_jp(b"\xFC\xFE", "\u{FF02}");
         decode_euc_jp(b"\xFE\xFE", "\u{FFFD}");
+        decode_euc_jp(b"\xA1", "\u{FFFD}");
 
         // Bad leads
         decode_euc_jp(b"\xFF\xA1\xA1", "\u{FFFD}\u{3000}");
