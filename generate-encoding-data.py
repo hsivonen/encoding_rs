@@ -918,94 +918,50 @@ utf_8_file.write("""
 // Instead, please regenerate using generate-encoding-data.py
 
 /// Lead types:
-/// 0: non-punctuation ASCII
-/// 1: ASCII punctuation
-/// 2: two-byte
-/// 3: three-byte normal
-/// 4: three-byte special lower bound
-/// 5: three-byte special upper bound
-/// 6: four-byte normal
-/// 7: four-byte special lower bound
-/// 8: four-byte special upper bound
-/// 9: invalid
+/// 0: ASCII
+/// 1: two-byte
+/// 2: three-byte normal
+/// 3: three-byte special lower bound
+/// 4: three-byte special upper bound
+/// 5: four-byte normal
+/// 6: four-byte special lower bound
+/// 7: four-byte special upper bound
+/// 8: invalid
 static UTF8_LEAD_TYPES: [u8; 256] = [""")
 
 for i in range(256):
-  if i < 0x20:
-    # Treat line breaks and tabs but not spaces as SIMD-triggering.
-    utf_8_file.write("0,")
-  elif i < 0x22:
-    # Space and exclamation point but not double quote.
-    utf_8_file.write("1,")
-  elif i == 0x22:
-    # Double quote.
-    utf_8_file.write("0,")
-  elif i < 0x27:
-    # Hash, dollar, percent and ampersand but not single quote.
-    utf_8_file.write("1,")
-  elif i == 0x27:
-    # Single quote.
-    utf_8_file.write("0,")
-  elif i < 0x3C:
-    # Up to but not including less than.
-    utf_8_file.write("1,")
-  elif i == 0x3C:
-    # Less than.
-    utf_8_file.write("0,")
-  elif i == 0x3D:
-    # Equals.
-    utf_8_file.write("1,")
-  elif i == 0x3E:
-    # Greater than.
-    utf_8_file.write("0,")
-  elif i < 0x41:
-    # Question mark and at sign.
-    utf_8_file.write("1,")
-  elif i < 0x5B:
-    # Capital letters.
-    utf_8_file.write("0,")
-  elif i < 0x61:
-    # Square brackets, backslash, caret, underscore, backtick.
-    utf_8_file.write("1,")
-  elif i < 0x7B:
-    # Lower-case letters.
-    utf_8_file.write("0,")
-  elif i < 0x7F:
-    # Curly braces, pipe, tilde.
-    utf_8_file.write("1,")
-  elif i == 0x7F:
-    # DEL.
+  if i < 0x80:
     utf_8_file.write("0,")
   elif i < 0xC2:
     # Invalid. (Non-shortest.)
-    utf_8_file.write("9,")
+    utf_8_file.write("8,")
   elif i < 0xE0:
     # Two-byte
-    utf_8_file.write("2,")
+    utf_8_file.write("1,")
   elif i == 0xE0:
     # Three-byte with special lower bound. (Non-shortest.)
-    utf_8_file.write("4,")
+    utf_8_file.write("3,")
   elif i < 0xED:
     # Three-byte
-    utf_8_file.write("3,")
+    utf_8_file.write("2,")
   elif i == 0xED:
     # Three-byte with special upper bound. (Surrogates.)
-    utf_8_file.write("5,")
+    utf_8_file.write("4,")
   elif i < 0xF0:
     # Three-byte
-    utf_8_file.write("3,")
+    utf_8_file.write("2,")
   elif i == 0xF0:
     # Four-byte with special lower bound. (Non-shortest.)
-    utf_8_file.write("7,")
+    utf_8_file.write("6,")
   elif i < 0xF4:
     # Four-byte
-    utf_8_file.write("6,")
+    utf_8_file.write("5,")
   elif i == 0xF4:
     # Four-byte with special upper bound.
-    utf_8_file.write("8,")
+    utf_8_file.write("7,")
   else:
     # Invalid.
-    utf_8_file.write("9,")
+    utf_8_file.write("8,")
 
 utf_8_file.write("""
 ];
