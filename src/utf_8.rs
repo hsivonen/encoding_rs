@@ -381,7 +381,7 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
         }
         // We can't have a complete 4-byte sequence, but we could still have
         // a complete shorter sequence.
-        
+
         // At this point, `byte` is not included in `read`, because we
         // don't yet know that a) the UTF-8 sequence is valid and b) that there
         // is output space if it is an astral sequence.
