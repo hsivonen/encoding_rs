@@ -19,15 +19,15 @@ pub fn utf8_valid_up_to(bytes: &[u8]) -> usize {
     }
 }
 
-const UTF8_NORMAL_TRAIL: u8 = 1;
+const UTF8_NORMAL_TRAIL: u8 = 1 << 3;
 
-const UTF8_THREE_BYTE_SPECIAL_LOWER_BOUND_TRAIL: u8 = 1 << 1;
+const UTF8_THREE_BYTE_SPECIAL_LOWER_BOUND_TRAIL: u8 = 1 << 4;
 
-const UTF8_THREE_BYTE_SPECIAL_UPPER_BOUND_TRAIL: u8 = 1 << 2;
+const UTF8_THREE_BYTE_SPECIAL_UPPER_BOUND_TRAIL: u8 = 1 << 5;
 
-const UTF8_FOUR_BYTE_SPECIAL_LOWER_BOUND_TRAIL: u8 = 1 << 3;
+const UTF8_FOUR_BYTE_SPECIAL_LOWER_BOUND_TRAIL: u8 = 1 << 6;
 
-const UTF8_FOUR_BYTE_SPECIAL_UPPER_BOUND_TRAIL: u8 = 1 << 4;
+const UTF8_FOUR_BYTE_SPECIAL_UPPER_BOUND_TRAIL: u8 = 1 << 7;
 
 // BEGIN GENERATED CODE. PLEASE DO NOT EDIT.
 // Instead, please regenerate using generate-encoding-data.py
@@ -58,25 +58,29 @@ static UTF8_LEAD_TYPES: [u8; 256] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
                                      7, 6, 6, 6, 8, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9];
 
 ///
-static UTF8_TRAIL_INVALID: [u8; 256] = [31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31,
-                                        31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31,
-                                        31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31,
-                                        31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31,
-                                        31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31,
-                                        31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31,
-                                        31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31,
-                                        31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31,
-                                        31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31,
-                                        31, 31, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10,
-                                        10, 10, 10, 10, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18,
-                                        18, 18, 18, 18, 18, 18, 20, 20, 20, 20, 20, 20, 20, 20,
-                                        20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20,
-                                        20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 31, 31, 31, 31,
-                                        31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31,
-                                        31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31,
-                                        31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31,
-                                        31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31,
-                                        31, 31, 31, 31];
+static UTF8_TRAIL_INVALID: [u8; 256] = [248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248,
+                                        248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248,
+                                        248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248,
+                                        248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248,
+                                        248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248,
+                                        248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248,
+                                        248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248,
+                                        248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248,
+                                        248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248,
+                                        248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248,
+                                        248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248,
+                                        248, 248, 248, 248, 248, 248, 248, 80, 80, 80, 80, 80, 80,
+                                        80, 80, 80, 80, 80, 80, 80, 80, 80, 80, 144, 144, 144,
+                                        144, 144, 144, 144, 144, 144, 144, 144, 144, 144, 144,
+                                        144, 144, 160, 160, 160, 160, 160, 160, 160, 160, 160,
+                                        160, 160, 160, 160, 160, 160, 160, 160, 160, 160, 160,
+                                        160, 160, 160, 160, 160, 160, 160, 160, 160, 160, 160,
+                                        160, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248,
+                                        248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248,
+                                        248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248,
+                                        248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248,
+                                        248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248,
+                                        248, 248, 248, 248, 248, 248, 248, 248, 248, 248];
 // END GENERATED CODE
 
 pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usize, usize) {
@@ -148,7 +152,8 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
                         let second = src[read + 1];
                         let third = src[read + 2];
                         if ((UTF8_TRAIL_INVALID[second as usize] & UTF8_NORMAL_TRAIL) |
-                            (UTF8_TRAIL_INVALID[third as usize] & UTF8_NORMAL_TRAIL)) != 0 {
+                            (UTF8_TRAIL_INVALID[third as usize] & UTF8_NORMAL_TRAIL)) !=
+                           0 {
                             break 'outer;
                         }
                         let point = (((byte as u32) & 0xFu32) << 12) |
@@ -162,8 +167,10 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
                         // Three-byte special lower bound
                         let second = src[read + 1];
                         let third = src[read + 2];
-                        if ((UTF8_TRAIL_INVALID[second as usize] & UTF8_THREE_BYTE_SPECIAL_LOWER_BOUND_TRAIL) |
-                            (UTF8_TRAIL_INVALID[third as usize] & UTF8_NORMAL_TRAIL)) != 0 {
+                        if ((UTF8_TRAIL_INVALID[second as usize] &
+                             UTF8_THREE_BYTE_SPECIAL_LOWER_BOUND_TRAIL) |
+                            (UTF8_TRAIL_INVALID[third as usize] & UTF8_NORMAL_TRAIL)) !=
+                           0 {
                             break 'outer;
                         }
                         let point = (((byte as u32) & 0xFu32) << 12) |
@@ -177,8 +184,10 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
                         // Three-byte special upper bound
                         let second = src[read + 1];
                         let third = src[read + 2];
-                        if ((UTF8_TRAIL_INVALID[second as usize] & UTF8_THREE_BYTE_SPECIAL_UPPER_BOUND_TRAIL) |
-                            (UTF8_TRAIL_INVALID[third as usize] & UTF8_NORMAL_TRAIL)) != 0 {
+                        if ((UTF8_TRAIL_INVALID[second as usize] &
+                             UTF8_THREE_BYTE_SPECIAL_UPPER_BOUND_TRAIL) |
+                            (UTF8_TRAIL_INVALID[third as usize] & UTF8_NORMAL_TRAIL)) !=
+                           0 {
                             break 'outer;
                         }
                         let point = (((byte as u32) & 0xFu32) << 12) |
@@ -198,7 +207,8 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
                         let fourth = src[read + 3];
                         if ((UTF8_TRAIL_INVALID[second as usize] & UTF8_NORMAL_TRAIL) |
                             (UTF8_TRAIL_INVALID[third as usize] & UTF8_NORMAL_TRAIL) |
-                            (UTF8_TRAIL_INVALID[fourth as usize] & UTF8_NORMAL_TRAIL)) != 0 {
+                            (UTF8_TRAIL_INVALID[fourth as usize] & UTF8_NORMAL_TRAIL)) !=
+                           0 {
                             break 'outer;
                         }
                         let point = (((byte as u32) & 0x7u32) << 18) |
@@ -218,9 +228,11 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
                         let second = src[read + 1];
                         let third = src[read + 2];
                         let fourth = src[read + 3];
-                        if ((UTF8_TRAIL_INVALID[second as usize] & UTF8_FOUR_BYTE_SPECIAL_LOWER_BOUND_TRAIL) |
+                        if ((UTF8_TRAIL_INVALID[second as usize] &
+                             UTF8_FOUR_BYTE_SPECIAL_LOWER_BOUND_TRAIL) |
                             (UTF8_TRAIL_INVALID[third as usize] & UTF8_NORMAL_TRAIL) |
-                            (UTF8_TRAIL_INVALID[fourth as usize] & UTF8_NORMAL_TRAIL)) != 0 {
+                            (UTF8_TRAIL_INVALID[fourth as usize] & UTF8_NORMAL_TRAIL)) !=
+                           0 {
                             break 'outer;
                         }
                         let point = (((byte as u32) & 0x7u32) << 18) |
@@ -240,9 +252,11 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
                         let second = src[read + 1];
                         let third = src[read + 2];
                         let fourth = src[read + 3];
-                        if ((UTF8_TRAIL_INVALID[second as usize] & UTF8_FOUR_BYTE_SPECIAL_UPPER_BOUND_TRAIL) |
+                        if ((UTF8_TRAIL_INVALID[second as usize] &
+                             UTF8_FOUR_BYTE_SPECIAL_UPPER_BOUND_TRAIL) |
                             (UTF8_TRAIL_INVALID[third as usize] & UTF8_NORMAL_TRAIL) |
-                            (UTF8_TRAIL_INVALID[fourth as usize] & UTF8_NORMAL_TRAIL)) != 0 {
+                            (UTF8_TRAIL_INVALID[fourth as usize] & UTF8_NORMAL_TRAIL)) !=
+                           0 {
                             break 'outer;
                         }
                         let point = (((byte as u32) & 0x7u32) << 18) |
@@ -326,7 +340,9 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
                 }
                 let second = src[read + 1];
                 let third = src[read + 2];
-                if ((UTF8_TRAIL_INVALID[second as usize] & UTF8_NORMAL_TRAIL) | (UTF8_TRAIL_INVALID[third as usize] & UTF8_NORMAL_TRAIL)) != 0 {
+                if ((UTF8_TRAIL_INVALID[second as usize] & UTF8_NORMAL_TRAIL) |
+                    (UTF8_TRAIL_INVALID[third as usize] & UTF8_NORMAL_TRAIL)) !=
+                   0 {
                     break 'outer;
                 }
                 let point = (((byte as u32) & 0xFu32) << 12) | ((second as u32 & 0x3Fu32) << 6) |
@@ -343,8 +359,10 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
                 }
                 let second = src[read + 1];
                 let third = src[read + 2];
-                if ((UTF8_TRAIL_INVALID[second as usize] & UTF8_THREE_BYTE_SPECIAL_LOWER_BOUND_TRAIL) |
-                    (UTF8_TRAIL_INVALID[third as usize] & UTF8_NORMAL_TRAIL)) != 0 {
+                if ((UTF8_TRAIL_INVALID[second as usize] &
+                     UTF8_THREE_BYTE_SPECIAL_LOWER_BOUND_TRAIL) |
+                    (UTF8_TRAIL_INVALID[third as usize] & UTF8_NORMAL_TRAIL)) !=
+                   0 {
                     break 'outer;
                 }
                 let point = (((byte as u32) & 0xFu32) << 12) | ((second as u32 & 0x3Fu32) << 6) |
@@ -361,8 +379,10 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
                 }
                 let second = src[read + 1];
                 let third = src[read + 2];
-                if ((UTF8_TRAIL_INVALID[second as usize] & UTF8_THREE_BYTE_SPECIAL_UPPER_BOUND_TRAIL) |
-                    (UTF8_TRAIL_INVALID[third as usize] & UTF8_NORMAL_TRAIL)) != 0 {
+                if ((UTF8_TRAIL_INVALID[second as usize] &
+                     UTF8_THREE_BYTE_SPECIAL_UPPER_BOUND_TRAIL) |
+                    (UTF8_TRAIL_INVALID[third as usize] & UTF8_NORMAL_TRAIL)) !=
+                   0 {
                     break 'outer;
                 }
                 let point = (((byte as u32) & 0xFu32) << 12) | ((second as u32 & 0x3Fu32) << 6) |

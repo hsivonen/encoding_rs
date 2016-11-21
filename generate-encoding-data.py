@@ -1016,15 +1016,15 @@ static UTF8_TRAIL_INVALID: [u8; 256] = [""")
 for i in range(256):
   combined = 0
   if i < 0x80 or i > 0xBF:
-    combined |= 1
-  if i < 0xA0 or i > 0xBF:
-    combined |= (1 << 1)
-  if i < 0x80 or i > 0x9F:
-    combined |= (1 << 2)
-  if i < 0x90 or i > 0xBF:
     combined |= (1 << 3)
-  if i < 0x80 or i > 0x8F:
+  if i < 0xA0 or i > 0xBF:
     combined |= (1 << 4)
+  if i < 0x80 or i > 0x9F:
+    combined |= (1 << 5)
+  if i < 0x90 or i > 0xBF:
+    combined |= (1 << 6)
+  if i < 0x80 or i > 0x8F:
+    combined |= (1 << 7)
   utf_8_file.write("%d," % combined)
 
 utf_8_file.write("""
