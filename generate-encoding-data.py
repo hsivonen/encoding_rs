@@ -917,17 +917,15 @@ utf_8_file.write(utf_8_rs_begin)
 utf_8_file.write("""
 // Instead, please regenerate using generate-encoding-data.py
 
+/// Low 3 bits are lead type. 5 high bits are validity mask
+/// for the first trail.
 /// Lead types:
 /// 0: non-punctuation ASCII
 /// 1: ASCII punctuation
 /// 2: two-byte
-/// 3: three-byte normal
-/// 4: three-byte special lower bound
-/// 5: three-byte special upper bound
-/// 6: four-byte normal
-/// 7: four-byte special lower bound
-/// 8: four-byte special upper bound
-/// 9: invalid
+/// 3: three-byte
+/// 4: four-byte
+/// 5: invalid
 static UTF8_LEAD_TYPES: [u8; 256] = [""")
 
 for i in range(256):
@@ -981,28 +979,28 @@ for i in range(256):
     utf_8_file.write("9,")
   elif i < 0xE0:
     # Two-byte
-    utf_8_file.write("2,")
+    utf_8_file.write("%d," % (2 | (1 << 3)))
   elif i == 0xE0:
     # Three-byte with special lower bound. (Non-shortest.)
-    utf_8_file.write("4,")
+    utf_8_file.write("%d," % (3 | (1 << 4)))
   elif i < 0xED:
     # Three-byte
-    utf_8_file.write("3,")
+    utf_8_file.write("%d," % (3 | (1 << 3)))
   elif i == 0xED:
     # Three-byte with special upper bound. (Surrogates.)
-    utf_8_file.write("5,")
+    utf_8_file.write("%d," % (3 | (1 << 5)))
   elif i < 0xF0:
     # Three-byte
-    utf_8_file.write("3,")
+    utf_8_file.write("%d," % (3 | (1 << 3)))
   elif i == 0xF0:
     # Four-byte with special lower bound. (Non-shortest.)
-    utf_8_file.write("7,")
+    utf_8_file.write("%d," % (4 | (1 << 6)))
   elif i < 0xF4:
     # Four-byte
-    utf_8_file.write("6,")
+    utf_8_file.write("%d," % (4 | (1 << 3)))
   elif i == 0xF4:
     # Four-byte with special upper bound.
-    utf_8_file.write("8,")
+    utf_8_file.write("%d," % (4 | (1 << 7)))
   else:
     # Invalid.
     utf_8_file.write("9,")
@@ -1016,14 +1014,19 @@ static UTF8_TRAIL_INVALID: [u8; 256] = [""")
 for i in range(256):
   combined = 0
   if i < 0x80 or i > 0xBF:
+    # Normal
     combined |= (1 << 3)
   if i < 0xA0 or i > 0xBF:
+    # Three-byte special lower
     combined |= (1 << 4)
   if i < 0x80 or i > 0x9F:
+    # Three-byte special upper
     combined |= (1 << 5)
   if i < 0x90 or i > 0xBF:
+    # Four-byte special lower
     combined |= (1 << 6)
   if i < 0x80 or i > 0x8F:
+    # Four-byte special upper
     combined |= (1 << 7)
   utf_8_file.write("%d," % combined)
 
