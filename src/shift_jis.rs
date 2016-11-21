@@ -99,7 +99,7 @@ impl ShiftJisDecoder {
                                                      let pointer = lead_minus_offset as usize *
                                                                    188usize +
                                                                    trail_minus_offset as usize;
-                                                     if pointer >= 8836 && pointer <= 10528 {
+                                                     if pointer >= 8836 && pointer <= 10715 {
                                                          handle.write_upper_bmp((0xE000 - 8836 + pointer) as u16)
                                                      } else {
                                                          let bmp = jis0208_decode(pointer);
@@ -221,9 +221,9 @@ mod tests {
 
         // EUDC
         decode_shift_jis(b"\xF0\x40", "\u{E000}");
-        decode_shift_jis(b"\xF9\x40", "\u{E69C}");
-        decode_shift_jis(b"\xEA\xFC", "\u{FFFD}");
-        decode_shift_jis(b"\xF9\x41", "\u{FFFD}A");
+        decode_shift_jis(b"\xF9\xFC", "\u{E757}");
+        decode_shift_jis(b"\xEF\xFC", "\u{FFFD}");
+        decode_shift_jis(b"\xFA\x40", "\u{2170}");
 
         // JIS 0208
         decode_shift_jis(b"\x81\x40", "\u{3000}");
@@ -257,7 +257,7 @@ mod tests {
 
         // EUDC
         encode_shift_jis("\u{E000}", b"&#57344;");
-        encode_shift_jis("\u{E69C}", b"&#59036;");
+        encode_shift_jis("\u{E757}", b"&#59223;");
 
         // JIS 0212
         encode_shift_jis("\u{02D8}", b"&#728;");
