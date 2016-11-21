@@ -1014,58 +1014,18 @@ utf_8_file.write("""
 static UTF8_TRAIL_INVALID: [u8; 256] = [""")
 
 for i in range(256):
+  combined = 0
   if i < 0x80 or i > 0xBF:
-    utf_8_file.write("1,")
-  else:
-    utf_8_file.write("0,")
-
-utf_8_file.write("""
-];
-
-///
-static UTF8_THREE_BYTE_SPECIAL_LOWER_BOUND_TRAIL_INVALID: [u8; 256] = [""")
-
-for i in range(256):
+    combined |= 1
   if i < 0xA0 or i > 0xBF:
-    utf_8_file.write("1,")
-  else:
-    utf_8_file.write("0,")
-
-utf_8_file.write("""
-];
-
-///
-static UTF8_THREE_BYTE_SPECIAL_UPPER_BOUND_TRAIL_INVALID: [u8; 256] = [""")
-
-for i in range(256):
+    combined |= (1 << 1)
   if i < 0x80 or i > 0x9F:
-    utf_8_file.write("1,")
-  else:
-    utf_8_file.write("0,")
-
-utf_8_file.write("""
-];
-
-///
-static UTF8_FOUR_BYTE_SPECIAL_LOWER_BOUND_TRAIL_INVALID: [u8; 256] = [""")
-
-for i in range(256):
+    combined |= (1 << 2)
   if i < 0x90 or i > 0xBF:
-    utf_8_file.write("1,")
-  else:
-    utf_8_file.write("0,")
-
-utf_8_file.write("""
-];
-
-///
-static UTF8_FOUR_BYTE_SPECIAL_UPPER_BOUND_TRAIL_INVALID: [u8; 256] = [""")
-
-for i in range(256):
+    combined |= (1 << 3)
   if i < 0x80 or i > 0x8F:
-    utf_8_file.write("1,")
-  else:
-    utf_8_file.write("0,")
+    combined |= (1 << 4)
+  utf_8_file.write("%d," % combined)
 
 utf_8_file.write("""
 ];
