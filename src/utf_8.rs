@@ -32,31 +32,7 @@ const UTF8_FOUR_BYTE_SPECIAL_UPPER_BOUND_TRAIL: u8 = 1 << 7;
 // BEGIN GENERATED CODE. PLEASE DO NOT EDIT.
 // Instead, please regenerate using generate-encoding-data.py
 
-/// Lead types:
-/// 0: ASCII
-/// 1: two-byte
-/// 2: three-byte normal
-/// 3: three-byte special lower bound
-/// 4: three-byte special upper bound
-/// 5: four-byte normal
-/// 6: four-byte special lower bound
-/// 7: four-byte special upper bound
-/// 8: invalid
-static UTF8_LEAD_TYPES: [u8; 256] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                                     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                                     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                                     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                                     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                                     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                                     0, 0, 0, 0, 0, 0, 0, 0, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
-                                     8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
-                                     8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
-                                     8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 1, 1, 1, 1, 1, 1,
-                                     1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-                                     1, 1, 1, 1, 3, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 4, 2, 2,
-                                     6, 5, 5, 5, 7, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8];
-
-///
+/// Bit is 1 if the trail is invalid.
 static UTF8_TRAIL_INVALID: [u8; 256] = [248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248,
                                         248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248,
                                         248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248,
@@ -115,15 +91,17 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
                 // We know, thanks to `ascii_to_basic_latin` that there is output
                 // space for at least one UTF-16 code unit, so no need to check
                 // for output space in the BMP cases.
-                match UTF8_LEAD_TYPES[byte as usize] {
-                    0 => {
-                        // Non-punctuation ASCII: write and go back to SIMD.
+                // Matching directly on the lead byte is faster than what the
+                // std lib does!
+                match byte {
+                    0...0x7F => {
+                        // ASCII: write and go back to SIMD.
                         dst[written] = byte as u16;
                         read += 1;
                         written += 1;
                         continue 'outer;
                     }
-                    1 => {
+                    0xC2...0xDF => {
                         // Two-byte
                         let second = src[read + 1];
                         if (UTF8_TRAIL_INVALID[second as usize] & UTF8_NORMAL_TRAIL) != 0 {
@@ -134,7 +112,7 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
                         read += 2;
                         written += 1;
                     }
-                    2 => {
+                    0xE1...0xEC | 0xEF => {
                         // Three-byte normal
                         let second = src[read + 1];
                         let third = src[read + 2];
@@ -150,7 +128,7 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
                         read += 3;
                         written += 1;
                     }
-                    3 => {
+                    0xE0 => {
                         // Three-byte special lower bound
                         let second = src[read + 1];
                         let third = src[read + 2];
@@ -167,7 +145,7 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
                         read += 3;
                         written += 1;
                     }
-                    4 => {
+                    0xED => {
                         // Three-byte special upper bound
                         let second = src[read + 1];
                         let third = src[read + 2];
@@ -184,7 +162,7 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
                         read += 3;
                         written += 1;
                     }
-                    5 => {
+                    0xF1...0xF3 => {
                         // Four-byte normal
                         if written + 1 == dst.len() {
                             break 'outer;
@@ -207,7 +185,7 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
                         read += 4;
                         written += 2;
                     }
-                    6 => {
+                    0xF0 => {
                         // Four-byte special lower bound
                         if written + 1 == dst.len() {
                             break 'outer;
@@ -231,7 +209,7 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
                         read += 4;
                         written += 2;
                     }
-                    7 => {
+                    0xF4 => {
                         // Four-byte special upper bound
                         if written + 1 == dst.len() {
                             break 'outer;
@@ -255,11 +233,10 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
                         read += 4;
                         written += 2;
                     }
-                    8 => {
+                    _ => {
                         // Invalid lead
                         break 'outer;
                     }
-                    _ => unreachable!("Bogus lead type"),
                 }
                 if written == dst.len() {
                     break 'outer;
@@ -284,15 +261,17 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
         // We know, thanks to `ascii_to_basic_latin` that there is output
         // space for at least one UTF-16 code unit, so no need to check
         // for output space in the BMP cases.
-        match UTF8_LEAD_TYPES[byte as usize] {
-            0 => {
-                // Non-punctuation ASCII: write and go back to SIMD.
+        // Matching directly on the lead byte is faster than what the
+        // std lib does!
+        match byte {
+            0...0x7F => {
+                // ASCII: write and go back to SIMD.
                 dst[written] = byte as u16;
                 read += 1;
                 written += 1;
                 continue 'outer;
             }
-            1 => {
+            0xC2...0xDF => {
                 // Two-byte
                 let new_read = read + 2;
                 if new_read > src.len() {
@@ -307,7 +286,7 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
                 read = new_read;
                 written += 1;
             }
-            2 => {
+            0xE1...0xEC | 0xEF => {
                 // Three-byte normal
                 let new_read = read + 3;
                 if new_read > src.len() {
@@ -326,7 +305,7 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
                 read = new_read;
                 written += 1;
             }
-            3 => {
+            0xE0 => {
                 // Three-byte special lower bound
                 let new_read = read + 3;
                 if new_read > src.len() {
@@ -346,7 +325,7 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
                 read = new_read;
                 written += 1;
             }
-            4 => {
+            0xED => {
                 // Three-byte special upper bound
                 let new_read = read + 3;
                 if new_read > src.len() {
@@ -366,11 +345,10 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
                 read = new_read;
                 written += 1;
             }
-            5 ... 8 => {
+            _ => {
                 // Invalid lead or 4-byte lead
                 break 'outer;
             }
-            _ => unreachable!("Bogus lead type"),
         }
         break 'outer;
     }

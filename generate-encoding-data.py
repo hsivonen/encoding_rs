@@ -917,57 +917,7 @@ utf_8_file.write(utf_8_rs_begin)
 utf_8_file.write("""
 // Instead, please regenerate using generate-encoding-data.py
 
-/// Lead types:
-/// 0: ASCII
-/// 1: two-byte
-/// 2: three-byte normal
-/// 3: three-byte special lower bound
-/// 4: three-byte special upper bound
-/// 5: four-byte normal
-/// 6: four-byte special lower bound
-/// 7: four-byte special upper bound
-/// 8: invalid
-static UTF8_LEAD_TYPES: [u8; 256] = [""")
-
-for i in range(256):
-  if i < 0x80:
-    # Single-byte
-    utf_8_file.write("0,")
-  elif i < 0xC2:
-    # Invalid. (Non-shortest.)
-    utf_8_file.write("8,")
-  elif i < 0xE0:
-    # Two-byte
-    utf_8_file.write("1,")
-  elif i == 0xE0:
-    # Three-byte with special lower bound. (Non-shortest.)
-    utf_8_file.write("3,")
-  elif i < 0xED:
-    # Three-byte
-    utf_8_file.write("2,")
-  elif i == 0xED:
-    # Three-byte with special upper bound. (Surrogates.)
-    utf_8_file.write("4,")
-  elif i < 0xF0:
-    # Three-byte
-    utf_8_file.write("2,")
-  elif i == 0xF0:
-    # Four-byte with special lower bound. (Non-shortest.)
-    utf_8_file.write("6,")
-  elif i < 0xF4:
-    # Four-byte
-    utf_8_file.write("5,")
-  elif i == 0xF4:
-    # Four-byte with special upper bound.
-    utf_8_file.write("7,")
-  else:
-    # Invalid.
-    utf_8_file.write("8,")
-
-utf_8_file.write("""
-];
-
-///
+/// Bit is 1 if the trail is invalid.
 static UTF8_TRAIL_INVALID: [u8; 256] = [""")
 
 for i in range(256):
