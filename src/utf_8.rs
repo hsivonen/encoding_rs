@@ -264,6 +264,10 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
                     break 'outer;
                 }
                 if read + 4 > src.len() {
+                    if read == src.len() {
+                        break 'outer;
+                    }
+                    byte = src[read];
                     break 'inner;
                 }
                 byte = src[read];
