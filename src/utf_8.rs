@@ -211,190 +211,278 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
                 }
             }
         };
-        'inner: loop {
-            // At this point, `byte` is not included in `read`, because we
-            // don't yet know that a) the UTF-8 sequence is valid and b) that there
-            // is output space if it is an astral sequence.
-            // We know, thanks to `ascii_to_basic_latin` that there is output
-            // space for at least one UTF-16 code unit, so no need to check
-            // for output space in the BMP cases.
-            match UTF8_LEAD_TYPES[byte as usize] {
-                0 => {
-                    // Non-punctuation ASCII: write and go back to SIMD.
-                    dst[written] = byte as u16;
-                    read += 1;
-                    written += 1;
-                    continue 'outer;
+        // Check for the longest sequence to avoid checking twice for the
+        // multi-byte sequences.
+        if read + 4 <= src.len() {
+            'inner: loop {
+                // At this point, `byte` is not included in `read`, because we
+                // don't yet know that a) the UTF-8 sequence is valid and b) that there
+                // is output space if it is an astral sequence.
+                // We know, thanks to `ascii_to_basic_latin` that there is output
+                // space for at least one UTF-16 code unit, so no need to check
+                // for output space in the BMP cases.
+                match UTF8_LEAD_TYPES[byte as usize] {
+                    0 => {
+                        // Non-punctuation ASCII: write and go back to SIMD.
+                        dst[written] = byte as u16;
+                        read += 1;
+                        written += 1;
+                        continue 'outer;
+                    }
+                    1 => {
+                        // ASCII punctuation: write and avoid SIMD for the
+                        // benefit of non-Latin scripts that use ASCII spaces
+                        // and punctuation.
+                        // XXX This ASCII punctuation stuff seems to hurt the
+                        // languages for which the optimization is inapplicable
+                        // more than it helps the languages for which it is
+                        // applicable. Retest after optimizing other stuff.
+                        dst[written] = byte as u16;
+                        read += 1;
+                        written += 1;
+                    }
+                    2 => {
+                        // Two-byte
+                        let second = src[read + 1];
+                        if UTF8_TRAIL_INVALID[second as usize] != 0 {
+                            break 'outer;
+                        }
+                        let point = (((byte as u32) & 0x1Fu32) << 6) | (second as u32 & 0x3Fu32);
+                        dst[written] = point as u16;
+                        read += 2;
+                        written += 1;
+                    }
+                    3 => {
+                        // Three-byte normal
+                        let second = src[read + 1];
+                        let third = src[read + 2];
+                        if (UTF8_TRAIL_INVALID[second as usize] |
+                            UTF8_TRAIL_INVALID[third as usize]) != 0 {
+                            break 'outer;
+                        }
+                        let point = (((byte as u32) & 0xFu32) << 12) |
+                                    ((second as u32 & 0x3Fu32) << 6) |
+                                    (third as u32 & 0x3Fu32);
+                        dst[written] = point as u16;
+                        read += 3;
+                        written += 1;
+                    }
+                    4 => {
+                        // Three-byte special lower bound
+                        let second = src[read + 1];
+                        let third = src[read + 2];
+                        if (UTF8_THREE_BYTE_SPECIAL_LOWER_BOUND_TRAIL_INVALID[second as usize] |
+                            UTF8_TRAIL_INVALID[third as usize]) != 0 {
+                            break 'outer;
+                        }
+                        let point = (((byte as u32) & 0xFu32) << 12) |
+                                    ((second as u32 & 0x3Fu32) << 6) |
+                                    (third as u32 & 0x3Fu32);
+                        dst[written] = point as u16;
+                        read += 3;
+                        written += 1;
+                    }
+                    5 => {
+                        // Three-byte special upper bound
+                        let second = src[read + 1];
+                        let third = src[read + 2];
+                        if (UTF8_THREE_BYTE_SPECIAL_UPPER_BOUND_TRAIL_INVALID[second as usize] |
+                            UTF8_TRAIL_INVALID[third as usize]) != 0 {
+                            break 'outer;
+                        }
+                        let point = (((byte as u32) & 0xFu32) << 12) |
+                                    ((second as u32 & 0x3Fu32) << 6) |
+                                    (third as u32 & 0x3Fu32);
+                        dst[written] = point as u16;
+                        read += 3;
+                        written += 1;
+                    }
+                    6 => {
+                        // Four-byte normal
+                        if written + 1 == dst.len() {
+                            break 'outer;
+                        }
+                        let second = src[read + 1];
+                        let third = src[read + 2];
+                        let fourth = src[read + 3];
+                        if (UTF8_TRAIL_INVALID[second as usize] |
+                            UTF8_TRAIL_INVALID[third as usize] |
+                            UTF8_TRAIL_INVALID[fourth as usize]) != 0 {
+                            break 'outer;
+                        }
+                        let point = (((byte as u32) & 0x7u32) << 18) |
+                                    ((second as u32 & 0x3Fu32) << 12) |
+                                    ((third as u32 & 0x3Fu32) << 6) |
+                                    (fourth as u32 & 0x3Fu32);
+                        dst[written] = (0xD7C0 + (point >> 10)) as u16;
+                        dst[written + 1] = (0xDC00 + (point & 0x3FF)) as u16;
+                        read += 4;
+                        written += 2;
+                    }
+                    7 => {
+                        // Four-byte special lower bound
+                        if written + 1 == dst.len() {
+                            break 'outer;
+                        }
+                        let second = src[read + 1];
+                        let third = src[read + 2];
+                        let fourth = src[read + 3];
+                        if (UTF8_FOUR_BYTE_SPECIAL_LOWER_BOUND_TRAIL_INVALID[second as usize] |
+                            UTF8_TRAIL_INVALID[third as usize] |
+                            UTF8_TRAIL_INVALID[fourth as usize]) != 0 {
+                            break 'outer;
+                        }
+                        let point = (((byte as u32) & 0x7u32) << 18) |
+                                    ((second as u32 & 0x3Fu32) << 12) |
+                                    ((third as u32 & 0x3Fu32) << 6) |
+                                    (fourth as u32 & 0x3Fu32);
+                        dst[written] = (0xD7C0 + (point >> 10)) as u16;
+                        dst[written + 1] = (0xDC00 + (point & 0x3FF)) as u16;
+                        read += 4;
+                        written += 2;
+                    }
+                    8 => {
+                        // Four-byte special upper bound
+                        if written + 1 == dst.len() {
+                            break 'outer;
+                        }
+                        let second = src[read + 1];
+                        let third = src[read + 2];
+                        let fourth = src[read + 3];
+                        if (UTF8_FOUR_BYTE_SPECIAL_UPPER_BOUND_TRAIL_INVALID[second as usize] |
+                            UTF8_TRAIL_INVALID[third as usize] |
+                            UTF8_TRAIL_INVALID[fourth as usize]) != 0 {
+                            break 'outer;
+                        }
+                        let point = (((byte as u32) & 0x7u32) << 18) |
+                                    ((second as u32 & 0x3Fu32) << 12) |
+                                    ((third as u32 & 0x3Fu32) << 6) |
+                                    (fourth as u32 & 0x3Fu32);
+                        dst[written] = (0xD7C0 + (point >> 10)) as u16;
+                        dst[written + 1] = (0xDC00 + (point & 0x3FF)) as u16;
+                        read += 4;
+                        written += 2;
+                    }
+                    9 => {
+                        // Invalid lead
+                        break 'outer;
+                    }
+                    _ => unreachable!("Bogus lead type"),
                 }
-                1 => {
-                    // ASCII punctuation: write and avoid SIMD for the
-                    // benefit of non-Latin scripts that use ASCII spaces
-                    // and punctuation.
-                    dst[written] = byte as u16;
-                    read += 1;
-                    written += 1;
-                }
-                2 => {
-                    // Two-byte
-                    let new_read = read + 2;
-                    if new_read > src.len() {
-                        break 'outer;
-                    }
-                    let second = src[read + 1];
-                    if UTF8_TRAIL_INVALID[second as usize] != 0 {
-                        break 'outer;
-                    }
-                    let point = (((byte as u32) & 0x1Fu32) << 6) | (second as u32 & 0x3Fu32);
-                    dst[written] = point as u16;
-                    read = new_read;
-                    written += 1;
-                }
-                3 => {
-                    // Three-byte normal
-                    let new_read = read + 3;
-                    if new_read > src.len() {
-                        break 'outer;
-                    }
-                    let second = src[read + 1];
-                    let third = src[read + 2];
-                    if (UTF8_TRAIL_INVALID[second as usize] |
-                        UTF8_TRAIL_INVALID[third as usize]) != 0 {
-                        break 'outer;
-                    }
-                    let point = (((byte as u32) & 0xFu32) << 12) |
-                                ((second as u32 & 0x3Fu32) << 6) |
-                                (third as u32 & 0x3Fu32);
-                    dst[written] = point as u16;
-                    read = new_read;
-                    written += 1;
-                }
-                4 => {
-                    // Three-byte special lower bound
-                    let new_read = read + 3;
-                    if new_read > src.len() {
-                        break 'outer;
-                    }
-                    let second = src[read + 1];
-                    let third = src[read + 2];
-                    if (UTF8_THREE_BYTE_SPECIAL_LOWER_BOUND_TRAIL_INVALID[second as usize] |
-                        UTF8_TRAIL_INVALID[third as usize]) != 0 {
-                        break 'outer;
-                    }
-                    let point = (((byte as u32) & 0xFu32) << 12) |
-                                ((second as u32 & 0x3Fu32) << 6) |
-                                (third as u32 & 0x3Fu32);
-                    dst[written] = point as u16;
-                    read = new_read;
-                    written += 1;
-                }
-                5 => {
-                    // Three-byte special upper bound
-                    let new_read = read + 3;
-                    if new_read > src.len() {
-                        break 'outer;
-                    }
-                    let second = src[read + 1];
-                    let third = src[read + 2];
-                    if (UTF8_THREE_BYTE_SPECIAL_UPPER_BOUND_TRAIL_INVALID[second as usize] |
-                        UTF8_TRAIL_INVALID[third as usize]) != 0 {
-                        break 'outer;
-                    }
-                    let point = (((byte as u32) & 0xFu32) << 12) |
-                                ((second as u32 & 0x3Fu32) << 6) |
-                                (third as u32 & 0x3Fu32);
-                    dst[written] = point as u16;
-                    read = new_read;
-                    written += 1;
-                }
-                6 => {
-                    // Four-byte normal
-                    let new_read = read + 4;
-                    if new_read > src.len() {
-                        break 'outer;
-                    }
-                    if written + 1 == dst.len() {
-                        break 'outer;
-                    }
-                    let second = src[read + 1];
-                    let third = src[read + 2];
-                    let fourth = src[read + 3];
-                    if (UTF8_TRAIL_INVALID[second as usize] | UTF8_TRAIL_INVALID[third as usize] |
-                        UTF8_TRAIL_INVALID[fourth as usize]) != 0 {
-                        break 'outer;
-                    }
-                    let point = (((byte as u32) & 0x7u32) << 18) |
-                                ((second as u32 & 0x3Fu32) << 12) |
-                                ((third as u32 & 0x3Fu32) << 6) |
-                                (fourth as u32 & 0x3Fu32);
-                    dst[written] = (0xD7C0 + (point >> 10)) as u16;
-                    dst[written + 1] = (0xDC00 + (point & 0x3FF)) as u16;
-                    read = new_read;
-                    written += 2;
-                }
-                7 => {
-                    // Four-byte special lower bound
-                    let new_read = read + 4;
-                    if new_read > src.len() {
-                        break 'outer;
-                    }
-                    if written + 1 == dst.len() {
-                        break 'outer;
-                    }
-                    let second = src[read + 1];
-                    let third = src[read + 2];
-                    let fourth = src[read + 3];
-                    if (UTF8_FOUR_BYTE_SPECIAL_LOWER_BOUND_TRAIL_INVALID[second as usize] |
-                        UTF8_TRAIL_INVALID[third as usize] |
-                        UTF8_TRAIL_INVALID[fourth as usize]) != 0 {
-                        break 'outer;
-                    }
-                    let point = (((byte as u32) & 0x7u32) << 18) |
-                                ((second as u32 & 0x3Fu32) << 12) |
-                                ((third as u32 & 0x3Fu32) << 6) |
-                                (fourth as u32 & 0x3Fu32);
-                    dst[written] = (0xD7C0 + (point >> 10)) as u16;
-                    dst[written + 1] = (0xDC00 + (point & 0x3FF)) as u16;
-                    read = new_read;
-                    written += 2;
-                }
-                8 => {
-                    // Four-byte special upper bound
-                    let new_read = read + 4;
-                    if new_read > src.len() {
-                        break 'outer;
-                    }
-                    if written + 1 == dst.len() {
-                        break 'outer;
-                    }
-                    let second = src[read + 1];
-                    let third = src[read + 2];
-                    let fourth = src[read + 3];
-                    if (UTF8_FOUR_BYTE_SPECIAL_UPPER_BOUND_TRAIL_INVALID[second as usize] |
-                        UTF8_TRAIL_INVALID[third as usize] |
-                        UTF8_TRAIL_INVALID[fourth as usize]) != 0 {
-                        break 'outer;
-                    }
-                    let point = (((byte as u32) & 0x7u32) << 18) |
-                                ((second as u32 & 0x3Fu32) << 12) |
-                                ((third as u32 & 0x3Fu32) << 6) |
-                                (fourth as u32 & 0x3Fu32);
-                    dst[written] = (0xD7C0 + (point >> 10)) as u16;
-                    dst[written + 1] = (0xDC00 + (point & 0x3FF)) as u16;
-                    read = new_read;
-                    written += 2;
-                }
-                9 => {
-                    // Invalid lead
+                if written == dst.len() {
                     break 'outer;
                 }
-                _ => unreachable!("Bogus lead type"),
+                if read + 4 > src.len() {
+                    break 'inner;
+                }
+                byte = src[read];
+                continue 'inner;
             }
-            if read == src.len() || written == dst.len() {
+        }
+        // We can't have a complete 4-byte sequence, but we could still have
+        // a complete shorter sequence.
+        
+        // At this point, `byte` is not included in `read`, because we
+        // don't yet know that a) the UTF-8 sequence is valid and b) that there
+        // is output space if it is an astral sequence.
+        // We know, thanks to `ascii_to_basic_latin` that there is output
+        // space for at least one UTF-16 code unit, so no need to check
+        // for output space in the BMP cases.
+        match UTF8_LEAD_TYPES[byte as usize] {
+            0 => {
+                // Non-punctuation ASCII: write and go back to SIMD.
+                dst[written] = byte as u16;
+                read += 1;
+                written += 1;
+                continue 'outer;
+            }
+            1 => {
+                // ASCII punctuation: write and avoid SIMD for the
+                // benefit of non-Latin scripts that use ASCII spaces
+                // and punctuation.
+                // XXX This ASCII punctuation stuff seems to hurt the
+                // languages for which the optimization is inapplicable
+                // more than it helps the languages for which it is
+                // applicable. Retest after optimizing other stuff.
+                dst[written] = byte as u16;
+                read += 1;
+                written += 1;
+            }
+            2 => {
+                // Two-byte
+                let new_read = read + 2;
+                if new_read > src.len() {
+                    break 'outer;
+                }
+                let second = src[read + 1];
+                if UTF8_TRAIL_INVALID[second as usize] != 0 {
+                    break 'outer;
+                }
+                let point = (((byte as u32) & 0x1Fu32) << 6) | (second as u32 & 0x3Fu32);
+                dst[written] = point as u16;
+                read = new_read;
+                written += 1;
+            }
+            3 => {
+                // Three-byte normal
+                let new_read = read + 3;
+                if new_read > src.len() {
+                    break 'outer;
+                }
+                let second = src[read + 1];
+                let third = src[read + 2];
+                if (UTF8_TRAIL_INVALID[second as usize] | UTF8_TRAIL_INVALID[third as usize]) != 0 {
+                    break 'outer;
+                }
+                let point = (((byte as u32) & 0xFu32) << 12) | ((second as u32 & 0x3Fu32) << 6) |
+                            (third as u32 & 0x3Fu32);
+                dst[written] = point as u16;
+                read = new_read;
+                written += 1;
+            }
+            4 => {
+                // Three-byte special lower bound
+                let new_read = read + 3;
+                if new_read > src.len() {
+                    break 'outer;
+                }
+                let second = src[read + 1];
+                let third = src[read + 2];
+                if (UTF8_THREE_BYTE_SPECIAL_LOWER_BOUND_TRAIL_INVALID[second as usize] |
+                    UTF8_TRAIL_INVALID[third as usize]) != 0 {
+                    break 'outer;
+                }
+                let point = (((byte as u32) & 0xFu32) << 12) | ((second as u32 & 0x3Fu32) << 6) |
+                            (third as u32 & 0x3Fu32);
+                dst[written] = point as u16;
+                read = new_read;
+                written += 1;
+            }
+            5 => {
+                // Three-byte special upper bound
+                let new_read = read + 3;
+                if new_read > src.len() {
+                    break 'outer;
+                }
+                let second = src[read + 1];
+                let third = src[read + 2];
+                if (UTF8_THREE_BYTE_SPECIAL_UPPER_BOUND_TRAIL_INVALID[second as usize] |
+                    UTF8_TRAIL_INVALID[third as usize]) != 0 {
+                    break 'outer;
+                }
+                let point = (((byte as u32) & 0xFu32) << 12) | ((second as u32 & 0x3Fu32) << 6) |
+                            (third as u32 & 0x3Fu32);
+                dst[written] = point as u16;
+                read = new_read;
+                written += 1;
+            }
+            6 | 7 | 8 | 9 => {
+                // Invalid lead or 4-byte lead
                 break 'outer;
             }
-            byte = src[read];
-            continue 'inner;
+            _ => unreachable!("Bogus lead type"),
         }
+        break 'outer;
     }
     (read, written)
 }
