@@ -45,9 +45,7 @@ pub struct EucJpDecoder {
 
 impl EucJpDecoder {
     pub fn new() -> VariantDecoder {
-        VariantDecoder::EucJp(EucJpDecoder {
-            pending: EucJpPending::None,
-        })
+        VariantDecoder::EucJp(EucJpDecoder { pending: EucJpPending::None })
     }
 
     fn plus_one_if_lead(&self, byte_length: usize) -> usize {
@@ -74,94 +72,94 @@ impl EucJpDecoder {
     }
 
     euc_jp_decoder_functions!({
-                                   // If trail is between 0xA1 and 0xFE, inclusive,
-                                   // subtract 0xA1.
-                                   let trail_minus_offset = byte.wrapping_sub(0xA1);
-                                   if trail_minus_offset > (0xFE - 0xA1) {
-                                       if byte < 0x80 {
-                                           return (DecoderResult::Malformed(1, 0),
-                                                   unread_handle_trail.unread(),
-                                                   handle.written());
-                                       }
-                                       return (DecoderResult::Malformed(2, 0),
-                                               unread_handle_trail.consumed(),
-                                               handle.written());
-                                   }
-                                   let pointer = jis0208_lead_minus_offset as usize * 94usize +
-                                                 trail_minus_offset as usize;
-                                   let bmp = jis0208_decode(pointer);
-                                   if bmp == 0 {
-                                       if byte < 0x80 {
-                                           return (DecoderResult::Malformed(1, 0),
-                                                   unread_handle_trail.unread(),
-                                                   handle.written());
-                                       }
-                                       return (DecoderResult::Malformed(2, 0),
-                                               unread_handle_trail.consumed(),
-                                               handle.written());
-                                   }
-                                   handle.write_bmp_excl_ascii(bmp)
+                                  // If trail is between 0xA1 and 0xFE, inclusive,
+                                  // subtract 0xA1.
+                                  let trail_minus_offset = byte.wrapping_sub(0xA1);
+                                  if trail_minus_offset > (0xFE - 0xA1) {
+                                      if byte < 0x80 {
+                                          return (DecoderResult::Malformed(1, 0),
+                                                  unread_handle_trail.unread(),
+                                                  handle.written());
+                                      }
+                                      return (DecoderResult::Malformed(2, 0),
+                                              unread_handle_trail.consumed(),
+                                              handle.written());
+                                  }
+                                  let pointer = jis0208_lead_minus_offset as usize * 94usize +
+                                                trail_minus_offset as usize;
+                                  let bmp = jis0208_decode(pointer);
+                                  if bmp == 0 {
+                                      if byte < 0x80 {
+                                          return (DecoderResult::Malformed(1, 0),
+                                                  unread_handle_trail.unread(),
+                                                  handle.written());
+                                      }
+                                      return (DecoderResult::Malformed(2, 0),
+                                              unread_handle_trail.consumed(),
+                                              handle.written());
+                                  }
+                                  handle.write_bmp_excl_ascii(bmp)
                               },
                               {
-                                   // If lead is between 0xA1 and 0xFE, inclusive,
-                                   // subtract 0xA1.
-                                   let jis0212_lead_minus_offset = lead.wrapping_sub(0xA1);
-                                   if jis0212_lead_minus_offset > (0xFE - 0xA1) {
-                                       if lead < 0x80 {
-                                           return (DecoderResult::Malformed(1, 0),
-                                                   unread_handle_jis0212.unread(),
-                                                   handle.written());
-                                       }
-                                       return (DecoderResult::Malformed(2, 0),
-                                               unread_handle_jis0212.consumed(),
-                                               handle.written());
-                                   }
-                                   jis0212_lead_minus_offset
+                                  // If lead is between 0xA1 and 0xFE, inclusive,
+                                  // subtract 0xA1.
+                                  let jis0212_lead_minus_offset = lead.wrapping_sub(0xA1);
+                                  if jis0212_lead_minus_offset > (0xFE - 0xA1) {
+                                      if lead < 0x80 {
+                                          return (DecoderResult::Malformed(1, 0),
+                                                  unread_handle_jis0212.unread(),
+                                                  handle.written());
+                                      }
+                                      return (DecoderResult::Malformed(2, 0),
+                                              unread_handle_jis0212.consumed(),
+                                              handle.written());
+                                  }
+                                  jis0212_lead_minus_offset
                               },
                               {
-                                   // If trail is between 0xA1 and 0xFE, inclusive,
-                                   // subtract 0xA1.
-                                   let trail_minus_offset = byte.wrapping_sub(0xA1);
-                                   if trail_minus_offset > (0xFE - 0xA1) {
-                                       if byte < 0x80 {
-                                           return (DecoderResult::Malformed(2, 0),
-                                                   unread_handle_trail.unread(),
-                                                   handle.written());
-                                       }
-                                       return (DecoderResult::Malformed(3, 0),
-                                               unread_handle_trail.consumed(),
-                                               handle.written());
-                                   }
-                                   let pointer = jis0212_lead_minus_offset as usize * 94usize +
-                                                 trail_minus_offset as usize;
-                                   let bmp = jis0212_decode(pointer);
-                                   if bmp == 0 {
-                                       if byte < 0x80 {
-                                           return (DecoderResult::Malformed(2, 0),
-                                                   unread_handle_trail.unread(),
-                                                   handle.written());
-                                       }
-                                       return (DecoderResult::Malformed(3, 0),
-                                               unread_handle_trail.consumed(),
-                                               handle.written());
-                                   }
-                                   handle.write_bmp_excl_ascii(bmp)
+                                  // If trail is between 0xA1 and 0xFE, inclusive,
+                                  // subtract 0xA1.
+                                  let trail_minus_offset = byte.wrapping_sub(0xA1);
+                                  if trail_minus_offset > (0xFE - 0xA1) {
+                                      if byte < 0x80 {
+                                          return (DecoderResult::Malformed(2, 0),
+                                                  unread_handle_trail.unread(),
+                                                  handle.written());
+                                      }
+                                      return (DecoderResult::Malformed(3, 0),
+                                              unread_handle_trail.consumed(),
+                                              handle.written());
+                                  }
+                                  let pointer = jis0212_lead_minus_offset as usize * 94usize +
+                                                trail_minus_offset as usize;
+                                  let bmp = jis0212_decode(pointer);
+                                  if bmp == 0 {
+                                      if byte < 0x80 {
+                                          return (DecoderResult::Malformed(2, 0),
+                                                  unread_handle_trail.unread(),
+                                                  handle.written());
+                                      }
+                                      return (DecoderResult::Malformed(3, 0),
+                                              unread_handle_trail.consumed(),
+                                              handle.written());
+                                  }
+                                  handle.write_bmp_excl_ascii(bmp)
                               },
                               {
-                                   // If trail is between 0xA1 and 0xDF, inclusive,
-                                   // subtract 0xA1 and map to half-width Katakana.
-                                   let trail_minus_offset = byte.wrapping_sub(0xA1);
-                                   if trail_minus_offset > (0xDF - 0xA1) {
-                                       if byte < 0x80 {
-                                           return (DecoderResult::Malformed(1, 0),
-                                                   unread_handle_trail.unread(),
-                                                   handle.written());
-                                       }
-                                       return (DecoderResult::Malformed(2, 0),
-                                               unread_handle_trail.consumed(),
-                                               handle.written());
-                                   }
-                                   handle.write_upper_bmp(0xFF61 + trail_minus_offset as u16)
+                                  // If trail is between 0xA1 and 0xDF, inclusive,
+                                  // subtract 0xA1 and map to half-width Katakana.
+                                  let trail_minus_offset = byte.wrapping_sub(0xA1);
+                                  if trail_minus_offset > (0xDF - 0xA1) {
+                                      if byte < 0x80 {
+                                          return (DecoderResult::Malformed(1, 0),
+                                                  unread_handle_trail.unread(),
+                                                  handle.written());
+                                      }
+                                      return (DecoderResult::Malformed(2, 0),
+                                              unread_handle_trail.consumed(),
+                                              handle.written());
+                                  }
+                                  handle.write_upper_bmp(0xFF61 + trail_minus_offset as u16)
                               },
                               self,
                               non_ascii,

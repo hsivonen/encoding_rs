@@ -9,11 +9,13 @@
 
 macro_rules! decoder_function {
     ($preamble:block,
+     $loop_preable:block,
      $eof:block,
      $body:block,
      $slf:ident,
      $src_consumed:ident,
      $dest:ident,
+     $source:ident,
      $b:ident,
      $destination_handle:ident,
      $unread_handle:ident,
@@ -26,7 +28,7 @@ macro_rules! decoder_function {
                  dst: &mut [$code_unit],
                  last: bool)
                  -> (DecoderResult, usize, usize) {
-        let mut source = ByteSource::new(src);
+        let mut $source = ByteSource::new(src);
         let mut $dest = $dest_struct::new(dst);
         loop { // TODO: remove this loop
             {
@@ -35,7 +37,10 @@ macro_rules! decoder_function {
                 // End non-boilerplate
             }
             loop {
-                match source.check_available() {
+                {
+                    $loop_preable
+                }
+                match $source.check_available() {
                     Space::Full($src_consumed) => {
                         if last {
                             // Start non-boilerplate
@@ -67,21 +72,25 @@ macro_rules! decoder_function {
 
 macro_rules! decoder_functions {
     ($preamble:block,
+     $loop_preable:block,
      $eof:block,
      $body:block,
      $slf:ident,
      $src_consumed:ident,
      $dest:ident,
+     $source:ident,
      $b:ident,
      $destination_handle:ident,
      $unread_handle:ident,
      $destination_check:ident) => (
     decoder_function!($preamble,
+                      $loop_preable,
                       $eof,
                       $body,
                       $slf,
                       $src_consumed,
                       $dest,
+                      $source,
                       $b,
                       $destination_handle,
                       $unread_handle,
@@ -90,11 +99,13 @@ macro_rules! decoder_functions {
                       u8,
                       Utf8Destination);
     decoder_function!($preamble,
+                      $loop_preable,
                       $eof,
                       $body,
                       $slf,
                       $src_consumed,
                       $dest,
+                      $source,
                       $b,
                       $destination_handle,
                       $unread_handle,

@@ -107,6 +107,7 @@ impl Iso2022JpDecoder {
                                }
                            }
                        },
+                       {},
                        {
                            match self.decoder_state {
                                Iso2022JpDecoderState::TrailByte |
@@ -285,6 +286,7 @@ impl Iso2022JpDecoder {
                        self,
                        src_consumed,
                        dest,
+                       source,
                        b,
                        destination_handle,
                        unread_handle,

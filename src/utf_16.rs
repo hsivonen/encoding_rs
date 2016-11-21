@@ -54,6 +54,7 @@ impl Utf16Decoder {
                                }
                            }
                        },
+                       {},
                        {
                            debug_assert!(!self.pending_bmp);
                            if self.lead_surrogate != 0 {
@@ -141,6 +142,7 @@ impl Utf16Decoder {
                        self,
                        src_consumed,
                        dest,
+                       source,
                        b,
                        destination_handle,
                        unread_handle,

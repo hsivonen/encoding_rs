@@ -19,6 +19,8 @@
 use super::DecoderResult;
 use super::EncoderResult;
 use ascii::*;
+use utf_8::utf8_valid_up_to;
+use utf_8::convert_utf8_to_utf16_up_to_invalid;
 
 pub enum Space<T> {
     Available(T),
@@ -403,6 +405,14 @@ impl<'a> Utf16Destination<'a> {
         };
         return CopyAsciiResult::GoOn((non_ascii_ret, Utf16AstralHandle::new(self)));
     }
+    #[inline(always)]
+    pub fn copy_utf8_up_to_invalid_from(&mut self, source: &mut ByteSource) {
+        let src_remaining = &source.slice[source.pos..];
+        let mut dst_remaining = &mut self.slice[self.pos..];
+        let (read, written) = convert_utf8_to_utf16_up_to_invalid(src_remaining, dst_remaining);
+        source.pos += read;
+        self.pos += written;
+    }
 }
 
 // UTF-8 destination
@@ -701,6 +711,22 @@ impl<'a> Utf8Destination<'a> {
             }
         };
         return CopyAsciiResult::GoOn((non_ascii_ret, Utf8AstralHandle::new(self)));
+    }
+    #[inline(always)]
+    pub fn copy_utf8_up_to_invalid_from(&mut self, source: &mut ByteSource) {
+        let src_remaining = &source.slice[source.pos..];
+        let mut dst_remaining = &mut self.slice[self.pos..];
+        let min_len = ::std::cmp::min(src_remaining.len(), dst_remaining.len());
+        // Validate first, then memcpy to let memcpy do its thing even for
+        // non-ASCII. (And potentially do something better than SSE2 for ASCII.)
+        let valid_len = utf8_valid_up_to(&src_remaining[..min_len]);
+        unsafe {
+            ::std::ptr::copy_nonoverlapping(src_remaining.as_ptr(),
+                                            dst_remaining.as_mut_ptr(),
+                                            valid_len);
+        }
+        source.pos += valid_len;
+        self.pos += valid_len;
     }
 }
 

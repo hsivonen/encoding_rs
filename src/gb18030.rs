@@ -112,8 +112,8 @@ impl Gb18030Decoder {
     }
 
     gb18030_decoder_functions!({
-     // If first is between 0x81 and 0xFE, inclusive,
-     // subtract offset 0x81.
+    // If first is between 0x81 and 0xFE, inclusive,
+    // subtract offset 0x81.
                                    let non_ascii_minus_offset = non_ascii.wrapping_sub(0x81);
                                    if non_ascii_minus_offset > (0xFE - 0x81) {
                                        if non_ascii == 0x80 {
@@ -167,11 +167,11 @@ impl Gb18030Decoder {
                                        // to happen when `second` is
                                        // reprocessed. (`third` gets unread.)
                                        // `second` is guaranteed ASCII, so let's
-     // put it in `pending_ascii`. Recompute
-     // `second` from `second_minus_offset`.
+    // put it in `pending_ascii`. Recompute
+    // `second` from `second_minus_offset`.
                                        self.pending_ascii = Some(second_minus_offset + 0x30);
-     // Now unread `third` and designate the previous
-     // `first` as being in error.
+    // Now unread `third` and designate the previous
+    // `first` as being in error.
                                        return (DecoderResult::Malformed(1, 1),
                                                unread_handle_third.unread(),
                                                handle.written());
@@ -179,28 +179,28 @@ impl Gb18030Decoder {
                                    third_minus_offset
                                },
                                {
-     // If fourth is between 0x30 and 0x39, inclusive,
-     // subtract offset 0x30.
+    // If fourth is between 0x30 and 0x39, inclusive,
+    // subtract offset 0x30.
                                    let fourth_minus_offset = fourth.wrapping_sub(0x30);
                                    let c = call_gb18030_range_decode(first_minus_offset,
                                                                      second_minus_offset,
                                                                      third_minus_offset,
                                                                      fourth_minus_offset);
                                    if c == '\u{0}' {
-     // We have an error. Let's inline what's going
-     // to happen when `second` and `third` are
-     // reprocessed. (`fourth` gets unread.)
-     // `second` is guaranteed ASCII, so let's
-     // put it in `pending_ascii`. Recompute
-     // `second` from `second_minus_offset` to
-     // make this block reusable when `second`
-     // is not in scope.
+    // We have an error. Let's inline what's going
+    // to happen when `second` and `third` are
+    // reprocessed. (`fourth` gets unread.)
+    // `second` is guaranteed ASCII, so let's
+    // put it in `pending_ascii`. Recompute
+    // `second` from `second_minus_offset` to
+    // make this block reusable when `second`
+    // is not in scope.
                                        self.pending_ascii = Some(second_minus_offset + 0x30);
-     // `third` is guaranteed to be in the range
-     // that makes it become the new `self.first`.
+    // `third` is guaranteed to be in the range
+    // that makes it become the new `self.first`.
                                        self.pending = Gb18030Pending::One(third_minus_offset);
-     // Now unread `fourth` and designate the previous
-     // `first` as being in error.
+    // Now unread `fourth` and designate the previous
+    // `first` as being in error.
                                        return (DecoderResult::Malformed(1, 2),
                                                unread_handle_fourth.unread(),
                                                handle.written());

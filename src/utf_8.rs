@@ -10,6 +10,394 @@
 use handles::*;
 use variant::*;
 use super::*;
+use ascii::ascii_to_basic_latin;
+
+pub fn utf8_valid_up_to(bytes: &[u8]) -> usize {
+    match ::std::str::from_utf8(bytes) {
+        Ok(s) => s.len(),
+        Err(e) => e.valid_up_to(),
+    }
+}
+
+// BEGIN GENERATED CODE. PLEASE DO NOT EDIT.
+// Instead, please regenerate using generate-encoding-data.py
+
+/// Lead types:
+/// 0: non-punctuation ASCII
+/// 1: ASCII punctuation
+/// 2: two-byte
+/// 3: three-byte normal
+/// 4: three-byte special lower bound
+/// 5: three-byte special upper bound
+/// 6: four-byte normal
+/// 7: four-byte special lower bound
+/// 8: four-byte special upper bound
+/// 9: invalid
+static UTF8_LEAD_TYPES: [u8; 256] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 1, 1, 1, 1, 0,
+                                     1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                     0, 1, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0,
+                                     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                     0, 0, 0, 1, 1, 1, 1, 0, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9,
+                                     9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9,
+                                     9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9,
+                                     9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 2, 2, 2, 2, 2, 2,
+                                     2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+                                     2, 2, 2, 2, 4, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 5, 3, 3,
+                                     7, 6, 6, 6, 8, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9];
+
+///
+static UTF8_TRAIL_INVALID: [u8; 256] = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0,
+                                        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                        0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                        1, 1, 1, 1, 1, 1, 1, 1, 1];
+
+///
+static UTF8_THREE_BYTE_SPECIAL_LOWER_BOUND_TRAIL_INVALID: [u8; 256] = [1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                                                       1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                                                       1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                                                       1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                                                       1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                                                       1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                                                       1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                                                       1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                                                       1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                                                       1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                                                       1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                                                       1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                                                       1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                                                       1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                                                       1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                                                       1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                                                       1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                                                       1, 1, 1, 1, 1, 1, 1, 0, 0,
+                                                                       0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                                                       0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                                                       0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                                                       0, 0, 0, 1, 1, 1, 1, 1, 1,
+                                                                       1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                                                       1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                                                       1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                                                       1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                                                       1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                                                       1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                                                       1, 1, 1, 1];
+
+///
+static UTF8_THREE_BYTE_SPECIAL_UPPER_BOUND_TRAIL_INVALID: [u8; 256] = [1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                                                       1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                                                       1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                                                       1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                                                       1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                                                       1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                                                       1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                                                       1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                                                       1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                                                       1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                                                       1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                                                       1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                                                       1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                                                       1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                                                       1, 1, 0, 0, 0, 0, 0, 0, 0,
+                                                                       0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                                                       0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                                                       0, 0, 0, 0, 0, 0, 0, 1, 1,
+                                                                       1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                                                       1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                                                       1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                                                       1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                                                       1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                                                       1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                                                       1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                                                       1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                                                       1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                                                       1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                                                       1, 1, 1, 1];
+
+///
+static UTF8_FOUR_BYTE_SPECIAL_LOWER_BOUND_TRAIL_INVALID: [u8; 256] = [1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                                                      1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                                                      1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                                                      1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                                                      1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                                                      1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                                                      1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                                                      1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                                                      1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                                                      1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                                                      1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                                                      1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                                                      1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                                                      1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                                                      1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                                                      1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                                                      0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                                                      0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                                                      0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                                                      0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                                                      0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                                                      0, 0, 0, 1, 1, 1, 1, 1, 1,
+                                                                      1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                                                      1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                                                      1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                                                      1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                                                      1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                                                      1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                                                      1, 1, 1, 1];
+
+///
+static UTF8_FOUR_BYTE_SPECIAL_UPPER_BOUND_TRAIL_INVALID: [u8; 256] = [1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                                                      1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                                                      1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                                                      1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                                                      1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                                                      1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                                                      1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                                                      1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                                                      1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                                                      1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                                                      1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                                                      1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                                                      1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                                                      1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                                                      1, 1, 0, 0, 0, 0, 0, 0, 0,
+                                                                      0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                                                      1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                                                      1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                                                      1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                                                      1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                                                      1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                                                      1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                                                      1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                                                      1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                                                      1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                                                      1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                                                      1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                                                      1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                                                      1, 1, 1, 1];
+// END GENERATED CODE
+
+pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usize, usize) {
+    let mut read = 0;
+    let mut written = 0;
+    'outer: loop {
+        let mut byte = {
+            let src_remaining = &src[read..];
+            let dst_remaining = &mut dst[written..];
+            let length = ::std::cmp::min(src_remaining.len(), dst_remaining.len());
+            match unsafe {
+                ascii_to_basic_latin(src_remaining.as_ptr(), dst_remaining.as_mut_ptr(), length)
+            } {
+                None => {
+                    read += length;
+                    written += length;
+                    break 'outer;
+                }
+                Some((non_ascii, consumed)) => {
+                    read += consumed;
+                    written += consumed;
+                    non_ascii
+                }
+            }
+        };
+        'inner: loop {
+            // At this point, `byte` is not included in `read`, because we
+            // don't yet know that a) the UTF-8 sequence is valid and b) that there
+            // is output space if it is an astral sequence.
+            // We know, thanks to `ascii_to_basic_latin` that there is output
+            // space for at least one UTF-16 code unit, so no need to check
+            // for output space in the BMP cases.
+            match UTF8_LEAD_TYPES[byte as usize] {
+                0 => {
+                    // Non-punctuation ASCII: write and go back to SIMD.
+                    dst[written] = byte as u16;
+                    read += 1;
+                    written += 1;
+                    continue 'outer;
+                }
+                1 => {
+                    // ASCII punctuation: write and avoid SIMD for the
+                    // benefit of non-Latin scripts that use ASCII spaces
+                    // and punctuation.
+                    dst[written] = byte as u16;
+                    read += 1;
+                    written += 1;
+                }
+                2 => {
+                    // Two-byte
+                    let new_read = read + 2;
+                    if new_read > src.len() {
+                        break 'outer;
+                    }
+                    let second = src[read + 1];
+                    if UTF8_TRAIL_INVALID[second as usize] != 0 {
+                        break 'outer;
+                    }
+                    let point = (((byte as u32) & 0x1Fu32) << 6) | (second as u32 & 0x3Fu32);
+                    dst[written] = point as u16;
+                    read = new_read;
+                    written += 1;
+                }
+                3 => {
+                    // Three-byte normal
+                    let new_read = read + 3;
+                    if new_read > src.len() {
+                        break 'outer;
+                    }
+                    let second = src[read + 1];
+                    let third = src[read + 2];
+                    if (UTF8_TRAIL_INVALID[second as usize] |
+                        UTF8_TRAIL_INVALID[third as usize]) != 0 {
+                        break 'outer;
+                    }
+                    let point = (((byte as u32) & 0xFu32) << 12) |
+                                ((second as u32 & 0x3Fu32) << 6) |
+                                (third as u32 & 0x3Fu32);
+                    dst[written] = point as u16;
+                    read = new_read;
+                    written += 1;
+                }
+                4 => {
+                    // Three-byte special lower bound
+                    let new_read = read + 3;
+                    if new_read > src.len() {
+                        break 'outer;
+                    }
+                    let second = src[read + 1];
+                    let third = src[read + 2];
+                    if (UTF8_THREE_BYTE_SPECIAL_LOWER_BOUND_TRAIL_INVALID[second as usize] |
+                        UTF8_TRAIL_INVALID[third as usize]) != 0 {
+                        break 'outer;
+                    }
+                    let point = (((byte as u32) & 0xFu32) << 12) |
+                                ((second as u32 & 0x3Fu32) << 6) |
+                                (third as u32 & 0x3Fu32);
+                    dst[written] = point as u16;
+                    read = new_read;
+                    written += 1;
+                }
+                5 => {
+                    // Three-byte special upper bound
+                    let new_read = read + 3;
+                    if new_read > src.len() {
+                        break 'outer;
+                    }
+                    let second = src[read + 1];
+                    let third = src[read + 2];
+                    if (UTF8_THREE_BYTE_SPECIAL_UPPER_BOUND_TRAIL_INVALID[second as usize] |
+                        UTF8_TRAIL_INVALID[third as usize]) != 0 {
+                        break 'outer;
+                    }
+                    let point = (((byte as u32) & 0xFu32) << 12) |
+                                ((second as u32 & 0x3Fu32) << 6) |
+                                (third as u32 & 0x3Fu32);
+                    dst[written] = point as u16;
+                    read = new_read;
+                    written += 1;
+                }
+                6 => {
+                    // Four-byte normal
+                    let new_read = read + 4;
+                    if new_read > src.len() {
+                        break 'outer;
+                    }
+                    if written + 1 == dst.len() {
+                        break 'outer;
+                    }
+                    let second = src[read + 1];
+                    let third = src[read + 2];
+                    let fourth = src[read + 3];
+                    if (UTF8_TRAIL_INVALID[second as usize] | UTF8_TRAIL_INVALID[third as usize] |
+                        UTF8_TRAIL_INVALID[fourth as usize]) != 0 {
+                        break 'outer;
+                    }
+                    let point = (((byte as u32) & 0x7u32) << 18) |
+                                ((second as u32 & 0x3Fu32) << 12) |
+                                ((third as u32 & 0x3Fu32) << 6) |
+                                (fourth as u32 & 0x3Fu32);
+                    dst[written] = (0xD7C0 + (point >> 10)) as u16;
+                    dst[written + 1] = (0xDC00 + (point & 0x3FF)) as u16;
+                    read = new_read;
+                    written += 2;
+                }
+                7 => {
+                    // Four-byte special lower bound
+                    let new_read = read + 4;
+                    if new_read > src.len() {
+                        break 'outer;
+                    }
+                    if written + 1 == dst.len() {
+                        break 'outer;
+                    }
+                    let second = src[read + 1];
+                    let third = src[read + 2];
+                    let fourth = src[read + 3];
+                    if (UTF8_FOUR_BYTE_SPECIAL_LOWER_BOUND_TRAIL_INVALID[second as usize] |
+                        UTF8_TRAIL_INVALID[third as usize] |
+                        UTF8_TRAIL_INVALID[fourth as usize]) != 0 {
+                        break 'outer;
+                    }
+                    let point = (((byte as u32) & 0x7u32) << 18) |
+                                ((second as u32 & 0x3Fu32) << 12) |
+                                ((third as u32 & 0x3Fu32) << 6) |
+                                (fourth as u32 & 0x3Fu32);
+                    dst[written] = (0xD7C0 + (point >> 10)) as u16;
+                    dst[written + 1] = (0xDC00 + (point & 0x3FF)) as u16;
+                    read = new_read;
+                    written += 2;
+                }
+                8 => {
+                    // Four-byte special upper bound
+                    let new_read = read + 4;
+                    if new_read > src.len() {
+                        break 'outer;
+                    }
+                    if written + 1 == dst.len() {
+                        break 'outer;
+                    }
+                    let second = src[read + 1];
+                    let third = src[read + 2];
+                    let fourth = src[read + 3];
+                    if (UTF8_FOUR_BYTE_SPECIAL_UPPER_BOUND_TRAIL_INVALID[second as usize] |
+                        UTF8_TRAIL_INVALID[third as usize] |
+                        UTF8_TRAIL_INVALID[fourth as usize]) != 0 {
+                        break 'outer;
+                    }
+                    let point = (((byte as u32) & 0x7u32) << 18) |
+                                ((second as u32 & 0x3Fu32) << 12) |
+                                ((third as u32 & 0x3Fu32) << 6) |
+                                (fourth as u32 & 0x3Fu32);
+                    dst[written] = (0xD7C0 + (point >> 10)) as u16;
+                    dst[written + 1] = (0xDC00 + (point & 0x3FF)) as u16;
+                    read = new_read;
+                    written += 2;
+                }
+                9 => {
+                    // Invalid lead
+                    break 'outer;
+                }
+                _ => unreachable!("Bogus lead type"),
+            }
+            if read == src.len() || written == dst.len() {
+                break 'outer;
+            }
+            byte = src[read];
+            continue 'inner;
+        }
+    }
+    (read, written)
+}
 
 pub struct Utf8Decoder {
     code_point: u32,
@@ -44,6 +432,13 @@ impl Utf8Decoder {
 
     decoder_functions!({},
                        {
+                           // This is the fast path. The rest runs only at the
+                           // start and end for partial sequences.
+                           if self.bytes_needed == 0 {
+                               dest.copy_utf8_up_to_invalid_from(&mut source);
+                           }
+                       },
+                       {
                            if self.bytes_needed != 0 {
                                let bad_bytes = (self.bytes_seen + 1) as u8;
                                self.code_point = 0;
@@ -57,7 +452,6 @@ impl Utf8Decoder {
                        {
                            if self.bytes_needed == 0 {
                                if b < 0x80u8 {
-                                   // XXX optimize ASCII
                                    destination_handle.write_ascii(b);
                                    continue;
                                }
@@ -127,6 +521,7 @@ impl Utf8Decoder {
                        self,
                        src_consumed,
                        dest,
+                       source,
                        b,
                        destination_handle,
                        unread_handle,

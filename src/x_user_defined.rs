@@ -32,6 +32,7 @@ impl UserDefinedDecoder {
 
     decoder_functions!({},
                        {},
+                       {},
                        {
                            if b < 0x80 {
                                // XXX optimize ASCII
@@ -44,6 +45,7 @@ impl UserDefinedDecoder {
                        self,
                        src_consumed,
                        dest,
+                       source,
                        b,
                        destination_handle,
                        _unread_handle,

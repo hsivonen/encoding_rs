@@ -55,7 +55,7 @@ def to_snake_name(name):
 def to_dom_name(name):
   return name
 
-# 
+#
 
 for group in data:
   if group["heading"] == "Legacy single-byte encodings":
@@ -157,7 +157,7 @@ static LABELS_SORTED: [&'static str; %d] = [
 
 for label in labels:
   label_file.write('''"%s",\n''' % label.label)
-  
+
 label_file.write("""];
 
 static ENCODINGS_IN_LABEL_SORT: [&'static Encoding; %d] = [
@@ -165,7 +165,7 @@ static ENCODINGS_IN_LABEL_SORT: [&'static Encoding; %d] = [
 
 for label in labels:
   label_file.write('''%s,\n''' % to_constant_name(label.preferred))
-  
+
 label_file.write('''];
 
 ''')
@@ -214,7 +214,7 @@ for encoding in single_byte:
 index = []
 
 for code_point in indexes["big5"]:
-  index.append(null_to_zero(code_point))  
+  index.append(null_to_zero(code_point))
 
 index_first = 0
 
@@ -462,7 +462,7 @@ pub fn euc_kr_encode(bmp: u16) -> usize {
 index = []
 
 for code_point in indexes["jis0212"]:
-  index.append(null_to_zero(code_point))  
+  index.append(null_to_zero(code_point))
 
 index_first = 0
 
@@ -687,7 +687,7 @@ def write_variant_method(name, mut, arg_list, ret, variants, excludes, kind):
     variant_file.write(''', %s: %s''' % (arg[0], arg[1]))
   variant_file.write(''')''')
   if ret:
-    variant_file.write(''' -> %s''' % ret)  
+    variant_file.write(''' -> %s''' % ret)
   variant_file.write(''' {\nmatch self {\n''')
   for variant in variants:
     variant_file.write('''&''')
@@ -908,5 +908,171 @@ extern const Encoding* const %s_ENCODING;
 static_file.write("""#endif // encoding_rs_statics_h_
 """)
 static_file.close()
+
+(utf_8_rs_begin, utf_8_rs_end) = read_non_generated("src/utf_8.rs")
+
+utf_8_file = open("src/utf_8.rs", "w")
+
+utf_8_file.write(utf_8_rs_begin)
+utf_8_file.write("""
+// Instead, please regenerate using generate-encoding-data.py
+
+/// Lead types:
+/// 0: non-punctuation ASCII
+/// 1: ASCII punctuation
+/// 2: two-byte
+/// 3: three-byte normal
+/// 4: three-byte special lower bound
+/// 5: three-byte special upper bound
+/// 6: four-byte normal
+/// 7: four-byte special lower bound
+/// 8: four-byte special upper bound
+/// 9: invalid
+static UTF8_LEAD_TYPES: [u8; 256] = [""")
+
+for i in range(256):
+  if i < 0x20:
+    # Treat line breaks and tabs but not spaces as SIMD-triggering.
+    utf_8_file.write("0,")
+  elif i < 0x22:
+    # Space and exclamation point but not double quote.
+    utf_8_file.write("1,")
+  elif i == 0x22:
+    # Double quote.
+    utf_8_file.write("0,")
+  elif i < 0x27:
+    # Hash, dollar, percent and ampersand but not single quote.
+    utf_8_file.write("1,")
+  elif i == 0x27:
+    # Single quote.
+    utf_8_file.write("0,")
+  elif i < 0x3C:
+    # Up to but not including less than.
+    utf_8_file.write("1,")
+  elif i == 0x3C:
+    # Less than.
+    utf_8_file.write("0,")
+  elif i == 0x3D:
+    # Equals.
+    utf_8_file.write("1,")
+  elif i == 0x3E:
+    # Greater than.
+    utf_8_file.write("0,")
+  elif i < 0x41:
+    # Question mark and at sign.
+    utf_8_file.write("1,")
+  elif i < 0x5B:
+    # Capital letters.
+    utf_8_file.write("0,")
+  elif i < 0x61:
+    # Square brackets, backslash, caret, underscore, backtick.
+    utf_8_file.write("1,")
+  elif i < 0x7B:
+    # Lower-case letters.
+    utf_8_file.write("0,")
+  elif i < 0x7F:
+    # Curly braces, pipe, tilde.
+    utf_8_file.write("1,")
+  elif i == 0x7F:
+    # DEL.
+    utf_8_file.write("0,")
+  elif i < 0xC2:
+    # Invalid. (Non-shortest.)
+    utf_8_file.write("9,")
+  elif i < 0xE0:
+    # Two-byte
+    utf_8_file.write("2,")
+  elif i == 0xE0:
+    # Three-byte with special lower bound. (Non-shortest.)
+    utf_8_file.write("4,")
+  elif i < 0xED:
+    # Three-byte
+    utf_8_file.write("3,")
+  elif i == 0xED:
+    # Three-byte with special upper bound. (Surrogates.)
+    utf_8_file.write("5,")
+  elif i < 0xF0:
+    # Three-byte
+    utf_8_file.write("3,")
+  elif i == 0xF0:
+    # Four-byte with special lower bound. (Non-shortest.)
+    utf_8_file.write("7,")
+  elif i < 0xF4:
+    # Four-byte
+    utf_8_file.write("6,")
+  elif i == 0xF4:
+    # Four-byte with special upper bound.
+    utf_8_file.write("8,")
+  else:
+    # Invalid.
+    utf_8_file.write("9,")
+
+utf_8_file.write("""
+];
+
+///
+static UTF8_TRAIL_INVALID: [u8; 256] = [""")
+
+for i in range(256):
+  if i < 0x80 or i > 0xBF:
+    utf_8_file.write("1,")
+  else:
+    utf_8_file.write("0,")
+
+utf_8_file.write("""
+];
+
+///
+static UTF8_THREE_BYTE_SPECIAL_LOWER_BOUND_TRAIL_INVALID: [u8; 256] = [""")
+
+for i in range(256):
+  if i < 0xA0 or i > 0xBF:
+    utf_8_file.write("1,")
+  else:
+    utf_8_file.write("0,")
+
+utf_8_file.write("""
+];
+
+///
+static UTF8_THREE_BYTE_SPECIAL_UPPER_BOUND_TRAIL_INVALID: [u8; 256] = [""")
+
+for i in range(256):
+  if i < 0x80 or i > 0x9F:
+    utf_8_file.write("1,")
+  else:
+    utf_8_file.write("0,")
+
+utf_8_file.write("""
+];
+
+///
+static UTF8_FOUR_BYTE_SPECIAL_LOWER_BOUND_TRAIL_INVALID: [u8; 256] = [""")
+
+for i in range(256):
+  if i < 0x90 or i > 0xBF:
+    utf_8_file.write("1,")
+  else:
+    utf_8_file.write("0,")
+
+utf_8_file.write("""
+];
+
+///
+static UTF8_FOUR_BYTE_SPECIAL_UPPER_BOUND_TRAIL_INVALID: [u8; 256] = [""")
+
+for i in range(256):
+  if i < 0x80 or i > 0x8F:
+    utf_8_file.write("1,")
+  else:
+    utf_8_file.write("0,")
+
+utf_8_file.write("""
+];
+""")
+
+utf_8_file.write(utf_8_rs_end)
+utf_8_file.close()
+
 
 subprocess.call(["cargo", "fmt"])
