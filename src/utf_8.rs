@@ -33,29 +33,28 @@ const UTF8_FOUR_BYTE_SPECIAL_UPPER_BOUND_TRAIL: u8 = 1 << 7;
 // Instead, please regenerate using generate-encoding-data.py
 
 /// Lead types:
-/// 0: non-punctuation ASCII
-/// 1: ASCII punctuation
-/// 2: two-byte
-/// 3: three-byte normal
-/// 4: three-byte special lower bound
-/// 5: three-byte special upper bound
-/// 6: four-byte normal
-/// 7: four-byte special lower bound
-/// 8: four-byte special upper bound
-/// 9: invalid
+/// 0: ASCII
+/// 1: two-byte
+/// 2: three-byte normal
+/// 3: three-byte special lower bound
+/// 4: three-byte special upper bound
+/// 5: four-byte normal
+/// 6: four-byte special lower bound
+/// 7: four-byte special upper bound
+/// 8: invalid
 static UTF8_LEAD_TYPES: [u8; 256] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                                     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 1, 1, 1, 1, 0,
-                                     1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-                                     0, 1, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                                     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0,
                                      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                                     0, 0, 0, 1, 1, 1, 1, 0, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9,
-                                     9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9,
-                                     9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9,
-                                     9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 2, 2, 2, 2, 2, 2,
-                                     2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
-                                     2, 2, 2, 2, 4, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 5, 3, 3,
-                                     7, 6, 6, 6, 8, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9];
+                                     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                     0, 0, 0, 0, 0, 0, 0, 0, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
+                                     8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
+                                     8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
+                                     8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 1, 1, 1, 1, 1, 1,
+                                     1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                     1, 1, 1, 1, 3, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 4, 2, 2,
+                                     6, 5, 5, 5, 7, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8];
 
 ///
 static UTF8_TRAIL_INVALID: [u8; 256] = [248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248,
@@ -125,18 +124,6 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
                         continue 'outer;
                     }
                     1 => {
-                        // ASCII punctuation: write and avoid SIMD for the
-                        // benefit of non-Latin scripts that use ASCII spaces
-                        // and punctuation.
-                        // XXX This ASCII punctuation stuff seems to hurt the
-                        // languages for which the optimization is inapplicable
-                        // more than it helps the languages for which it is
-                        // applicable. Retest after optimizing other stuff.
-                        dst[written] = byte as u16;
-                        read += 1;
-                        written += 1;
-                    }
-                    2 => {
                         // Two-byte
                         let second = src[read + 1];
                         if (UTF8_TRAIL_INVALID[second as usize] & UTF8_NORMAL_TRAIL) != 0 {
@@ -147,7 +134,7 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
                         read += 2;
                         written += 1;
                     }
-                    3 => {
+                    2 => {
                         // Three-byte normal
                         let second = src[read + 1];
                         let third = src[read + 2];
@@ -163,7 +150,7 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
                         read += 3;
                         written += 1;
                     }
-                    4 => {
+                    3 => {
                         // Three-byte special lower bound
                         let second = src[read + 1];
                         let third = src[read + 2];
@@ -180,7 +167,7 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
                         read += 3;
                         written += 1;
                     }
-                    5 => {
+                    4 => {
                         // Three-byte special upper bound
                         let second = src[read + 1];
                         let third = src[read + 2];
@@ -197,7 +184,7 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
                         read += 3;
                         written += 1;
                     }
-                    6 => {
+                    5 => {
                         // Four-byte normal
                         if written + 1 == dst.len() {
                             break 'outer;
@@ -220,7 +207,7 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
                         read += 4;
                         written += 2;
                     }
-                    7 => {
+                    6 => {
                         // Four-byte special lower bound
                         if written + 1 == dst.len() {
                             break 'outer;
@@ -244,7 +231,7 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
                         read += 4;
                         written += 2;
                     }
-                    8 => {
+                    7 => {
                         // Four-byte special upper bound
                         if written + 1 == dst.len() {
                             break 'outer;
@@ -268,7 +255,7 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
                         read += 4;
                         written += 2;
                     }
-                    9 => {
+                    8 => {
                         // Invalid lead
                         break 'outer;
                     }
@@ -306,18 +293,6 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
                 continue 'outer;
             }
             1 => {
-                // ASCII punctuation: write and avoid SIMD for the
-                // benefit of non-Latin scripts that use ASCII spaces
-                // and punctuation.
-                // XXX This ASCII punctuation stuff seems to hurt the
-                // languages for which the optimization is inapplicable
-                // more than it helps the languages for which it is
-                // applicable. Retest after optimizing other stuff.
-                dst[written] = byte as u16;
-                read += 1;
-                written += 1;
-            }
-            2 => {
                 // Two-byte
                 let new_read = read + 2;
                 if new_read > src.len() {
@@ -332,7 +307,7 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
                 read = new_read;
                 written += 1;
             }
-            3 => {
+            2 => {
                 // Three-byte normal
                 let new_read = read + 3;
                 if new_read > src.len() {
@@ -351,7 +326,7 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
                 read = new_read;
                 written += 1;
             }
-            4 => {
+            3 => {
                 // Three-byte special lower bound
                 let new_read = read + 3;
                 if new_read > src.len() {
@@ -371,7 +346,7 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
                 read = new_read;
                 written += 1;
             }
-            5 => {
+            4 => {
                 // Three-byte special upper bound
                 let new_read = read + 3;
                 if new_read > src.len() {
@@ -391,7 +366,7 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
                 read = new_read;
                 written += 1;
             }
-            6 | 7 | 8 | 9 => {
+            5 ... 8 => {
                 // Invalid lead or 4-byte lead
                 break 'outer;
             }
