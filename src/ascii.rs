@@ -241,17 +241,6 @@ cfg_if! {
         const ALIGNMENT_MASK: usize = 7;
 
         #[inline(always)]
-        unsafe fn ascii_to_ascii_stride_64(src: *const usize, dst: *mut usize) -> bool {
-            let word = *src;
-// Check if the word contains non-ASCII
-            if (word & 0x80808080_80808080usize) != 0 {
-                return false;
-            }
-            *dst = word;
-            return true;
-        }
-
-        #[inline(always)]
         unsafe fn ascii_to_basic_latin_stride_little_64(src: *const usize, dst: *mut usize) -> bool {
             let word = *src;
 // Check if the word contains non-ASCII
@@ -271,7 +260,6 @@ cfg_if! {
             return true;
         }
 
-        ascii_alu!(ascii_to_ascii, u8, u8, ascii_to_ascii_stride_64);
         ascii_alu!(ascii_to_basic_latin, u8, u16, ascii_to_basic_latin_stride_little_64);
         ascii_naive!(basic_latin_to_ascii, u16, u8);
     } else {
@@ -280,6 +268,120 @@ cfg_if! {
         ascii_naive!(basic_latin_to_ascii, u16, u8);
     }
 }
+
+cfg_if! {
+    if #[cfg(all(feature = "simd-accel", target_feature = "sse2"))] {
+        #[inline(always)]
+        pub fn validate_ascii(slice: &[u8]) -> Option<(u8, usize)> {
+            let src = slice.as_ptr();
+            let len = slice.len();
+            let mut offset = 0usize;
+            if STRIDE_SIZE <= len {
+                // XXX Should we first process one stride unconditinoally as unaligned to
+                // avoid the cost of the branchiness below if the first stride fails anyway?
+                // XXX Should we just use unaligned SSE2 access unconditionally? It seems that
+                // on Haswell, it would make sense to just use unaligned and not bother
+                // checking. Need to benchmark older architectures before deciding.
+                if ((src as usize) & ALIGNMENT_MASK) == 0 {
+                    loop {
+                        let simd = unsafe { load16_aligned(src.offset(offset as isize)) };
+                        if !is_ascii(simd) {
+                            break;
+                        }
+                        offset += STRIDE_SIZE;
+                        if offset + STRIDE_SIZE > len {
+                            break;
+                        }
+                    }
+                } else {
+                    loop {
+                        let simd = unsafe { load16_unaligned(src.offset(offset as isize)) };
+                        if !is_ascii(simd) {
+                            break;
+                        }
+                        offset += STRIDE_SIZE;
+                        if offset + STRIDE_SIZE > len {
+                            break;
+                        }
+                    }
+                }
+            }
+            while offset < len {
+                let code_unit = slice[offset];
+                if code_unit > 127 {
+                    return Some((code_unit, offset));
+                }
+                offset += 1;
+            }
+            return None;
+        }
+    } else {
+        // `as` truncates, so works on 32-bit, too.
+        const ASCII_MASK: usize = 0x80808080_80808080u64 as usize;
+
+        #[inline(always)]
+        unsafe fn ascii_to_ascii_stride(src: *const usize, dst: *mut usize) -> bool {
+            let word = *src;
+// Check if the word contains non-ASCII
+            if (word & ASCII_MASK) != 0 {
+                return false;
+            }
+            *dst = word;
+            return true;
+        }
+
+        ascii_alu!(ascii_to_ascii, u8, u8, ascii_to_ascii_stride);
+
+        #[inline(always)]
+        pub fn validate_ascii(slice: &[u8]) -> Option<(u8, usize)> {
+           let src = slice.as_ptr();
+           let len = slice.len();
+           let mut offset = 0usize;
+           let mut src_alignment = (src as usize) & ALIGNMENT_MASK;
+           if src_alignment + STRIDE_SIZE <= len {
+               while src_alignment != 0 {
+                   let code_unit = slice[offset];
+                   if code_unit > 127 {
+                       return Some((code_unit, offset));
+                   }
+                   offset += 1;
+                   src_alignment -= 1;
+               }
+               // XXX stdlib's UTF-8 validation reads two words at a time
+               loop {
+                   let ptr = unsafe { src.offset(offset as isize) as *const usize };
+                   let word = unsafe { *ptr };
+                   if (word & ASCII_MASK) != 0 {
+                       break;
+                   }
+                   offset += STRIDE_SIZE;
+                   if offset + STRIDE_SIZE > len {
+                       break;
+                   }
+               }
+           }
+           while offset < len {
+               let code_unit = slice[offset];
+               if code_unit > 127 {
+                   return Some((code_unit, offset));
+               }
+               offset += 1;
+           }
+           return None;
+        }
+    }
+}
+// #[inline(always)]
+// pub fn validate_ascii(slice: &[u8]) -> Option<(u8, usize)> {
+// for i in 0..slice.len() {
+// let code_unit = slice[i];
+// if code_unit > 127 {
+// return Some((code_unit, i));
+// }
+// }
+// return None;
+// }
+//
 
 // Any copyright to the test code below this comment is dedicated to the
 // Public Domain. http://creativecommons.org/publicdomain/zero/1.0/
