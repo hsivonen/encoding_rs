@@ -86,10 +86,17 @@ encoding_rs is
 
 ### 0.3
 
-* Made `Encoding::for_bom()` return the length of the BOM.
+* Return `Cow`s from Rust-only non-streaming methods for encode and decode.
+* `Encoding::for_bom()` returns the length of the BOM.
+* ASCII-accelerated conversions for encodings other than UTF-16LE, UTF-16BE,
+  ISO-2022-JP and x-user-defined.
+* Add SSE2 acceleration behind the `simd-accel` feature flag. (Requires
+  nightly Rust.)
 * Fix panic with long bogus labels.
 * Map [0xCA to U+05BA in windows-1255](https://github.com/whatwg/encoding/issues/73).
-* Return `Cow`s from Rust-only non-streaming methods for encode and decode.
+  (Spec change.)
+* Correct the [end of the Shift_JIS EUDC range](https://github.com/whatwg/encoding/issues/53).
+  (Spec change.)
 
 ### 0.2.4
 
