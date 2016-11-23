@@ -333,16 +333,24 @@ pub unsafe extern "C" fn encoding_for_name(name: *const u8, name_len: usize) -> 
 /// three bytes of the input stream (streaming case).
 ///
 /// Returns `UTF_8_ENCODING`, `UTF_16LE_ENCODING` or `UTF_16BE_ENCODING` if the
-/// argument starts with the UTF-8, UTF-16LE or UTF-16BE BOM or `None`
-/// otherwise.
+/// argument starts with the UTF-8, UTF-16LE or UTF-16BE BOM or `NULL`
+/// otherwise. Upon return, `*buffer_len` is the length of the BOM (zero if
+/// there is no BOM).
 ///
 /// # Undefined behavior
 ///
 /// UB ensues if `buffer` and `buffer_len` don't designate a valid memory block.
 #[no_mangle]
-pub unsafe extern "C" fn encoding_for_bom(buffer: *const u8, buffer_len: usize) -> *const Encoding {
-    let buffer_slice = ::std::slice::from_raw_parts(buffer, buffer_len);
-    option_to_ptr(Encoding::for_bom(buffer_slice))
+pub unsafe extern "C" fn encoding_for_bom(buffer: *const u8,
+                                          buffer_len: *mut usize)
+                                          -> *const Encoding {
+    let buffer_slice = ::std::slice::from_raw_parts(buffer, *buffer_len);
+    let (encoding, bom_length) = match Encoding::for_bom(buffer_slice) {
+        Some((encoding, bom_length)) => (encoding as *const Encoding, bom_length),
+        None => (::std::ptr::null(), 0),
+    };
+    *buffer_len = bom_length;
+    encoding
 }
 
 /// Writes the name of the given `Encoding` to a caller-supplied buffer as ASCII

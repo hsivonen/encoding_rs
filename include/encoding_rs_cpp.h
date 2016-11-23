@@ -40,9 +40,11 @@ public:
                              name.length());
   }
 
-  inline const Encoding* for_bom(gsl::span<const uint8_t> buffer)
+  inline std::tuple<const Encoding*, size_t> for_bom(gsl::span<const uint8_t> buffer)
   {
-    return encoding_for_bom(buffer.data(), buffer.size());
+    size_t len = buffer.size();
+    const Encoding* encoding = encoding_for_bom(buffer.data(), &len);
+    return std::make_tuple(encoding, len);
   }
 
   inline std::string name() const

@@ -504,6 +504,7 @@ mod variant;
 pub mod ffi;
 
 use variant::*;
+use utf_8::utf8_valid_up_to;
 pub use ffi::*;
 
 use std::borrow::Cow;
@@ -1466,18 +1467,18 @@ impl Encoding {
     /// stream (non-streaming case) or a buffer representing at least the first
     /// three bytes of the input stream (streaming case).
     ///
-    /// Returns `Some(UTF_8)`, `Some(UTF_16LE)` or `Some(UTF_16BE)` if the
-    /// argument starts with the UTF-8, UTF-16LE or UTF-16BE BOM or `None`
-    /// otherwise.
+    /// Returns `Some((UTF_8, 3))`, `Some((UTF_16LE, 2))` or
+    /// `Some((UTF_16BE, 3))` if the argument starts with the UTF-8, UTF-16LE
+    /// or UTF-16BE BOM or `None` otherwise.
     ///
     /// Available via the C wrapper.
-    pub fn for_bom(buffer: &[u8]) -> Option<&'static Encoding> {
+    pub fn for_bom(buffer: &[u8]) -> Option<(&'static Encoding, usize)> {
         if buffer.starts_with(b"\xEF\xBB\xBF") {
-            Some(UTF_8)
+            Some((UTF_8, 3))
         } else if buffer.starts_with(b"\xFF\xFE") {
-            Some(UTF_16LE)
+            Some((UTF_16LE, 2))
         } else if buffer.starts_with(b"\xFE\xFF") {
-            Some(UTF_16BE)
+            Some((UTF_16BE, 2))
         } else {
             None
         }
@@ -1575,7 +1576,7 @@ impl Encoding {
         enc.variant.new_encoder(enc)
     }
 
-    /// Convenience method for decoding to `String` _with BOM sniffing_ and with
+    /// Decode complete input to `String` _with BOM sniffing_ and with
     /// malformed sequences replaced with the REPLACEMENT CHARACTER when the
     /// entire input is available as a single buffer (i.e. the end of the
     /// buffer marks the end of the stream).
@@ -1594,23 +1595,21 @@ impl Encoding {
     /// when decoding segmented input.
     ///
     /// This method performs a single heap allocation for the backing buffer
-    /// of the `String`.
+    /// of the `String`, except when the input is valid UTF-8, in which case
+    /// no heap allocation is performed and the output is borrowed from the
+    /// input instead.
     ///
     /// Available to Rust only.
     pub fn decode<'a>(&'static self, bytes: &'a [u8]) -> (Cow<'a, str>, &'static Encoding, bool) {
-        let mut decoder = self.new_decoder();
-        let mut string = String::with_capacity(decoder.max_utf8_buffer_length(bytes.len()));
-        let (result, read, had_errors) = decoder.decode_to_string(bytes, &mut string, true);
-        match result {
-            CoderResult::InputEmpty => {
-                debug_assert_eq!(read, bytes.len());
-                (Cow::Owned(string), decoder.encoding(), had_errors)
-            }
-            CoderResult::OutputFull => unreachable!(),
-        }
+        let (encoding, without_bom) = match Encoding::for_bom(bytes) {
+            Some((encoding, bom_length)) => (encoding, &bytes[bom_length..]),
+            None => (self, bytes),
+        };
+        let (cow, had_errors) = encoding.decode_without_bom_handling(without_bom);
+        (cow, encoding, had_errors)
     }
 
-    /// Convenience method for decoding to `String` _with BOM removal_ and with
+    /// Decode complete input to `String` _with BOM removal_ and with
     /// malformed sequences replaced with the REPLACEMENT CHARACTER when the
     /// entire input is available as a single buffer (i.e. the end of the
     /// buffer marks the end of the stream).
@@ -1628,23 +1627,25 @@ impl Encoding {
     /// `new_decoder_with_bom_removal()` when decoding segmented input.
     ///
     /// This method performs a single heap allocation for the backing buffer
-    /// of the `String`.
+    /// of the `String`, except when the input is valid UTF-8, in which case
+    /// no heap allocation is performed and the output is borrowed from the
+    /// input instead.
     ///
     /// Available to Rust only.
     pub fn decode_with_bom_removal<'a>(&'static self, bytes: &'a [u8]) -> (Cow<'a, str>, bool) {
-        let mut decoder = self.new_decoder_with_bom_removal();
-        let mut string = String::with_capacity(decoder.max_utf8_buffer_length(bytes.len()));
-        let (result, read, had_errors) = decoder.decode_to_string(bytes, &mut string, true);
-        match result {
-            CoderResult::InputEmpty => {
-                debug_assert_eq!(read, bytes.len());
-                (Cow::Owned(string), had_errors)
-            }
-            CoderResult::OutputFull => unreachable!(),
-        }
+        let without_bom = if self == UTF_8 && bytes.starts_with(b"\xEF\xBB\xBF") {
+            &bytes[3..]
+        } else if self == UTF_16LE && bytes.starts_with(b"\xFF\xFE") {
+            &bytes[2..]
+        } else if self == UTF_16BE && bytes.starts_with(b"\xFE\xFF") {
+            &bytes[2..]
+        } else {
+            bytes
+        };
+        self.decode_without_bom_handling(without_bom)
     }
 
-    /// Convenience method for decoding to `String` _without BOM handling_ and
+    /// Decode complete input to `String` _without BOM handling_ and
     /// with malformed sequences replaced with the REPLACEMENT CHARACTER when
     /// the entire input is available as a single buffer (i.e. the end of the
     /// buffer marks the end of the stream).
@@ -1662,23 +1663,44 @@ impl Encoding {
     /// `new_decoder_without_bom_handling()` when decoding segmented input.
     ///
     /// This method performs a single heap allocation for the backing buffer
-    /// of the `String`.
+    /// of the `String`, except when the input is valid UTF-8, in which case
+    /// no heap allocation is performed and the output is borrowed from the
+    /// input instead.
     ///
     /// Available to Rust only.
     pub fn decode_without_bom_handling<'a>(&'static self, bytes: &'a [u8]) -> (Cow<'a, str>, bool) {
-        let mut decoder = self.new_decoder_without_bom_handling();
-        let mut string = String::with_capacity(decoder.max_utf8_buffer_length(bytes.len()));
-        let (result, read, had_errors) = decoder.decode_to_string(bytes, &mut string, true);
+        let (mut decoder, mut string, input) = if self == UTF_8 {
+            let valid_up_to = utf8_valid_up_to(bytes);
+            if valid_up_to == bytes.len() {
+                let str: &str = unsafe { std::mem::transmute(bytes) };
+                return (Cow::Borrowed(str), false);
+            }
+            let decoder = self.new_decoder_without_bom_handling();
+            let mut string = String::with_capacity(valid_up_to +
+                                                   decoder.max_utf8_buffer_length(bytes.len() -
+                                                                                  valid_up_to));
+            unsafe {
+                let mut vec = string.as_mut_vec();
+                vec.set_len(valid_up_to);
+                std::ptr::copy_nonoverlapping(bytes.as_ptr(), vec.as_mut_ptr(), valid_up_to);
+            }
+            (decoder, string, &bytes[valid_up_to..])
+        } else {
+            let decoder = self.new_decoder_without_bom_handling();
+            let string = String::with_capacity(decoder.max_utf8_buffer_length(bytes.len()));
+            (decoder, string, bytes)
+        };
+        let (result, read, had_errors) = decoder.decode_to_string(input, &mut string, true);
         match result {
             CoderResult::InputEmpty => {
-                debug_assert_eq!(read, bytes.len());
+                debug_assert_eq!(read, input.len());
                 (Cow::Owned(string), had_errors)
             }
             CoderResult::OutputFull => unreachable!(),
         }
     }
 
-    /// Convenience method for decoding to `String` _without BOM handling_ and
+    /// Decode complete input to `String` _without BOM handling_ and
     /// _with malformed sequences treated as fatal_ when the entire input is
     /// available as a single buffer (i.e. the end of the buffer marks the end
     /// of the stream).
@@ -1696,12 +1718,23 @@ impl Encoding {
     /// `new_decoder_without_bom_handling()` when decoding segmented input.
     ///
     /// This method performs a single heap allocation for the backing buffer
-    /// of the `String`.
+    /// of the `String`, except when the input is valid UTF-8, in which case
+    /// no heap allocation is performed and the output is borrowed from the
+    /// input instead.
     ///
     /// Available to Rust only.
     pub fn decode_without_bom_handling_and_without_replacement<'a>(&'static self,
                                                                    bytes: &'a [u8])
                                                                    -> Option<Cow<'a, str>> {
+        if self == UTF_8 {
+            let valid_up_to = utf8_valid_up_to(bytes);
+            if valid_up_to == bytes.len() {
+                let str: &str = unsafe { std::mem::transmute(bytes) };
+                return Some(Cow::Borrowed(str));
+            } else {
+                return None;
+            }
+        }
         let mut decoder = self.new_decoder_without_bom_handling();
         let mut string =
             String::with_capacity(decoder.max_utf8_buffer_length_without_replacement(bytes.len()));
@@ -1716,7 +1749,7 @@ impl Encoding {
         }
     }
 
-    /// Convenience method for encoding to `Vec<u8>` with unmappable characters
+    /// Encode complete input to `Vec<u8>` with unmappable characters
     /// replaced with decimal numeric character references when the entire input
     /// is available as a single buffer (i.e. the end of the buffer marks the
     /// end of the stream).
@@ -1739,7 +1772,9 @@ impl Encoding {
     /// a segment of the input instead of the whole input. Use `new_encoder()`
     /// when encoding segmented output.
     ///
-    /// This method performs a single heap allocation for the backing buffer
+    /// When encoding to UTF-8, this method returns a borrow of the input
+    /// without a heap allocation. When encoding to something other than UTF-8,
+    /// this method performs a single heap allocation for the backing buffer
     /// of the `Vec<u8>` if there are no unmappable characters and potentially
     /// multiple heap allocations if there are. These allocations are tuned
     /// for jemalloc and may not be optimal when using a different allocator
@@ -2749,6 +2784,7 @@ fn write_ncr(unmappable: char, dst: &mut [u8]) -> usize {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::borrow::Cow;
 
     fn sniff_to_utf16(initial_encoding: &'static Encoding,
                       expected_encoding: &'static Encoding,
@@ -2939,4 +2975,225 @@ mod tests {
     }
 
     // XXX generate tests for all labels
+
+    #[test]
+    fn test_decode_valid_windows_1257_to_cow() {
+        let (cow, encoding, had_errors) = WINDOWS_1257.decode(b"\x80\xE4");
+        match cow {
+            Cow::Borrowed(_) => unreachable!(),
+            Cow::Owned(s) => {
+                assert_eq!(s, "\u{20AC}\u{00E4}");
+            }
+        }
+        assert_eq!(encoding, WINDOWS_1257);
+        assert!(!had_errors);
+    }
+
+    #[test]
+    fn test_decode_invalid_windows_1257_to_cow() {
+        let (cow, encoding, had_errors) = WINDOWS_1257.decode(b"\x80\xA1\xE4");
+        match cow {
+            Cow::Borrowed(_) => unreachable!(),
+            Cow::Owned(s) => {
+                assert_eq!(s, "\u{20AC}\u{FFFD}\u{00E4}");
+            }
+        }
+        assert_eq!(encoding, WINDOWS_1257);
+        assert!(had_errors);
+    }
+
+    #[test]
+    fn test_decode_bomful_valid_utf8_as_windows_1257_to_cow() {
+        let (cow, encoding, had_errors) = WINDOWS_1257.decode(b"\xEF\xBB\xBF\xE2\x82\xAC\xC3\xA4");
+        match cow {
+            Cow::Borrowed(s) => {
+                assert_eq!(s, "\u{20AC}\u{00E4}");
+            }
+            Cow::Owned(_) => unreachable!(),
+        }
+        assert_eq!(encoding, UTF_8);
+        assert!(!had_errors);
+    }
+
+    #[test]
+    fn test_decode_bomful_invalid_utf8_as_windows_1257_to_cow() {
+        let (cow, encoding, had_errors) =
+            WINDOWS_1257.decode(b"\xEF\xBB\xBF\xE2\x82\xAC\x80\xC3\xA4");
+        match cow {
+            Cow::Borrowed(_) => unreachable!(),
+            Cow::Owned(s) => {
+                assert_eq!(s, "\u{20AC}\u{FFFD}\u{00E4}");
+            }
+        }
+        assert_eq!(encoding, UTF_8);
+        assert!(had_errors);
+    }
+
+    #[test]
+    fn test_decode_bomful_valid_utf8_as_utf_8_to_cow() {
+        let (cow, encoding, had_errors) = UTF_8.decode(b"\xEF\xBB\xBF\xE2\x82\xAC\xC3\xA4");
+        match cow {
+            Cow::Borrowed(s) => {
+                assert_eq!(s, "\u{20AC}\u{00E4}");
+            }
+            Cow::Owned(_) => unreachable!(),
+        }
+        assert_eq!(encoding, UTF_8);
+        assert!(!had_errors);
+    }
+
+    #[test]
+    fn test_decode_bomful_invalid_utf8_as_utf_8_to_cow() {
+        let (cow, encoding, had_errors) = UTF_8.decode(b"\xEF\xBB\xBF\xE2\x82\xAC\x80\xC3\xA4");
+        match cow {
+            Cow::Borrowed(_) => unreachable!(),
+            Cow::Owned(s) => {
+                assert_eq!(s, "\u{20AC}\u{FFFD}\u{00E4}");
+            }
+        }
+        assert_eq!(encoding, UTF_8);
+        assert!(had_errors);
+    }
+
+    #[test]
+    fn test_decode_bomful_valid_utf8_as_utf_8_to_cow_with_bom_removal() {
+        let (cow, had_errors) = UTF_8.decode_with_bom_removal(b"\xEF\xBB\xBF\xE2\x82\xAC\xC3\xA4");
+        match cow {
+            Cow::Borrowed(s) => {
+                assert_eq!(s, "\u{20AC}\u{00E4}");
+            }
+            Cow::Owned(_) => unreachable!(),
+        }
+        assert!(!had_errors);
+    }
+
+    #[test]
+    fn test_decode_bomful_valid_utf8_as_windows_1257_to_cow_with_bom_removal() {
+        let (cow, had_errors) =
+            WINDOWS_1257.decode_with_bom_removal(b"\xEF\xBB\xBF\xE2\x82\xAC\xC3\xA4");
+        match cow {
+            Cow::Borrowed(_) => unreachable!(),
+            Cow::Owned(s) => {
+                assert_eq!(s,
+                           "\u{013C}\u{00BB}\u{00E6}\u{0101}\u{201A}\u{00AC}\u{0106}\u{00A4}");
+            }
+        }
+        assert!(!had_errors);
+    }
+
+
+    #[test]
+    fn test_decode_valid_windows_1257_to_cow_with_bom_removal() {
+        let (cow, had_errors) = WINDOWS_1257.decode_with_bom_removal(b"\x80\xE4");
+        match cow {
+            Cow::Borrowed(_) => unreachable!(),
+            Cow::Owned(s) => {
+                assert_eq!(s, "\u{20AC}\u{00E4}");
+            }
+        }
+        assert!(!had_errors);
+    }
+
+    #[test]
+    fn test_decode_invalid_windows_1257_to_cow_with_bom_removal() {
+        let (cow, had_errors) = WINDOWS_1257.decode_with_bom_removal(b"\x80\xA1\xE4");
+        match cow {
+            Cow::Borrowed(_) => unreachable!(),
+            Cow::Owned(s) => {
+                assert_eq!(s, "\u{20AC}\u{FFFD}\u{00E4}");
+            }
+        }
+        assert!(had_errors);
+    }
+
+    #[test]
+    fn test_decode_bomful_valid_utf8_to_cow_without_bom_handling() {
+        let (cow, had_errors) =
+            UTF_8.decode_without_bom_handling(b"\xEF\xBB\xBF\xE2\x82\xAC\xC3\xA4");
+        match cow {
+            Cow::Borrowed(s) => {
+                assert_eq!(s, "\u{FEFF}\u{20AC}\u{00E4}");
+            }
+            Cow::Owned(_) => unreachable!(),
+        }
+        assert!(!had_errors);
+    }
+
+    #[test]
+    fn test_decode_bomful_invalid_utf8_to_cow_without_bom_handling() {
+        let (cow, had_errors) =
+            UTF_8.decode_without_bom_handling(b"\xEF\xBB\xBF\xE2\x82\xAC\x80\xC3\xA4");
+        match cow {
+            Cow::Borrowed(_) => unreachable!(),
+            Cow::Owned(s) => {
+                assert_eq!(s, "\u{FEFF}\u{20AC}\u{FFFD}\u{00E4}");
+            }
+        }
+        assert!(had_errors);
+    }
+
+    #[test]
+    fn test_decode_valid_windows_1257_to_cow_without_bom_handling() {
+        let (cow, had_errors) = WINDOWS_1257.decode_without_bom_handling(b"\x80\xE4");
+        match cow {
+            Cow::Borrowed(_) => unreachable!(),
+            Cow::Owned(s) => {
+                assert_eq!(s, "\u{20AC}\u{00E4}");
+            }
+        }
+        assert!(!had_errors);
+    }
+
+    #[test]
+    fn test_decode_invalid_windows_1257_to_cow_without_bom_handling() {
+        let (cow, had_errors) = WINDOWS_1257.decode_without_bom_handling(b"\x80\xA1\xE4");
+        match cow {
+            Cow::Borrowed(_) => unreachable!(),
+            Cow::Owned(s) => {
+                assert_eq!(s, "\u{20AC}\u{FFFD}\u{00E4}");
+            }
+        }
+        assert!(had_errors);
+    }
+
+    #[test]
+    fn test_decode_bomful_valid_utf8_to_cow_without_bom_handling_and_without_replacement() {
+        match UTF_8.decode_without_bom_handling_and_without_replacement(b"\xEF\xBB\xBF\xE2\x82\xAC\xC3\xA4") {
+            Some(cow) => {
+               match cow {
+                   Cow::Borrowed(s) => {
+                       assert_eq!(s, "\u{FEFF}\u{20AC}\u{00E4}");
+                   },
+                   Cow::Owned(_) => unreachable!(),
+               }
+            },
+            None => unreachable!(),
+        }
+    }
+
+    #[test]
+    fn test_decode_bomful_invalid_utf8_to_cow_without_bom_handling_and_without_replacement() {
+        assert!(UTF_8.decode_without_bom_handling_and_without_replacement(b"\xEF\xBB\xBF\xE2\x82\xAC\x80\xC3\xA4").is_none());
+    }
+
+    #[test]
+    fn test_decode_valid_windows_1257_to_cow_without_bom_handling_and_without_replacement() {
+        match WINDOWS_1257.decode_without_bom_handling_and_without_replacement(b"\x80\xE4") {
+            Some(cow) => {
+                match cow {
+                    Cow::Borrowed(_) => unreachable!(),
+                    Cow::Owned(s) => {
+                        assert_eq!(s, "\u{20AC}\u{00E4}");
+                    }
+                }
+            }
+            None => unreachable!(),
+        }
+    }
+
+    #[test]
+    fn test_decode_invalid_windows_1257_to_cow_without_bom_handling_and_without_replacement() {
+        assert!(WINDOWS_1257.decode_without_bom_handling_and_without_replacement(b"\x80\xA1\xE4")
+                            .is_none());
+    }
 }

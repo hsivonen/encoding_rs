@@ -67,8 +67,8 @@ encoding_rs is
 - [x] Document the API.
 - [x] Publish the crate on crates.io.
 - [x] Create a solution for measuring performance.
-- [ ] Accelerate ASCII conversions using SSE2 on x86.
-- [ ] Accelerate ASCII conversions using ALU register-sized operations on
+- [x] Accelerate ASCII conversions using SSE2 on x86.
+- [x] Accelerate ASCII conversions using ALU register-sized operations on
       non-x86 architectures (process an `usize` instead of `u8` at a time).
 - [ ] Use Björn Höhrmann's lookup table acceleration for UTF-8 as adapted to
       Rust in rust-encoding.
@@ -86,9 +86,10 @@ encoding_rs is
 
 ### 0.3
 
+* Made `Encoding::for_bom()` return the length of the BOM.
 * Fix panic with long bogus labels.
 * Map [0xCA to U+05BA in windows-1255](https://github.com/whatwg/encoding/issues/73).
-* Return `Cow`s from Rust-only convenience methods for encode and decode.
+* Return `Cow`s from Rust-only non-streaming methods for encode and decode.
 
 ### 0.2.4
 
