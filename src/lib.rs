@@ -27,6 +27,11 @@
 //!
 //! # Examples
 //!
+//! Example programs:
+//! * [Rust](https://github.com/hsivonen/recode_rs)
+//! * [C](https://github.com/hsivonen/recode_c)
+//! * [C++](https://github.com/hsivonen/recode_cpp)
+//!
 //! Decode using the non-streaming API:
 //!
 //! ```
