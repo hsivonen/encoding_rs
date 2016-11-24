@@ -284,6 +284,49 @@ cfg_if! {
 
         ascii_alu!(ascii_to_basic_latin, u8, u16, ascii_to_basic_latin_stride_little_64);
         ascii_alu!(basic_latin_to_ascii, u16, u8, basic_latin_to_ascii_stride_little_64);
+    } else if #[cfg(all(target_endian = "little", target_pointer_width = "32"))] {
+// Aligned ALU word, little endian, 32-bit
+
+        const STRIDE_SIZE: usize = 4;
+
+        const ALIGNMENT_MASK: usize = 3;
+
+        #[inline(always)]
+        unsafe fn ascii_to_basic_latin_stride_little_32(src: *const usize, dst: *mut usize) -> bool {
+            let word = *src;
+// Check if the word contains non-ASCII
+            if (word & 0x80808080usize) != 0 {
+                return false;
+            }
+            let first = ((0x0000FF00usize & word) << 8) |
+                        (0x000000FFusize & word);
+            let second = ((0xFF000000usize & word) >> 8) |
+                         ((0x00FF0000usize & word) >> 16);
+            *dst = first;
+            *(dst.offset(1)) = second;
+            return true;
+        }
+
+        #[inline(always)]
+        unsafe fn basic_latin_to_ascii_stride_little_32(src: *const usize, dst: *mut usize) -> bool {
+            let first = *src;
+            if (first & 0xFF80FF80usize) != 0 {
+                return false;
+            }
+            let second = *(src.offset(1));
+            if (second & 0xFF80FF80usize) != 0 {
+                return false;
+            }
+            let word = ((0x00FF0000usize & second) << 8) |
+                       ((0x000000FFusize & second) << 16) |
+                       ((0x00FF0000usize & first) >> 8) |
+                       (0x000000FFusize & first);
+            *dst = word;
+            return true;
+        }
+
+        ascii_alu!(ascii_to_basic_latin, u8, u16, ascii_to_basic_latin_stride_little_32);
+        ascii_alu!(basic_latin_to_ascii, u16, u8, basic_latin_to_ascii_stride_little_32);
     } else {
         ascii_naive!(ascii_to_ascii, u8, u8);
         ascii_naive!(ascii_to_basic_latin, u8, u16);
