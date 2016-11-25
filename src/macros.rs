@@ -270,11 +270,9 @@ macro_rules! ascii_compatible_two_byte_decoder_function {
                                 }
                             }
                         }
-                        unreachable!("Should always continue earlier.");
                     }
                 }
             }
-            unreachable!("Should always continue earlier.");
         }
     });
 }
@@ -580,11 +578,9 @@ macro_rules! gb18030_decoder_function {
                                 }
                             }
                         }
-                        unreachable!("Should always continue earlier.");
                     }
                 }
             }
-            unreachable!("Should always continue earlier.");
         }
     });
 }
@@ -879,11 +875,9 @@ macro_rules! euc_jp_decoder_function {
                                 }
                             }
                         }
-                        unreachable!("Should always continue earlier.");
                     }
                 }
             }
-            unreachable!("Should always continue earlier.");
         }
     });
 }
@@ -1134,11 +1128,9 @@ macro_rules! ascii_compatible_encoder_function {
                                 }
                             }
                         }
-                        unreachable!("Should always continue earlier.");
                     }
                 }
             }
-            unreachable!("Should always continue earlier.");
         }
     });
 }

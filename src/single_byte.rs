@@ -125,11 +125,9 @@ impl SingleByteDecoder {
                                 }
                             }
                         }
-                        unreachable!("Should always continue earlier.");
                     }
                 }
             }
-            unreachable!("Should always continue earlier.");
         }
     }
 
@@ -214,7 +212,6 @@ impl SingleByteDecoder {
                     }
                 }
             }
-            unreachable!("Should always continue earlier.");
         }
     }
 }
@@ -421,7 +418,6 @@ impl SingleByteEncoder {
                     }
                 }
             }
-            unreachable!("Should always continue earlier.");
         }
     }
 }
