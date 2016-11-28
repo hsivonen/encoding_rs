@@ -86,44 +86,44 @@ macro_rules! ascii_simd {
 // XXX Should we just use unaligned SSE2 access unconditionally? It seems that
 // on Haswell, it would make sense to just use unaligned and not bother
 // checking. Need to benchmark older architectures before deciding.
-            let dst_masked = (dst as usize) & ALIGNMENT_MASK;
-            if ((src as usize) & ALIGNMENT_MASK) == 0 {
-                if dst_masked == 0 {
-                    loop {
-                        if !$stride_both_aligned(src.offset(offset as isize),
-                                                 dst.offset(offset as isize)) {
-                            break;
-                        }
-                        offset += STRIDE_SIZE;
-                        if offset + STRIDE_SIZE > len {
-                            break;
-                        }
-                    }
-                } else {
-                    loop {
-                        if !$stride_src_aligned(src.offset(offset as isize),
-                                                dst.offset(offset as isize)) {
-                            break;
-                        }
-                        offset += STRIDE_SIZE;
-                        if offset + STRIDE_SIZE > len {
-                            break;
-                        }
-                    }
-                }
-            } else {
-                if dst_masked == 0 {
-                    loop {
-                        if !$stride_dst_aligned(src.offset(offset as isize),
-                                                dst.offset(offset as isize)) {
-                            break;
-                        }
-                        offset += STRIDE_SIZE;
-                        if offset + STRIDE_SIZE > len {
-                            break;
-                        }
-                    }
-                } else {
+//            let dst_masked = (dst as usize) & ALIGNMENT_MASK;
+//            if ((src as usize) & ALIGNMENT_MASK) == 0 {
+//                if dst_masked == 0 {
+//                    loop {
+//                        if !$stride_both_aligned(src.offset(offset as isize),
+//                                                 dst.offset(offset as isize)) {
+//                            break;
+//                        }
+//                        offset += STRIDE_SIZE;
+//                        if offset + STRIDE_SIZE > len {
+//                            break;
+//                        }
+//                    }
+//                } else {
+//                    loop {
+//                        if !$stride_src_aligned(src.offset(offset as isize),
+//                                                dst.offset(offset as isize)) {
+//                            break;
+//                        }
+//                        offset += STRIDE_SIZE;
+//                        if offset + STRIDE_SIZE > len {
+//                            break;
+//                        }
+//                    }
+//                }
+//            } else {
+//                if dst_masked == 0 {
+//                    loop {
+//                        if !$stride_dst_aligned(src.offset(offset as isize),
+//                                                dst.offset(offset as isize)) {
+//                            break;
+//                        }
+//                        offset += STRIDE_SIZE;
+//                        if offset + STRIDE_SIZE > len {
+//                            break;
+//                        }
+//                    }
+//                } else {
                     loop {
                         if !$stride_neither_aligned(src.offset(offset as isize),
                                                     dst.offset(offset as isize)) {
@@ -134,8 +134,8 @@ macro_rules! ascii_simd {
                             break;
                         }
                     }
-                }
-            }
+//                }
+//            }
         }
         while offset < len {
             let code_unit = *(src.offset(offset as isize));
