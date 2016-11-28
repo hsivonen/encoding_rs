@@ -66,6 +66,7 @@ pub unsafe fn store8_aligned(ptr: *mut u16, s: u16x8) {
     *(ptr as *mut u16x8) = s;
 }
 
+/// _mm_movemask_epi8 in SSE2. vec_all_lt in AltiVec.
 #[inline(always)]
 pub fn is_ascii(s: u8x16) -> bool {
     unsafe {
@@ -75,7 +76,8 @@ pub fn is_ascii(s: u8x16) -> bool {
 }
 
 /// vzipq_u8 in NEON. _mm_unpacklo_epi8 and
-/// _mm_unpackhi_epi8 in SSE2.
+/// _mm_unpackhi_epi8 in SSE2. vec_mergeh and vec_mergel or vec_unpackh and
+/// vec_unpackl in AltiVec.
 #[inline(always)]
 pub fn unpack(s: u8x16) -> (u16x8, u16x8) {
     unsafe {
@@ -90,7 +92,8 @@ pub fn unpack(s: u8x16) -> (u16x8, u16x8) {
     }
 }
 
-/// vuzpq_u8 in NEON. _mm_packus_epi16 in SSE2.
+/// vuzpq_u8 in NEON. _mm_packus_epi16 in SSE2. vec_packsu *followed* by ASCII
+/// check in AltiVec.
 #[inline(always)]
 pub unsafe fn pack_basic_latin(a: u16x8, b: u16x8) -> Option<u8x16> {
     // If the 16-bit lane is out of range positive, the 8-bit lane becomes 0xFF
