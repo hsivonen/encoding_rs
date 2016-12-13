@@ -11,6 +11,7 @@
 
 import json
 import subprocess
+import sys
 
 class Label:
   def __init__(self, label, preferred):
@@ -136,19 +137,38 @@ for name in preferred:
   else:
     variant = to_camel_name(name)
 
-  label_file.write('''/// The %s encoding.
-pub const %s: &'static Encoding = &Encoding {
+  label_file.write('''/// The initializer for the %s encoding.
+///
+/// For use only for taking the address of this form when
+/// Rust prohibits the use of the non-`_INIT` form directly,
+/// such as in initializers of other `static`s. If in doubt,
+/// use the corresponding non-`_INIT` reference-typed `static`.
+///
+/// This part of the public API will go away if Rust changes
+/// to make the referent of `pub const FOO: &'static Encoding`
+/// unique cross-crate or if Rust starts allowing static arrays
+/// to be initialized with `pub static FOO: &'static Encoding`
+/// items.
+pub static %s_INIT: Encoding = Encoding {
     name: "%s",
     variant: VariantEncoding::%s,
 };
 
-''' % (to_dom_name(name), to_constant_name(name), to_dom_name(name), variant))
+/// The %s encoding.
+///
+/// This will change from `static` to `const` if Rust changes
+/// to make the referent of `pub const FOO: &'static Encoding`
+/// unique cross-crate, so don't take the address of this
+/// `static`.
+pub static %s: &'static Encoding = &%s_INIT;
+
+''' % (to_dom_name(name), to_constant_name(name), to_dom_name(name), variant, to_dom_name(name), to_constant_name(name), to_constant_name(name)))
 
 label_file.write("""static ENCODINGS_SORTED_BY_NAME: [&'static Encoding; %d] = [
 """ % len(dom))
 
 for dom_name in dom:
-  label_file.write("%s,\n" % to_constant_name(dom_name))
+  label_file.write("&%s_INIT,\n" % to_constant_name(dom_name))
 
 label_file.write("""];
 
@@ -164,7 +184,7 @@ static ENCODINGS_IN_LABEL_SORT: [&'static Encoding; %d] = [
 """ % len(labels))
 
 for label in labels:
-  label_file.write('''%s,\n''' % to_constant_name(label.preferred))
+  label_file.write('''&%s_INIT,\n''' % to_constant_name(label.preferred))
 
 label_file.write('''];
 
@@ -812,7 +832,7 @@ ffi_file.write("""
 for name in preferred:
   ffi_file.write('''/// The %s encoding.
 #[no_mangle]
-pub static %s_ENCODING: ConstEncoding = ConstEncoding(%s);
+pub static %s_ENCODING: ConstEncoding = ConstEncoding(&%s_INIT);
 
 ''' % (to_dom_name(name), to_constant_name(name), to_constant_name(name)))
 

@@ -403,6 +403,20 @@
 //! Therefore, when using FFI, encoding_rs must be compiled with panics aborting
 //! in order to avoid Undefined Behavior.
 //!
+//! # At-Risk Parts of the API
+//!
+//! The foreseeable source of partially backward-incompatible API change is the
+//! way the instances of `Encoding` are made available.
+//!
+//! If Rust changes to allow the entries of `[&'static Encoding; N]` to be
+//! initialized with `static`s of type `&'static Encoding`, the non-reference
+//! `FOO_INIT` public `Encoding` instances will be removed from the public API.
+//!
+//! If Rust changes to make the referent of `pub const FOO: &'static Encoding`
+//! unique when the constant is used in different crates, the reference-typed
+//! `static`s for the encoding instances will be changed from `static` to
+//! `const` and the non-reference-typed `_INIT` instances will be removed.
+//!
 //! # Mapping Spec Concepts onto the API
 //!
 //! <table>
@@ -523,286 +537,1006 @@ const LONGEST_LABEL_LENGTH: usize = 19; // cseucpkdfmtjapanese
 
 const LONGEST_NAME_LENGTH: usize = 14; // x-mac-cyrillic
 
-/// The Big5 encoding.
-pub const BIG5: &'static Encoding = &Encoding {
+/// The initializer for the Big5 encoding.
+///
+/// For use only for taking the address of this form when
+/// Rust prohibits the use of the non-`_INIT` form directly,
+/// such as in initializers of other `static`s.
+///
+/// This part of the public API will go away if Rust changes
+/// to make the referent of `pub const FOO: &'static Encoding`
+/// unique cross-crate or if Rust starts allowing static arrays
+/// to be initialized with `pub static FOO: &'static Encoding`
+/// items.
+pub static BIG5_INIT: Encoding = Encoding {
     name: "Big5",
     variant: VariantEncoding::Big5,
 };
 
-/// The EUC-JP encoding.
-pub const EUC_JP: &'static Encoding = &Encoding {
+/// The Big5 encoding.
+///
+/// This will change from `static` to `const` if Rust changes
+/// to make the referent of `pub const FOO: &'static Encoding`
+/// unique cross-crate, so don't take the address of this
+/// `static`.
+pub static BIG5: &'static Encoding = &BIG5_INIT;
+
+/// The initializer for the EUC-JP encoding.
+///
+/// For use only for taking the address of this form when
+/// Rust prohibits the use of the non-`_INIT` form directly,
+/// such as in initializers of other `static`s.
+///
+/// This part of the public API will go away if Rust changes
+/// to make the referent of `pub const FOO: &'static Encoding`
+/// unique cross-crate or if Rust starts allowing static arrays
+/// to be initialized with `pub static FOO: &'static Encoding`
+/// items.
+pub static EUC_JP_INIT: Encoding = Encoding {
     name: "EUC-JP",
     variant: VariantEncoding::EucJp,
 };
 
-/// The EUC-KR encoding.
-pub const EUC_KR: &'static Encoding = &Encoding {
+/// The EUC-JP encoding.
+///
+/// This will change from `static` to `const` if Rust changes
+/// to make the referent of `pub const FOO: &'static Encoding`
+/// unique cross-crate, so don't take the address of this
+/// `static`.
+pub static EUC_JP: &'static Encoding = &EUC_JP_INIT;
+
+/// The initializer for the EUC-KR encoding.
+///
+/// For use only for taking the address of this form when
+/// Rust prohibits the use of the non-`_INIT` form directly,
+/// such as in initializers of other `static`s.
+///
+/// This part of the public API will go away if Rust changes
+/// to make the referent of `pub const FOO: &'static Encoding`
+/// unique cross-crate or if Rust starts allowing static arrays
+/// to be initialized with `pub static FOO: &'static Encoding`
+/// items.
+pub static EUC_KR_INIT: Encoding = Encoding {
     name: "EUC-KR",
     variant: VariantEncoding::EucKr,
 };
 
-/// The GBK encoding.
-pub const GBK: &'static Encoding = &Encoding {
+/// The EUC-KR encoding.
+///
+/// This will change from `static` to `const` if Rust changes
+/// to make the referent of `pub const FOO: &'static Encoding`
+/// unique cross-crate, so don't take the address of this
+/// `static`.
+pub static EUC_KR: &'static Encoding = &EUC_KR_INIT;
+
+/// The initializer for the GBK encoding.
+///
+/// For use only for taking the address of this form when
+/// Rust prohibits the use of the non-`_INIT` form directly,
+/// such as in initializers of other `static`s.
+///
+/// This part of the public API will go away if Rust changes
+/// to make the referent of `pub const FOO: &'static Encoding`
+/// unique cross-crate or if Rust starts allowing static arrays
+/// to be initialized with `pub static FOO: &'static Encoding`
+/// items.
+pub static GBK_INIT: Encoding = Encoding {
     name: "GBK",
     variant: VariantEncoding::Gbk,
 };
 
-/// The IBM866 encoding.
-pub const IBM866: &'static Encoding = &Encoding {
+/// The GBK encoding.
+///
+/// This will change from `static` to `const` if Rust changes
+/// to make the referent of `pub const FOO: &'static Encoding`
+/// unique cross-crate, so don't take the address of this
+/// `static`.
+pub static GBK: &'static Encoding = &GBK_INIT;
+
+/// The initializer for the IBM866 encoding.
+///
+/// For use only for taking the address of this form when
+/// Rust prohibits the use of the non-`_INIT` form directly,
+/// such as in initializers of other `static`s.
+///
+/// This part of the public API will go away if Rust changes
+/// to make the referent of `pub const FOO: &'static Encoding`
+/// unique cross-crate or if Rust starts allowing static arrays
+/// to be initialized with `pub static FOO: &'static Encoding`
+/// items.
+pub static IBM866_INIT: Encoding = Encoding {
     name: "IBM866",
     variant: VariantEncoding::SingleByte(data::IBM866_DATA),
 };
 
-/// The ISO-2022-JP encoding.
-pub const ISO_2022_JP: &'static Encoding = &Encoding {
+/// The IBM866 encoding.
+///
+/// This will change from `static` to `const` if Rust changes
+/// to make the referent of `pub const FOO: &'static Encoding`
+/// unique cross-crate, so don't take the address of this
+/// `static`.
+pub static IBM866: &'static Encoding = &IBM866_INIT;
+
+/// The initializer for the ISO-2022-JP encoding.
+///
+/// For use only for taking the address of this form when
+/// Rust prohibits the use of the non-`_INIT` form directly,
+/// such as in initializers of other `static`s.
+///
+/// This part of the public API will go away if Rust changes
+/// to make the referent of `pub const FOO: &'static Encoding`
+/// unique cross-crate or if Rust starts allowing static arrays
+/// to be initialized with `pub static FOO: &'static Encoding`
+/// items.
+pub static ISO_2022_JP_INIT: Encoding = Encoding {
     name: "ISO-2022-JP",
     variant: VariantEncoding::Iso2022Jp,
 };
 
-/// The ISO-8859-10 encoding.
-pub const ISO_8859_10: &'static Encoding = &Encoding {
+/// The ISO-2022-JP encoding.
+///
+/// This will change from `static` to `const` if Rust changes
+/// to make the referent of `pub const FOO: &'static Encoding`
+/// unique cross-crate, so don't take the address of this
+/// `static`.
+pub static ISO_2022_JP: &'static Encoding = &ISO_2022_JP_INIT;
+
+/// The initializer for the ISO-8859-10 encoding.
+///
+/// For use only for taking the address of this form when
+/// Rust prohibits the use of the non-`_INIT` form directly,
+/// such as in initializers of other `static`s.
+///
+/// This part of the public API will go away if Rust changes
+/// to make the referent of `pub const FOO: &'static Encoding`
+/// unique cross-crate or if Rust starts allowing static arrays
+/// to be initialized with `pub static FOO: &'static Encoding`
+/// items.
+pub static ISO_8859_10_INIT: Encoding = Encoding {
     name: "ISO-8859-10",
     variant: VariantEncoding::SingleByte(data::ISO_8859_10_DATA),
 };
 
-/// The ISO-8859-13 encoding.
-pub const ISO_8859_13: &'static Encoding = &Encoding {
+/// The ISO-8859-10 encoding.
+///
+/// This will change from `static` to `const` if Rust changes
+/// to make the referent of `pub const FOO: &'static Encoding`
+/// unique cross-crate, so don't take the address of this
+/// `static`.
+pub static ISO_8859_10: &'static Encoding = &ISO_8859_10_INIT;
+
+/// The initializer for the ISO-8859-13 encoding.
+///
+/// For use only for taking the address of this form when
+/// Rust prohibits the use of the non-`_INIT` form directly,
+/// such as in initializers of other `static`s.
+///
+/// This part of the public API will go away if Rust changes
+/// to make the referent of `pub const FOO: &'static Encoding`
+/// unique cross-crate or if Rust starts allowing static arrays
+/// to be initialized with `pub static FOO: &'static Encoding`
+/// items.
+pub static ISO_8859_13_INIT: Encoding = Encoding {
     name: "ISO-8859-13",
     variant: VariantEncoding::SingleByte(data::ISO_8859_13_DATA),
 };
 
-/// The ISO-8859-14 encoding.
-pub const ISO_8859_14: &'static Encoding = &Encoding {
+/// The ISO-8859-13 encoding.
+///
+/// This will change from `static` to `const` if Rust changes
+/// to make the referent of `pub const FOO: &'static Encoding`
+/// unique cross-crate, so don't take the address of this
+/// `static`.
+pub static ISO_8859_13: &'static Encoding = &ISO_8859_13_INIT;
+
+/// The initializer for the ISO-8859-14 encoding.
+///
+/// For use only for taking the address of this form when
+/// Rust prohibits the use of the non-`_INIT` form directly,
+/// such as in initializers of other `static`s.
+///
+/// This part of the public API will go away if Rust changes
+/// to make the referent of `pub const FOO: &'static Encoding`
+/// unique cross-crate or if Rust starts allowing static arrays
+/// to be initialized with `pub static FOO: &'static Encoding`
+/// items.
+pub static ISO_8859_14_INIT: Encoding = Encoding {
     name: "ISO-8859-14",
     variant: VariantEncoding::SingleByte(data::ISO_8859_14_DATA),
 };
 
-/// The ISO-8859-15 encoding.
-pub const ISO_8859_15: &'static Encoding = &Encoding {
+/// The ISO-8859-14 encoding.
+///
+/// This will change from `static` to `const` if Rust changes
+/// to make the referent of `pub const FOO: &'static Encoding`
+/// unique cross-crate, so don't take the address of this
+/// `static`.
+pub static ISO_8859_14: &'static Encoding = &ISO_8859_14_INIT;
+
+/// The initializer for the ISO-8859-15 encoding.
+///
+/// For use only for taking the address of this form when
+/// Rust prohibits the use of the non-`_INIT` form directly,
+/// such as in initializers of other `static`s.
+///
+/// This part of the public API will go away if Rust changes
+/// to make the referent of `pub const FOO: &'static Encoding`
+/// unique cross-crate or if Rust starts allowing static arrays
+/// to be initialized with `pub static FOO: &'static Encoding`
+/// items.
+pub static ISO_8859_15_INIT: Encoding = Encoding {
     name: "ISO-8859-15",
     variant: VariantEncoding::SingleByte(data::ISO_8859_15_DATA),
 };
 
-/// The ISO-8859-16 encoding.
-pub const ISO_8859_16: &'static Encoding = &Encoding {
+/// The ISO-8859-15 encoding.
+///
+/// This will change from `static` to `const` if Rust changes
+/// to make the referent of `pub const FOO: &'static Encoding`
+/// unique cross-crate, so don't take the address of this
+/// `static`.
+pub static ISO_8859_15: &'static Encoding = &ISO_8859_15_INIT;
+
+/// The initializer for the ISO-8859-16 encoding.
+///
+/// For use only for taking the address of this form when
+/// Rust prohibits the use of the non-`_INIT` form directly,
+/// such as in initializers of other `static`s.
+///
+/// This part of the public API will go away if Rust changes
+/// to make the referent of `pub const FOO: &'static Encoding`
+/// unique cross-crate or if Rust starts allowing static arrays
+/// to be initialized with `pub static FOO: &'static Encoding`
+/// items.
+pub static ISO_8859_16_INIT: Encoding = Encoding {
     name: "ISO-8859-16",
     variant: VariantEncoding::SingleByte(data::ISO_8859_16_DATA),
 };
 
-/// The ISO-8859-2 encoding.
-pub const ISO_8859_2: &'static Encoding = &Encoding {
+/// The ISO-8859-16 encoding.
+///
+/// This will change from `static` to `const` if Rust changes
+/// to make the referent of `pub const FOO: &'static Encoding`
+/// unique cross-crate, so don't take the address of this
+/// `static`.
+pub static ISO_8859_16: &'static Encoding = &ISO_8859_16_INIT;
+
+/// The initializer for the ISO-8859-2 encoding.
+///
+/// For use only for taking the address of this form when
+/// Rust prohibits the use of the non-`_INIT` form directly,
+/// such as in initializers of other `static`s.
+///
+/// This part of the public API will go away if Rust changes
+/// to make the referent of `pub const FOO: &'static Encoding`
+/// unique cross-crate or if Rust starts allowing static arrays
+/// to be initialized with `pub static FOO: &'static Encoding`
+/// items.
+pub static ISO_8859_2_INIT: Encoding = Encoding {
     name: "ISO-8859-2",
     variant: VariantEncoding::SingleByte(data::ISO_8859_2_DATA),
 };
 
-/// The ISO-8859-3 encoding.
-pub const ISO_8859_3: &'static Encoding = &Encoding {
+/// The ISO-8859-2 encoding.
+///
+/// This will change from `static` to `const` if Rust changes
+/// to make the referent of `pub const FOO: &'static Encoding`
+/// unique cross-crate, so don't take the address of this
+/// `static`.
+pub static ISO_8859_2: &'static Encoding = &ISO_8859_2_INIT;
+
+/// The initializer for the ISO-8859-3 encoding.
+///
+/// For use only for taking the address of this form when
+/// Rust prohibits the use of the non-`_INIT` form directly,
+/// such as in initializers of other `static`s.
+///
+/// This part of the public API will go away if Rust changes
+/// to make the referent of `pub const FOO: &'static Encoding`
+/// unique cross-crate or if Rust starts allowing static arrays
+/// to be initialized with `pub static FOO: &'static Encoding`
+/// items.
+pub static ISO_8859_3_INIT: Encoding = Encoding {
     name: "ISO-8859-3",
     variant: VariantEncoding::SingleByte(data::ISO_8859_3_DATA),
 };
 
-/// The ISO-8859-4 encoding.
-pub const ISO_8859_4: &'static Encoding = &Encoding {
+/// The ISO-8859-3 encoding.
+///
+/// This will change from `static` to `const` if Rust changes
+/// to make the referent of `pub const FOO: &'static Encoding`
+/// unique cross-crate, so don't take the address of this
+/// `static`.
+pub static ISO_8859_3: &'static Encoding = &ISO_8859_3_INIT;
+
+/// The initializer for the ISO-8859-4 encoding.
+///
+/// For use only for taking the address of this form when
+/// Rust prohibits the use of the non-`_INIT` form directly,
+/// such as in initializers of other `static`s.
+///
+/// This part of the public API will go away if Rust changes
+/// to make the referent of `pub const FOO: &'static Encoding`
+/// unique cross-crate or if Rust starts allowing static arrays
+/// to be initialized with `pub static FOO: &'static Encoding`
+/// items.
+pub static ISO_8859_4_INIT: Encoding = Encoding {
     name: "ISO-8859-4",
     variant: VariantEncoding::SingleByte(data::ISO_8859_4_DATA),
 };
 
-/// The ISO-8859-5 encoding.
-pub const ISO_8859_5: &'static Encoding = &Encoding {
+/// The ISO-8859-4 encoding.
+///
+/// This will change from `static` to `const` if Rust changes
+/// to make the referent of `pub const FOO: &'static Encoding`
+/// unique cross-crate, so don't take the address of this
+/// `static`.
+pub static ISO_8859_4: &'static Encoding = &ISO_8859_4_INIT;
+
+/// The initializer for the ISO-8859-5 encoding.
+///
+/// For use only for taking the address of this form when
+/// Rust prohibits the use of the non-`_INIT` form directly,
+/// such as in initializers of other `static`s.
+///
+/// This part of the public API will go away if Rust changes
+/// to make the referent of `pub const FOO: &'static Encoding`
+/// unique cross-crate or if Rust starts allowing static arrays
+/// to be initialized with `pub static FOO: &'static Encoding`
+/// items.
+pub static ISO_8859_5_INIT: Encoding = Encoding {
     name: "ISO-8859-5",
     variant: VariantEncoding::SingleByte(data::ISO_8859_5_DATA),
 };
 
-/// The ISO-8859-6 encoding.
-pub const ISO_8859_6: &'static Encoding = &Encoding {
+/// The ISO-8859-5 encoding.
+///
+/// This will change from `static` to `const` if Rust changes
+/// to make the referent of `pub const FOO: &'static Encoding`
+/// unique cross-crate, so don't take the address of this
+/// `static`.
+pub static ISO_8859_5: &'static Encoding = &ISO_8859_5_INIT;
+
+/// The initializer for the ISO-8859-6 encoding.
+///
+/// For use only for taking the address of this form when
+/// Rust prohibits the use of the non-`_INIT` form directly,
+/// such as in initializers of other `static`s.
+///
+/// This part of the public API will go away if Rust changes
+/// to make the referent of `pub const FOO: &'static Encoding`
+/// unique cross-crate or if Rust starts allowing static arrays
+/// to be initialized with `pub static FOO: &'static Encoding`
+/// items.
+pub static ISO_8859_6_INIT: Encoding = Encoding {
     name: "ISO-8859-6",
     variant: VariantEncoding::SingleByte(data::ISO_8859_6_DATA),
 };
 
-/// The ISO-8859-7 encoding.
-pub const ISO_8859_7: &'static Encoding = &Encoding {
+/// The ISO-8859-6 encoding.
+///
+/// This will change from `static` to `const` if Rust changes
+/// to make the referent of `pub const FOO: &'static Encoding`
+/// unique cross-crate, so don't take the address of this
+/// `static`.
+pub static ISO_8859_6: &'static Encoding = &ISO_8859_6_INIT;
+
+/// The initializer for the ISO-8859-7 encoding.
+///
+/// For use only for taking the address of this form when
+/// Rust prohibits the use of the non-`_INIT` form directly,
+/// such as in initializers of other `static`s.
+///
+/// This part of the public API will go away if Rust changes
+/// to make the referent of `pub const FOO: &'static Encoding`
+/// unique cross-crate or if Rust starts allowing static arrays
+/// to be initialized with `pub static FOO: &'static Encoding`
+/// items.
+pub static ISO_8859_7_INIT: Encoding = Encoding {
     name: "ISO-8859-7",
     variant: VariantEncoding::SingleByte(data::ISO_8859_7_DATA),
 };
 
-/// The ISO-8859-8 encoding.
-pub const ISO_8859_8: &'static Encoding = &Encoding {
+/// The ISO-8859-7 encoding.
+///
+/// This will change from `static` to `const` if Rust changes
+/// to make the referent of `pub const FOO: &'static Encoding`
+/// unique cross-crate, so don't take the address of this
+/// `static`.
+pub static ISO_8859_7: &'static Encoding = &ISO_8859_7_INIT;
+
+/// The initializer for the ISO-8859-8 encoding.
+///
+/// For use only for taking the address of this form when
+/// Rust prohibits the use of the non-`_INIT` form directly,
+/// such as in initializers of other `static`s.
+///
+/// This part of the public API will go away if Rust changes
+/// to make the referent of `pub const FOO: &'static Encoding`
+/// unique cross-crate or if Rust starts allowing static arrays
+/// to be initialized with `pub static FOO: &'static Encoding`
+/// items.
+pub static ISO_8859_8_INIT: Encoding = Encoding {
     name: "ISO-8859-8",
     variant: VariantEncoding::SingleByte(data::ISO_8859_8_DATA),
 };
 
-/// The ISO-8859-8-I encoding.
-pub const ISO_8859_8_I: &'static Encoding = &Encoding {
+/// The ISO-8859-8 encoding.
+///
+/// This will change from `static` to `const` if Rust changes
+/// to make the referent of `pub const FOO: &'static Encoding`
+/// unique cross-crate, so don't take the address of this
+/// `static`.
+pub static ISO_8859_8: &'static Encoding = &ISO_8859_8_INIT;
+
+/// The initializer for the ISO-8859-8-I encoding.
+///
+/// For use only for taking the address of this form when
+/// Rust prohibits the use of the non-`_INIT` form directly,
+/// such as in initializers of other `static`s.
+///
+/// This part of the public API will go away if Rust changes
+/// to make the referent of `pub const FOO: &'static Encoding`
+/// unique cross-crate or if Rust starts allowing static arrays
+/// to be initialized with `pub static FOO: &'static Encoding`
+/// items.
+pub static ISO_8859_8_I_INIT: Encoding = Encoding {
     name: "ISO-8859-8-I",
     variant: VariantEncoding::SingleByte(data::ISO_8859_8_DATA),
 };
 
-/// The KOI8-R encoding.
-pub const KOI8_R: &'static Encoding = &Encoding {
+/// The ISO-8859-8-I encoding.
+///
+/// This will change from `static` to `const` if Rust changes
+/// to make the referent of `pub const FOO: &'static Encoding`
+/// unique cross-crate, so don't take the address of this
+/// `static`.
+pub static ISO_8859_8_I: &'static Encoding = &ISO_8859_8_I_INIT;
+
+/// The initializer for the KOI8-R encoding.
+///
+/// For use only for taking the address of this form when
+/// Rust prohibits the use of the non-`_INIT` form directly,
+/// such as in initializers of other `static`s.
+///
+/// This part of the public API will go away if Rust changes
+/// to make the referent of `pub const FOO: &'static Encoding`
+/// unique cross-crate or if Rust starts allowing static arrays
+/// to be initialized with `pub static FOO: &'static Encoding`
+/// items.
+pub static KOI8_R_INIT: Encoding = Encoding {
     name: "KOI8-R",
     variant: VariantEncoding::SingleByte(data::KOI8_R_DATA),
 };
 
-/// The KOI8-U encoding.
-pub const KOI8_U: &'static Encoding = &Encoding {
+/// The KOI8-R encoding.
+///
+/// This will change from `static` to `const` if Rust changes
+/// to make the referent of `pub const FOO: &'static Encoding`
+/// unique cross-crate, so don't take the address of this
+/// `static`.
+pub static KOI8_R: &'static Encoding = &KOI8_R_INIT;
+
+/// The initializer for the KOI8-U encoding.
+///
+/// For use only for taking the address of this form when
+/// Rust prohibits the use of the non-`_INIT` form directly,
+/// such as in initializers of other `static`s.
+///
+/// This part of the public API will go away if Rust changes
+/// to make the referent of `pub const FOO: &'static Encoding`
+/// unique cross-crate or if Rust starts allowing static arrays
+/// to be initialized with `pub static FOO: &'static Encoding`
+/// items.
+pub static KOI8_U_INIT: Encoding = Encoding {
     name: "KOI8-U",
     variant: VariantEncoding::SingleByte(data::KOI8_U_DATA),
 };
 
-/// The Shift_JIS encoding.
-pub const SHIFT_JIS: &'static Encoding = &Encoding {
+/// The KOI8-U encoding.
+///
+/// This will change from `static` to `const` if Rust changes
+/// to make the referent of `pub const FOO: &'static Encoding`
+/// unique cross-crate, so don't take the address of this
+/// `static`.
+pub static KOI8_U: &'static Encoding = &KOI8_U_INIT;
+
+/// The initializer for the Shift_JIS encoding.
+///
+/// For use only for taking the address of this form when
+/// Rust prohibits the use of the non-`_INIT` form directly,
+/// such as in initializers of other `static`s.
+///
+/// This part of the public API will go away if Rust changes
+/// to make the referent of `pub const FOO: &'static Encoding`
+/// unique cross-crate or if Rust starts allowing static arrays
+/// to be initialized with `pub static FOO: &'static Encoding`
+/// items.
+pub static SHIFT_JIS_INIT: Encoding = Encoding {
     name: "Shift_JIS",
     variant: VariantEncoding::ShiftJis,
 };
 
-/// The UTF-16BE encoding.
-pub const UTF_16BE: &'static Encoding = &Encoding {
+/// The Shift_JIS encoding.
+///
+/// This will change from `static` to `const` if Rust changes
+/// to make the referent of `pub const FOO: &'static Encoding`
+/// unique cross-crate, so don't take the address of this
+/// `static`.
+pub static SHIFT_JIS: &'static Encoding = &SHIFT_JIS_INIT;
+
+/// The initializer for the UTF-16BE encoding.
+///
+/// For use only for taking the address of this form when
+/// Rust prohibits the use of the non-`_INIT` form directly,
+/// such as in initializers of other `static`s.
+///
+/// This part of the public API will go away if Rust changes
+/// to make the referent of `pub const FOO: &'static Encoding`
+/// unique cross-crate or if Rust starts allowing static arrays
+/// to be initialized with `pub static FOO: &'static Encoding`
+/// items.
+pub static UTF_16BE_INIT: Encoding = Encoding {
     name: "UTF-16BE",
     variant: VariantEncoding::Utf16Be,
 };
 
-/// The UTF-16LE encoding.
-pub const UTF_16LE: &'static Encoding = &Encoding {
+/// The UTF-16BE encoding.
+///
+/// This will change from `static` to `const` if Rust changes
+/// to make the referent of `pub const FOO: &'static Encoding`
+/// unique cross-crate, so don't take the address of this
+/// `static`.
+pub static UTF_16BE: &'static Encoding = &UTF_16BE_INIT;
+
+/// The initializer for the UTF-16LE encoding.
+///
+/// For use only for taking the address of this form when
+/// Rust prohibits the use of the non-`_INIT` form directly,
+/// such as in initializers of other `static`s.
+///
+/// This part of the public API will go away if Rust changes
+/// to make the referent of `pub const FOO: &'static Encoding`
+/// unique cross-crate or if Rust starts allowing static arrays
+/// to be initialized with `pub static FOO: &'static Encoding`
+/// items.
+pub static UTF_16LE_INIT: Encoding = Encoding {
     name: "UTF-16LE",
     variant: VariantEncoding::Utf16Le,
 };
 
-/// The UTF-8 encoding.
-pub const UTF_8: &'static Encoding = &Encoding {
+/// The UTF-16LE encoding.
+///
+/// This will change from `static` to `const` if Rust changes
+/// to make the referent of `pub const FOO: &'static Encoding`
+/// unique cross-crate, so don't take the address of this
+/// `static`.
+pub static UTF_16LE: &'static Encoding = &UTF_16LE_INIT;
+
+/// The initializer for the UTF-8 encoding.
+///
+/// For use only for taking the address of this form when
+/// Rust prohibits the use of the non-`_INIT` form directly,
+/// such as in initializers of other `static`s.
+///
+/// This part of the public API will go away if Rust changes
+/// to make the referent of `pub const FOO: &'static Encoding`
+/// unique cross-crate or if Rust starts allowing static arrays
+/// to be initialized with `pub static FOO: &'static Encoding`
+/// items.
+pub static UTF_8_INIT: Encoding = Encoding {
     name: "UTF-8",
     variant: VariantEncoding::Utf8,
 };
 
-/// The gb18030 encoding.
-pub const GB18030: &'static Encoding = &Encoding {
+/// The UTF-8 encoding.
+///
+/// This will change from `static` to `const` if Rust changes
+/// to make the referent of `pub const FOO: &'static Encoding`
+/// unique cross-crate, so don't take the address of this
+/// `static`.
+pub static UTF_8: &'static Encoding = &UTF_8_INIT;
+
+/// The initializer for the gb18030 encoding.
+///
+/// For use only for taking the address of this form when
+/// Rust prohibits the use of the non-`_INIT` form directly,
+/// such as in initializers of other `static`s.
+///
+/// This part of the public API will go away if Rust changes
+/// to make the referent of `pub const FOO: &'static Encoding`
+/// unique cross-crate or if Rust starts allowing static arrays
+/// to be initialized with `pub static FOO: &'static Encoding`
+/// items.
+pub static GB18030_INIT: Encoding = Encoding {
     name: "gb18030",
     variant: VariantEncoding::Gb18030,
 };
 
-/// The macintosh encoding.
-pub const MACINTOSH: &'static Encoding = &Encoding {
+/// The gb18030 encoding.
+///
+/// This will change from `static` to `const` if Rust changes
+/// to make the referent of `pub const FOO: &'static Encoding`
+/// unique cross-crate, so don't take the address of this
+/// `static`.
+pub static GB18030: &'static Encoding = &GB18030_INIT;
+
+/// The initializer for the macintosh encoding.
+///
+/// For use only for taking the address of this form when
+/// Rust prohibits the use of the non-`_INIT` form directly,
+/// such as in initializers of other `static`s.
+///
+/// This part of the public API will go away if Rust changes
+/// to make the referent of `pub const FOO: &'static Encoding`
+/// unique cross-crate or if Rust starts allowing static arrays
+/// to be initialized with `pub static FOO: &'static Encoding`
+/// items.
+pub static MACINTOSH_INIT: Encoding = Encoding {
     name: "macintosh",
     variant: VariantEncoding::SingleByte(data::MACINTOSH_DATA),
 };
 
-/// The replacement encoding.
-pub const REPLACEMENT: &'static Encoding = &Encoding {
+/// The macintosh encoding.
+///
+/// This will change from `static` to `const` if Rust changes
+/// to make the referent of `pub const FOO: &'static Encoding`
+/// unique cross-crate, so don't take the address of this
+/// `static`.
+pub static MACINTOSH: &'static Encoding = &MACINTOSH_INIT;
+
+/// The initializer for the replacement encoding.
+///
+/// For use only for taking the address of this form when
+/// Rust prohibits the use of the non-`_INIT` form directly,
+/// such as in initializers of other `static`s.
+///
+/// This part of the public API will go away if Rust changes
+/// to make the referent of `pub const FOO: &'static Encoding`
+/// unique cross-crate or if Rust starts allowing static arrays
+/// to be initialized with `pub static FOO: &'static Encoding`
+/// items.
+pub static REPLACEMENT_INIT: Encoding = Encoding {
     name: "replacement",
     variant: VariantEncoding::Replacement,
 };
 
-/// The windows-1250 encoding.
-pub const WINDOWS_1250: &'static Encoding = &Encoding {
+/// The replacement encoding.
+///
+/// This will change from `static` to `const` if Rust changes
+/// to make the referent of `pub const FOO: &'static Encoding`
+/// unique cross-crate, so don't take the address of this
+/// `static`.
+pub static REPLACEMENT: &'static Encoding = &REPLACEMENT_INIT;
+
+/// The initializer for the windows-1250 encoding.
+///
+/// For use only for taking the address of this form when
+/// Rust prohibits the use of the non-`_INIT` form directly,
+/// such as in initializers of other `static`s.
+///
+/// This part of the public API will go away if Rust changes
+/// to make the referent of `pub const FOO: &'static Encoding`
+/// unique cross-crate or if Rust starts allowing static arrays
+/// to be initialized with `pub static FOO: &'static Encoding`
+/// items.
+pub static WINDOWS_1250_INIT: Encoding = Encoding {
     name: "windows-1250",
     variant: VariantEncoding::SingleByte(data::WINDOWS_1250_DATA),
 };
 
-/// The windows-1251 encoding.
-pub const WINDOWS_1251: &'static Encoding = &Encoding {
+/// The windows-1250 encoding.
+///
+/// This will change from `static` to `const` if Rust changes
+/// to make the referent of `pub const FOO: &'static Encoding`
+/// unique cross-crate, so don't take the address of this
+/// `static`.
+pub static WINDOWS_1250: &'static Encoding = &WINDOWS_1250_INIT;
+
+/// The initializer for the windows-1251 encoding.
+///
+/// For use only for taking the address of this form when
+/// Rust prohibits the use of the non-`_INIT` form directly,
+/// such as in initializers of other `static`s.
+///
+/// This part of the public API will go away if Rust changes
+/// to make the referent of `pub const FOO: &'static Encoding`
+/// unique cross-crate or if Rust starts allowing static arrays
+/// to be initialized with `pub static FOO: &'static Encoding`
+/// items.
+pub static WINDOWS_1251_INIT: Encoding = Encoding {
     name: "windows-1251",
     variant: VariantEncoding::SingleByte(data::WINDOWS_1251_DATA),
 };
 
-/// The windows-1252 encoding.
-pub const WINDOWS_1252: &'static Encoding = &Encoding {
+/// The windows-1251 encoding.
+///
+/// This will change from `static` to `const` if Rust changes
+/// to make the referent of `pub const FOO: &'static Encoding`
+/// unique cross-crate, so don't take the address of this
+/// `static`.
+pub static WINDOWS_1251: &'static Encoding = &WINDOWS_1251_INIT;
+
+/// The initializer for the windows-1252 encoding.
+///
+/// For use only for taking the address of this form when
+/// Rust prohibits the use of the non-`_INIT` form directly,
+/// such as in initializers of other `static`s.
+///
+/// This part of the public API will go away if Rust changes
+/// to make the referent of `pub const FOO: &'static Encoding`
+/// unique cross-crate or if Rust starts allowing static arrays
+/// to be initialized with `pub static FOO: &'static Encoding`
+/// items.
+pub static WINDOWS_1252_INIT: Encoding = Encoding {
     name: "windows-1252",
     variant: VariantEncoding::SingleByte(data::WINDOWS_1252_DATA),
 };
 
-/// The windows-1253 encoding.
-pub const WINDOWS_1253: &'static Encoding = &Encoding {
+/// The windows-1252 encoding.
+///
+/// This will change from `static` to `const` if Rust changes
+/// to make the referent of `pub const FOO: &'static Encoding`
+/// unique cross-crate, so don't take the address of this
+/// `static`.
+pub static WINDOWS_1252: &'static Encoding = &WINDOWS_1252_INIT;
+
+/// The initializer for the windows-1253 encoding.
+///
+/// For use only for taking the address of this form when
+/// Rust prohibits the use of the non-`_INIT` form directly,
+/// such as in initializers of other `static`s.
+///
+/// This part of the public API will go away if Rust changes
+/// to make the referent of `pub const FOO: &'static Encoding`
+/// unique cross-crate or if Rust starts allowing static arrays
+/// to be initialized with `pub static FOO: &'static Encoding`
+/// items.
+pub static WINDOWS_1253_INIT: Encoding = Encoding {
     name: "windows-1253",
     variant: VariantEncoding::SingleByte(data::WINDOWS_1253_DATA),
 };
 
-/// The windows-1254 encoding.
-pub const WINDOWS_1254: &'static Encoding = &Encoding {
+/// The windows-1253 encoding.
+///
+/// This will change from `static` to `const` if Rust changes
+/// to make the referent of `pub const FOO: &'static Encoding`
+/// unique cross-crate, so don't take the address of this
+/// `static`.
+pub static WINDOWS_1253: &'static Encoding = &WINDOWS_1253_INIT;
+
+/// The initializer for the windows-1254 encoding.
+///
+/// For use only for taking the address of this form when
+/// Rust prohibits the use of the non-`_INIT` form directly,
+/// such as in initializers of other `static`s.
+///
+/// This part of the public API will go away if Rust changes
+/// to make the referent of `pub const FOO: &'static Encoding`
+/// unique cross-crate or if Rust starts allowing static arrays
+/// to be initialized with `pub static FOO: &'static Encoding`
+/// items.
+pub static WINDOWS_1254_INIT: Encoding = Encoding {
     name: "windows-1254",
     variant: VariantEncoding::SingleByte(data::WINDOWS_1254_DATA),
 };
 
-/// The windows-1255 encoding.
-pub const WINDOWS_1255: &'static Encoding = &Encoding {
+/// The windows-1254 encoding.
+///
+/// This will change from `static` to `const` if Rust changes
+/// to make the referent of `pub const FOO: &'static Encoding`
+/// unique cross-crate, so don't take the address of this
+/// `static`.
+pub static WINDOWS_1254: &'static Encoding = &WINDOWS_1254_INIT;
+
+/// The initializer for the windows-1255 encoding.
+///
+/// For use only for taking the address of this form when
+/// Rust prohibits the use of the non-`_INIT` form directly,
+/// such as in initializers of other `static`s.
+///
+/// This part of the public API will go away if Rust changes
+/// to make the referent of `pub const FOO: &'static Encoding`
+/// unique cross-crate or if Rust starts allowing static arrays
+/// to be initialized with `pub static FOO: &'static Encoding`
+/// items.
+pub static WINDOWS_1255_INIT: Encoding = Encoding {
     name: "windows-1255",
     variant: VariantEncoding::SingleByte(data::WINDOWS_1255_DATA),
 };
 
-/// The windows-1256 encoding.
-pub const WINDOWS_1256: &'static Encoding = &Encoding {
+/// The windows-1255 encoding.
+///
+/// This will change from `static` to `const` if Rust changes
+/// to make the referent of `pub const FOO: &'static Encoding`
+/// unique cross-crate, so don't take the address of this
+/// `static`.
+pub static WINDOWS_1255: &'static Encoding = &WINDOWS_1255_INIT;
+
+/// The initializer for the windows-1256 encoding.
+///
+/// For use only for taking the address of this form when
+/// Rust prohibits the use of the non-`_INIT` form directly,
+/// such as in initializers of other `static`s.
+///
+/// This part of the public API will go away if Rust changes
+/// to make the referent of `pub const FOO: &'static Encoding`
+/// unique cross-crate or if Rust starts allowing static arrays
+/// to be initialized with `pub static FOO: &'static Encoding`
+/// items.
+pub static WINDOWS_1256_INIT: Encoding = Encoding {
     name: "windows-1256",
     variant: VariantEncoding::SingleByte(data::WINDOWS_1256_DATA),
 };
 
-/// The windows-1257 encoding.
-pub const WINDOWS_1257: &'static Encoding = &Encoding {
+/// The windows-1256 encoding.
+///
+/// This will change from `static` to `const` if Rust changes
+/// to make the referent of `pub const FOO: &'static Encoding`
+/// unique cross-crate, so don't take the address of this
+/// `static`.
+pub static WINDOWS_1256: &'static Encoding = &WINDOWS_1256_INIT;
+
+/// The initializer for the windows-1257 encoding.
+///
+/// For use only for taking the address of this form when
+/// Rust prohibits the use of the non-`_INIT` form directly,
+/// such as in initializers of other `static`s.
+///
+/// This part of the public API will go away if Rust changes
+/// to make the referent of `pub const FOO: &'static Encoding`
+/// unique cross-crate or if Rust starts allowing static arrays
+/// to be initialized with `pub static FOO: &'static Encoding`
+/// items.
+pub static WINDOWS_1257_INIT: Encoding = Encoding {
     name: "windows-1257",
     variant: VariantEncoding::SingleByte(data::WINDOWS_1257_DATA),
 };
 
-/// The windows-1258 encoding.
-pub const WINDOWS_1258: &'static Encoding = &Encoding {
+/// The windows-1257 encoding.
+///
+/// This will change from `static` to `const` if Rust changes
+/// to make the referent of `pub const FOO: &'static Encoding`
+/// unique cross-crate, so don't take the address of this
+/// `static`.
+pub static WINDOWS_1257: &'static Encoding = &WINDOWS_1257_INIT;
+
+/// The initializer for the windows-1258 encoding.
+///
+/// For use only for taking the address of this form when
+/// Rust prohibits the use of the non-`_INIT` form directly,
+/// such as in initializers of other `static`s.
+///
+/// This part of the public API will go away if Rust changes
+/// to make the referent of `pub const FOO: &'static Encoding`
+/// unique cross-crate or if Rust starts allowing static arrays
+/// to be initialized with `pub static FOO: &'static Encoding`
+/// items.
+pub static WINDOWS_1258_INIT: Encoding = Encoding {
     name: "windows-1258",
     variant: VariantEncoding::SingleByte(data::WINDOWS_1258_DATA),
 };
 
-/// The windows-874 encoding.
-pub const WINDOWS_874: &'static Encoding = &Encoding {
+/// The windows-1258 encoding.
+///
+/// This will change from `static` to `const` if Rust changes
+/// to make the referent of `pub const FOO: &'static Encoding`
+/// unique cross-crate, so don't take the address of this
+/// `static`.
+pub static WINDOWS_1258: &'static Encoding = &WINDOWS_1258_INIT;
+
+/// The initializer for the windows-874 encoding.
+///
+/// For use only for taking the address of this form when
+/// Rust prohibits the use of the non-`_INIT` form directly,
+/// such as in initializers of other `static`s.
+///
+/// This part of the public API will go away if Rust changes
+/// to make the referent of `pub const FOO: &'static Encoding`
+/// unique cross-crate or if Rust starts allowing static arrays
+/// to be initialized with `pub static FOO: &'static Encoding`
+/// items.
+pub static WINDOWS_874_INIT: Encoding = Encoding {
     name: "windows-874",
     variant: VariantEncoding::SingleByte(data::WINDOWS_874_DATA),
 };
 
-/// The x-mac-cyrillic encoding.
-pub const X_MAC_CYRILLIC: &'static Encoding = &Encoding {
+/// The windows-874 encoding.
+///
+/// This will change from `static` to `const` if Rust changes
+/// to make the referent of `pub const FOO: &'static Encoding`
+/// unique cross-crate, so don't take the address of this
+/// `static`.
+pub static WINDOWS_874: &'static Encoding = &WINDOWS_874_INIT;
+
+/// The initializer for the x-mac-cyrillic encoding.
+///
+/// For use only for taking the address of this form when
+/// Rust prohibits the use of the non-`_INIT` form directly,
+/// such as in initializers of other `static`s.
+///
+/// This part of the public API will go away if Rust changes
+/// to make the referent of `pub const FOO: &'static Encoding`
+/// unique cross-crate or if Rust starts allowing static arrays
+/// to be initialized with `pub static FOO: &'static Encoding`
+/// items.
+pub static X_MAC_CYRILLIC_INIT: Encoding = Encoding {
     name: "x-mac-cyrillic",
     variant: VariantEncoding::SingleByte(data::X_MAC_CYRILLIC_DATA),
 };
 
-/// The x-user-defined encoding.
-pub const X_USER_DEFINED: &'static Encoding = &Encoding {
+/// The x-mac-cyrillic encoding.
+///
+/// This will change from `static` to `const` if Rust changes
+/// to make the referent of `pub const FOO: &'static Encoding`
+/// unique cross-crate, so don't take the address of this
+/// `static`.
+pub static X_MAC_CYRILLIC: &'static Encoding = &X_MAC_CYRILLIC_INIT;
+
+/// The initializer for the x-user-defined encoding.
+///
+/// For use only for taking the address of this form when
+/// Rust prohibits the use of the non-`_INIT` form directly,
+/// such as in initializers of other `static`s.
+///
+/// This part of the public API will go away if Rust changes
+/// to make the referent of `pub const FOO: &'static Encoding`
+/// unique cross-crate or if Rust starts allowing static arrays
+/// to be initialized with `pub static FOO: &'static Encoding`
+/// items.
+pub static X_USER_DEFINED_INIT: Encoding = Encoding {
     name: "x-user-defined",
     variant: VariantEncoding::UserDefined,
 };
 
-static ENCODINGS_SORTED_BY_NAME: [&'static Encoding; 40] = [BIG5,
-                                                            EUC_JP,
-                                                            EUC_KR,
-                                                            GBK,
-                                                            IBM866,
-                                                            ISO_2022_JP,
-                                                            ISO_8859_10,
-                                                            ISO_8859_13,
-                                                            ISO_8859_14,
-                                                            ISO_8859_15,
-                                                            ISO_8859_16,
-                                                            ISO_8859_2,
-                                                            ISO_8859_3,
-                                                            ISO_8859_4,
-                                                            ISO_8859_5,
-                                                            ISO_8859_6,
-                                                            ISO_8859_7,
-                                                            ISO_8859_8,
-                                                            ISO_8859_8_I,
-                                                            KOI8_R,
-                                                            KOI8_U,
-                                                            SHIFT_JIS,
-                                                            UTF_16BE,
-                                                            UTF_16LE,
-                                                            UTF_8,
-                                                            GB18030,
-                                                            MACINTOSH,
-                                                            REPLACEMENT,
-                                                            WINDOWS_1250,
-                                                            WINDOWS_1251,
-                                                            WINDOWS_1252,
-                                                            WINDOWS_1253,
-                                                            WINDOWS_1254,
-                                                            WINDOWS_1255,
-                                                            WINDOWS_1256,
-                                                            WINDOWS_1257,
-                                                            WINDOWS_1258,
-                                                            WINDOWS_874,
-                                                            X_MAC_CYRILLIC,
-                                                            X_USER_DEFINED];
+/// The x-user-defined encoding.
+///
+/// This will change from `static` to `const` if Rust changes
+/// to make the referent of `pub const FOO: &'static Encoding`
+/// unique cross-crate, so don't take the address of this
+/// `static`.
+pub static X_USER_DEFINED: &'static Encoding = &X_USER_DEFINED_INIT;
+
+static ENCODINGS_SORTED_BY_NAME: [&'static Encoding; 40] = [&BIG5_INIT,
+                                                            &EUC_JP_INIT,
+                                                            &EUC_KR_INIT,
+                                                            &GBK_INIT,
+                                                            &IBM866_INIT,
+                                                            &ISO_2022_JP_INIT,
+                                                            &ISO_8859_10_INIT,
+                                                            &ISO_8859_13_INIT,
+                                                            &ISO_8859_14_INIT,
+                                                            &ISO_8859_15_INIT,
+                                                            &ISO_8859_16_INIT,
+                                                            &ISO_8859_2_INIT,
+                                                            &ISO_8859_3_INIT,
+                                                            &ISO_8859_4_INIT,
+                                                            &ISO_8859_5_INIT,
+                                                            &ISO_8859_6_INIT,
+                                                            &ISO_8859_7_INIT,
+                                                            &ISO_8859_8_INIT,
+                                                            &ISO_8859_8_I_INIT,
+                                                            &KOI8_R_INIT,
+                                                            &KOI8_U_INIT,
+                                                            &SHIFT_JIS_INIT,
+                                                            &UTF_16BE_INIT,
+                                                            &UTF_16LE_INIT,
+                                                            &UTF_8_INIT,
+                                                            &GB18030_INIT,
+                                                            &MACINTOSH_INIT,
+                                                            &REPLACEMENT_INIT,
+                                                            &WINDOWS_1250_INIT,
+                                                            &WINDOWS_1251_INIT,
+                                                            &WINDOWS_1252_INIT,
+                                                            &WINDOWS_1253_INIT,
+                                                            &WINDOWS_1254_INIT,
+                                                            &WINDOWS_1255_INIT,
+                                                            &WINDOWS_1256_INIT,
+                                                            &WINDOWS_1257_INIT,
+                                                            &WINDOWS_1258_INIT,
+                                                            &WINDOWS_874_INIT,
+                                                            &X_MAC_CYRILLIC_INIT,
+                                                            &X_USER_DEFINED_INIT];
 
 static LABELS_SORTED: [&'static str; 218] = ["866",
                                              "ansi_x3.4-1968",
@@ -1023,224 +1757,224 @@ static LABELS_SORTED: [&'static str; 218] = ["866",
                                              "x-user-defined",
                                              "x-x-big5"];
 
-static ENCODINGS_IN_LABEL_SORT: [&'static Encoding; 218] = [IBM866,
-                                                            WINDOWS_1252,
-                                                            ISO_8859_6,
-                                                            WINDOWS_1252,
-                                                            ISO_8859_6,
-                                                            BIG5,
-                                                            BIG5,
-                                                            GBK,
-                                                            BIG5,
-                                                            WINDOWS_1250,
-                                                            WINDOWS_1251,
-                                                            WINDOWS_1252,
-                                                            WINDOWS_1253,
-                                                            WINDOWS_1254,
-                                                            WINDOWS_1255,
-                                                            WINDOWS_1256,
-                                                            WINDOWS_1257,
-                                                            WINDOWS_1258,
-                                                            WINDOWS_1252,
-                                                            IBM866,
-                                                            BIG5,
-                                                            EUC_KR,
-                                                            EUC_JP,
-                                                            GBK,
-                                                            IBM866,
-                                                            ISO_2022_JP,
-                                                            REPLACEMENT,
-                                                            GBK,
-                                                            ISO_8859_6,
-                                                            ISO_8859_6,
-                                                            ISO_8859_8,
-                                                            ISO_8859_8_I,
-                                                            WINDOWS_1252,
-                                                            ISO_8859_2,
-                                                            ISO_8859_3,
-                                                            ISO_8859_4,
-                                                            WINDOWS_1254,
-                                                            ISO_8859_10,
-                                                            ISO_8859_15,
-                                                            ISO_8859_6,
-                                                            ISO_8859_5,
-                                                            ISO_8859_7,
-                                                            ISO_8859_8,
-                                                            KOI8_R,
-                                                            EUC_KR,
-                                                            MACINTOSH,
-                                                            SHIFT_JIS,
-                                                            ISO_8859_5,
-                                                            WINDOWS_874,
-                                                            ISO_8859_6,
-                                                            ISO_8859_7,
-                                                            ISO_8859_7,
-                                                            EUC_JP,
-                                                            EUC_KR,
-                                                            GB18030,
-                                                            GBK,
-                                                            GBK,
-                                                            GBK,
-                                                            GBK,
-                                                            ISO_8859_7,
-                                                            ISO_8859_7,
-                                                            ISO_8859_8,
-                                                            REPLACEMENT,
-                                                            WINDOWS_1252,
-                                                            IBM866,
-                                                            REPLACEMENT,
-                                                            REPLACEMENT,
-                                                            ISO_2022_JP,
-                                                            REPLACEMENT,
-                                                            WINDOWS_1252,
-                                                            ISO_8859_10,
-                                                            WINDOWS_874,
-                                                            ISO_8859_13,
-                                                            ISO_8859_14,
-                                                            ISO_8859_15,
-                                                            ISO_8859_16,
-                                                            ISO_8859_2,
-                                                            ISO_8859_3,
-                                                            ISO_8859_4,
-                                                            ISO_8859_5,
-                                                            ISO_8859_6,
-                                                            ISO_8859_6,
-                                                            ISO_8859_6,
-                                                            ISO_8859_7,
-                                                            ISO_8859_8,
-                                                            ISO_8859_8,
-                                                            ISO_8859_8_I,
-                                                            WINDOWS_1254,
-                                                            WINDOWS_1252,
-                                                            ISO_8859_2,
-                                                            ISO_8859_3,
-                                                            ISO_8859_4,
-                                                            ISO_8859_7,
-                                                            ISO_8859_6,
-                                                            ISO_8859_8,
-                                                            ISO_8859_5,
-                                                            WINDOWS_1254,
-                                                            EUC_KR,
-                                                            ISO_8859_10,
-                                                            GBK,
-                                                            WINDOWS_1252,
-                                                            ISO_8859_10,
-                                                            WINDOWS_874,
-                                                            ISO_8859_13,
-                                                            ISO_8859_14,
-                                                            ISO_8859_15,
-                                                            ISO_8859_2,
-                                                            ISO_8859_3,
-                                                            ISO_8859_4,
-                                                            ISO_8859_5,
-                                                            ISO_8859_6,
-                                                            ISO_8859_7,
-                                                            ISO_8859_8,
-                                                            WINDOWS_1254,
-                                                            WINDOWS_1252,
-                                                            ISO_8859_10,
-                                                            WINDOWS_874,
-                                                            ISO_8859_13,
-                                                            ISO_8859_14,
-                                                            ISO_8859_15,
-                                                            ISO_8859_2,
-                                                            ISO_8859_3,
-                                                            ISO_8859_4,
-                                                            ISO_8859_5,
-                                                            ISO_8859_6,
-                                                            ISO_8859_7,
-                                                            ISO_8859_8,
-                                                            WINDOWS_1254,
-                                                            WINDOWS_1252,
-                                                            ISO_8859_15,
-                                                            WINDOWS_1252,
-                                                            ISO_8859_2,
-                                                            ISO_8859_2,
-                                                            ISO_8859_3,
-                                                            ISO_8859_3,
-                                                            ISO_8859_4,
-                                                            ISO_8859_4,
-                                                            ISO_8859_5,
-                                                            ISO_8859_5,
-                                                            ISO_8859_6,
-                                                            ISO_8859_6,
-                                                            ISO_8859_7,
-                                                            ISO_8859_7,
-                                                            ISO_8859_8,
-                                                            ISO_8859_8,
-                                                            WINDOWS_1254,
-                                                            WINDOWS_1254,
-                                                            KOI8_R,
-                                                            KOI8_R,
-                                                            KOI8_R,
-                                                            KOI8_U,
-                                                            KOI8_U,
-                                                            KOI8_R,
-                                                            EUC_KR,
-                                                            EUC_KR,
-                                                            EUC_KR,
-                                                            EUC_KR,
-                                                            EUC_KR,
-                                                            WINDOWS_1252,
-                                                            ISO_8859_2,
-                                                            ISO_8859_3,
-                                                            ISO_8859_4,
-                                                            WINDOWS_1254,
-                                                            ISO_8859_10,
-                                                            ISO_8859_15,
-                                                            WINDOWS_1252,
-                                                            ISO_8859_2,
-                                                            ISO_8859_3,
-                                                            ISO_8859_4,
-                                                            WINDOWS_1254,
-                                                            ISO_8859_10,
-                                                            ISO_8859_8_I,
-                                                            MACINTOSH,
-                                                            MACINTOSH,
-                                                            SHIFT_JIS,
-                                                            SHIFT_JIS,
-                                                            SHIFT_JIS,
-                                                            SHIFT_JIS,
-                                                            SHIFT_JIS,
-                                                            ISO_8859_7,
-                                                            WINDOWS_874,
-                                                            UTF_8,
-                                                            WINDOWS_1252,
-                                                            UTF_16LE,
-                                                            UTF_16BE,
-                                                            UTF_16LE,
-                                                            UTF_8,
-                                                            UTF_8,
-                                                            ISO_8859_8,
-                                                            WINDOWS_1250,
-                                                            WINDOWS_1251,
-                                                            WINDOWS_1252,
-                                                            WINDOWS_1253,
-                                                            WINDOWS_1254,
-                                                            WINDOWS_1255,
-                                                            WINDOWS_1256,
-                                                            WINDOWS_1257,
-                                                            WINDOWS_1258,
-                                                            SHIFT_JIS,
-                                                            WINDOWS_874,
-                                                            EUC_KR,
-                                                            WINDOWS_1250,
-                                                            WINDOWS_1251,
-                                                            WINDOWS_1252,
-                                                            WINDOWS_1253,
-                                                            WINDOWS_1254,
-                                                            WINDOWS_1255,
-                                                            WINDOWS_1256,
-                                                            WINDOWS_1257,
-                                                            WINDOWS_1258,
-                                                            EUC_JP,
-                                                            GBK,
-                                                            X_MAC_CYRILLIC,
-                                                            MACINTOSH,
-                                                            X_MAC_CYRILLIC,
-                                                            SHIFT_JIS,
-                                                            X_USER_DEFINED,
-                                                            BIG5];
+static ENCODINGS_IN_LABEL_SORT: [&'static Encoding; 218] = [&IBM866_INIT,
+                                                            &WINDOWS_1252_INIT,
+                                                            &ISO_8859_6_INIT,
+                                                            &WINDOWS_1252_INIT,
+                                                            &ISO_8859_6_INIT,
+                                                            &BIG5_INIT,
+                                                            &BIG5_INIT,
+                                                            &GBK_INIT,
+                                                            &BIG5_INIT,
+                                                            &WINDOWS_1250_INIT,
+                                                            &WINDOWS_1251_INIT,
+                                                            &WINDOWS_1252_INIT,
+                                                            &WINDOWS_1253_INIT,
+                                                            &WINDOWS_1254_INIT,
+                                                            &WINDOWS_1255_INIT,
+                                                            &WINDOWS_1256_INIT,
+                                                            &WINDOWS_1257_INIT,
+                                                            &WINDOWS_1258_INIT,
+                                                            &WINDOWS_1252_INIT,
+                                                            &IBM866_INIT,
+                                                            &BIG5_INIT,
+                                                            &EUC_KR_INIT,
+                                                            &EUC_JP_INIT,
+                                                            &GBK_INIT,
+                                                            &IBM866_INIT,
+                                                            &ISO_2022_JP_INIT,
+                                                            &REPLACEMENT_INIT,
+                                                            &GBK_INIT,
+                                                            &ISO_8859_6_INIT,
+                                                            &ISO_8859_6_INIT,
+                                                            &ISO_8859_8_INIT,
+                                                            &ISO_8859_8_I_INIT,
+                                                            &WINDOWS_1252_INIT,
+                                                            &ISO_8859_2_INIT,
+                                                            &ISO_8859_3_INIT,
+                                                            &ISO_8859_4_INIT,
+                                                            &WINDOWS_1254_INIT,
+                                                            &ISO_8859_10_INIT,
+                                                            &ISO_8859_15_INIT,
+                                                            &ISO_8859_6_INIT,
+                                                            &ISO_8859_5_INIT,
+                                                            &ISO_8859_7_INIT,
+                                                            &ISO_8859_8_INIT,
+                                                            &KOI8_R_INIT,
+                                                            &EUC_KR_INIT,
+                                                            &MACINTOSH_INIT,
+                                                            &SHIFT_JIS_INIT,
+                                                            &ISO_8859_5_INIT,
+                                                            &WINDOWS_874_INIT,
+                                                            &ISO_8859_6_INIT,
+                                                            &ISO_8859_7_INIT,
+                                                            &ISO_8859_7_INIT,
+                                                            &EUC_JP_INIT,
+                                                            &EUC_KR_INIT,
+                                                            &GB18030_INIT,
+                                                            &GBK_INIT,
+                                                            &GBK_INIT,
+                                                            &GBK_INIT,
+                                                            &GBK_INIT,
+                                                            &ISO_8859_7_INIT,
+                                                            &ISO_8859_7_INIT,
+                                                            &ISO_8859_8_INIT,
+                                                            &REPLACEMENT_INIT,
+                                                            &WINDOWS_1252_INIT,
+                                                            &IBM866_INIT,
+                                                            &REPLACEMENT_INIT,
+                                                            &REPLACEMENT_INIT,
+                                                            &ISO_2022_JP_INIT,
+                                                            &REPLACEMENT_INIT,
+                                                            &WINDOWS_1252_INIT,
+                                                            &ISO_8859_10_INIT,
+                                                            &WINDOWS_874_INIT,
+                                                            &ISO_8859_13_INIT,
+                                                            &ISO_8859_14_INIT,
+                                                            &ISO_8859_15_INIT,
+                                                            &ISO_8859_16_INIT,
+                                                            &ISO_8859_2_INIT,
+                                                            &ISO_8859_3_INIT,
+                                                            &ISO_8859_4_INIT,
+                                                            &ISO_8859_5_INIT,
+                                                            &ISO_8859_6_INIT,
+                                                            &ISO_8859_6_INIT,
+                                                            &ISO_8859_6_INIT,
+                                                            &ISO_8859_7_INIT,
+                                                            &ISO_8859_8_INIT,
+                                                            &ISO_8859_8_INIT,
+                                                            &ISO_8859_8_I_INIT,
+                                                            &WINDOWS_1254_INIT,
+                                                            &WINDOWS_1252_INIT,
+                                                            &ISO_8859_2_INIT,
+                                                            &ISO_8859_3_INIT,
+                                                            &ISO_8859_4_INIT,
+                                                            &ISO_8859_7_INIT,
+                                                            &ISO_8859_6_INIT,
+                                                            &ISO_8859_8_INIT,
+                                                            &ISO_8859_5_INIT,
+                                                            &WINDOWS_1254_INIT,
+                                                            &EUC_KR_INIT,
+                                                            &ISO_8859_10_INIT,
+                                                            &GBK_INIT,
+                                                            &WINDOWS_1252_INIT,
+                                                            &ISO_8859_10_INIT,
+                                                            &WINDOWS_874_INIT,
+                                                            &ISO_8859_13_INIT,
+                                                            &ISO_8859_14_INIT,
+                                                            &ISO_8859_15_INIT,
+                                                            &ISO_8859_2_INIT,
+                                                            &ISO_8859_3_INIT,
+                                                            &ISO_8859_4_INIT,
+                                                            &ISO_8859_5_INIT,
+                                                            &ISO_8859_6_INIT,
+                                                            &ISO_8859_7_INIT,
+                                                            &ISO_8859_8_INIT,
+                                                            &WINDOWS_1254_INIT,
+                                                            &WINDOWS_1252_INIT,
+                                                            &ISO_8859_10_INIT,
+                                                            &WINDOWS_874_INIT,
+                                                            &ISO_8859_13_INIT,
+                                                            &ISO_8859_14_INIT,
+                                                            &ISO_8859_15_INIT,
+                                                            &ISO_8859_2_INIT,
+                                                            &ISO_8859_3_INIT,
+                                                            &ISO_8859_4_INIT,
+                                                            &ISO_8859_5_INIT,
+                                                            &ISO_8859_6_INIT,
+                                                            &ISO_8859_7_INIT,
+                                                            &ISO_8859_8_INIT,
+                                                            &WINDOWS_1254_INIT,
+                                                            &WINDOWS_1252_INIT,
+                                                            &ISO_8859_15_INIT,
+                                                            &WINDOWS_1252_INIT,
+                                                            &ISO_8859_2_INIT,
+                                                            &ISO_8859_2_INIT,
+                                                            &ISO_8859_3_INIT,
+                                                            &ISO_8859_3_INIT,
+                                                            &ISO_8859_4_INIT,
+                                                            &ISO_8859_4_INIT,
+                                                            &ISO_8859_5_INIT,
+                                                            &ISO_8859_5_INIT,
+                                                            &ISO_8859_6_INIT,
+                                                            &ISO_8859_6_INIT,
+                                                            &ISO_8859_7_INIT,
+                                                            &ISO_8859_7_INIT,
+                                                            &ISO_8859_8_INIT,
+                                                            &ISO_8859_8_INIT,
+                                                            &WINDOWS_1254_INIT,
+                                                            &WINDOWS_1254_INIT,
+                                                            &KOI8_R_INIT,
+                                                            &KOI8_R_INIT,
+                                                            &KOI8_R_INIT,
+                                                            &KOI8_U_INIT,
+                                                            &KOI8_U_INIT,
+                                                            &KOI8_R_INIT,
+                                                            &EUC_KR_INIT,
+                                                            &EUC_KR_INIT,
+                                                            &EUC_KR_INIT,
+                                                            &EUC_KR_INIT,
+                                                            &EUC_KR_INIT,
+                                                            &WINDOWS_1252_INIT,
+                                                            &ISO_8859_2_INIT,
+                                                            &ISO_8859_3_INIT,
+                                                            &ISO_8859_4_INIT,
+                                                            &WINDOWS_1254_INIT,
+                                                            &ISO_8859_10_INIT,
+                                                            &ISO_8859_15_INIT,
+                                                            &WINDOWS_1252_INIT,
+                                                            &ISO_8859_2_INIT,
+                                                            &ISO_8859_3_INIT,
+                                                            &ISO_8859_4_INIT,
+                                                            &WINDOWS_1254_INIT,
+                                                            &ISO_8859_10_INIT,
+                                                            &ISO_8859_8_I_INIT,
+                                                            &MACINTOSH_INIT,
+                                                            &MACINTOSH_INIT,
+                                                            &SHIFT_JIS_INIT,
+                                                            &SHIFT_JIS_INIT,
+                                                            &SHIFT_JIS_INIT,
+                                                            &SHIFT_JIS_INIT,
+                                                            &SHIFT_JIS_INIT,
+                                                            &ISO_8859_7_INIT,
+                                                            &WINDOWS_874_INIT,
+                                                            &UTF_8_INIT,
+                                                            &WINDOWS_1252_INIT,
+                                                            &UTF_16LE_INIT,
+                                                            &UTF_16BE_INIT,
+                                                            &UTF_16LE_INIT,
+                                                            &UTF_8_INIT,
+                                                            &UTF_8_INIT,
+                                                            &ISO_8859_8_INIT,
+                                                            &WINDOWS_1250_INIT,
+                                                            &WINDOWS_1251_INIT,
+                                                            &WINDOWS_1252_INIT,
+                                                            &WINDOWS_1253_INIT,
+                                                            &WINDOWS_1254_INIT,
+                                                            &WINDOWS_1255_INIT,
+                                                            &WINDOWS_1256_INIT,
+                                                            &WINDOWS_1257_INIT,
+                                                            &WINDOWS_1258_INIT,
+                                                            &SHIFT_JIS_INIT,
+                                                            &WINDOWS_874_INIT,
+                                                            &EUC_KR_INIT,
+                                                            &WINDOWS_1250_INIT,
+                                                            &WINDOWS_1251_INIT,
+                                                            &WINDOWS_1252_INIT,
+                                                            &WINDOWS_1253_INIT,
+                                                            &WINDOWS_1254_INIT,
+                                                            &WINDOWS_1255_INIT,
+                                                            &WINDOWS_1256_INIT,
+                                                            &WINDOWS_1257_INIT,
+                                                            &WINDOWS_1258_INIT,
+                                                            &EUC_JP_INIT,
+                                                            &GBK_INIT,
+                                                            &X_MAC_CYRILLIC_INIT,
+                                                            &MACINTOSH_INIT,
+                                                            &X_MAC_CYRILLIC_INIT,
+                                                            &SHIFT_JIS_INIT,
+                                                            &X_USER_DEFINED_INIT,
+                                                            &BIG5_INIT];
 
 // END GENERATED CODE
 
@@ -1264,26 +1998,6 @@ static ENCODINGS_IN_LABEL_SORT: [&'static Encoding; 218] = [IBM866,
 /// [1]: https://encoding.spec.whatwg.org/
 /// [2]: https://dom.spec.whatwg.org/#dom-document-characterset
 ///
-/// # Instances
-///
-/// All instances of `Encoding` are statically allocated and have the `'static`
-/// lifetime. There is precisely one unique `Encoding` instance for each
-/// encoding defined in the Encoding Standard.
-///
-/// To obtain a reference to a particular encoding whose identity you know at
-/// compile time, use a constant. There is a constant for each encoding. The
-/// constants are named in all caps with hyphens replaced with underscores (and
-/// in C/C++ have `_ENCODING` appended to the name). For example, if you know
-/// at compile time that you will want to decode using the UTF-8 encoding, use
-/// the `UTF_8` constant (`UTF_8_ENCODING` in C/C++).
-///
-/// If you don't know what encoding you need at compile time and need to
-/// dynamically get an encoding by label, use
-/// <code>Encoding::<a href="#method.for_label">for_label</a>(<var>label</var>)</code>.
-///
-/// Instances of `Encoding` can be compared with `==` (in both Rust and in
-/// C/C++).
-///
 /// # Streaming vs. Non-Streaming
 ///
 /// When you have the entire input in a single buffer, you can use the
@@ -1301,6 +2015,32 @@ static ENCODINGS_IN_LABEL_SORT: [&'static Encoding; 218] = [IBM866,
 /// [3]: #method.decode_without_bom_handling
 /// [4]: #method.decode_without_bom_handling_and_without_replacement
 /// [5]: #method.encode
+///
+/// # Instances
+///
+/// All instances of `Encoding` are statically allocated and have the `'static`
+/// lifetime. There is precisely one unique `Encoding` instance for each
+/// encoding defined in the Encoding Standard.
+///
+/// To obtain a reference to a particular encoding whose identity you know at
+/// compile time, use a `static` that refers to enccoding. There is a `static`
+/// for each encoding. The `static`s are named in all caps with hyphens
+/// replaced with underscores (and in C/C++ have `_ENCODING` appended to the
+/// name). For example, if you know at compile time that you will want to
+/// decode using the UTF-8 encoding, use the `UTF_8` `static` (`UTF_8_ENCODING`
+/// in C/C++).
+///
+/// Additionally, there are non-reference-typed forms ending with `_INIT` to
+/// work around the problem that `static`s of the type `&'static Encoding`
+/// cannot be used to initialize items of an array whose type is
+/// `[&'static Encoding; N]`.
+///
+/// If you don't know what encoding you need at compile time and need to
+/// dynamically get an encoding by label, use
+/// <code>Encoding::<a href="#method.for_label">for_label</a>(<var>label</var>)</code>.
+///
+/// Instances of `Encoding` can be compared with `==` (in both Rust and in
+/// C/C++).
 pub struct Encoding {
     name: &'static str,
     variant: VariantEncoding,
