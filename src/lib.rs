@@ -2567,10 +2567,7 @@ impl Encoding {
 
 impl PartialEq for Encoding {
     fn eq(&self, other: &Encoding) -> bool {
-        //        (self as *const Encoding) == (other as *const Encoding)
-        // Compare by name rather than by pointer pending an answer to
-        // https://users.rust-lang.org/t/how-to-expose-a-static-reference-and-an-unmangled-static-pointer-to-the-same-memory-location/6529
-        self.name == other.name
+        (self as *const Encoding) == (other as *const Encoding)
     }
 }
 
