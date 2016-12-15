@@ -11,6 +11,7 @@ use handles::*;
 use variant::*;
 use super::*;
 use ascii::ascii_to_basic_latin;
+use utf_8_core::run_utf8_validation;
 // use ascii::validate_ascii;
 
 const UTF8_NORMAL_TRAIL: u8 = 1 << 3;
@@ -53,8 +54,8 @@ static UTF8_TRAIL_INVALID: [u8; 256] = [248, 248, 248, 248, 248, 248, 248, 248, 
 // END GENERATED CODE
 
 pub fn utf8_valid_up_to(bytes: &[u8]) -> usize {
-    match ::std::str::from_utf8(bytes) {
-        Ok(s) => s.len(),
+    match run_utf8_validation(bytes) {
+        Ok(()) => bytes.len(),
         Err(e) => e.valid_up_to(),
     }
 }

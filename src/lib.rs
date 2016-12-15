@@ -507,6 +507,7 @@ mod testing;
 
 mod single_byte;
 mod utf_8;
+mod utf_8_core;
 mod gb18030;
 mod big5;
 mod euc_jp;
