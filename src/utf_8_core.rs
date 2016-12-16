@@ -53,15 +53,24 @@ impl Utf8Error {
     }
 }
 
-/// Walk through `iter` checking that it's a valid UTF-8 sequence,
-/// returning `true` in that case, or, if it is invalid, `false` with
-/// `iter` reset such that it is pointing at the first byte in the
-/// invalid sequence.
 #[inline(always)]
 pub fn run_utf8_validation(v: &[u8]) -> Result<(), Utf8Error> {
     let mut offset = 0;
     let len = v.len();
-    while offset < len {
+    'outer: loop {
+        let mut first = {
+            let remaining = &v[offset..];
+            match validate_ascii(remaining) {
+                None => {
+                    // offset += remaining.len();
+                    break 'outer;
+                }
+                Some((non_ascii, consumed)) => {
+                    offset += consumed;
+                    non_ascii
+                }
+            }
+        };
         let old_offset = offset;
         macro_rules! err { () => {{
             return Err(Utf8Error {
@@ -77,9 +86,7 @@ pub fn run_utf8_validation(v: &[u8]) -> Result<(), Utf8Error> {
             }
             v[offset]
         }}}
-
-        let first = v[offset];
-        if first >= 128 {
+        'inner: loop {
             let w = UTF8_CHAR_WIDTH[first as usize];
             let second = next!();
             // 2-byte encoding is for codepoints  \u{0080} to  \u{07ff}
@@ -126,17 +133,14 @@ pub fn run_utf8_validation(v: &[u8]) -> Result<(), Utf8Error> {
                 _ => err!(),
             }
             offset += 1;
-        } else {
-            // Ascii case, try to skip forward quickly.
-            let remaining = &v[offset..];
-            match validate_ascii(remaining) {
-                None => {
-                    offset += remaining.len();
-                }
-                Some((_, num_ascii)) => {
-                    offset += num_ascii;
-                }
+            if offset == len {
+                break 'outer;
             }
+            first = v[offset];
+            if first < 0x80 {
+                continue 'outer;
+            }
+            continue 'inner;
         }
     }
 
