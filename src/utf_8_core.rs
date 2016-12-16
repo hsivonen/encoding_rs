@@ -138,6 +138,7 @@ pub fn run_utf8_validation(v: &[u8]) -> Result<(), Utf8Error> {
             }
             first = v[offset];
             if first < 0x80 {
+                offset += 1;
                 continue 'outer;
             }
             continue 'inner;
