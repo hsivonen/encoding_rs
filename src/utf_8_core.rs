@@ -13,6 +13,8 @@
 // 7ad7232422f7e5bbfa0e52dabe36c12677df19e2. The Utf8Error struct also comes
 // from that file.
 
+use ascii::validate_ascii;
+
 /// Errors which can occur when attempting to interpret a sequence of `u8`
 /// as a string.
 ///
@@ -49,15 +51,6 @@ impl Utf8Error {
     pub fn valid_up_to(&self) -> usize {
         self.valid_up_to
     }
-}
-
-// use truncation to fit u64 into usize
-const NONASCII_MASK: usize = 0x80808080_80808080u64 as usize;
-
-/// Return `true` if any byte in the word `x` is nonascii (>= 128).
-#[inline]
-fn contains_nonascii(x: usize) -> bool {
-    (x & NONASCII_MASK) != 0
 }
 
 /// Walk through `iter` checking that it's a valid UTF-8 sequence,
@@ -135,35 +128,14 @@ pub fn run_utf8_validation(v: &[u8]) -> Result<(), Utf8Error> {
             offset += 1;
         } else {
             // Ascii case, try to skip forward quickly.
-            // When the pointer is aligned, read 2 words of data per iteration
-            // until we find a word containing a non-ascii byte.
-            let usize_bytes = ::std::mem::size_of::<usize>();
-            let bytes_per_iteration = 2 * usize_bytes;
-            let ptr = v.as_ptr();
-            let align = (ptr as usize + offset) & (usize_bytes - 1);
-            if align == 0 {
-                if len >= bytes_per_iteration {
-                    while offset <= len - bytes_per_iteration {
-                        unsafe {
-                            let u = *(ptr.offset(offset as isize) as *const usize);
-                            let v = *(ptr.offset((offset + usize_bytes) as isize) as *const usize);
-
-                            // break if there is a nonascii byte
-                            let zu = contains_nonascii(u);
-                            let zv = contains_nonascii(v);
-                            if zu || zv {
-                                break;
-                            }
-                        }
-                        offset += bytes_per_iteration;
-                    }
+            let remaining = &v[offset..];
+            match validate_ascii(remaining) {
+                None => {
+                    offset += remaining.len();
                 }
-                // step from the point where the wordwise loop stopped
-                while offset < len && v[offset] < 128 {
-                    offset += 1;
+                Some((_, num_ascii)) => {
+                    offset += num_ascii;
                 }
-            } else {
-                offset += 1;
             }
         }
     }
@@ -173,21 +145,21 @@ pub fn run_utf8_validation(v: &[u8]) -> Result<(), Utf8Error> {
 
 // https://tools.ietf.org/html/rfc3629
 static UTF8_CHAR_WIDTH: [u8; 256] = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-                                     1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 /* 0x1F */, 1, 1, 1, 1,
+                                     1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 /* 0x1F */, 1, 1, 1,
                                      1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-                                     1, 1, 1, 1, 1, 1, 1, 1 /* 0x3F */, 1, 1, 1, 1, 1, 1, 1, 1,
+                                     1, 1, 1, 1, 1, 1, 1, 1, 1 /* 0x3F */, 1, 1, 1, 1, 1, 1,
                                      1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-                                     1, 1, 1, 1 /* 0x5F */, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-                                     1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-                                     1 /* 0x7F */, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                                     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                                     0 /* 0x9F */, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                                     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                                     0 /* 0xBF */, 0, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
-                                     2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
-                                     2 /* 0xDF */, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
-                                     3 /* 0xEF */, 4, 4, 4, 4, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                                     0 /* 0xFF */];
+                                     1, 1, 1, 1, 1, 1 /* 0x5F */, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                     1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                     1, 1, 1 /* 0x7F */, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                     0 /* 0x9F */, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                     0 /* 0xBF */, 0, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+                                     2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+                                     2 /* 0xDF */, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+                                     3, 3 /* 0xEF */, 4, 4, 4, 4, 4, 0, 0, 0, 0, 0, 0, 0, 0,
+                                     0, 0, 0 /* 0xFF */];
 
 /// Mask of the value bits of a continuation byte
 const CONT_MASK: u8 = 0b0011_1111;

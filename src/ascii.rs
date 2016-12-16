@@ -430,50 +430,50 @@ cfg_if! {
 
 cfg_if! {
     if #[cfg(all(feature = "simd-accel", target_feature = "sse2"))] {
-//        #[inline(always)]
-//        pub fn validate_ascii(slice: &[u8]) -> Option<(u8, usize)> {
-//            let src = slice.as_ptr();
-//            let len = slice.len();
-//            let mut offset = 0usize;
-//            if STRIDE_SIZE <= len {
-//                // XXX Should we first process one stride unconditinoally as unaligned to
-//                // avoid the cost of the branchiness below if the first stride fails anyway?
-//                // XXX Should we just use unaligned SSE2 access unconditionally? It seems that
-//                // on Haswell, it would make sense to just use unaligned and not bother
-//                // checking. Need to benchmark older architectures before deciding.
-//                if ((src as usize) & ALIGNMENT_MASK) == 0 {
-//                    loop {
-//                        let simd = unsafe { load16_aligned(src.offset(offset as isize)) };
-//                        if !is_ascii(simd) {
-//                            break;
-//                        }
-//                        offset += STRIDE_SIZE;
-//                        if offset + STRIDE_SIZE > len {
-//                            break;
-//                        }
-//                    }
-//                } else {
-//                    loop {
-//                        let simd = unsafe { load16_unaligned(src.offset(offset as isize)) };
-//                        if !is_ascii(simd) {
-//                            break;
-//                        }
-//                        offset += STRIDE_SIZE;
-//                        if offset + STRIDE_SIZE > len {
-//                            break;
-//                        }
-//                    }
-//                }
-//            }
-//            while offset < len {
-//                let code_unit = slice[offset];
-//                if code_unit > 127 {
-//                    return Some((code_unit, offset));
-//                }
-//                offset += 1;
-//            }
-//            return None;
-//        }
+        #[inline(always)]
+        pub fn validate_ascii(slice: &[u8]) -> Option<(u8, usize)> {
+            let src = slice.as_ptr();
+            let len = slice.len();
+            let mut offset = 0usize;
+            if STRIDE_SIZE <= len {
+                // XXX Should we first process one stride unconditinoally as unaligned to
+                // avoid the cost of the branchiness below if the first stride fails anyway?
+                // XXX Should we just use unaligned SSE2 access unconditionally? It seems that
+                // on Haswell, it would make sense to just use unaligned and not bother
+                // checking. Need to benchmark older architectures before deciding.
+                if ((src as usize) & ALIGNMENT_MASK) == 0 {
+                    loop {
+                        let simd = unsafe { load16_aligned(src.offset(offset as isize)) };
+                        if !is_ascii(simd) {
+                            break;
+                        }
+                        offset += STRIDE_SIZE;
+                        if offset + STRIDE_SIZE > len {
+                            break;
+                        }
+                    }
+                } else {
+                    loop {
+                        let simd = unsafe { load16_unaligned(src.offset(offset as isize)) };
+                        if !is_ascii(simd) {
+                            break;
+                        }
+                        offset += STRIDE_SIZE;
+                        if offset + STRIDE_SIZE > len {
+                            break;
+                        }
+                    }
+                }
+            }
+            while offset < len {
+                let code_unit = slice[offset];
+                if code_unit > 127 {
+                    return Some((code_unit, offset));
+                }
+                offset += 1;
+            }
+            return None;
+        }
     } else {
         // `as` truncates, so works on 32-bit, too.
         const ASCII_MASK: usize = 0x80808080_80808080u64 as usize;
@@ -491,43 +491,43 @@ cfg_if! {
 
         ascii_alu!(ascii_to_ascii, u8, u8, ascii_to_ascii_stride);
 
-//        #[inline(always)]
-//        pub fn validate_ascii(slice: &[u8]) -> Option<(u8, usize)> {
-//           let src = slice.as_ptr();
-//           let len = slice.len();
-//           let mut offset = 0usize;
-//           let mut src_alignment = (src as usize) & ALIGNMENT_MASK;
-//           if src_alignment + STRIDE_SIZE <= len {
-//               while src_alignment != 0 {
-//                   let code_unit = slice[offset];
-//                   if code_unit > 127 {
-//                       return Some((code_unit, offset));
-//                   }
-//                   offset += 1;
-//                   src_alignment -= 1;
-//               }
-//               // XXX stdlib's UTF-8 validation reads two words at a time
-//               loop {
-//                   let ptr = unsafe { src.offset(offset as isize) as *const usize };
-//                   let word = unsafe { *ptr };
-//                   if (word & ASCII_MASK) != 0 {
-//                       break;
-//                   }
-//                   offset += STRIDE_SIZE;
-//                   if offset + STRIDE_SIZE > len {
-//                       break;
-//                   }
-//               }
-//           }
-//           while offset < len {
-//               let code_unit = slice[offset];
-//               if code_unit > 127 {
-//                   return Some((code_unit, offset));
-//               }
-//               offset += 1;
-//           }
-//           return None;
-//        }
+        #[inline(always)]
+        pub fn validate_ascii(slice: &[u8]) -> Option<(u8, usize)> {
+           let src = slice.as_ptr();
+           let len = slice.len();
+           let mut offset = 0usize;
+           let mut src_alignment = (src as usize) & ALIGNMENT_MASK;
+           if src_alignment + STRIDE_SIZE + STRIDE_SIZE <= len {
+               while src_alignment != 0 {
+                   let code_unit = slice[offset];
+                   if code_unit > 127 {
+                       return Some((code_unit, offset));
+                   }
+                   offset += 1;
+                   src_alignment -= 1;
+               }
+               loop {
+                   let ptr = unsafe { src.offset(offset as isize) as *const usize };
+                   let first = unsafe { *ptr };
+                   let second = unsafe { *(ptr.offset(1)) };
+                   if ((first & ASCII_MASK) | (second & ASCII_MASK)) != 0 {
+                       break;
+                   }
+                   offset += STRIDE_SIZE + STRIDE_SIZE;
+                   if offset + STRIDE_SIZE + STRIDE_SIZE > len {
+                       break;
+                   }
+               }
+           }
+           while offset < len {
+               let code_unit = slice[offset];
+               if code_unit > 127 {
+                   return Some((code_unit, offset));
+               }
+               offset += 1;
+           }
+           return None;
+        }
     }
 }
 // #[inline(always)]
