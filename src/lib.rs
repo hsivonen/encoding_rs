@@ -526,6 +526,7 @@ pub mod ffi;
 
 use variant::*;
 use utf_8::utf8_valid_up_to;
+use ascii::ascii_valid_up_to;
 pub use ffi::*;
 
 use std::borrow::Cow;
@@ -2416,8 +2417,12 @@ impl Encoding {
     ///
     /// Available to Rust only.
     pub fn decode_without_bom_handling<'a>(&'static self, bytes: &'a [u8]) -> (Cow<'a, str>, bool) {
-        let (mut decoder, mut string, input) = if self == UTF_8 {
-            let valid_up_to = utf8_valid_up_to(bytes);
+        let (mut decoder, mut string, input) = if self.is_ascii_compatible() {
+            let valid_up_to = if self == UTF_8 {
+                utf8_valid_up_to(bytes)
+            } else {
+                ascii_valid_up_to(bytes)
+            };
             if valid_up_to == bytes.len() {
                 let str: &str = unsafe { std::mem::transmute(bytes) };
                 return (Cow::Borrowed(str), false);
@@ -2478,17 +2483,34 @@ impl Encoding {
             if valid_up_to == bytes.len() {
                 let str: &str = unsafe { std::mem::transmute(bytes) };
                 return Some(Cow::Borrowed(str));
-            } else {
-                return None;
             }
+            return None;
         }
-        let mut decoder = self.new_decoder_without_bom_handling();
-        let mut string =
-            String::with_capacity(decoder.max_utf8_buffer_length_without_replacement(bytes.len()));
-        let (result, read) = decoder.decode_to_string_without_replacement(bytes, &mut string, true);
+        let (mut decoder, mut string, input) = if self.is_ascii_compatible() {
+            let valid_up_to = ascii_valid_up_to(bytes);
+            if valid_up_to == bytes.len() {
+                let str: &str = unsafe { std::mem::transmute(bytes) };
+                return Some(Cow::Borrowed(str));
+            }
+            let decoder = self.new_decoder_without_bom_handling();
+            let mut string = String::with_capacity(valid_up_to +
+                                                   decoder.max_utf8_buffer_length(bytes.len() -
+                                                                                  valid_up_to));
+            unsafe {
+                let mut vec = string.as_mut_vec();
+                vec.set_len(valid_up_to);
+                std::ptr::copy_nonoverlapping(bytes.as_ptr(), vec.as_mut_ptr(), valid_up_to);
+            }
+            (decoder, string, &bytes[valid_up_to..])
+        } else {
+            let decoder = self.new_decoder_without_bom_handling();
+            let string = String::with_capacity(decoder.max_utf8_buffer_length_without_replacement(bytes.len()));
+            (decoder, string, bytes)
+        };
+        let (result, read) = decoder.decode_to_string_without_replacement(input, &mut string, true);
         match result {
             DecoderResult::InputEmpty => {
-                debug_assert_eq!(read, bytes.len());
+                debug_assert_eq!(read, input.len());
                 Some(Cow::Owned(string))
             }
             DecoderResult::Malformed(_, _) => None,
@@ -2533,11 +2555,28 @@ impl Encoding {
         if output_encoding == UTF_8 {
             return (Cow::Borrowed(string.as_bytes()), output_encoding, false);
         }
-        let mut encoder = output_encoding.new_encoder();
-        let mut total_read = 0usize;
-        let mut vec: Vec<u8> =
+        let (mut encoder, mut vec, mut total_read) = if self.is_ascii_compatible() {
+            let bytes = string.as_bytes();
+            let valid_up_to = ascii_valid_up_to(bytes);
+            if valid_up_to == bytes.len() {
+                return (Cow::Borrowed(bytes), output_encoding, false);
+            }
+            let encoder = output_encoding.new_encoder();
+            let mut vec: Vec<u8> = Vec::with_capacity((valid_up_to +
+                                                       encoder.max_buffer_length_from_utf8_if_no_unmappables(string.len() - valid_up_to))
+                                                       .next_power_of_two());
+            unsafe {
+                vec.set_len(valid_up_to);
+                std::ptr::copy_nonoverlapping(bytes.as_ptr(), vec.as_mut_ptr(), valid_up_to);
+            }
+            (encoder, vec, valid_up_to)
+        } else {
+            let encoder = output_encoding.new_encoder();
+            let vec: Vec<u8> =
             Vec::with_capacity(encoder.max_buffer_length_from_utf8_if_no_unmappables(string.len())
                                       .next_power_of_two());
+            (encoder, vec, 0usize)
+        };
         let mut total_had_errors = false;
         loop {
             let (result, read, had_errors) = encoder.encode_from_utf8_to_vec(&string[total_read..],
@@ -3722,11 +3761,11 @@ mod tests {
 
     #[test]
     fn test_decode_valid_windows_1257_to_cow() {
-        let (cow, encoding, had_errors) = WINDOWS_1257.decode(b"\x80\xE4");
+        let (cow, encoding, had_errors) = WINDOWS_1257.decode(b"abc\x80\xE4");
         match cow {
             Cow::Borrowed(_) => unreachable!(),
             Cow::Owned(s) => {
-                assert_eq!(s, "\u{20AC}\u{00E4}");
+                assert_eq!(s, "abc\u{20AC}\u{00E4}");
             }
         }
         assert_eq!(encoding, WINDOWS_1257);
@@ -3735,15 +3774,28 @@ mod tests {
 
     #[test]
     fn test_decode_invalid_windows_1257_to_cow() {
-        let (cow, encoding, had_errors) = WINDOWS_1257.decode(b"\x80\xA1\xE4");
+        let (cow, encoding, had_errors) = WINDOWS_1257.decode(b"abc\x80\xA1\xE4");
         match cow {
             Cow::Borrowed(_) => unreachable!(),
             Cow::Owned(s) => {
-                assert_eq!(s, "\u{20AC}\u{FFFD}\u{00E4}");
+                assert_eq!(s, "abc\u{20AC}\u{FFFD}\u{00E4}");
             }
         }
         assert_eq!(encoding, WINDOWS_1257);
         assert!(had_errors);
+    }
+
+    #[test]
+    fn test_decode_ascii_only_windows_1257_to_cow() {
+        let (cow, encoding, had_errors) = WINDOWS_1257.decode(b"abc");
+        match cow {
+            Cow::Borrowed(s) => {
+                assert_eq!(s, "abc");
+            }
+            Cow::Owned(_) => unreachable!(),
+        }
+        assert_eq!(encoding, WINDOWS_1257);
+        assert!(!had_errors);
     }
 
     #[test]
@@ -3828,11 +3880,11 @@ mod tests {
 
     #[test]
     fn test_decode_valid_windows_1257_to_cow_with_bom_removal() {
-        let (cow, had_errors) = WINDOWS_1257.decode_with_bom_removal(b"\x80\xE4");
+        let (cow, had_errors) = WINDOWS_1257.decode_with_bom_removal(b"abc\x80\xE4");
         match cow {
             Cow::Borrowed(_) => unreachable!(),
             Cow::Owned(s) => {
-                assert_eq!(s, "\u{20AC}\u{00E4}");
+                assert_eq!(s, "abc\u{20AC}\u{00E4}");
             }
         }
         assert!(!had_errors);
@@ -3840,14 +3892,26 @@ mod tests {
 
     #[test]
     fn test_decode_invalid_windows_1257_to_cow_with_bom_removal() {
-        let (cow, had_errors) = WINDOWS_1257.decode_with_bom_removal(b"\x80\xA1\xE4");
+        let (cow, had_errors) = WINDOWS_1257.decode_with_bom_removal(b"abc\x80\xA1\xE4");
         match cow {
             Cow::Borrowed(_) => unreachable!(),
             Cow::Owned(s) => {
-                assert_eq!(s, "\u{20AC}\u{FFFD}\u{00E4}");
+                assert_eq!(s, "abc\u{20AC}\u{FFFD}\u{00E4}");
             }
         }
         assert!(had_errors);
+    }
+
+    #[test]
+    fn test_decode_ascii_only_windows_1257_to_cow_with_bom_removal() {
+        let (cow, had_errors) = WINDOWS_1257.decode_with_bom_removal(b"abc");
+        match cow {
+            Cow::Borrowed(s) => {
+                assert_eq!(s, "abc");
+            }
+            Cow::Owned(_) => unreachable!(),
+        }
+        assert!(!had_errors);
     }
 
     #[test]
@@ -3878,11 +3942,11 @@ mod tests {
 
     #[test]
     fn test_decode_valid_windows_1257_to_cow_without_bom_handling() {
-        let (cow, had_errors) = WINDOWS_1257.decode_without_bom_handling(b"\x80\xE4");
+        let (cow, had_errors) = WINDOWS_1257.decode_without_bom_handling(b"abc\x80\xE4");
         match cow {
             Cow::Borrowed(_) => unreachable!(),
             Cow::Owned(s) => {
-                assert_eq!(s, "\u{20AC}\u{00E4}");
+                assert_eq!(s, "abc\u{20AC}\u{00E4}");
             }
         }
         assert!(!had_errors);
@@ -3890,14 +3954,26 @@ mod tests {
 
     #[test]
     fn test_decode_invalid_windows_1257_to_cow_without_bom_handling() {
-        let (cow, had_errors) = WINDOWS_1257.decode_without_bom_handling(b"\x80\xA1\xE4");
+        let (cow, had_errors) = WINDOWS_1257.decode_without_bom_handling(b"abc\x80\xA1\xE4");
         match cow {
             Cow::Borrowed(_) => unreachable!(),
             Cow::Owned(s) => {
-                assert_eq!(s, "\u{20AC}\u{FFFD}\u{00E4}");
+                assert_eq!(s, "abc\u{20AC}\u{FFFD}\u{00E4}");
             }
         }
         assert!(had_errors);
+    }
+
+    #[test]
+    fn test_decode_ascii_only_windows_1257_to_cow_without_bom_handling() {
+        let (cow, had_errors) = WINDOWS_1257.decode_without_bom_handling(b"abc");
+        match cow {
+            Cow::Borrowed(s) => {
+                assert_eq!(s, "abc");
+            }
+            Cow::Owned(_) => unreachable!(),
+        }
+        assert!(!had_errors);
     }
 
     #[test]
@@ -3922,12 +3998,12 @@ mod tests {
 
     #[test]
     fn test_decode_valid_windows_1257_to_cow_without_bom_handling_and_without_replacement() {
-        match WINDOWS_1257.decode_without_bom_handling_and_without_replacement(b"\x80\xE4") {
+        match WINDOWS_1257.decode_without_bom_handling_and_without_replacement(b"abc\x80\xE4") {
             Some(cow) => {
                 match cow {
                     Cow::Borrowed(_) => unreachable!(),
                     Cow::Owned(s) => {
-                        assert_eq!(s, "\u{20AC}\u{00E4}");
+                        assert_eq!(s, "abc\u{20AC}\u{00E4}");
                     }
                 }
             }
@@ -3937,7 +4013,49 @@ mod tests {
 
     #[test]
     fn test_decode_invalid_windows_1257_to_cow_without_bom_handling_and_without_replacement() {
-        assert!(WINDOWS_1257.decode_without_bom_handling_and_without_replacement(b"\x80\xA1\xE4")
+        assert!(WINDOWS_1257.decode_without_bom_handling_and_without_replacement(b"abc\x80\xA1\xE4")
                             .is_none());
     }
+
+    #[test]
+    fn test_decode_ascii_only_windows_1257_to_cow_without_bom_handling_and_without_replacement() {
+        match WINDOWS_1257.decode_without_bom_handling_and_without_replacement(b"abc") {
+            Some(cow) => {
+                match cow {
+                    Cow::Borrowed(s) => {
+                        assert_eq!(s, "abc");
+                    }
+                    Cow::Owned(_) => unreachable!(),
+                }
+            }
+            None => unreachable!(),
+        }
+    }
+
+    #[test]
+    fn test_encode_ascii_only_windows_1257_to_cow() {
+        let (cow, encoding, had_errors) = WINDOWS_1257.encode("abc");
+        match cow {
+            Cow::Borrowed(s) => {
+                assert_eq!(s, b"abc");
+            }
+            Cow::Owned(_) => unreachable!(),
+        }
+        assert_eq!(encoding, WINDOWS_1257);
+        assert!(!had_errors);
+    }
+
+    #[test]
+    fn test_encode_valid_windows_1257_to_cow() {
+        let (cow, encoding, had_errors) = WINDOWS_1257.encode("abc\u{20AC}\u{00E4}");
+        match cow {
+            Cow::Borrowed(_) => unreachable!(),
+            Cow::Owned(s) => {
+                assert_eq!(s, b"abc\x80\xE4");
+            }
+        }
+        assert_eq!(encoding, WINDOWS_1257);
+        assert!(!had_errors);
+    }
+
 }

@@ -542,6 +542,13 @@ cfg_if! {
 // }
 //
 
+pub fn ascii_valid_up_to(bytes: &[u8]) -> usize {
+    match validate_ascii(bytes) {
+        None => bytes.len(),
+        Some((_, num_valid)) => num_valid,
+    }
+}
+
 // Any copyright to the test code below this comment is dedicated to the
 // Public Domain. http://creativecommons.org/publicdomain/zero/1.0/
 

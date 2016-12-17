@@ -85,6 +85,12 @@ encoding_rs is
 
 ## Release Notes
 
+### 0.3.1
+
+* Make UTF-8 to UTF-8 decode SSE2-accelerated when feature `simd-accel` is used.
+* When decoding and encoding ASCII-only input from or to an ASCII-compatible
+  encoding using the non-streaming API, return a borrow of the input.
+
 ### 0.3
 
 * Change the references to the instances of `Encoding` from `const` to `static`
