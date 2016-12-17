@@ -87,7 +87,6 @@ pub fn run_utf8_validation(v: &[u8]) -> Result<(), Utf8Error> {
             v[offset]
         }}}
         'inner: loop {
-            let w = UTF8_CHAR_WIDTH[first as usize];
             let second = next!();
             // 2-byte encoding is for codepoints  \u{0080} to  \u{07ff}
             //        first  C2 80        last DF BF
@@ -107,26 +106,45 @@ pub fn run_utf8_validation(v: &[u8]) -> Result<(), Utf8Error> {
             //               %xED %x80-9F UTF8-tail / %xEE-EF 2( UTF8-tail )
             // UTF8-4      = %xF0 %x90-BF 2( UTF8-tail ) / %xF1-F3 3( UTF8-tail ) /
             //               %xF4 %x80-8F 2( UTF8-tail )
-            match w {
-                2 => {
+            match first {
+                0xC2...0xDF => {
                     if second & !CONT_MASK != TAG_CONT_U8 {
                         err!()
                     }
                 }
-                3 => {
-                    match (first, second, next!() & !CONT_MASK) {
-                        (0xE0, 0xA0...0xBF, TAG_CONT_U8) |
-                        (0xE1...0xEC, 0x80...0xBF, TAG_CONT_U8) |
-                        (0xED, 0x80...0x9F, TAG_CONT_U8) |
-                        (0xEE...0xEF, 0x80...0xBF, TAG_CONT_U8) => {}
+                0xE0 => {
+                    match (second, next!() & !CONT_MASK) {
+                        (0xA0...0xBF, TAG_CONT_U8) => {}
                         _ => err!(),
                     }
                 }
-                4 => {
-                    match (first, second, next!() & !CONT_MASK, next!() & !CONT_MASK) {
-                        (0xF0, 0x90...0xBF, TAG_CONT_U8, TAG_CONT_U8) |
-                        (0xF1...0xF3, 0x80...0xBF, TAG_CONT_U8, TAG_CONT_U8) |
-                        (0xF4, 0x80...0x8F, TAG_CONT_U8, TAG_CONT_U8) => {}
+                0xE1...0xEC | 0xEE...0xEF => {
+                    match (second & !CONT_MASK, next!() & !CONT_MASK) {
+                        (TAG_CONT_U8, TAG_CONT_U8) => {}
+                        _ => err!(),
+                    }
+                }
+                0xED => {
+                    match (second, next!() & !CONT_MASK) {
+                        (0x80...0x9F, TAG_CONT_U8) => {}
+                        _ => err!(),
+                    }
+                }
+                0xF0 => {
+                    match (second, next!() & !CONT_MASK, next!() & !CONT_MASK) {
+                        (0x90...0xBF, TAG_CONT_U8, TAG_CONT_U8) => {}
+                        _ => err!(),
+                    }
+                }
+                0xF1...0xF3 => {
+                    match (second & !CONT_MASK, next!() & !CONT_MASK, next!() & !CONT_MASK) {
+                        (TAG_CONT_U8, TAG_CONT_U8, TAG_CONT_U8) => {}
+                        _ => err!(),
+                    }
+                }
+                0xF4 => {
+                    match (second, next!() & !CONT_MASK, next!() & !CONT_MASK) {
+                        (0x80...0x8F, TAG_CONT_U8, TAG_CONT_U8) => {}
                         _ => err!(),
                     }
                 }
@@ -170,3 +188,40 @@ static UTF8_CHAR_WIDTH: [u8; 256] = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
 const CONT_MASK: u8 = 0b0011_1111;
 /// Value of the tag bits (tag mask is !CONT_MASK) of a continuation byte
 const TAG_CONT_U8: u8 = 0b1000_0000;
+
+const UTF8_THREE_BYTE_SPECIAL_LOWER_BOUND_TRAIL: u8 = 1 << 4;
+
+const UTF8_THREE_BYTE_SPECIAL_UPPER_BOUND_TRAIL: u8 = 1 << 5;
+
+const UTF8_FOUR_BYTE_SPECIAL_LOWER_BOUND_TRAIL: u8 = 1 << 6;
+
+const UTF8_FOUR_BYTE_SPECIAL_UPPER_BOUND_TRAIL: u8 = 1 << 7;
+
+// BEGIN GENERATED CODE. PLEASE DO NOT EDIT.
+// Instead, please regenerate using generate-encoding-data.py
+
+/// Bit is 1 if the trail is invalid.
+static UTF8_TRAIL_INVALID: [u8; 256] = [248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248,
+                                        248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248,
+                                        248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248,
+                                        248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248,
+                                        248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248,
+                                        248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248,
+                                        248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248,
+                                        248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248,
+                                        248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248,
+                                        248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248,
+                                        248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248,
+                                        248, 248, 248, 248, 248, 248, 248, 80, 80, 80, 80, 80, 80,
+                                        80, 80, 80, 80, 80, 80, 80, 80, 80, 80, 144, 144, 144,
+                                        144, 144, 144, 144, 144, 144, 144, 144, 144, 144, 144,
+                                        144, 144, 160, 160, 160, 160, 160, 160, 160, 160, 160,
+                                        160, 160, 160, 160, 160, 160, 160, 160, 160, 160, 160,
+                                        160, 160, 160, 160, 160, 160, 160, 160, 160, 160, 160,
+                                        160, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248,
+                                        248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248,
+                                        248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248,
+                                        248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248,
+                                        248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248,
+                                        248, 248, 248, 248, 248, 248, 248, 248, 248, 248];
+// END GENERATED CODE
