@@ -87,6 +87,10 @@ pub fn run_utf8_validation(v: &[u8]) -> Result<(), Utf8Error> {
             v[offset]
         }}}
         'inner: loop {
+            // Intuitively, it would make sense to check availability for
+            // a four-byte sequence here, not check per byte and handle the
+            // end of the buffer as a special case. For some reason, that
+            // disturbs something in a way that would make things slower.
             let second = next!();
             // 2-byte encoding is for codepoints  \u{0080} to  \u{07ff}
             //        first  C2 80        last DF BF
