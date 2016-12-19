@@ -60,6 +60,9 @@ pub fn utf8_valid_up_to(bytes: &[u8]) -> usize {
 }
 
 pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usize, usize) {
+    // This algorithm differs from the UTF-8 validation algorithm, but making
+    // this one consistent with that one makes this slower for reasons I don't
+    // understand.
     let mut read = 0;
     let mut written = 0;
     'outer: loop {
@@ -113,7 +116,7 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
                         read += 2;
                         written += 1;
                     }
-                    0xE1...0xEC | 0xEF => {
+                    0xE1...0xEC | 0xEE...0xEF => {
                         // Three-byte normal
                         let second = src[read + 1];
                         let third = src[read + 2];
@@ -287,7 +290,7 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
                 read = new_read;
                 written += 1;
             }
-            0xE1...0xEC | 0xEF => {
+            0xE1...0xEC | 0xEE...0xEF => {
                 // Three-byte normal
                 let new_read = read + 3;
                 if new_read > src.len() {
