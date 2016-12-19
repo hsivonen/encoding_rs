@@ -929,37 +929,4 @@ static_file.write("""#endif // encoding_rs_statics_h_
 """)
 static_file.close()
 
-(utf_8_rs_begin, utf_8_rs_end) = read_non_generated("src/utf_8.rs")
-
-utf_8_file = open("src/utf_8.rs", "w")
-
-utf_8_file.write(utf_8_rs_begin)
-utf_8_file.write("""
-// Instead, please regenerate using generate-encoding-data.py
-
-/// Bit is 1 if the trail is invalid.
-static UTF8_TRAIL_INVALID: [u8; 256] = [""")
-
-for i in range(256):
-  combined = 0
-  if i < 0x80 or i > 0xBF:
-    combined |= (1 << 3)
-  if i < 0xA0 or i > 0xBF:
-    combined |= (1 << 4)
-  if i < 0x80 or i > 0x9F:
-    combined |= (1 << 5)
-  if i < 0x90 or i > 0xBF:
-    combined |= (1 << 6)
-  if i < 0x80 or i > 0x8F:
-    combined |= (1 << 7)
-  utf_8_file.write("%d," % combined)
-
-utf_8_file.write("""
-];
-""")
-
-utf_8_file.write(utf_8_rs_end)
-utf_8_file.close()
-
-
 subprocess.call(["cargo", "fmt"])

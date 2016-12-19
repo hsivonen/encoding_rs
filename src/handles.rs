@@ -20,7 +20,7 @@ use super::DecoderResult;
 use super::EncoderResult;
 use ascii::*;
 use utf_8::utf8_valid_up_to;
-use utf_8::convert_utf8_to_utf16_up_to_invalid;
+use utf_8_core::convert_utf8_to_utf16_up_to_invalid;
 
 pub enum Space<T> {
     Available(T),
