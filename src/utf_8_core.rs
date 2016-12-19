@@ -159,6 +159,9 @@ pub fn run_utf8_validation(v: &[u8]) -> Result<(), Utf8Error> {
                 break 'outer;
             }
             first = v[offset];
+            // This check is separate from the above `match`, because merging
+            // this check into it causes a spectacular performance drop
+            // (over twice as slow).
             if first < 0x80 {
                 offset += 1;
                 continue 'outer;
