@@ -558,16 +558,15 @@ cfg_if! {
                 }
                 let first = unsafe { load8_unaligned(src.as_ptr().offset(read as isize)) };
                 let second = unsafe { load8_unaligned(src.as_ptr().offset((read + 8) as isize)) };
-                match pack_basic_latin(first, second) {
-                    Some(packed) => {
-                        unsafe {
-                            store16_unaligned(dst.as_mut_ptr().offset(written as isize), packed);
-                        }
-                        written += STRIDE_SIZE;
-                        read += STRIDE_SIZE;
-                        continue;
+                let pack = pack_basic_latin(first, second);
+                if likely(pack.is_some()) {
+                    let packed = pack.unwrap();
+                    unsafe {
+                        store16_unaligned(dst.as_mut_ptr().offset(written as isize), packed);
                     }
-                    None => {}
+                    written += STRIDE_SIZE;
+                    read += STRIDE_SIZE;
+                    continue;
                 }
                 {
                 let mut unit = src[read];

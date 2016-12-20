@@ -490,6 +490,8 @@
 
 #![cfg_attr(feature = "simd-accel", feature(cfg_target_feature, platform_intrinsics))]
 
+#![cfg_attr(feature = "likely", feature(core_intrinsics))]
+
 #[macro_use]
 extern crate cfg_if;
 
@@ -530,6 +532,34 @@ use ascii::ascii_valid_up_to;
 pub use ffi::*;
 
 use std::borrow::Cow;
+
+#[cfg(feature = "likely")]
+#[inline(always)]
+fn likely(b: bool) -> bool {
+    unsafe {
+        std::intrinsics::likely(b)
+    }
+}
+
+#[cfg(feature = "likely")]
+#[inline(always)]
+fn unlikely(b: bool) -> bool {
+    unsafe {
+        std::intrinsics::unlikely(b)
+    }
+}
+
+#[cfg(not(feature = "likely"))]
+#[inline(always)]
+fn likely(b: bool) -> bool {
+    b
+}
+
+#[cfg(not(feature = "likely"))]
+#[inline(always)]
+fn unlikely(b: bool) -> bool {
+    b
+}
 
 const NCR_EXTRA: usize = 9; // #1114111;
 

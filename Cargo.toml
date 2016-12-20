@@ -13,6 +13,7 @@ build = "build.rs"
 
 [features]
 simd-accel = ["simd"]
+likely = []
 
 [lib]
 name = "encoding_rs"
