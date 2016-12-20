@@ -12,6 +12,7 @@ use simd::i8x16;
 use simd::u16x8;
 use simd::i16x8;
 use simd::Simd;
+use std::ops::BitAnd;
 
 extern "platform-intrinsic" {
     fn simd_shuffle16<T: Simd, U: Simd<Elem = T::Elem>>(x: T, y: T, idx: [u32; 16]) -> U;
@@ -95,19 +96,26 @@ pub fn unpack(s: u8x16) -> (u16x8, u16x8) {
 /// vuzpq_u8 in NEON. _mm_packus_epi16 in SSE2. vec_packsu *followed* by ASCII
 /// check in AltiVec.
 #[inline(always)]
-pub unsafe fn pack_basic_latin(a: u16x8, b: u16x8) -> Option<u8x16> {
-    // If the 16-bit lane is out of range positive, the 8-bit lane becomes 0xFF
-    // when packing, which would allow us to pack later and then check for
-    // ASCII, but if the 16-bit lane is negative, the 8-bit lane becomes 0x00.
-    // Sigh. Hence, check first.
-    let above_ascii = u16x8::splat(0x80);
-    if a.lt(above_ascii).all() && b.lt(above_ascii).all() {
-        let first: i16x8 = ::std::mem::transmute_copy(&a);
-        let second: i16x8 = ::std::mem::transmute_copy(&b);
-        Some(x86_mm_packus_epi16(first, second))
-    } else {
-        None
+pub fn pack_basic_latin(a: u16x8, b: u16x8) -> Option<u8x16> {
+    unsafe {
+        // If the 16-bit lane is out of range positive, the 8-bit lane becomes
+        // 0xFF when packing, which would allow us to pack later and then check
+        // for ASCII, but if the 16-bit lane is negative, the 8-bit lane
+        // becomes 0x00. Sigh. Hence, check first.
+        let above_ascii = u16x8::splat(0x80);
+        if a.lt(above_ascii).all() && b.lt(above_ascii).all() {
+            let first: i16x8 = ::std::mem::transmute_copy(&a);
+            let second: i16x8 = ::std::mem::transmute_copy(&b);
+            Some(x86_mm_packus_epi16(first, second))
+        } else {
+            None
+        }
     }
+}
+
+#[inline(always)]
+pub fn contains_surrogates(v: u16x8) -> bool {
+    v.bitand(u16x8::splat(0xFC00)).eq(u16x8::splat(0xD800)).any()
 }
 
 #[cfg(test)]
@@ -156,9 +164,7 @@ mod tests {
                                 0x72, 0x73, 0x74, 0x75, 0x76];
         let first = unsafe { load8_unaligned(input.as_ptr()) };
         let second = unsafe { load8_unaligned(input.as_ptr().offset(8)) };
-        unsafe {
-            assert!(pack_basic_latin(first, second).is_none());
-        }
+        assert!(pack_basic_latin(first, second).is_none());
     }
 
     #[test]
@@ -167,9 +173,7 @@ mod tests {
                                 0x71, 0x72, 0x73, 0x74, 0x75, 0x76];
         let first = unsafe { load8_unaligned(input.as_ptr()) };
         let second = unsafe { load8_unaligned(input.as_ptr().offset(8)) };
-        unsafe {
-            assert!(pack_basic_latin(first, second).is_none());
-        }
+        assert!(pack_basic_latin(first, second).is_none());
     }
 
     #[test]
@@ -178,9 +182,7 @@ mod tests {
                                 0x71, 0x72, 0x73, 0x74, 0x75, 0x76];
         let first = unsafe { load8_unaligned(input.as_ptr()) };
         let second = unsafe { load8_unaligned(input.as_ptr().offset(8)) };
-        unsafe {
-            assert!(pack_basic_latin(first, second).is_none());
-        }
+        assert!(pack_basic_latin(first, second).is_none());
     }
 
     #[test]

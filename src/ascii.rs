@@ -211,7 +211,7 @@ cfg_if! {
     if #[cfg(all(feature = "simd-accel", target_feature = "sse2"))] {
 // SIMD
 
-        const STRIDE_SIZE: usize = 16;
+        pub const STRIDE_SIZE: usize = 16;
 
         const ALIGNMENT_MASK: usize = 15;
 
@@ -236,7 +236,7 @@ cfg_if! {
     } else if #[cfg(all(target_endian = "little", target_pointer_width = "64"))] {
 // Aligned ALU word, little-endian, 64-bit
 
-        const STRIDE_SIZE: usize = 8;
+        pub const STRIDE_SIZE: usize = 8;
 
         const ALIGNMENT_MASK: usize = 7;
 
@@ -287,7 +287,7 @@ cfg_if! {
     } else if #[cfg(all(target_endian = "little", target_pointer_width = "32"))] {
 // Aligned ALU word, little-endian, 32-bit
 
-        const STRIDE_SIZE: usize = 4;
+        pub const STRIDE_SIZE: usize = 4;
 
         const ALIGNMENT_MASK: usize = 3;
 
@@ -330,7 +330,7 @@ cfg_if! {
     } else if #[cfg(all(target_endian = "big", target_pointer_width = "64"))] {
 // Aligned ALU word, big-endian, 64-bit
 
-        const STRIDE_SIZE: usize = 8;
+        pub const STRIDE_SIZE: usize = 8;
 
         const ALIGNMENT_MASK: usize = 7;
 
@@ -381,7 +381,7 @@ cfg_if! {
     } else if #[cfg(all(target_endian = "big", target_pointer_width = "32"))] {
 // Aligned ALU word, big-endian, 32-bit
 
-        const STRIDE_SIZE: usize = 4;
+        pub const STRIDE_SIZE: usize = 4;
 
         const ALIGNMENT_MASK: usize = 3;
 

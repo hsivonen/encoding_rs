@@ -11,7 +11,14 @@ use handles::*;
 use variant::*;
 use super::*;
 use ascii::ascii_to_basic_latin;
+use ascii::basic_latin_to_ascii;
 use utf_8_core::run_utf8_validation;
+
+#[cfg(feature = "simd-accel")]
+use simd_funcs::*;
+
+#[cfg(feature = "simd-accel")]
+use ascii::STRIDE_SIZE;
 
 const UTF8_NORMAL_TRAIL: u8 = 1 << 3;
 
@@ -503,28 +510,13 @@ impl Utf8Encoder {
         byte_length
     }
 
-    ascii_compatible_encoder_function!({
-                                           if bmp < 0x800u16 {
-                                               handle.write_two(((bmp as u32 >> 6) | 0xC0u32) as u8,((bmp as u32 & 0x3Fu32) | 0x80u32) as u8)
-                                           } else {
-                                               handle.write_three(((bmp as u32 >> 12) | 0xE0u32) as u8,(((bmp as u32 & 0xFC0u32) >> 6) | 0x80u32) as u8,((bmp as u32 & 0x3Fu32) | 0x80u32) as u8)
-                                           }
-                                       },
-                                       {
-                                           let astral32 = astral as u32;
-                                           handle.write_four(((astral32 >> 18) | 0xF0u32) as u8,(((astral32 & 0x3F000u32) >> 12) | 0x80u32) as u8,(((astral32 & 0xFC0u32) >> 6) | 0x80u32) as u8,((astral32 & 0x3Fu32) | 0x80u32) as u8)
-                                       },
-                                       bmp,
-                                       astral,
-                                       self,
-                                       source,
-                                       handle,
-                                       copy_ascii_to_check_space_four,
-                                       check_space_four,
-                                       encode_from_utf16_raw,
-                                       [u16],
-                                       Utf16Source,
-                                       true);
+    pub fn encode_from_utf16_raw(&mut self,
+                                 src: &[u16],
+                                 dst: &mut [u8],
+                                 _last: bool)
+                                 -> (EncoderResult, usize, usize) {
+        return encode_from_utf16_impl(src, dst);
+    }
 
     pub fn encode_from_utf8_raw(&mut self,
                                 src: &str,
@@ -550,6 +542,354 @@ impl Utf8Encoder {
         return (EncoderResult::OutputFull, to_write, to_write);
     }
 }
+
+cfg_if! {
+    if #[cfg(all(feature = "simd-accel", target_feature = "sse2"))] {
+
+        #[inline(always)]
+        fn encode_from_utf16_impl(src: &[u16], dst: &mut [u8])
+                                  -> (EncoderResult, usize, usize) {
+            let mut read = 0;
+            let mut written = 0;
+            'outer: loop {
+                let read_plus_stride = read + STRIDE_SIZE;
+                if read_plus_stride > src.len() || written + STRIDE_SIZE > dst.len() {
+                    break;
+                }
+                let first = unsafe { load8_unaligned(src.as_ptr().offset(read as isize)) };
+                let second = unsafe { load8_unaligned(src.as_ptr().offset((read + 8) as isize)) };
+                match pack_basic_latin(first, second) {
+                    Some(packed) => {
+                        unsafe {
+                            store16_unaligned(dst.as_mut_ptr().offset(written as isize), packed);
+                        }
+                        written += STRIDE_SIZE;
+                        read += STRIDE_SIZE;
+                        continue;
+                    }
+                    None => {}
+                }
+                {
+                let mut unit = src[read];
+                    while unit < 0x80 {
+                        read += 1;
+                        dst[written] = unit as u8;
+                        written += 1;
+                        unit = src[read];
+                    }
+                }
+                if !(contains_surrogates(first) || contains_surrogates(second)) {
+// No surrogates case
+                    while read < read_plus_stride {
+                        if written + 3 >= dst.len() {
+                            return (EncoderResult::OutputFull, read, written);
+                        }
+                        let unit = src[read];
+                        read += 1;
+                        if unit >= 0x800 {
+                            dst[written] = (unit >> 12) as u8 | 0xE0u8;
+                            written += 1;
+                            dst[written] = ((unit & 0xFC0) >> 6) as u8 | 0x80u8;
+                            written += 1;
+                            dst[written] = (unit & 0x3F) as u8 | 0x80u8;
+                            written += 1;
+                            continue;
+                        }
+                        if unit >= 0x80 {
+                            dst[written] = (unit >> 6) as u8 | 0xC0u8;
+                            written += 1;
+                            dst[written] = (unit & 0x3F) as u8 | 0x80u8;
+                            written += 1;
+                            continue;
+                        }
+                        dst[written] = unit as u8;
+                        written += 1;
+                        continue 'outer;
+                    }
+                    continue;
+                }
+// Surrogates case
+                while read < read_plus_stride {
+                    if written + 4 >= dst.len() {
+                        return (EncoderResult::OutputFull, read, written);
+                    }
+                    let unit = src[read];
+                    read += 1;
+                    if unit < 0x80 {
+                        dst[written] = unit as u8;
+                        written += 1;
+                        continue 'outer;
+                    }
+                    if unit < 0x800 {
+                        dst[written] = (unit >> 6) as u8 | 0xC0u8;
+                        written += 1;
+                        dst[written] = (unit & 0x3F) as u8 | 0x80u8;
+                        written += 1;
+                        continue;
+                    }
+                    let high_bits = unit & 0xFC00;
+                    if high_bits == 0xD800 {
+// high surrogate
+                        if read == src.len() {
+// Unpaired surrogate at the end of the buffer.
+                            dst[written] = 0xEFu8;
+                            written += 1;
+                            dst[written] = 0xBFu8;
+                            written += 1;
+                            dst[written] = 0xBDu8;
+                            written += 1;
+                            return (EncoderResult::InputEmpty, read, written);
+                        }
+                        let second = src[read];
+                        if second & 0xFC00 != 0xDC00 {
+// The next code unit is not a low surrogate. Don't advance
+// position and treat the high surrogate as unpaired.
+                            dst[written] = 0xEFu8;
+                            written += 1;
+                            dst[written] = 0xBFu8;
+                            written += 1;
+                            dst[written] = 0xBDu8;
+                            written += 1;
+                            continue;
+                        }
+// The next code unit is a low surrogate. Advance position.
+                        read += 1;
+                        let astral = ((unit as u32) << 10) + second as u32 -
+                                     (((0xD800u32 << 10) - 0x10000u32) + 0xDC00u32);
+                        dst[written] = (astral >> 18) as u8 | 0xF0u8;
+                        written += 1;
+                        dst[written] = ((astral & 0x3F000u32) >> 12) as u8 | 0x80u8;
+                        written += 1;
+                        dst[written] = ((astral & 0xFC0u32) >> 6) as u8 | 0x80u8;
+                        written += 1;
+                        dst[written] = (astral & 0x3Fu32) as u8 | 0x80u8;
+                        written += 1;
+                        continue;
+                    }
+                    if high_bits == 0xDC00 {
+// Unpaired low surrogate
+                        dst[written] = 0xEFu8;
+                        written += 1;
+                        dst[written] = 0xBFu8;
+                        written += 1;
+                        dst[written] = 0xBDu8;
+                        written += 1;
+                        continue;
+                    }
+                    dst[written] = (unit >> 12) as u8 | 0xE0u8;
+                    written += 1;
+                    dst[written] = ((unit & 0xFC0) >> 6) as u8 | 0x80u8;
+                    written += 1;
+                    dst[written] = (unit & 0x3F) as u8 | 0x80u8;
+                    written += 1;
+                    continue;
+                }
+            }
+// Tail loop
+            loop {
+                if read == src.len() {
+                    return (EncoderResult::InputEmpty, read, written);
+                }
+                if written + 4 >= dst.len() {
+                    return (EncoderResult::OutputFull, read, written);
+                }
+                let unit = src[read];
+                read += 1;
+                if unit < 0x80 {
+                    dst[written] = unit as u8;
+                    written += 1;
+                    continue;
+                }
+                if unit < 0x800 {
+                    dst[written] = (unit >> 6) as u8 | 0xC0u8;
+                    written += 1;
+                    dst[written] = (unit & 0x3F) as u8 | 0x80u8;
+                    written += 1;
+                    continue;
+                }
+                let high_bits = unit & 0xFC00;
+                if high_bits == 0xD800 {
+// high surrogate
+                    if read == src.len() {
+// Unpaired surrogate at the end of the buffer.
+                        dst[written] = 0xEFu8;
+                        written += 1;
+                        dst[written] = 0xBFu8;
+                        written += 1;
+                        dst[written] = 0xBDu8;
+                        written += 1;
+                        return (EncoderResult::InputEmpty, read, written);
+                    }
+                    let second = src[read];
+                    if second & 0xFC00 != 0xDC00 {
+// The next code unit is not a low surrogate. Don't advance
+// position and treat the high surrogate as unpaired.
+                        dst[written] = 0xEFu8;
+                        written += 1;
+                        dst[written] = 0xBFu8;
+                        written += 1;
+                        dst[written] = 0xBDu8;
+                        written += 1;
+                        continue;
+                    }
+// The next code unit is a low surrogate. Advance position.
+                    read += 1;
+                    let astral = ((unit as u32) << 10) + second as u32 -
+                                 (((0xD800u32 << 10) - 0x10000u32) + 0xDC00u32);
+                    dst[written] = (astral >> 18) as u8 | 0xF0u8;
+                    written += 1;
+                    dst[written] = ((astral & 0x3F000u32) >> 12) as u8 | 0x80u8;
+                    written += 1;
+                    dst[written] = ((astral & 0xFC0u32) >> 6) as u8 | 0x80u8;
+                    written += 1;
+                    dst[written] = (astral & 0x3Fu32) as u8 | 0x80u8;
+                    written += 1;
+                    continue;
+                }
+                if high_bits == 0xDC00 {
+// Unpaired low surrogate
+                    dst[written] = 0xEFu8;
+                    written += 1;
+                    dst[written] = 0xBFu8;
+                    written += 1;
+                    dst[written] = 0xBDu8;
+                    written += 1;
+                    continue;
+                }
+                dst[written] = (unit >> 12) as u8 | 0xE0u8;
+                written += 1;
+                dst[written] = ((unit & 0xFC0) >> 6) as u8 | 0x80u8;
+                written += 1;
+                dst[written] = (unit & 0x3F) as u8 | 0x80u8;
+                written += 1;
+                continue;
+            }
+        }
+
+    } else {
+
+        #[inline(always)]
+        fn encode_from_utf16_impl(src: &[u16], dst: &mut [u8])
+                                  -> (EncoderResult, usize, usize) {
+            let mut read = 0;
+            let mut written = 0;
+            'outer: loop {
+                let mut unit = {
+                    let src_remaining = &src[read..];
+                    let dst_remaining = &mut dst[written..];
+                    let (pending, length) = if dst_remaining.len() < src_remaining.len() {
+                        (EncoderResult::OutputFull, dst_remaining.len())
+                    } else {
+                        (EncoderResult::InputEmpty, src_remaining.len())
+                    };
+                    match unsafe {
+                        basic_latin_to_ascii(src_remaining.as_ptr(), dst_remaining.as_mut_ptr(), length)
+                    } {
+                        None => {
+                            read += length;
+                            written += length;
+                            return (pending, read, written);
+                        }
+                        Some((non_ascii, consumed)) => {
+                            read += consumed;
+                            written += consumed;
+                            non_ascii
+                        }
+                    }
+                };
+                'inner: loop {
+// The following loop is only broken out of as a goto forward.
+                    loop {
+                        if written + 4 >= dst.len() {
+                            return (EncoderResult::OutputFull, read, written);
+                        }
+                        read += 1;
+                        if unit < 0x800 {
+                            dst[written] = (unit >> 6) as u8 | 0xC0u8;
+                            written += 1;
+                            dst[written] = (unit & 0x3F) as u8 | 0x80u8;
+                            written += 1;
+                            break;
+                        }
+                        let high_bits = unit & 0xFC00;
+                        if high_bits == 0xD800 {
+// high surrogate
+                            if read == src.len() {
+// Unpaired surrogate at the end of the buffer.
+                                dst[written] = 0xEFu8;
+                                written += 1;
+                                dst[written] = 0xBFu8;
+                                written += 1;
+                                dst[written] = 0xBDu8;
+                                written += 1;
+                                return (EncoderResult::InputEmpty, read, written);
+                            }
+                            let second = src[read];
+                            if second & 0xFC00 != 0xDC00 {
+// The next code unit is not a low surrogate. Don't advance
+// position and treat the high surrogate as unpaired.
+                                dst[written] = 0xEFu8;
+                                written += 1;
+                                dst[written] = 0xBFu8;
+                                written += 1;
+                                dst[written] = 0xBDu8;
+                                written += 1;
+                                break;
+                            }
+// The next code unit is a low surrogate. Advance position.
+                            read += 1;
+                            let astral = ((unit as u32) << 10) + second as u32 -
+                                         (((0xD800u32 << 10) - 0x10000u32) + 0xDC00u32);
+                            dst[written] = (astral >> 18) as u8 | 0xF0u8;
+                            written += 1;
+                            dst[written] = ((astral & 0x3F000u32) >> 12) as u8 | 0x80u8;
+                            written += 1;
+                            dst[written] = ((astral & 0xFC0u32) >> 6) as u8 | 0x80u8;
+                            written += 1;
+                            dst[written] = (astral & 0x3Fu32) as u8 | 0x80u8;
+                            written += 1;
+                            break;
+                        }
+                        if high_bits == 0xDC00 {
+// Unpaired low surrogate
+                            dst[written] = 0xEFu8;
+                            written += 1;
+                            dst[written] = 0xBFu8;
+                            written += 1;
+                            dst[written] = 0xBDu8;
+                            written += 1;
+                            break;
+                        }
+                        dst[written] = (unit >> 12) as u8 | 0xE0u8;
+                        written += 1;
+                        dst[written] = ((unit & 0xFC0) >> 6) as u8 | 0x80u8;
+                        written += 1;
+                        dst[written] = (unit & 0x3F) as u8 | 0x80u8;
+                        written += 1;
+                        break;
+                    }
+// Now see if the next unit is Basic Latin
+                    if read == src.len() {
+                        return (EncoderResult::InputEmpty, read, written);
+                    }
+                    unit = src[read];
+                    if unit < 0x80 {
+                        if written == dst.len() {
+                            return (EncoderResult::OutputFull, read, written);
+                        }
+                        dst[written] = unit as u8;
+                        read += 1;
+                        written += 1;
+                        continue 'outer;
+                    }
+                    continue 'inner;
+                }
+            }
+        }
+
+    }
+}
+
 
 // Any copyright to the test code below this comment is dedicated to the
 // Public Domain. http://creativecommons.org/publicdomain/zero/1.0/
