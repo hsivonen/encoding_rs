@@ -590,13 +590,7 @@ impl Utf8Encoder {
                         }
                         // The next code unit is not a low surrogate. Don't advance
                         // position and treat the high surrogate as unpaired.
-                        dst[written] = 0xEFu8;
-                        written += 1;
-                        dst[written] = 0xBFu8;
-                        written += 1;
-                        dst[written] = 0xBDu8;
-                        written += 1;
-                        break;
+                        // Fall through
                     }
                     // Unpaired low surrogate
                     dst[written] = 0xEFu8;

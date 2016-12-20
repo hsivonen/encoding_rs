@@ -760,67 +760,65 @@ impl<'a> Utf16Source<'a> {
         self.old_pos = self.pos;
         let unit = self.slice[self.pos] as u32;
         self.pos += 1;
-        let high_bits = unit & 0xFC00u32;
-        if high_bits == 0xD800u32 {
+        let unit_minus_surrogate_start = unit.wrapping_sub(0xD800);
+        if unit_minus_surrogate_start > (0xDFFF - 0xD800) {
+            return unsafe { ::std::mem::transmute(unit) };
+        }
+        if unit_minus_surrogate_start <= (0xDFFF - 0xDBFF) {
             // high surrogate
             if self.pos < self.slice.len() {
                 let second = self.slice[self.pos] as u32;
-                if second & 0xFC00u32 != 0xDC00u32 {
-                    // The next code unit is not a low surrogate. Don't advance
-                    // position and treat the high surrogate as unpaired.
-                    return '\u{FFFD}';
+                let second_minus_low_surrogate_start = second.wrapping_sub(0xDC00);
+                if second_minus_low_surrogate_start <= (0xDFFF - 0xDC00) {
+                    // The next code unit is a low surrogate. Advance position.
+                    self.pos += 1;
+                    return unsafe {
+                        ::std::mem::transmute((unit << 10) + second -
+                                              (((0xD800u32 << 10) - 0x10000u32) + 0xDC00u32))
+                    };
                 }
-                // The next code unit is a low surrogate. Advance position.
-                self.pos += 1;
-                return unsafe {
-                    ::std::mem::transmute((unit << 10) + second -
-                                          (((0xD800u32 << 10) - 0x10000u32) + 0xDC00u32))
-                };
-            } else {
-                // End of buffer. This surrogate is unpaired.
-                return '\u{FFFD}';
+                // The next code unit is not a low surrogate. Don't advance
+                // position and treat the high surrogate as unpaired.
+                // fall through
             }
+            // Unpaired surrogate at the end of buffer, fall through
         }
-        if high_bits == 0xDC00u32 {
-            // Unpaired low surrogate
-            return '\u{FFFD}';
-        }
-        return unsafe { ::std::mem::transmute(unit) };
+        // Unpaired low surrogate
+        return '\u{FFFD}';
     }
     #[inline(always)]
     fn read_enum(&mut self) -> Unicode {
         self.old_pos = self.pos;
-        let unit = self.slice[self.pos] as u32;
+        let unit = self.slice[self.pos];
         self.pos += 1;
         if unit < 0x80 {
             return Unicode::Ascii(unit as u8);
         }
-        let high_bits = unit & 0xFC00u32;
-        if high_bits == 0xD800u32 {
+        let unit_minus_surrogate_start = unit.wrapping_sub(0xD800);
+        if unit_minus_surrogate_start > (0xDFFF - 0xD800) {
+            return Unicode::NonAscii(NonAscii::BmpExclAscii(unit));
+        }
+        if unit_minus_surrogate_start <= (0xDFFF - 0xDBFF) {
             // high surrogate
             if self.pos < self.slice.len() {
                 let second = self.slice[self.pos] as u32;
-                if second & 0xFC00u32 != 0xDC00u32 {
-                    // The next code unit is not a low surrogate. Don't advance
-                    // position and treat the high surrogate as unpaired.
-                    return Unicode::NonAscii(NonAscii::BmpExclAscii(0xFFFDu16));
+                let second_minus_low_surrogate_start = second.wrapping_sub(0xDC00);
+                if second_minus_low_surrogate_start <= (0xDFFF - 0xDC00) {
+                    // The next code unit is a low surrogate. Advance position.
+                    self.pos += 1;
+                    return Unicode::NonAscii(NonAscii::Astral(unsafe {
+                        ::std::mem::transmute(((unit as u32) << 10) + (second as u32) -
+                                              (((0xD800u32 << 10) - 0x10000u32) + 0xDC00u32))
+                    }));
                 }
-                // The next code unit is a low surrogate. Advance position.
-                self.pos += 1;
-                return Unicode::NonAscii(NonAscii::Astral(unsafe {
-                    ::std::mem::transmute((unit << 10) + second -
-                                          (((0xD800u32 << 10) - 0x10000u32) + 0xDC00u32))
-                }));
-            } else {
-                // End of buffer. This surrogate is unpaired.
-                return Unicode::NonAscii(NonAscii::BmpExclAscii(0xFFFDu16));
+                // The next code unit is not a low surrogate. Don't advance
+                // position and treat the high surrogate as unpaired.
+                // fall through
             }
+            // Unpaired surrogate at the end of buffer, fall through
         }
-        if high_bits == 0xDC00u32 {
-            // Unpaired low surrogate
-            return Unicode::NonAscii(NonAscii::BmpExclAscii(0xFFFDu16));
-        }
-        return Unicode::NonAscii(NonAscii::BmpExclAscii(unit as u16));
+        // Unpaired low surrogate
+        return Unicode::NonAscii(NonAscii::BmpExclAscii(0xFFFDu16));
     }
     #[inline(always)]
     fn unread(&mut self) -> usize {
@@ -857,36 +855,37 @@ impl<'a> Utf16Source<'a> {
                     self.pos += consumed;
                     dest.pos += consumed;
                     if dest.pos + 1 < dst_len {
-                        let non_ascii32 = non_ascii as u32;
                         self.pos += 1; // commit to reading `non_ascii`
-                        let high_bits = non_ascii32 & 0xFC00u32;
-                        if high_bits == 0xD800u32 {
+                        let unit = non_ascii;
+                        let unit_minus_surrogate_start = unit.wrapping_sub(0xD800);
+                        if unit_minus_surrogate_start > (0xDFFF - 0xD800) {
+                            NonAscii::BmpExclAscii(unit)
+                        } else if unit_minus_surrogate_start <= (0xDFFF - 0xDBFF) {
                             // high surrogate
                             if self.pos < self.slice.len() {
                                 let second = self.slice[self.pos] as u32;
-                                if second & 0xFC00u32 != 0xDC00u32 {
-                                    // The next code unit is not a low surrogate. Don't advance
-                                    // position and treat the high surrogate as unpaired.
-                                    NonAscii::BmpExclAscii(0xFFFDu16)
-                                } else {
+                                let second_minus_low_surrogate_start = second.wrapping_sub(0xDC00);
+                                if second_minus_low_surrogate_start <= (0xDFFF - 0xDC00) {
                                     // The next code unit is a low surrogate. Advance position.
                                     self.pos += 1;
                                     NonAscii::Astral(unsafe {
-                                        ::std::mem::transmute((non_ascii32 << 10) + second -
+                                        ::std::mem::transmute(((unit as u32) << 10) +
+                                                              (second as u32) -
                                                               (((0xD800u32 << 10) - 0x10000u32) +
                                                                0xDC00u32))
                                     })
+                                } else {
+                                    // The next code unit is not a low surrogate. Don't advance
+                                    // position and treat the high surrogate as unpaired.
+                                    NonAscii::BmpExclAscii(0xFFFDu16)
                                 }
                             } else {
-                                // End of buffer. This surrogate is unpaired.
+                                // Unpaired surrogate at the end of the buffer.
                                 NonAscii::BmpExclAscii(0xFFFDu16)
                             }
-                        } else if high_bits == 0xDC00u32 {
+                        } else {
                             // Unpaired low surrogate
                             NonAscii::BmpExclAscii(0xFFFDu16)
-                        } else {
-                            NonAscii::BmpExclAscii(non_ascii)
-
                         }
                     } else {
                         return CopyAsciiResult::Stop((EncoderResult::OutputFull,
@@ -924,36 +923,37 @@ impl<'a> Utf16Source<'a> {
                     self.pos += consumed;
                     dest.pos += consumed;
                     if dest.pos + 3 < dst_len {
-                        let non_ascii32 = non_ascii as u32;
                         self.pos += 1; // commit to reading `non_ascii`
-                        let high_bits = non_ascii32 & 0xFC00u32;
-                        if high_bits == 0xD800u32 {
+                        let unit = non_ascii;
+                        let unit_minus_surrogate_start = unit.wrapping_sub(0xD800);
+                        if unit_minus_surrogate_start > (0xDFFF - 0xD800) {
+                            NonAscii::BmpExclAscii(unit)
+                        } else if unit_minus_surrogate_start <= (0xDFFF - 0xDBFF) {
                             // high surrogate
-                            if self.pos < self.slice.len() {
+                            if self.pos == self.slice.len() {
+                                // Unpaired surrogate at the end of the buffer.
+                                NonAscii::BmpExclAscii(0xFFFDu16)
+                            } else {
                                 let second = self.slice[self.pos] as u32;
-                                if second & 0xFC00u32 != 0xDC00u32 {
-                                    // The next code unit is not a low surrogate. Don't advance
-                                    // position and treat the high surrogate as unpaired.
-                                    NonAscii::BmpExclAscii(0xFFFDu16)
-                                } else {
+                                let second_minus_low_surrogate_start = second.wrapping_sub(0xDC00);
+                                if second_minus_low_surrogate_start <= (0xDFFF - 0xDC00) {
                                     // The next code unit is a low surrogate. Advance position.
                                     self.pos += 1;
                                     NonAscii::Astral(unsafe {
-                                        ::std::mem::transmute((non_ascii32 << 10) + second -
+                                        ::std::mem::transmute(((unit as u32) << 10) +
+                                                              (second as u32) -
                                                               (((0xD800u32 << 10) - 0x10000u32) +
                                                                0xDC00u32))
                                     })
+                                } else {
+                                    // The next code unit is not a low surrogate. Don't advance
+                                    // position and treat the high surrogate as unpaired.
+                                    NonAscii::BmpExclAscii(0xFFFDu16)
                                 }
-                            } else {
-                                // End of buffer. This surrogate is unpaired.
-                                NonAscii::BmpExclAscii(0xFFFDu16)
                             }
-                        } else if high_bits == 0xDC00u32 {
+                        } else {
                             // Unpaired low surrogate
                             NonAscii::BmpExclAscii(0xFFFDu16)
-                        } else {
-                            NonAscii::BmpExclAscii(non_ascii)
-
                         }
                     } else {
                         return CopyAsciiResult::Stop((EncoderResult::OutputFull,
