@@ -87,9 +87,11 @@ encoding_rs is
 
 ### 0.3.1
 
+* Fix UTF-8 to UTF-16 decode for byte sequences beginning with 0xEE.
 * Make UTF-8 to UTF-8 decode SSE2-accelerated when feature `simd-accel` is used.
 * When decoding and encoding ASCII-only input from or to an ASCII-compatible
   encoding using the non-streaming API, return a borrow of the input.
+* Make encode from UTF-16 to UTF-8 faster.
 
 ### 0.3
 
