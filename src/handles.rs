@@ -1458,11 +1458,6 @@ impl<'a, 'b> ByteFourHandle<'a, 'b>
         self.dest
     }
     #[inline(always)]
-    pub fn write_three(self, first: u8, second: u8, third: u8) -> &'a mut ByteDestination<'b> {
-        self.dest.write_three(first, second, third);
-        self.dest
-    }
-    #[inline(always)]
     pub fn write_four(self,
                       first: u8,
                       second: u8,
