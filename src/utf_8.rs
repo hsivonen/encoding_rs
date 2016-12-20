@@ -549,8 +549,17 @@ impl Utf8Encoder {
                         written += 1;
                         break;
                     }
-                    let high_bits = unit & 0xFC00;
-                    if high_bits == 0xD800 {
+                    let unit_minus_surrogate_start = unit.wrapping_sub(0xD800);
+                    if unit_minus_surrogate_start > (0xDFFF - 0xD800) {
+                        dst[written] = (unit >> 12) as u8 | 0xE0u8;
+                        written += 1;
+                        dst[written] = ((unit & 0xFC0) >> 6) as u8 | 0x80u8;
+                        written += 1;
+                        dst[written] = (unit & 0x3F) as u8 | 0x80u8;
+                        written += 1;
+                        break;
+                    }
+                    if unit_minus_surrogate_start <= (0xDFFF - 0xDBFF) {
                         // high surrogate
                         if read == src.len() {
                             // Unpaired surrogate at the end of the buffer.
@@ -563,33 +572,24 @@ impl Utf8Encoder {
                             return (EncoderResult::InputEmpty, read, written);
                         }
                         let second = src[read];
-                        if second & 0xFC00 != 0xDC00 {
-                            // The next code unit is not a low surrogate. Don't advance
-                            // position and treat the high surrogate as unpaired.
-                            dst[written] = 0xEFu8;
+                        let second_minus_low_surrogate_start = second.wrapping_sub(0xDC00);
+                        if second_minus_low_surrogate_start <= (0xDFFF - 0xDC00) {
+                            // The next code unit is a low surrogate. Advance position.
+                            read += 1;
+                            let astral = ((unit as u32) << 10) + second as u32 -
+                                         (((0xD800u32 << 10) - 0x10000u32) + 0xDC00u32);
+                            dst[written] = (astral >> 18) as u8 | 0xF0u8;
                             written += 1;
-                            dst[written] = 0xBFu8;
+                            dst[written] = ((astral & 0x3F000u32) >> 12) as u8 | 0x80u8;
                             written += 1;
-                            dst[written] = 0xBDu8;
+                            dst[written] = ((astral & 0xFC0u32) >> 6) as u8 | 0x80u8;
+                            written += 1;
+                            dst[written] = (astral & 0x3Fu32) as u8 | 0x80u8;
                             written += 1;
                             break;
                         }
-                        // The next code unit is a low surrogate. Advance position.
-                        read += 1;
-                        let astral = ((unit as u32) << 10) + second as u32 -
-                                     (((0xD800u32 << 10) - 0x10000u32) + 0xDC00u32);
-                        dst[written] = (astral >> 18) as u8 | 0xF0u8;
-                        written += 1;
-                        dst[written] = ((astral & 0x3F000u32) >> 12) as u8 | 0x80u8;
-                        written += 1;
-                        dst[written] = ((astral & 0xFC0u32) >> 6) as u8 | 0x80u8;
-                        written += 1;
-                        dst[written] = (astral & 0x3Fu32) as u8 | 0x80u8;
-                        written += 1;
-                        break;
-                    }
-                    if high_bits == 0xDC00 {
-                        // Unpaired low surrogate
+                        // The next code unit is not a low surrogate. Don't advance
+                        // position and treat the high surrogate as unpaired.
                         dst[written] = 0xEFu8;
                         written += 1;
                         dst[written] = 0xBFu8;
@@ -598,11 +598,12 @@ impl Utf8Encoder {
                         written += 1;
                         break;
                     }
-                    dst[written] = (unit >> 12) as u8 | 0xE0u8;
+                    // Unpaired low surrogate
+                    dst[written] = 0xEFu8;
                     written += 1;
-                    dst[written] = ((unit & 0xFC0) >> 6) as u8 | 0x80u8;
+                    dst[written] = 0xBFu8;
                     written += 1;
-                    dst[written] = (unit & 0x3F) as u8 | 0x80u8;
+                    dst[written] = 0xBDu8;
                     written += 1;
                     break;
                 }
