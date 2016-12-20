@@ -467,7 +467,7 @@
 //! <tr><td><code><var>enc</var>.name()</code></td><td>Not available because not in the Encoding Standard</td></tr>
 //! <tr><td><code>encoding::decode(<var>bytes</var>, encoding::DecoderTrap::Replace, <var>enc</var>)</code></td><td><code><var>enc</var>.decode(<var>bytes</var>)</code></td></tr>
 //! <tr><td><code><var>enc</var>.decode(<var>bytes</var>, encoding::DecoderTrap::Replace)</code></td><td><code><var>enc</var>.decode_without_bom_handling(<var>bytes</var>)</code></td></tr>
-//! <tr><td><code><var>enc</var>.encode(<var>string</var>, encoding::EncoderTrap::Replace)</code></td><td><code><var>enc</var>.encode(<var>string</var>)</code></td></tr>
+//! <tr><td><code><var>enc</var>.encode(<var>string</var>, encoding::EncoderTrap::NcrEscape)</code></td><td><code><var>enc</var>.encode(<var>string</var>)</code></td></tr>
 //! <tr><td><code><var>enc</var>.raw_decoder()</code></td><td><code><var>enc</var>.new_decoder_without_bom_handling()</code></td></tr>
 //! <tr><td><code><var>enc</var>.raw_encoder()</code></td><td><code><var>enc</var>.new_encoder()</code></td></tr>
 //! <tr><td><code>encoding::RawDecoder</code></td><td><code>encoding_rs::Decoder</code></td></tr>
