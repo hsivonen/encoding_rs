@@ -613,6 +613,8 @@ impl Utf8Encoder {
                     dst[written] = unit as u8;
                     read += 1;
                     written += 1;
+                    // Mysteriously, adding a punctuation check here makes
+                    // the expected benificiary cases *slower*!
                     continue 'outer;
                 }
                 continue 'inner;
