@@ -88,7 +88,7 @@ encoding_rs is
 ### 0.3.2
 
 * Fix moving pointers to alignment in ALU-based ASCII acceleration.
-* Fix errors in documentation.
+* Fix errors in documentation and improve documentation.
 
 ### 0.3.1
 
