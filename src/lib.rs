@@ -186,11 +186,14 @@
 //! The streaming API is the foundation of the implementation and should be
 //! used when processing data that arrives piecemeal from an i/o stream. The
 //! streaming API has an FFI wrapper that exposes it to C callers. The
-//! non-streaming part of the API is for Rust callers only and is implemented
-//! on top of the streaming API and, as such, could be considered as merely a
-//! set of convenience methods. There is no analogous C API exposed via FFI,
-//! mainly because C doesn't have standard types for growable byte buffers and
-//! Unicode strings that know their length.
+//! non-streaming part of the API is for Rust callers only and is smart about
+//! borrowing instead of copying when possible. When streamability is not
+//! needed, the non-streaming API should be preferrer in order to avoid copying
+//! data when a borrow suffices.
+//!
+//! There is no analogous C API exposed via FFI,  mainly because C doesn't have
+//! standard types for growable byte buffers and Unicode strings that know
+//! their length.
 //!
 //! The C API (header file generated at `target/include/encoding_rs.h` when
 //! building encoding_rs) can, in turn, be wrapped for use from C++. Such a
