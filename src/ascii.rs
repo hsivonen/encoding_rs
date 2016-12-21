@@ -37,57 +37,17 @@ macro_rules! ascii_alu {
     #[inline(always)]
     pub unsafe fn $name(src: *const $src_unit, dst: *mut $dst_unit, len: usize) -> Option<($src_unit, usize)> {
         let mut offset = 0usize;
-        // This loop is only broken out of as a `goto` forward
-        loop {
-           let mut until_alignment = {
-               // Check if the other unit aligns if we move the narrower unit
-               // to alignment.
-               if ::std::mem::size_of::<$src_unit>() == ::std::mem::size_of::<$dst_unit>() {
-                   // ascii_to_ascii
-                   let src_alignment = (src as usize) & ALIGNMENT_MASK;
-                   let dst_alignment = (dst as usize) & ALIGNMENT_MASK;
-                   if src_alignment != dst_alignment {
-                       break;
-                   }
-                   (ALIGNMENT - src_alignment) & ALIGNMENT_MASK
-               } else if ::std::mem::size_of::<$src_unit>() < ::std::mem::size_of::<$dst_unit>() {
-                   // ascii_to_basic_latin
-                   let src_until_alignment = (ALIGNMENT - ((src as usize) & ALIGNMENT_MASK)) & ALIGNMENT_MASK;
-                   if (dst.offset(src_until_alignment as isize) as usize) & ALIGNMENT_MASK != 0 {
-                       break;
-                   }
-                   src_until_alignment
-               } else {
-                   // basic_latin_to_ascii
-                   let dst_until_alignment = (ALIGNMENT - ((dst as usize) & ALIGNMENT_MASK)) & ALIGNMENT_MASK;
-                   if (src.offset(dst_until_alignment as isize) as usize) & ALIGNMENT_MASK != 0 {
-                       break;
-                   }
-                   dst_until_alignment
-               }
-           };
-           if until_alignment + STRIDE_SIZE <= len {
-               while until_alignment != 0 {
-                   let code_unit = *(src.offset(offset as isize));
-                   if code_unit > 127 {
-                       return Some((code_unit, offset));
-                   }
-                   *(dst.offset(offset as isize)) = code_unit as $dst_unit;
-                   offset += 1;
-                   until_alignment -= 1;
-               }
-               loop {
-                   if !$stride_fn(src.offset(offset as isize) as *const usize,
-                                  dst.offset(offset as isize) as *mut usize) {
-                       break;
-                   }
-                   offset += STRIDE_SIZE;
-                   if offset + STRIDE_SIZE > len {
-                       break;
-                   }
-               }
-           }
-           break;
+        if (((src as usize) & ALIGNMENT_MASK) | ((dst as usize) & ALIGNMENT_MASK)) == 0 && STRIDE_SIZE <= len {
+            loop {
+                if !$stride_fn(src.offset(offset as isize) as *const usize,
+                               dst.offset(offset as isize) as *mut usize) {
+                    break;
+                }
+                offset += STRIDE_SIZE;
+                if offset + STRIDE_SIZE > len {
+                    break;
+                }
+            }
         }
         while offset < len {
             let code_unit = *(src.offset(offset as isize));
@@ -273,8 +233,6 @@ cfg_if! {
 
         const STRIDE_SIZE: usize = 16;
 
-        const ALIGNMENT: usize = 8;
-
         const ALIGNMENT_MASK: usize = 7;
 
         #[inline(always)]
@@ -345,8 +303,6 @@ cfg_if! {
 
         const STRIDE_SIZE: usize = 8;
 
-        const ALIGNMENT: usize = 4;
-
         const ALIGNMENT_MASK: usize = 3;
 
         #[inline(always)]
@@ -400,8 +356,6 @@ cfg_if! {
 // Aligned ALU word, big-endian, 64-bit
 
         const STRIDE_SIZE: usize = 16;
-
-        const ALIGNMENT: usize = 8;
 
         const ALIGNMENT_MASK: usize = 7;
 
@@ -472,8 +426,6 @@ cfg_if! {
 // Aligned ALU word, big-endian, 32-bit
 
         const STRIDE_SIZE: usize = 8;
-
-        const ALIGNMENT: usize = 4;
 
         const ALIGNMENT_MASK: usize = 3;
 
@@ -602,16 +554,7 @@ cfg_if! {
            let src = slice.as_ptr();
            let len = slice.len();
            let mut offset = 0usize;
-           let mut until_alignment = (ALIGNMENT - ((src as usize) & ALIGNMENT_MASK)) & ALIGNMENT_MASK;
-           if until_alignment + STRIDE_SIZE <= len {
-               while until_alignment != 0 {
-                   let code_unit = slice[offset];
-                   if code_unit > 127 {
-                       return Some((code_unit, offset));
-                   }
-                   offset += 1;
-                   until_alignment -= 1;
-               }
+           if ((src as usize) & ALIGNMENT_MASK) == 0 && STRIDE_SIZE <= len {
                loop {
                    let ptr = unsafe { src.offset(offset as isize) as *const usize };
                    let first = unsafe { *ptr };
