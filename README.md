@@ -85,6 +85,11 @@ encoding_rs is
 
 ## Release Notes
 
+### 0.3.2
+
+* Fix moving pointers to alignment in ALU-based ASCII acceleration.
+* Fix errors in documentation.
+
 ### 0.3.1
 
 * Fix UTF-8 to UTF-16 decode for byte sequences beginning with 0xEE.

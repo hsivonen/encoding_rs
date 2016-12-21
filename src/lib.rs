@@ -2324,7 +2324,7 @@ impl Encoding {
         enc.variant.new_encoder(enc)
     }
 
-    /// Decode complete input to `String` _with BOM sniffing_ and with
+    /// Decode complete input to `Cow<'a, str>` _with BOM sniffing_ and with
     /// malformed sequences replaced with the REPLACEMENT CHARACTER when the
     /// entire input is available as a single buffer (i.e. the end of the
     /// buffer marks the end of the stream).
@@ -2343,9 +2343,9 @@ impl Encoding {
     /// when decoding segmented input.
     ///
     /// This method performs a single heap allocation for the backing buffer
-    /// of the `String`, except when the input is valid UTF-8, in which case
-    /// no heap allocation is performed and the output is borrowed from the
-    /// input instead.
+    /// of the `String` when unable to borrow. A borrow is performed if
+    /// decoding UTF-8 and the input is valid UTF-8 or if decoding an
+    /// ASCII-compatible encoding and the input is ASCII-only.
     ///
     /// Available to Rust only.
     pub fn decode<'a>(&'static self, bytes: &'a [u8]) -> (Cow<'a, str>, &'static Encoding, bool) {
@@ -2357,7 +2357,7 @@ impl Encoding {
         (cow, encoding, had_errors)
     }
 
-    /// Decode complete input to `String` _with BOM removal_ and with
+    /// Decode complete input to `Cow<'a, str>` _with BOM removal_ and with
     /// malformed sequences replaced with the REPLACEMENT CHARACTER when the
     /// entire input is available as a single buffer (i.e. the end of the
     /// buffer marks the end of the stream).
@@ -2375,9 +2375,9 @@ impl Encoding {
     /// `new_decoder_with_bom_removal()` when decoding segmented input.
     ///
     /// This method performs a single heap allocation for the backing buffer
-    /// of the `String`, except when the input is valid UTF-8, in which case
-    /// no heap allocation is performed and the output is borrowed from the
-    /// input instead.
+    /// of the `String` when unable to borrow. A borrow is performed if
+    /// decoding UTF-8 and the input is valid UTF-8 or if decoding an
+    /// ASCII-compatible encoding and the input is ASCII-only.
     ///
     /// Available to Rust only.
     pub fn decode_with_bom_removal<'a>(&'static self, bytes: &'a [u8]) -> (Cow<'a, str>, bool) {
@@ -2393,7 +2393,7 @@ impl Encoding {
         self.decode_without_bom_handling(without_bom)
     }
 
-    /// Decode complete input to `String` _without BOM handling_ and
+    /// Decode complete input to `Cow<'a, str>` _without BOM handling_ and
     /// with malformed sequences replaced with the REPLACEMENT CHARACTER when
     /// the entire input is available as a single buffer (i.e. the end of the
     /// buffer marks the end of the stream).
@@ -2411,9 +2411,9 @@ impl Encoding {
     /// `new_decoder_without_bom_handling()` when decoding segmented input.
     ///
     /// This method performs a single heap allocation for the backing buffer
-    /// of the `String`, except when the input is valid UTF-8, in which case
-    /// no heap allocation is performed and the output is borrowed from the
-    /// input instead.
+    /// of the `String` when unable to borrow. A borrow is performed if
+    /// decoding UTF-8 and the input is valid UTF-8 or if decoding an
+    /// ASCII-compatible encoding and the input is ASCII-only.
     ///
     /// Available to Rust only.
     pub fn decode_without_bom_handling<'a>(&'static self, bytes: &'a [u8]) -> (Cow<'a, str>, bool) {
@@ -2452,7 +2452,7 @@ impl Encoding {
         }
     }
 
-    /// Decode complete input to `String` _without BOM handling_ and
+    /// Decode complete input to `Cow<'a, str>` _without BOM handling_ and
     /// _with malformed sequences treated as fatal_ when the entire input is
     /// available as a single buffer (i.e. the end of the buffer marks the end
     /// of the stream).
@@ -2470,9 +2470,9 @@ impl Encoding {
     /// `new_decoder_without_bom_handling()` when decoding segmented input.
     ///
     /// This method performs a single heap allocation for the backing buffer
-    /// of the `String`, except when the input is valid UTF-8, in which case
-    /// no heap allocation is performed and the output is borrowed from the
-    /// input instead.
+    /// of the `String` when unable to borrow. A borrow is performed if
+    /// decoding UTF-8 and the input is valid UTF-8 or if decoding an
+    /// ASCII-compatible encoding and the input is ASCII-only.
     ///
     /// Available to Rust only.
     pub fn decode_without_bom_handling_and_without_replacement<'a>(&'static self,
@@ -2518,7 +2518,7 @@ impl Encoding {
         }
     }
 
-    /// Encode complete input to `Vec<u8>` with unmappable characters
+    /// Encode complete input to `Cow<'a, [u8]>` with unmappable characters
     /// replaced with decimal numeric character references when the entire input
     /// is available as a single buffer (i.e. the end of the buffer marks the
     /// end of the stream).
@@ -2526,8 +2526,9 @@ impl Encoding {
     /// This method implements the (non-streaming version of) the
     /// [_encode_](https://encoding.spec.whatwg.org/#encode) spec concept. For
     /// the [_UTF-8 encode_](https://encoding.spec.whatwg.org/#utf-8-encode)
-    /// spec concept, use <code><var>string</var>.as_bytes()</code> instead of
-    /// invoking this method on `UTF_8`.
+    /// spec concept, it is slightly more efficient to use
+    /// <code><var>string</var>.as_bytes()</code> instead of invoking this
+    /// method on `UTF_8`.
     ///
     /// The second item in the returned tuple is the encoding that was actually
     /// used (which may differ from this encoding thanks to some encodings
@@ -2541,13 +2542,14 @@ impl Encoding {
     /// a segment of the input instead of the whole input. Use `new_encoder()`
     /// when encoding segmented output.
     ///
-    /// When encoding to UTF-8, this method returns a borrow of the input
-    /// without a heap allocation. When encoding to something other than UTF-8,
-    /// this method performs a single heap allocation for the backing buffer
-    /// of the `Vec<u8>` if there are no unmappable characters and potentially
-    /// multiple heap allocations if there are. These allocations are tuned
-    /// for jemalloc and may not be optimal when using a different allocator
-    /// that doesn't use power-of-two buckets.
+    /// When encoding to UTF-8 or when encoding an ASCII-only input to a
+    /// ASCII-compatible encoding, this method returns a borrow of the input
+    /// without a heap allocation. Otherwise, this method performs a single
+    /// heap allocation for the backing buffer of the `Vec<u8>` if there are no
+    /// unmappable characters and potentially multiple heap allocations if
+    /// there are. These allocations are tuned for jemalloc and may not be
+    /// optimal when using a different allocator that doesn't use power-of-two
+    /// buckets.
     ///
     /// Available to Rust only.
     pub fn encode<'a>(&'static self, string: &'a str) -> (Cow<'a, [u8]>, &'static Encoding, bool) {
