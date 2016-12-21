@@ -42,7 +42,6 @@ macro_rules! ascii_alu {
 // processing a few code units?
         if (STRIDE_SIZE <= len && ((src as usize) & ALIGNMENT_MASK) == 0) &&
            (((dst as usize) & ALIGNMENT_MASK) == 0) {
-// XXX stdlib's UTF-8 validation reads two words at a time
             loop {
                 if !$stride_fn(src.offset(offset as isize) as *const usize,
                                dst.offset(offset as isize) as *mut usize) {
@@ -236,15 +235,16 @@ cfg_if! {
     } else if #[cfg(all(target_endian = "little", target_pointer_width = "64"))] {
 // Aligned ALU word, little-endian, 64-bit
 
-        const STRIDE_SIZE: usize = 8;
+        const STRIDE_SIZE: usize = 16;
 
         const ALIGNMENT_MASK: usize = 7;
 
         #[inline(always)]
         unsafe fn ascii_to_basic_latin_stride_little_64(src: *const usize, dst: *mut usize) -> bool {
             let word = *src;
-// Check if the word contains non-ASCII
-            if (word & 0x80808080_80808080usize) != 0 {
+            let second_word = *(src.offset(1));
+// Check if the words contains non-ASCII
+            if (word & ASCII_MASK) | (second_word & ASCII_MASK) != 0 {
                 return false;
             }
             let first = ((0x00000000_FF000000usize & word) << 24) |
@@ -255,19 +255,28 @@ cfg_if! {
                          ((0x00FF0000_00000000usize & word) >> 16) |
                          ((0x0000FF00_00000000usize & word) >> 24) |
                          ((0x000000FF_00000000usize & word) >> 32);
+            let third = ((0x00000000_FF000000usize & second_word) << 24) |
+                        ((0x00000000_00FF0000usize & second_word) << 16) |
+                        ((0x00000000_0000FF00usize & second_word) << 8) |
+                        (0x00000000_000000FFusize & second_word);
+            let fourth = ((0xFF000000_00000000usize & second_word) >> 8) |
+                         ((0x00FF0000_00000000usize & second_word) >> 16) |
+                         ((0x0000FF00_00000000usize & second_word) >> 24) |
+                         ((0x000000FF_00000000usize & second_word) >> 32);
             *dst = first;
             *(dst.offset(1)) = second;
+            *(dst.offset(2)) = third;
+            *(dst.offset(3)) = fourth;
             return true;
         }
 
         #[inline(always)]
         unsafe fn basic_latin_to_ascii_stride_little_64(src: *const usize, dst: *mut usize) -> bool {
             let first = *src;
-            if (first & 0xFF80FF80_FF80FF80usize) != 0 {
-                return false;
-            }
             let second = *(src.offset(1));
-            if (second & 0xFF80FF80_FF80FF80usize) != 0 {
+            let third = *(src.offset(2));
+            let fourth = *(src.offset(3));
+            if (first & BASIC_LATIN_MASK) | (second & BASIC_LATIN_MASK) | (third & BASIC_LATIN_MASK) | (fourth & BASIC_LATIN_MASK) != 0 {
                 return false;
             }
             let word = ((0x00FF0000_00000000usize & second) << 8) |
@@ -278,7 +287,16 @@ cfg_if! {
                        ((0x000000FF_00000000usize & first) >> 16) |
                        ((0x00000000_00FF0000usize & first) >> 8) |
                        (0x00000000_000000FFusize & first);
+            let second_word = ((0x00FF0000_00000000usize & fourth) << 8) |
+                              ((0x000000FF_00000000usize & fourth) << 16) |
+                              ((0x00000000_00FF0000usize & fourth) << 24) |
+                              ((0x00000000_000000FFusize & fourth) << 32) |
+                              ((0x00FF0000_00000000usize & third) >> 24) |
+                              ((0x000000FF_00000000usize & third) >> 16) |
+                              ((0x00000000_00FF0000usize & third) >> 8) |
+                              (0x00000000_000000FFusize & third);
             *dst = word;
+            *(dst.offset(1)) = second_word;
             return true;
         }
 
@@ -287,41 +305,52 @@ cfg_if! {
     } else if #[cfg(all(target_endian = "little", target_pointer_width = "32"))] {
 // Aligned ALU word, little-endian, 32-bit
 
-        const STRIDE_SIZE: usize = 4;
+        const STRIDE_SIZE: usize = 8;
 
         const ALIGNMENT_MASK: usize = 3;
 
         #[inline(always)]
         unsafe fn ascii_to_basic_latin_stride_little_32(src: *const usize, dst: *mut usize) -> bool {
             let word = *src;
-// Check if the word contains non-ASCII
-            if (word & 0x80808080usize) != 0 {
+            let second_word = *(src.offset(1));
+// Check if the words contains non-ASCII
+            if (word & ASCII_MASK) | (second_word & ASCII_MASK) != 0 {
                 return false;
             }
             let first = ((0x0000FF00usize & word) << 8) |
                         (0x000000FFusize & word);
             let second = ((0xFF000000usize & word) >> 8) |
                          ((0x00FF0000usize & word) >> 16);
+            let third = ((0x0000FF00usize & second_word) << 8) |
+                        (0x000000FFusize & second_word);
+            let fourth = ((0xFF000000usize & second_word) >> 8) |
+                         ((0x00FF0000usize & second_word) >> 16);
             *dst = first;
             *(dst.offset(1)) = second;
+            *(dst.offset(2)) = third;
+            *(dst.offset(3)) = fourth;
             return true;
         }
 
         #[inline(always)]
         unsafe fn basic_latin_to_ascii_stride_little_32(src: *const usize, dst: *mut usize) -> bool {
             let first = *src;
-            if (first & 0xFF80FF80usize) != 0 {
-                return false;
-            }
             let second = *(src.offset(1));
-            if (second & 0xFF80FF80usize) != 0 {
+            let third = *(src.offset(2));
+            let fourth = *(src.offset(3));
+            if (first & BASIC_LATIN_MASK) | (second & BASIC_LATIN_MASK) | (third & BASIC_LATIN_MASK) | (fourth & BASIC_LATIN_MASK) != 0 {
                 return false;
             }
             let word = ((0x00FF0000usize & second) << 8) |
                        ((0x000000FFusize & second) << 16) |
                        ((0x00FF0000usize & first) >> 8) |
                        (0x000000FFusize & first);
+            let second_word = ((0x00FF0000usize & fourth) << 8) |
+                              ((0x000000FFusize & fourth) << 16) |
+                              ((0x00FF0000usize & third) >> 8) |
+                              (0x000000FFusize & third);
             *dst = word;
+            *(dst.offset(1)) = second_word;
             return true;
         }
 
@@ -330,15 +359,16 @@ cfg_if! {
     } else if #[cfg(all(target_endian = "big", target_pointer_width = "64"))] {
 // Aligned ALU word, big-endian, 64-bit
 
-        const STRIDE_SIZE: usize = 8;
+        const STRIDE_SIZE: usize = 16;
 
         const ALIGNMENT_MASK: usize = 7;
 
         #[inline(always)]
         unsafe fn ascii_to_basic_latin_stride_big_64(src: *const usize, dst: *mut usize) -> bool {
             let word = *src;
-// Check if the word contains non-ASCII
-            if (word & 0x80808080_80808080usize) != 0 {
+            let second_word = *(src.offset(1));
+// Check if the words contains non-ASCII
+            if (word & ASCII_MASK) | (second_word & ASCII_MASK) != 0 {
                 return false;
             }
             let first = ((0x00000000_FF000000usize & word) << 24) |
@@ -349,19 +379,28 @@ cfg_if! {
                          ((0x00FF0000_00000000usize & word) >> 16) |
                          ((0x0000FF00_00000000usize & word) >> 24) |
                          ((0x000000FF_00000000usize & word) >> 32);
+            let third = ((0x00000000_FF000000usize & second_word) << 24) |
+                        ((0x00000000_00FF0000usize & second_word) << 16) |
+                        ((0x00000000_0000FF00usize & second_word) << 8) |
+                        (0x00000000_000000FFusize & second_word);
+            let fourth = ((0xFF000000_00000000usize & second_word) >> 8) |
+                         ((0x00FF0000_00000000usize & second_word) >> 16) |
+                         ((0x0000FF00_00000000usize & second_word) >> 24) |
+                         ((0x000000FF_00000000usize & second_word) >> 32);
             *dst = first;
             *(dst.offset(1)) = second;
+            *(dst.offset(2)) = third;
+            *(dst.offset(3)) = fourth;
             return true;
         }
 
         #[inline(always)]
         unsafe fn basic_latin_to_ascii_stride_big_64(src: *const usize, dst: *mut usize) -> bool {
             let first = *src;
-            if (first & 0xFF80FF80_FF80FF80usize) != 0 {
-                return false;
-            }
             let second = *(src.offset(1));
-            if (second & 0xFF80FF80_FF80FF80usize) != 0 {
+            let third = *(src.offset(2));
+            let fourth = *(src.offset(3));
+            if (first & BASIC_LATIN_MASK) | (second & BASIC_LATIN_MASK) | (third & BASIC_LATIN_MASK) | (fourth & BASIC_LATIN_MASK) != 0 {
                 return false;
             }
             let word = ((0x00FF0000_00000000usize & second) << 8) |
@@ -372,7 +411,16 @@ cfg_if! {
                        ((0x000000FF_00000000usize & first) >> 16) |
                        ((0x00000000_00FF0000usize & first) >> 8) |
                        (0x00000000_000000FFusize & first);
+            let second_word = ((0x00FF0000_00000000usize & fourth) << 8) |
+                              ((0x000000FF_00000000usize & fourth) << 16) |
+                              ((0x00000000_00FF0000usize & fourth) << 24) |
+                              ((0x00000000_000000FFusize & fourth) << 32) |
+                              ((0x00FF0000_00000000usize & third) >> 24) |
+                              ((0x000000FF_00000000usize & third) >> 16) |
+                              ((0x00000000_00FF0000usize & third) >> 8) |
+                              (0x00000000_000000FFusize &  third);
             *dst = word;
+            *(dst.offset(1)) = second_word;
             return true;
         }
 
@@ -381,41 +429,52 @@ cfg_if! {
     } else if #[cfg(all(target_endian = "big", target_pointer_width = "32"))] {
 // Aligned ALU word, big-endian, 32-bit
 
-        const STRIDE_SIZE: usize = 4;
+        const STRIDE_SIZE: usize = 8;
 
         const ALIGNMENT_MASK: usize = 3;
 
         #[inline(always)]
         unsafe fn ascii_to_basic_latin_stride_big_32(src: *const usize, dst: *mut usize) -> bool {
             let word = *src;
-// Check if the word contains non-ASCII
-            if (word & 0x80808080usize) != 0 {
+            let second_word = *(src.offset(1));
+// Check if the words contains non-ASCII
+            if (word & ASCII_MASK) | (second_word & ASCII_MASK) != 0 {
                 return false;
             }
             let first = ((0x0000FF00usize & word) << 8) |
                         (0x000000FFusize & word);
             let second = ((0xFF000000usize & word) >> 8) |
                          ((0x00FF0000usize & word) >> 16);
+            let third = ((0x0000FF00usize & second_word) << 8) |
+                        (0x000000FFusize & second_word);
+            let fourth = ((0xFF000000usize & second_word) >> 8) |
+                         ((0x00FF0000usize & second_word) >> 16);
             *dst = first;
             *(dst.offset(1)) = second;
+            *(dst.offset(2)) = third;
+            *(dst.offset(3)) = fourth;
             return true;
         }
 
         #[inline(always)]
         unsafe fn basic_latin_to_ascii_stride_big_32(src: *const usize, dst: *mut usize) -> bool {
             let first = *src;
-            if (first & 0xFF80FF80usize) != 0 {
-                return false;
-            }
             let second = *(src.offset(1));
-            if (second & 0xFF80FF80usize) != 0 {
+            let third = *(src.offset(2));
+            let fourth = *(src.offset(3));
+            if (first & BASIC_LATIN_MASK) | (second & BASIC_LATIN_MASK) | (third & BASIC_LATIN_MASK) | (fourth & BASIC_LATIN_MASK) != 0 {
                 return false;
             }
             let word = ((0x00FF0000usize & second) << 8) |
                        ((0x000000FFusize & second) << 16) |
                        ((0x00FF0000usize & first) >> 8) |
                        (0x000000FFusize & first);
+            let second_word = ((0x00FF0000usize & fourth) << 8) |
+                              ((0x000000FFusize & fourth) << 16) |
+                              ((0x00FF0000usize & third) >> 8) |
+                              (0x000000FFusize & third);
             *dst = word;
+            *(dst.offset(1)) = second_word;
             return true;
         }
 
@@ -477,15 +536,18 @@ cfg_if! {
     } else {
         // `as` truncates, so works on 32-bit, too.
         const ASCII_MASK: usize = 0x80808080_80808080u64 as usize;
+        const BASIC_LATIN_MASK: usize = 0xFF80FF80_FF80FF80u64 as usize;
 
         #[inline(always)]
         unsafe fn ascii_to_ascii_stride(src: *const usize, dst: *mut usize) -> bool {
             let word = *src;
-// Check if the word contains non-ASCII
-            if (word & ASCII_MASK) != 0 {
+            let second_word = *(src.offset(1));
+// Check if the words contains non-ASCII
+            if (word & ASCII_MASK) | (second_word & ASCII_MASK) != 0 {
                 return false;
             }
             *dst = word;
+            *(dst.offset(1)) = second_word;
             return true;
         }
 
@@ -497,7 +559,7 @@ cfg_if! {
            let len = slice.len();
            let mut offset = 0usize;
            let mut src_alignment = (src as usize) & ALIGNMENT_MASK;
-           if src_alignment + STRIDE_SIZE + STRIDE_SIZE <= len {
+           if src_alignment + STRIDE_SIZE <= len {
                while src_alignment != 0 {
                    let code_unit = slice[offset];
                    if code_unit > 127 {
@@ -513,8 +575,8 @@ cfg_if! {
                    if ((first & ASCII_MASK) | (second & ASCII_MASK)) != 0 {
                        break;
                    }
-                   offset += STRIDE_SIZE + STRIDE_SIZE;
-                   if offset + STRIDE_SIZE + STRIDE_SIZE > len {
+                   offset += STRIDE_SIZE;
+                   if offset + STRIDE_SIZE > len {
                        break;
                    }
                }
