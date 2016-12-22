@@ -67,6 +67,14 @@ macro_rules! ascii_alu {
                }
            };
            if until_alignment + STRIDE_SIZE <= len {
+               // Moving pointers to alignment seems to be a pessimization on
+               // x86_64 for operations that have UTF-16 as the internal
+               // Unicode representation. However, since it seems to be a win
+               // on ARM (tested ARMv7 code running on ARMv8 [rpi3]), except
+               // mixed results when encoding from UTF-16 and since x86 and
+               // x86_64 should be using SSE2 in due course, keeping the move
+               // to alignment here. It would be good to test on more ARM CPUs
+               // and on real MIPS and POWER hardware.
                while until_alignment != 0 {
                    let code_unit = *(src.offset(offset as isize));
                    if code_unit > 127 {
