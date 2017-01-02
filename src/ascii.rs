@@ -555,8 +555,11 @@ cfg_if! {
                 if ((src as usize) & ALIGNMENT_MASK) == 0 {
                     loop {
                         let simd = unsafe { load16_aligned(src.offset(offset as isize)) };
-                        if !is_ascii(simd) {
-                            break;
+                        match check_ascii(simd) {
+                            Some((non_ascii, consumed)) => {
+                                return Some((non_ascii, offset + consumed));
+                            }
+                            None => {}
                         }
                         offset += STRIDE_SIZE;
                         if offset + STRIDE_SIZE > len {
@@ -566,8 +569,11 @@ cfg_if! {
                 } else {
                     loop {
                         let simd = unsafe { load16_unaligned(src.offset(offset as isize)) };
-                        if !is_ascii(simd) {
-                            break;
+                        match check_ascii(simd) {
+                            Some((non_ascii, consumed)) => {
+                                return Some((non_ascii, offset + consumed));
+                            }
+                            None => {}
                         }
                         offset += STRIDE_SIZE;
                         if offset + STRIDE_SIZE > len {

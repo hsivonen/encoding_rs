@@ -75,6 +75,21 @@ pub fn is_ascii(s: u8x16) -> bool {
     }
 }
 
+
+/// _mm_movemask_epi8 in SSE2. vec_all_lt in AltiVec.
+#[inline(always)]
+pub fn check_ascii(s: u8x16) -> Option<(u8, usize)> {
+    let mask = unsafe {
+        let signed: i8x16 = ::std::mem::transmute_copy(&s);
+        x86_mm_movemask_epi8(signed)
+    };
+    if mask == 0 {
+        return None;
+    }
+    let num_ascii = mask.trailing_zeros();
+    return Some((s.extract(num_ascii as u32), num_ascii as usize));
+}
+
 /// vzipq_u8 in NEON. _mm_unpacklo_epi8 and
 /// _mm_unpackhi_epi8 in SSE2. vec_mergeh and vec_mergel or vec_unpackh and
 /// vec_unpackl in AltiVec.
@@ -198,4 +213,31 @@ mod tests {
         let simd = unsafe { load16_unaligned(input.as_ptr()) };
         assert!(!is_ascii(simd));
     }
+    
+    #[test]
+    fn test_check_ascii() {
+        let input: [u8; 16] = [0x61, 0x62, 0x63, 0x64, 0x81, 0x66, 0x67, 0x68, 0x69, 0x70, 0x71,
+                               0x72, 0x73, 0x74, 0x75, 0x76];
+        let simd = unsafe { load16_unaligned(input.as_ptr()) };
+        match check_ascii(simd) {
+            None => unreachable!(),
+            Some((non_ascii, consumed)) => {
+                assert_eq!(consumed, 4);
+                assert_eq!(non_ascii, 0x81);
+            }
+        }
+    }
+
+    #[test]
+    fn test_alu() {
+        let input: [u8; 16] = [0x61, 0x62, 0x63, 0x64, 0x81, 0x66, 0x67, 0x68, 0x69, 0x70, 0x71,
+                               0x72, 0x73, 0x74, 0x75, 0x76];
+        let mut alu = 0u64;
+        unsafe {
+            ::std::ptr::copy_nonoverlapping(input.as_ptr(), &mut alu as *mut u64 as *mut u8, 8);
+        }
+        let masked = alu & 0x8080808080808080;
+        assert_eq!(masked.trailing_zeros(), 39);
+    }
+
 }
