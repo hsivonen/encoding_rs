@@ -76,9 +76,9 @@ pub fn is_ascii(s: u8x16) -> bool {
 }
 
 
-/// _mm_movemask_epi8 in SSE2. vec_all_lt in AltiVec.
+/// _mm_movemask_epi8 in SSE2.
 #[inline(always)]
-pub fn check_ascii(s: u8x16) -> Option<(u8, usize)> {
+pub fn check_ascii(s: u8x16) -> Option<usize> {
     let mask = unsafe {
         let signed: i8x16 = ::std::mem::transmute_copy(&s);
         x86_mm_movemask_epi8(signed)
@@ -86,8 +86,10 @@ pub fn check_ascii(s: u8x16) -> Option<(u8, usize)> {
     if mask == 0 {
         return None;
     }
-    let num_ascii = mask.trailing_zeros();
-    return Some((s.extract(num_ascii as u32), num_ascii as usize));
+    // We don't extract the non-ascii byte from the SIMD register, because
+    // at least on Haswell, it seems faster to let the caller re-read it from
+    // memory.
+    return Some(mask.trailing_zeros() as usize);
 }
 
 /// vzipq_u8 in NEON. _mm_unpacklo_epi8 and
@@ -221,9 +223,8 @@ mod tests {
         let simd = unsafe { load16_unaligned(input.as_ptr()) };
         match check_ascii(simd) {
             None => unreachable!(),
-            Some((non_ascii, consumed)) => {
+            Some(consumed) => {
                 assert_eq!(consumed, 4);
-                assert_eq!(non_ascii, 0x81);
             }
         }
     }

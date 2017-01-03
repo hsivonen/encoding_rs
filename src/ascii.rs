@@ -556,8 +556,10 @@ cfg_if! {
                     loop {
                         let simd = unsafe { load16_aligned(src.offset(offset as isize)) };
                         match check_ascii(simd) {
-                            Some((non_ascii, consumed)) => {
-                                return Some((non_ascii, offset + consumed));
+                            Some(consumed) => {
+                                offset += consumed;
+                                let non_ascii = unsafe { *src.offset(offset as isize) };
+                                return Some((non_ascii, offset));
                             }
                             None => {}
                         }
@@ -570,8 +572,10 @@ cfg_if! {
                     loop {
                         let simd = unsafe { load16_unaligned(src.offset(offset as isize)) };
                         match check_ascii(simd) {
-                            Some((non_ascii, consumed)) => {
-                                return Some((non_ascii, offset + consumed));
+                            Some(consumed) => {
+                                offset += consumed;
+                                let non_ascii = unsafe { *src.offset(offset as isize) };
+                                return Some((non_ascii, offset));
                             }
                             None => {}
                         }
