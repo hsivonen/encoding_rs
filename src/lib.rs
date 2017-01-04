@@ -2747,6 +2747,14 @@ pub enum DecoderResult {
 /// variants performing replacement, a boolean indicating whether an error was
 /// replaced with the REPLACEMENT CHARACTER during the call.
 ///
+/// The number of bytes "written" is what's logically written. Garbage may be
+/// written in the output buffer beyond the point logically written to.
+/// Therefore, if you wish to decode into an `&mut str`, you should use the
+/// methods that take an `&mut str` argument instead of the ones that take an
+/// `&mut [u8]` argument. The former take care of overwriting the trailing
+/// garbage to ensure the UTF-8 validitiy of the `&mut str` as a whole, but the
+/// latter don't.
+///
 /// In the case of the `*_without_replacement` variants, the status is a
 /// [`DecoderResult`][1] enumeration (possibilities `Malformed`, `OutputFull` and
 /// `InputEmpty` corresponding to the three cases listed above).
@@ -2942,6 +2950,16 @@ impl Decoder {
         let (result, read, written) = self.decode_to_utf8_without_replacement(src, bytes, last);
         let len = bytes.len();
         let mut trail = written;
+        // Non-UTF-8 ASCII-compatible decoders may write up to `STRIDE_SIZE`
+        // bytes of trailing garbage. No need to optimize non-ASCII-compatible
+        // encodings to avoid overwriting here.
+        if self.encoding != UTF_8 {
+            let max = std::cmp::min(len, trail + ascii::STRIDE_SIZE);
+            while trail < max {
+                bytes[trail] = 0;
+                trail += 1;
+            }
+        }
         while trail < len && ((bytes[trail] & 0xC0) == 0x80) {
             bytes[trail] = 0;
             trail += 1;
@@ -3088,6 +3106,16 @@ impl Decoder {
         let (result, read, written, replaced) = self.decode_to_utf8(src, bytes, last);
         let len = bytes.len();
         let mut trail = written;
+        // Non-UTF-8 ASCII-compatible decoders may write up to `STRIDE_SIZE`
+        // bytes of trailing garbage. No need to optimize non-ASCII-compatible
+        // encodings to avoid overwriting here.
+        if self.encoding != UTF_8 {
+            let max = std::cmp::min(len, trail + ascii::STRIDE_SIZE);
+            while trail < max {
+                bytes[trail] = 0;
+                trail += 1;
+            }
+        }
         while trail < len && ((bytes[trail] & 0xC0) == 0x80) {
             bytes[trail] = 0;
             trail += 1;
@@ -3188,6 +3216,9 @@ impl EncoderResult {
 /// whose length change indicates this), and in the case of the variants that
 /// perform replacement, a boolean indicating whether an unmappable
 /// character was replaced with a numeric character reference during the call.
+///
+/// The number of bytes "written" is what's logically written. Garbage may be
+/// written in the output buffer beyond the point logically written to.
 ///
 /// In the case of the methods whose name ends with
 /// `*_without_replacement`, the status is an [`EncoderResult`][1] enumeration
