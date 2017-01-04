@@ -215,7 +215,7 @@ mod tests {
         let simd = unsafe { load16_unaligned(input.as_ptr()) };
         assert!(!is_ascii(simd));
     }
-    
+
     #[test]
     fn test_check_ascii() {
         let input: [u8; 16] = [0x61, 0x62, 0x63, 0x64, 0x81, 0x66, 0x67, 0x68, 0x69, 0x70, 0x71,
