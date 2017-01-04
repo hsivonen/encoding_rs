@@ -339,51 +339,7 @@ cfg_if! {
                               (0x00000000_000000FFusize & third);
             *dst = word;
             *(dst.offset(1)) = second_word;
-            let first_masked = first & BASIC_LATIN_MASK;
-            if first_masked != 0 {
-                let trailing = first_masked.trailing_zeros();
-// Trailing now contains 7 to 15 for the trailing bits of
-// non-ASCII plus 16 times the number of ASCII in text order
-// before the non-ASCII code unit.
-                let num_ascii = (trailing >> 4) as usize;
-// `as u16` truncates, so no need to do `& 0xFFFF`.
-                let non_ascii = (first >> (trailing & !0xF)) as u16;
-                return Some((non_ascii, num_ascii));
-            }
-            let second_masked = second & BASIC_LATIN_MASK;
-            if second_masked != 0 {
-                let trailing = second_masked.trailing_zeros();
-// Trailing now contains 7 to 15 for the trailing bits of
-// non-ASCII plus 16 times the number of ASCII in text order
-// before the non-ASCII code unit.
-                let num_ascii = (trailing >> 4) as usize;
-// `as u16` truncates, so no need to do `& 0xFFFF`.
-                let non_ascii = (second >> (trailing & !0xF)) as u16;
-                return Some((non_ascii, 4 + num_ascii));
-            }
-            let third_masked = third & BASIC_LATIN_MASK;
-            if third_masked != 0 {
-                let trailing = third_masked.trailing_zeros();
-// Trailing now contains 7 to 15 for the trailing bits of
-// non-ASCII plus 16 times the number of ASCII in text order
-// before the non-ASCII code unit.
-                let num_ascii = (trailing >> 4) as usize;
-// `as u16` truncates, so no need to do `& 0xFFFF`.
-                let non_ascii = (third >> (trailing & !0xF)) as u16;
-                return Some((non_ascii, 8 + num_ascii));
-            }
-            let fourth_masked = fourth & BASIC_LATIN_MASK;
-            if fourth_masked != 0 {
-                let trailing = fourth_masked.trailing_zeros();
-// Trailing now contains 7 to 15 for the trailing bits of
-// non-ASCII plus 16 times the number of ASCII in text order
-// before the non-ASCII code unit.
-                let num_ascii = (trailing >> 4) as usize;
-// `as u16` truncates, so no need to do `& 0xFFFF`.
-                let non_ascii = (fourth >> (trailing & !0xF)) as u16;
-                return Some((non_ascii, 12 + num_ascii));
-            }
-            return None;
+            find_non_basic_latin(first, second, third, fourth)
         }
 
         ascii_alu!(ascii_to_basic_latin, u8, u16, ascii_to_basic_latin_stride_little_64);
@@ -398,13 +354,9 @@ cfg_if! {
         const ALIGNMENT_MASK: usize = 3;
 
         #[inline(always)]
-        unsafe fn ascii_to_basic_latin_stride_little_32(src: *const usize, dst: *mut usize) -> bool {
+        unsafe fn ascii_to_basic_latin_stride_little_32(src: *const usize, dst: *mut usize) -> Option<(u8, usize)> {
             let word = *src;
             let second_word = *(src.offset(1));
-// Check if the words contains non-ASCII
-            if (word & ASCII_MASK) | (second_word & ASCII_MASK) != 0 {
-                return false;
-            }
             let first = ((0x0000FF00usize & word) << 8) |
                         (0x000000FFusize & word);
             let second = ((0xFF000000usize & word) >> 8) |
@@ -417,18 +369,15 @@ cfg_if! {
             *(dst.offset(1)) = second;
             *(dst.offset(2)) = third;
             *(dst.offset(3)) = fourth;
-            return true;
+            find_non_ascii(word, second_word)
         }
 
         #[inline(always)]
-        unsafe fn basic_latin_to_ascii_stride_little_32(src: *const usize, dst: *mut usize) -> bool {
+        unsafe fn basic_latin_to_ascii_stride_little_32(src: *const usize, dst: *mut usize) -> Option<(u16, usize)> {
             let first = *src;
             let second = *(src.offset(1));
             let third = *(src.offset(2));
             let fourth = *(src.offset(3));
-            if (first & BASIC_LATIN_MASK) | (second & BASIC_LATIN_MASK) | (third & BASIC_LATIN_MASK) | (fourth & BASIC_LATIN_MASK) != 0 {
-                return false;
-            }
             let word = ((0x00FF0000usize & second) << 8) |
                        ((0x000000FFusize & second) << 16) |
                        ((0x00FF0000usize & first) >> 8) |
@@ -439,7 +388,7 @@ cfg_if! {
                               (0x000000FFusize & third);
             *dst = word;
             *(dst.offset(1)) = second_word;
-            return true;
+            find_non_basic_latin(first, second, third, fourth)
         }
 
         ascii_alu!(ascii_to_basic_latin, u8, u16, ascii_to_basic_latin_stride_little_32);
@@ -679,6 +628,55 @@ cfg_if! {
 // `as u8` truncates, so no need to do `& 0xFF`.
                 let non_ascii = (second_word >> (trailing & !7)) as u8;
                 return Some((non_ascii, ALIGNMENT + num_ascii));
+            }
+            return None;
+        }
+
+        #[inline(always)]
+        fn find_non_basic_latin(first: usize, second: usize, third: usize, fourth: usize) -> Option<(u16, usize)> {
+            let first_masked = first & BASIC_LATIN_MASK;
+            if first_masked != 0 {
+                let trailing = first_masked.trailing_zeros();
+// Trailing now contains 7 to 15 for the trailing bits of
+// non-ASCII plus 16 times the number of ASCII in text order
+// before the non-ASCII code unit.
+                let num_ascii = (trailing >> 4) as usize;
+// `as u16` truncates, so no need to do `& 0xFFFF`.
+                let non_ascii = (first >> (trailing & !0xF)) as u16;
+                return Some((non_ascii, num_ascii));
+            }
+            let second_masked = second & BASIC_LATIN_MASK;
+            if second_masked != 0 {
+                let trailing = second_masked.trailing_zeros();
+// Trailing now contains 7 to 15 for the trailing bits of
+// non-ASCII plus 16 times the number of ASCII in text order
+// before the non-ASCII code unit.
+                let num_ascii = (trailing >> 4) as usize;
+// `as u16` truncates, so no need to do `& 0xFFFF`.
+                let non_ascii = (second >> (trailing & !0xF)) as u16;
+                return Some((non_ascii, (ALIGNMENT / 2) + num_ascii));
+            }
+            let third_masked = third & BASIC_LATIN_MASK;
+            if third_masked != 0 {
+                let trailing = third_masked.trailing_zeros();
+// Trailing now contains 7 to 15 for the trailing bits of
+// non-ASCII plus 16 times the number of ASCII in text order
+// before the non-ASCII code unit.
+                let num_ascii = (trailing >> 4) as usize;
+// `as u16` truncates, so no need to do `& 0xFFFF`.
+                let non_ascii = (third >> (trailing & !0xF)) as u16;
+                return Some((non_ascii, ALIGNMENT + num_ascii));
+            }
+            let fourth_masked = fourth & BASIC_LATIN_MASK;
+            if fourth_masked != 0 {
+                let trailing = fourth_masked.trailing_zeros();
+// Trailing now contains 7 to 15 for the trailing bits of
+// non-ASCII plus 16 times the number of ASCII in text order
+// before the non-ASCII code unit.
+                let num_ascii = (trailing >> 4) as usize;
+// `as u16` truncates, so no need to do `& 0xFFFF`.
+                let non_ascii = (fourth >> (trailing & !0xF)) as u16;
+                return Some((non_ascii, (ALIGNMENT + (ALIGNMENT / 2)) + num_ascii));
             }
             return None;
         }
