@@ -37,13 +37,13 @@ macro_rules! ascii_alu {
     #[inline(always)]
     pub unsafe fn $name(src: *const $src_unit, dst: *mut $dst_unit, len: usize) -> Option<($src_unit, usize)> {
         let mut offset = 0usize;
-        // This loop is only broken out of as a `goto` forward
+// This loop is only broken out of as a `goto` forward
         loop {
            let mut until_alignment = {
-               // Check if the other unit aligns if we move the narrower unit
-               // to alignment.
+// Check if the other unit aligns if we move the narrower unit
+// to alignment.
                if ::std::mem::size_of::<$src_unit>() == ::std::mem::size_of::<$dst_unit>() {
-                   // ascii_to_ascii
+// ascii_to_ascii
                    let src_alignment = (src as usize) & ALIGNMENT_MASK;
                    let dst_alignment = (dst as usize) & ALIGNMENT_MASK;
                    if src_alignment != dst_alignment {
@@ -51,14 +51,14 @@ macro_rules! ascii_alu {
                    }
                    (ALIGNMENT - src_alignment) & ALIGNMENT_MASK
                } else if ::std::mem::size_of::<$src_unit>() < ::std::mem::size_of::<$dst_unit>() {
-                   // ascii_to_basic_latin
+// ascii_to_basic_latin
                    let src_until_alignment = (ALIGNMENT - ((src as usize) & ALIGNMENT_MASK)) & ALIGNMENT_MASK;
                    if (dst.offset(src_until_alignment as isize) as usize) & ALIGNMENT_MASK != 0 {
                        break;
                    }
                    src_until_alignment
                } else {
-                   // basic_latin_to_ascii
+// basic_latin_to_ascii
                    let dst_until_alignment = (ALIGNMENT - ((dst as usize) & ALIGNMENT_MASK)) & ALIGNMENT_MASK;
                    if (src.offset(dst_until_alignment as isize) as usize) & ALIGNMENT_MASK != 0 {
                        break;
@@ -67,14 +67,14 @@ macro_rules! ascii_alu {
                }
            };
            if until_alignment + STRIDE_SIZE <= len {
-               // Moving pointers to alignment seems to be a pessimization on
-               // x86_64 for operations that have UTF-16 as the internal
-               // Unicode representation. However, since it seems to be a win
-               // on ARM (tested ARMv7 code running on ARMv8 [rpi3]), except
-               // mixed results when encoding from UTF-16 and since x86 and
-               // x86_64 should be using SSE2 in due course, keeping the move
-               // to alignment here. It would be good to test on more ARM CPUs
-               // and on real MIPS and POWER hardware.
+// Moving pointers to alignment seems to be a pessimization on
+// x86_64 for operations that have UTF-16 as the internal
+// Unicode representation. However, since it seems to be a win
+// on ARM (tested ARMv7 code running on ARMv8 [rpi3]), except
+// mixed results when encoding from UTF-16 and since x86 and
+// x86_64 should be using SSE2 in due course, keeping the move
+// to alignment here. It would be good to test on more ARM CPUs
+// and on real MIPS and POWER hardware.
                while until_alignment != 0 {
                    let code_unit = *(src.offset(offset as isize));
                    if code_unit > 127 {
@@ -85,9 +85,12 @@ macro_rules! ascii_alu {
                    until_alignment -= 1;
                }
                loop {
-                   if !$stride_fn(src.offset(offset as isize) as *const usize,
+                   match $stride_fn(src.offset(offset as isize) as *const usize,
                                   dst.offset(offset as isize) as *mut usize) {
-                       break;
+                       Some((non_ascii, num_ascii)) => {
+                           return Some((non_ascii, offset + num_ascii));
+                       }
+                       None => {}
                    }
                    offset += STRIDE_SIZE;
                    if offset + STRIDE_SIZE > len {
@@ -286,13 +289,9 @@ cfg_if! {
         const ALIGNMENT_MASK: usize = 7;
 
         #[inline(always)]
-        unsafe fn ascii_to_basic_latin_stride_little_64(src: *const usize, dst: *mut usize) -> bool {
+        unsafe fn ascii_to_basic_latin_stride_little_64(src: *const usize, dst: *mut usize) -> Option<(u8, usize)> {
             let word = *src;
             let second_word = *(src.offset(1));
-// Check if the words contains non-ASCII
-            if (word & ASCII_MASK) | (second_word & ASCII_MASK) != 0 {
-                return false;
-            }
             let first = ((0x00000000_FF000000usize & word) << 24) |
                         ((0x00000000_00FF0000usize & word) << 16) |
                         ((0x00000000_0000FF00usize & word) << 8) |
@@ -313,18 +312,38 @@ cfg_if! {
             *(dst.offset(1)) = second;
             *(dst.offset(2)) = third;
             *(dst.offset(3)) = fourth;
-            return true;
+// Check if the words contains non-ASCII
+            let word_masked = word & ASCII_MASK;
+            let second_masked = second_word & ASCII_MASK;
+            if word_masked | second_masked == 0 {
+                return None;
+            }
+            if word_masked != 0 {
+                let trailing = word_masked.trailing_zeros();
+// Trailing now contains 7 (for the seven bits of non-ASCII)
+// plus 8 times the number of ASCII in text order before the
+// non-ASCII byte.
+                let num_ascii = (trailing >> 3) as usize;
+// `as u8` truncates, so no need to do `& 0xFF`.
+                let non_ascii = (word >> (trailing & !7)) as u8;
+                return Some((non_ascii, num_ascii));
+            }
+            let trailing = second_masked.trailing_zeros();
+// Trailing now contains 7 (for the seven bits of non-ASCII)
+// plus 8 times the number of ASCII in text order before the
+// non-ASCII byte.
+            let num_ascii = (trailing >> 3) as usize;
+// `as u8` truncates, so no need to do `& 0xFF`.
+            let non_ascii = (second_word >> (trailing & !7)) as u8;
+            return Some((non_ascii, 8 + num_ascii));
         }
 
         #[inline(always)]
-        unsafe fn basic_latin_to_ascii_stride_little_64(src: *const usize, dst: *mut usize) -> bool {
+        unsafe fn basic_latin_to_ascii_stride_little_64(src: *const usize, dst: *mut usize) -> Option<(u16, usize)> {
             let first = *src;
             let second = *(src.offset(1));
             let third = *(src.offset(2));
             let fourth = *(src.offset(3));
-            if (first & BASIC_LATIN_MASK) | (second & BASIC_LATIN_MASK) | (third & BASIC_LATIN_MASK) | (fourth & BASIC_LATIN_MASK) != 0 {
-                return false;
-            }
             let word = ((0x00FF0000_00000000usize & second) << 8) |
                        ((0x000000FF_00000000usize & second) << 16) |
                        ((0x00000000_00FF0000usize & second) << 24) |
@@ -343,7 +362,51 @@ cfg_if! {
                               (0x00000000_000000FFusize & third);
             *dst = word;
             *(dst.offset(1)) = second_word;
-            return true;
+            let first_masked = first & BASIC_LATIN_MASK;
+            let second_masked = second & BASIC_LATIN_MASK;
+            let third_masked = third & BASIC_LATIN_MASK;
+            let fourth_masked = fourth & BASIC_LATIN_MASK;
+            if (first & BASIC_LATIN_MASK) | (second & BASIC_LATIN_MASK) | (third & BASIC_LATIN_MASK) | (fourth & BASIC_LATIN_MASK) == 0 {
+                return None;
+            }
+            if first_masked != 0 {
+                let trailing = first_masked.trailing_zeros();
+// Trailing now contains 7 to 15 for the trailing bits of
+// non-ASCII plus 16 times the number of ASCII in text order
+// before the non-ASCII code unit.
+                let num_ascii = (trailing >> 4) as usize;
+// `as u16` truncates, so no need to do `& 0xFFFF`.
+                let non_ascii = (first >> (trailing & !0xF)) as u16;
+                return Some((non_ascii, num_ascii));
+            }
+            if second_masked != 0 {
+                let trailing = second_masked.trailing_zeros();
+// Trailing now contains 7 to 15 for the trailing bits of
+// non-ASCII plus 16 times the number of ASCII in text order
+// before the non-ASCII code unit.
+                let num_ascii = (trailing >> 4) as usize;
+// `as u16` truncates, so no need to do `& 0xFFFF`.
+                let non_ascii = (second >> (trailing & !0xF)) as u16;
+                return Some((non_ascii, 4 + num_ascii));
+            }
+            if third_masked != 0 {
+                let trailing = third_masked.trailing_zeros();
+// Trailing now contains 7 to 15 for the trailing bits of
+// non-ASCII plus 16 times the number of ASCII in text order
+// before the non-ASCII code unit.
+                let num_ascii = (trailing >> 4) as usize;
+// `as u16` truncates, so no need to do `& 0xFFFF`.
+                let non_ascii = (third >> (trailing & !0xF)) as u16;
+                return Some((non_ascii, 8 + num_ascii));
+            }
+            let trailing = fourth_masked.trailing_zeros();
+// Trailing now contains 7 to 15 for the trailing bits of
+// non-ASCII plus 16 times the number of ASCII in text order
+// before the non-ASCII code unit.
+            let num_ascii = (trailing >> 4) as usize;
+// `as u16` truncates, so no need to do `& 0xFFFF`.
+            let non_ascii = (fourth >> (trailing & !0xF)) as u16;
+            return Some((non_ascii, 12 + num_ascii));
         }
 
         ascii_alu!(ascii_to_basic_latin, u8, u16, ascii_to_basic_latin_stride_little_64);
@@ -547,11 +610,11 @@ cfg_if! {
             let len = slice.len();
             let mut offset = 0usize;
             if STRIDE_SIZE <= len {
-                // XXX Should we first process one stride unconditinoally as unaligned to
-                // avoid the cost of the branchiness below if the first stride fails anyway?
-                // XXX Should we just use unaligned SSE2 access unconditionally? It seems that
-                // on Haswell, it would make sense to just use unaligned and not bother
-                // checking. Need to benchmark older architectures before deciding.
+// XXX Should we first process one stride unconditinoally as unaligned to
+// avoid the cost of the branchiness below if the first stride fails anyway?
+// XXX Should we just use unaligned SSE2 access unconditionally? It seems that
+// on Haswell, it would make sense to just use unaligned and not bother
+// checking. Need to benchmark older architectures before deciding.
                 if ((src as usize) & ALIGNMENT_MASK) == 0 {
                     loop {
                         let simd = unsafe { load16_aligned(src.offset(offset as isize)) };
@@ -596,21 +659,70 @@ cfg_if! {
             return None;
         }
     } else {
-        // `as` truncates, so works on 32-bit, too.
+// `as` truncates, so works on 32-bit, too.
         const ASCII_MASK: usize = 0x80808080_80808080u64 as usize;
         const BASIC_LATIN_MASK: usize = 0xFF80FF80_FF80FF80u64 as usize;
 
         #[inline(always)]
-        unsafe fn ascii_to_ascii_stride(src: *const usize, dst: *mut usize) -> bool {
+        unsafe fn ascii_to_ascii_stride(src: *const usize, dst: *mut usize) -> Option<(u8, usize)> {
+            let word = *src;
+            let second_word = *(src.offset(1));
+            *dst = word;
+            *(dst.offset(1)) = second_word;
+// Check if the words contains non-ASCII
+            let word_masked = word & ASCII_MASK;
+            let second_masked = second_word & ASCII_MASK;
+            if word_masked | second_masked == 0 {
+                return None;
+            }
+            if word_masked != 0 {
+                let trailing = word_masked.trailing_zeros();
+// Trailing now contains 7 (for the seven bits of non-ASCII)
+// plus 8 times the number of ASCII in text order before the
+// non-ASCII byte.
+                let num_ascii = (trailing >> 3) as usize;
+// `as u8` truncates, so no need to do `& 0xFF`.
+                let non_ascii = (word >> (trailing & !7)) as u8;
+                return Some((non_ascii, num_ascii));
+            }
+            let trailing = second_masked.trailing_zeros();
+// Trailing now contains 7 (for the seven bits of non-ASCII)
+// plus 8 times the number of ASCII in text order before the
+// non-ASCII byte.
+            let num_ascii = (trailing >> 3) as usize;
+// `as u8` truncates, so no need to do `& 0xFF`.
+            let non_ascii = (second_word >> (trailing & !7)) as u8;
+            return Some((non_ascii, ALIGNMENT + num_ascii));
+        }
+
+        #[inline(always)]
+        unsafe fn validate_ascii_stride(src: *const usize) -> Option<(u8, usize)> {
             let word = *src;
             let second_word = *(src.offset(1));
 // Check if the words contains non-ASCII
-            if (word & ASCII_MASK) | (second_word & ASCII_MASK) != 0 {
-                return false;
+            let word_masked = word & ASCII_MASK;
+            let second_masked = second_word & ASCII_MASK;
+            if word_masked | second_masked == 0 {
+                return None;
             }
-            *dst = word;
-            *(dst.offset(1)) = second_word;
-            return true;
+            if word_masked != 0 {
+                let trailing = word_masked.trailing_zeros();
+// Trailing now contains 7 (for the seven bits of non-ASCII)
+// plus 8 times the number of ASCII in text order before the
+// non-ASCII byte.
+                let num_ascii = (trailing >> 3) as usize;
+// `as u8` truncates, so no need to do `& 0xFF`.
+                let non_ascii = (word >> (trailing & !7)) as u8;
+                return Some((non_ascii, num_ascii));
+            }
+            let trailing = second_masked.trailing_zeros();
+// Trailing now contains 7 (for the seven bits of non-ASCII)
+// plus 8 times the number of ASCII in text order before the
+// non-ASCII byte.
+            let num_ascii = (trailing >> 3) as usize;
+// `as u8` truncates, so no need to do `& 0xFF`.
+            let non_ascii = (second_word >> (trailing & !7)) as u8;
+            return Some((non_ascii, ALIGNMENT + num_ascii));
         }
 
         ascii_alu!(ascii_to_ascii, u8, u8, ascii_to_ascii_stride);
@@ -632,10 +744,11 @@ cfg_if! {
                }
                loop {
                    let ptr = unsafe { src.offset(offset as isize) as *const usize };
-                   let first = unsafe { *ptr };
-                   let second = unsafe { *(ptr.offset(1)) };
-                   if ((first & ASCII_MASK) | (second & ASCII_MASK)) != 0 {
-                       break;
+                   match unsafe { validate_ascii_stride(ptr) } {
+                       Some((non_ascii, num_ascii)) => {
+                           return Some((non_ascii, offset + num_ascii));
+                       }
+                       None => {}
                    }
                    offset += STRIDE_SIZE;
                    if offset + STRIDE_SIZE > len {
