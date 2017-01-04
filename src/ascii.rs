@@ -314,10 +314,6 @@ cfg_if! {
             *(dst.offset(3)) = fourth;
 // Check if the words contains non-ASCII
             let word_masked = word & ASCII_MASK;
-            let second_masked = second_word & ASCII_MASK;
-            if word_masked | second_masked == 0 {
-                return None;
-            }
             if word_masked != 0 {
                 let trailing = word_masked.trailing_zeros();
 // Trailing now contains 7 (for the seven bits of non-ASCII)
@@ -328,14 +324,18 @@ cfg_if! {
                 let non_ascii = (word >> (trailing & !7)) as u8;
                 return Some((non_ascii, num_ascii));
             }
-            let trailing = second_masked.trailing_zeros();
-// Trailing now contains 7 (for the seven bits of non-ASCII)
-// plus 8 times the number of ASCII in text order before the
-// non-ASCII byte.
-            let num_ascii = (trailing >> 3) as usize;
-// `as u8` truncates, so no need to do `& 0xFF`.
-            let non_ascii = (second_word >> (trailing & !7)) as u8;
-            return Some((non_ascii, 8 + num_ascii));
+            let second_masked = second_word & ASCII_MASK;
+            if second_masked != 0 {
+                let trailing = second_masked.trailing_zeros();
+    // Trailing now contains 7 (for the seven bits of non-ASCII)
+    // plus 8 times the number of ASCII in text order before the
+    // non-ASCII byte.
+                let num_ascii = (trailing >> 3) as usize;
+    // `as u8` truncates, so no need to do `& 0xFF`.
+                let non_ascii = (second_word >> (trailing & !7)) as u8;
+                return Some((non_ascii, ALIGNMENT + num_ascii));
+            }
+            return None;
         }
 
         #[inline(always)]
@@ -671,10 +671,6 @@ cfg_if! {
             *(dst.offset(1)) = second_word;
 // Check if the words contains non-ASCII
             let word_masked = word & ASCII_MASK;
-            let second_masked = second_word & ASCII_MASK;
-            if word_masked | second_masked == 0 {
-                return None;
-            }
             if word_masked != 0 {
                 let trailing = word_masked.trailing_zeros();
 // Trailing now contains 7 (for the seven bits of non-ASCII)
@@ -685,14 +681,18 @@ cfg_if! {
                 let non_ascii = (word >> (trailing & !7)) as u8;
                 return Some((non_ascii, num_ascii));
             }
-            let trailing = second_masked.trailing_zeros();
-// Trailing now contains 7 (for the seven bits of non-ASCII)
-// plus 8 times the number of ASCII in text order before the
-// non-ASCII byte.
-            let num_ascii = (trailing >> 3) as usize;
-// `as u8` truncates, so no need to do `& 0xFF`.
-            let non_ascii = (second_word >> (trailing & !7)) as u8;
-            return Some((non_ascii, ALIGNMENT + num_ascii));
+            let second_masked = second_word & ASCII_MASK;
+            if second_masked != 0 {
+                let trailing = second_masked.trailing_zeros();
+    // Trailing now contains 7 (for the seven bits of non-ASCII)
+    // plus 8 times the number of ASCII in text order before the
+    // non-ASCII byte.
+                let num_ascii = (trailing >> 3) as usize;
+    // `as u8` truncates, so no need to do `& 0xFF`.
+                let non_ascii = (second_word >> (trailing & !7)) as u8;
+                return Some((non_ascii, ALIGNMENT + num_ascii));
+            }
+            return None;
         }
 
         #[inline(always)]
@@ -701,10 +701,6 @@ cfg_if! {
             let second_word = *(src.offset(1));
 // Check if the words contains non-ASCII
             let word_masked = word & ASCII_MASK;
-            let second_masked = second_word & ASCII_MASK;
-            if word_masked | second_masked == 0 {
-                return None;
-            }
             if word_masked != 0 {
                 let trailing = word_masked.trailing_zeros();
 // Trailing now contains 7 (for the seven bits of non-ASCII)
@@ -715,14 +711,18 @@ cfg_if! {
                 let non_ascii = (word >> (trailing & !7)) as u8;
                 return Some((non_ascii, num_ascii));
             }
-            let trailing = second_masked.trailing_zeros();
-// Trailing now contains 7 (for the seven bits of non-ASCII)
-// plus 8 times the number of ASCII in text order before the
-// non-ASCII byte.
-            let num_ascii = (trailing >> 3) as usize;
-// `as u8` truncates, so no need to do `& 0xFF`.
-            let non_ascii = (second_word >> (trailing & !7)) as u8;
-            return Some((non_ascii, ALIGNMENT + num_ascii));
+            let second_masked = second_word & ASCII_MASK;
+            if second_masked != 0 {
+                let trailing = second_masked.trailing_zeros();
+    // Trailing now contains 7 (for the seven bits of non-ASCII)
+    // plus 8 times the number of ASCII in text order before the
+    // non-ASCII byte.
+                let num_ascii = (trailing >> 3) as usize;
+    // `as u8` truncates, so no need to do `& 0xFF`.
+                let non_ascii = (second_word >> (trailing & !7)) as u8;
+                return Some((non_ascii, ALIGNMENT + num_ascii));
+            }
+            return None;
         }
 
         ascii_alu!(ascii_to_ascii, u8, u8, ascii_to_ascii_stride);
