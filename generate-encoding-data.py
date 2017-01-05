@@ -1066,4 +1066,47 @@ for pointer in range(0, len(index)):
 euc_kr_out_file.close()
 euc_kr_out_ref_file.close()
 
+index = indexes["gb18030"]
+
+gb18030_in_file = open("src/test_data/gb18030_in.txt", "w")
+gb18030_in_file.write(TEST_HEADER)
+for pointer in range(0, len(index)):
+  (lead, trail) = divmod(pointer, 190)
+  lead += 0x81
+  trail += 0x40 if trail < 0x3F else 0x41
+  gb18030_in_file.write("%s%s\n" % (chr(lead), chr(trail)))
+gb18030_in_file.close()
+
+gb18030_in_ref_file = open("src/test_data/gb18030_in_ref.txt", "w")
+gb18030_in_ref_file.write(TEST_HEADER)
+for pointer in range(0, len(index)):
+  code_point = index[pointer]
+  if code_point:
+    gb18030_in_ref_file.write((u"%s\n" % unichr(code_point)).encode("utf-8"))
+  else:
+    trail = pointer % 190
+    trail += 0x40 if trail < 0x3F else 0x41
+    if trail < 0x80:
+      gb18030_in_ref_file.write((u"\uFFFD%s\n" % unichr(trail)).encode("utf-8"))
+    else:
+      gb18030_in_ref_file.write(u"\uFFFD\n".encode("utf-8"))
+gb18030_in_ref_file.close()
+
+gb18030_out_file = open("src/test_data/gb18030_out.txt", "w")
+gb18030_out_ref_file = open("src/test_data/gb18030_out_ref.txt", "w")
+gb18030_out_file.write(TEST_HEADER)
+gb18030_out_ref_file.write(TEST_HEADER)
+for pointer in range(0, len(index)):
+  if pointer == 6555:
+    continue
+  code_point = index[pointer]
+  if code_point:
+    (lead, trail) = divmod(pointer, 190)
+    lead += 0x81
+    trail += 0x40 if trail < 0x3F else 0x41
+    gb18030_out_ref_file.write("%s%s\n" % (chr(lead), chr(trail)))
+    gb18030_out_file.write((u"%s\n" % unichr(code_point)).encode("utf-8"))
+gb18030_out_file.close()
+gb18030_out_ref_file.close()
+
 subprocess.call(["cargo", "fmt"])

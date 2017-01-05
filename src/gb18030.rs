@@ -457,4 +457,23 @@ mod tests {
         encode_gbk("\u{1F4A9}", b"&#128169;");
         encode_gbk("\u{10FFFF}", b"&#1114111;");
     }
+
+    #[test]
+    fn test_gb18030_decode_all() {
+        let input = include_bytes!("test_data/gb18030_in.txt");
+        let expectation = include_str!("test_data/gb18030_in_ref.txt");
+        let (cow, had_errors) = GB18030.decode_without_bom_handling(input);
+        assert!(!had_errors, "Should not have had errors.");
+        assert_eq!(&cow[..], expectation);
+    }
+
+    #[test]
+    fn test_gb18030_encode_all() {
+        let input = include_str!("test_data/gb18030_out.txt");
+        let expectation = include_bytes!("test_data/gb18030_out_ref.txt");
+        let (cow, encoding, had_errors) = GB18030.encode(input);
+        assert!(!had_errors, "Should not have had errors.");
+        assert_eq!(encoding, GB18030);
+        assert_eq!(&cow[..], &expectation[..]);
+    }
 }
