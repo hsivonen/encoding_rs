@@ -71,17 +71,22 @@ encoding_rs is
 - [x] Accelerate ASCII conversions using SSE2 on x86.
 - [x] Accelerate ASCII conversions using ALU register-sized operations on
       non-x86 architectures (process an `usize` instead of `u8` at a time).
-- [ ] Use Björn Höhrmann's lookup table acceleration for UTF-8 as adapted to
-      Rust in rust-encoding.
-- [ ] Compress consecutive zeros in CJK indices.
+- [ ] Split FFI into a separate crate so that the FFI doesn't interfere with
+      LTO in pure-Rust usage.
+- [ ] Compress CJK indices by making use of sequential code points as well
+      as Unicode-ordered parts of indices.
 - [ ] Make lookups by label or name use binary search that searches from the
       end of the label/name to the start.
 - [ ] Make labels with non-ASCII bytes fail fast.
 - [ ] Provide an XPCOM/MFBT-flavored C++ API.
+- [ ] Investigate accelerating single-byte encode with a single fast-tracked
+      range per encoding.
 - [ ] Replace uconv with encoding_rs in Gecko.
 - [x] Implement the rust-encoding API in terms of encoding_rs.
 - [ ] Investigate the use of NEON on newer ARM CPUs that have a lesser penalty
       on data flow from NEON to ALU registers.
+- [ ] Investigate Björn Höhrmann's lookup table acceleration for UTF-8 as
+      adapted to Rust in rust-encoding.
 
 ## Release Notes
 
