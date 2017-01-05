@@ -1169,4 +1169,25 @@ for pointer in range(((0xA1 - 0x81) * 157), len(index)):
 big5_out_file.close()
 big5_out_ref_file.close()
 
+index = indexes["jis0212"]
+
+jis0212_in_file = open("src/test_data/jis0212_in.txt", "w")
+jis0212_in_file.write(TEST_HEADER)
+for pointer in range(0, len(index)):
+  (lead, trail) = divmod(pointer, 94)
+  lead += 0xA1
+  trail += 0xA1
+  jis0212_in_file.write("\x8F%s%s\n" % (chr(lead), chr(trail)))
+jis0212_in_file.close()
+
+jis0212_in_ref_file = open("src/test_data/jis0212_in_ref.txt", "w")
+jis0212_in_ref_file.write(TEST_HEADER)
+for pointer in range(0, len(index)):
+  code_point = index[pointer]
+  if code_point:
+    jis0212_in_ref_file.write((u"%s\n" % unichr(code_point)).encode("utf-8"))
+  else:
+    jis0212_in_ref_file.write(u"\uFFFD\n".encode("utf-8"))
+jis0212_in_ref_file.close()
+
 subprocess.call(["cargo", "fmt"])

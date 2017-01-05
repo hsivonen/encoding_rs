@@ -312,4 +312,12 @@ mod tests {
         encode_euc_jp("\u{FF02}", b"\xFC\xFE");
     }
 
+    #[test]
+    fn test_jis0212_decode_all() {
+        let input = include_bytes!("test_data/jis0212_in.txt");
+        let expectation = include_str!("test_data/jis0212_in_ref.txt");
+        let (cow, had_errors) = EUC_JP.decode_without_bom_handling(input);
+        assert!(had_errors, "Should have had errors.");
+        assert_eq!(&cow[..], expectation);
+    }
 }
