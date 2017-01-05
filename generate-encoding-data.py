@@ -977,32 +977,69 @@ index = indexes["jis0208"]
 
 jis0208_in_file = open("src/test_data/jis0208_in.txt", "w")
 jis0208_in_file.write(TEST_HEADER)
-for pointer in range(0, len(index)):
-  (lead, trail) = divmod(pointer, 188)
-  lead += 0x81 if lead < 0x1F else 0xC1
-  trail += 0x40 if trail < 0x3F else 0x41
+for pointer in range(0, 94 * 94):
+  (lead, trail) = divmod(pointer, 94)
+  lead += 0xA1
+  trail += 0xA1
   jis0208_in_file.write("%s%s\n" % (chr(lead), chr(trail)))
 jis0208_in_file.close()
 
 jis0208_in_ref_file = open("src/test_data/jis0208_in_ref.txt", "w")
 jis0208_in_ref_file.write(TEST_HEADER)
-for pointer in range(0, len(index)):
-  code_point = 0xE000 - 8836 + pointer if pointer >= 8836 and pointer <= 10715 else index[pointer]
+for pointer in range(0, 94 * 94):
+  code_point = index[pointer]
   if code_point:
     jis0208_in_ref_file.write((u"%s\n" % unichr(code_point)).encode("utf-8"))
   else:
-    trail = pointer % 188
-    trail += 0x40 if trail < 0x3F else 0x41
-    if trail < 0x80:
-      jis0208_in_ref_file.write((u"\uFFFD%s\n" % unichr(trail)).encode("utf-8"))
-    else:
-      jis0208_in_ref_file.write(u"\uFFFD\n".encode("utf-8"))
+    jis0208_in_ref_file.write(u"\uFFFD\n".encode("utf-8"))
 jis0208_in_ref_file.close()
 
 jis0208_out_file = open("src/test_data/jis0208_out.txt", "w")
 jis0208_out_ref_file = open("src/test_data/jis0208_out_ref.txt", "w")
 jis0208_out_file.write(TEST_HEADER)
 jis0208_out_ref_file.write(TEST_HEADER)
+for pointer in range(0, 94 * 94):
+  code_point = index[pointer]
+  if code_point:
+    revised_pointer = pointer
+    if revised_pointer == 8644 or (revised_pointer >= 1207 and revised_pointer < 1220):
+      revised_pointer = index.index(code_point)
+    (lead, trail) = divmod(revised_pointer, 94)
+    lead += 0xA1
+    trail += 0xA1
+    jis0208_out_ref_file.write("%s%s\n" % (chr(lead), chr(trail)))
+    jis0208_out_file.write((u"%s\n" % unichr(code_point)).encode("utf-8"))
+jis0208_out_file.close()
+jis0208_out_ref_file.close()
+
+shift_jis_in_file = open("src/test_data/shift_jis_in.txt", "w")
+shift_jis_in_file.write(TEST_HEADER)
+for pointer in range(0, len(index)):
+  (lead, trail) = divmod(pointer, 188)
+  lead += 0x81 if lead < 0x1F else 0xC1
+  trail += 0x40 if trail < 0x3F else 0x41
+  shift_jis_in_file.write("%s%s\n" % (chr(lead), chr(trail)))
+shift_jis_in_file.close()
+
+shift_jis_in_ref_file = open("src/test_data/shift_jis_in_ref.txt", "w")
+shift_jis_in_ref_file.write(TEST_HEADER)
+for pointer in range(0, len(index)):
+  code_point = 0xE000 - 8836 + pointer if pointer >= 8836 and pointer <= 10715 else index[pointer]
+  if code_point:
+    shift_jis_in_ref_file.write((u"%s\n" % unichr(code_point)).encode("utf-8"))
+  else:
+    trail = pointer % 188
+    trail += 0x40 if trail < 0x3F else 0x41
+    if trail < 0x80:
+      shift_jis_in_ref_file.write((u"\uFFFD%s\n" % unichr(trail)).encode("utf-8"))
+    else:
+      shift_jis_in_ref_file.write(u"\uFFFD\n".encode("utf-8"))
+shift_jis_in_ref_file.close()
+
+shift_jis_out_file = open("src/test_data/shift_jis_out.txt", "w")
+shift_jis_out_ref_file = open("src/test_data/shift_jis_out_ref.txt", "w")
+shift_jis_out_file.write(TEST_HEADER)
+shift_jis_out_ref_file.write(TEST_HEADER)
 for pointer in range(0, 8272):
   code_point = index[pointer]
   if code_point:
@@ -1012,8 +1049,8 @@ for pointer in range(0, 8272):
     (lead, trail) = divmod(revised_pointer, 188)
     lead += 0x81 if lead < 0x1F else 0xC1
     trail += 0x40 if trail < 0x3F else 0x41
-    jis0208_out_ref_file.write("%s%s\n" % (chr(lead), chr(trail)))
-    jis0208_out_file.write((u"%s\n" % unichr(code_point)).encode("utf-8"))
+    shift_jis_out_ref_file.write("%s%s\n" % (chr(lead), chr(trail)))
+    shift_jis_out_file.write((u"%s\n" % unichr(code_point)).encode("utf-8"))
 for pointer in range(8836, len(index)):
   code_point = index[pointer]
   if code_point:
@@ -1023,10 +1060,10 @@ for pointer in range(8836, len(index)):
     (lead, trail) = divmod(revised_pointer, 188)
     lead += 0x81 if lead < 0x1F else 0xC1
     trail += 0x40 if trail < 0x3F else 0x41
-    jis0208_out_ref_file.write("%s%s\n" % (chr(lead), chr(trail)))
-    jis0208_out_file.write((u"%s\n" % unichr(code_point)).encode("utf-8"))
-jis0208_out_file.close()
-jis0208_out_ref_file.close()
+    shift_jis_out_ref_file.write("%s%s\n" % (chr(lead), chr(trail)))
+    shift_jis_out_file.write((u"%s\n" % unichr(code_point)).encode("utf-8"))
+shift_jis_out_file.close()
+shift_jis_out_ref_file.close()
 
 index = indexes["euc-kr"]
 
