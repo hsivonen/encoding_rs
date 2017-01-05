@@ -54,7 +54,7 @@ A framework for measuring performance is [available separately][1].
 A compatibility layer that implements the rust-encoding API on top of
 encoding_rs is
 [provided as a separate crate](https://github.com/hsivonen/encoding_rs_compat)
-(not on crates.io at this time).
+(cannot be uploaded to crates.io).
 
 ## Roadmap
 
