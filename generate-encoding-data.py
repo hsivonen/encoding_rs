@@ -961,5 +961,38 @@ utf_8_file.write("""
 utf_8_file.write(utf_8_rs_end)
 utf_8_file.close()
 
+# Unit tests
+
+TEST_HEADER = '''Any copyright to the test code below this comment is dedicated to the
+Public Domain. http://creativecommons.org/publicdomain/zero/1.0/
+
+This is a generated file. Please do not edit.
+Instead, please regenerate using generate-encoding-data.py
+'''
+
+index = indexes["jis0208"]
+jis0208_in_file = open("src/test_data/jis0208_in.txt", "w")
+jis0208_in_file.write(TEST_HEADER)
+for pointer in range(0, len(index)):
+  (lead, trail) = divmod(pointer, 188)
+  lead += 0x81 if lead < 0x1F else 0xC1
+  trail += 0x40 if trail < 0x3F else 0x41
+  jis0208_in_file.write("%s%s\n" % (chr(lead), chr(trail)))
+jis0208_in_file.close()
+
+jis0208_in_ref_file = open("src/test_data/jis0208_in_ref.txt", "w")
+jis0208_in_ref_file.write(TEST_HEADER)
+for pointer in range(0, len(index)):
+  code_point = 0xE000 - 8836 + pointer if pointer >= 8836 and pointer <= 10715 else index[pointer]
+  if code_point:
+    jis0208_in_ref_file.write((u"%s\n" % unichr(code_point)).encode("utf-8"))
+  else:
+    trail = pointer % 188
+    trail += 0x40 if trail < 0x3F else 0x41
+    if trail < 0x80:
+      jis0208_in_ref_file.write((u"\uFFFD%s\n" % unichr(trail)).encode("utf-8"))
+    else:
+      jis0208_in_ref_file.write(u"\uFFFD\n".encode("utf-8"))
+jis0208_in_ref_file.close()
 
 subprocess.call(["cargo", "fmt"])

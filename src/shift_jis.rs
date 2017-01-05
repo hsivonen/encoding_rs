@@ -269,4 +269,12 @@ mod tests {
         encode_shift_jis("\u{9ED1}", b"\xFC\x4B");
     }
 
+    #[test]
+    fn test_shift_jis_decode_all() {
+        let input = include_bytes!("test_data/jis0208_in.txt");
+        let expectation = include_str!("test_data/jis0208_in_ref.txt");
+        let (cow, had_errors) = SHIFT_JIS.decode_without_bom_handling(input);
+        assert!(had_errors, "Should have had errors.");
+        assert_eq!(&cow[..], expectation);
+    }
 }

@@ -547,7 +547,8 @@ const LONGEST_NAME_LENGTH: usize = 14; // x-mac-cyrillic
 ///
 /// For use only for taking the address of this form when
 /// Rust prohibits the use of the non-`_INIT` form directly,
-/// such as in initializers of other `static`s.
+/// such as in initializers of other `static`s. If in doubt,
+/// use the corresponding non-`_INIT` reference-typed `static`.
 ///
 /// This part of the public API will go away if Rust changes
 /// to make the referent of `pub const FOO: &'static Encoding`
@@ -571,7 +572,8 @@ pub static BIG5: &'static Encoding = &BIG5_INIT;
 ///
 /// For use only for taking the address of this form when
 /// Rust prohibits the use of the non-`_INIT` form directly,
-/// such as in initializers of other `static`s.
+/// such as in initializers of other `static`s. If in doubt,
+/// use the corresponding non-`_INIT` reference-typed `static`.
 ///
 /// This part of the public API will go away if Rust changes
 /// to make the referent of `pub const FOO: &'static Encoding`
@@ -595,7 +597,8 @@ pub static EUC_JP: &'static Encoding = &EUC_JP_INIT;
 ///
 /// For use only for taking the address of this form when
 /// Rust prohibits the use of the non-`_INIT` form directly,
-/// such as in initializers of other `static`s.
+/// such as in initializers of other `static`s. If in doubt,
+/// use the corresponding non-`_INIT` reference-typed `static`.
 ///
 /// This part of the public API will go away if Rust changes
 /// to make the referent of `pub const FOO: &'static Encoding`
@@ -619,7 +622,8 @@ pub static EUC_KR: &'static Encoding = &EUC_KR_INIT;
 ///
 /// For use only for taking the address of this form when
 /// Rust prohibits the use of the non-`_INIT` form directly,
-/// such as in initializers of other `static`s.
+/// such as in initializers of other `static`s. If in doubt,
+/// use the corresponding non-`_INIT` reference-typed `static`.
 ///
 /// This part of the public API will go away if Rust changes
 /// to make the referent of `pub const FOO: &'static Encoding`
@@ -643,7 +647,8 @@ pub static GBK: &'static Encoding = &GBK_INIT;
 ///
 /// For use only for taking the address of this form when
 /// Rust prohibits the use of the non-`_INIT` form directly,
-/// such as in initializers of other `static`s.
+/// such as in initializers of other `static`s. If in doubt,
+/// use the corresponding non-`_INIT` reference-typed `static`.
 ///
 /// This part of the public API will go away if Rust changes
 /// to make the referent of `pub const FOO: &'static Encoding`
@@ -667,7 +672,8 @@ pub static IBM866: &'static Encoding = &IBM866_INIT;
 ///
 /// For use only for taking the address of this form when
 /// Rust prohibits the use of the non-`_INIT` form directly,
-/// such as in initializers of other `static`s.
+/// such as in initializers of other `static`s. If in doubt,
+/// use the corresponding non-`_INIT` reference-typed `static`.
 ///
 /// This part of the public API will go away if Rust changes
 /// to make the referent of `pub const FOO: &'static Encoding`
@@ -691,7 +697,8 @@ pub static ISO_2022_JP: &'static Encoding = &ISO_2022_JP_INIT;
 ///
 /// For use only for taking the address of this form when
 /// Rust prohibits the use of the non-`_INIT` form directly,
-/// such as in initializers of other `static`s.
+/// such as in initializers of other `static`s. If in doubt,
+/// use the corresponding non-`_INIT` reference-typed `static`.
 ///
 /// This part of the public API will go away if Rust changes
 /// to make the referent of `pub const FOO: &'static Encoding`
@@ -715,7 +722,8 @@ pub static ISO_8859_10: &'static Encoding = &ISO_8859_10_INIT;
 ///
 /// For use only for taking the address of this form when
 /// Rust prohibits the use of the non-`_INIT` form directly,
-/// such as in initializers of other `static`s.
+/// such as in initializers of other `static`s. If in doubt,
+/// use the corresponding non-`_INIT` reference-typed `static`.
 ///
 /// This part of the public API will go away if Rust changes
 /// to make the referent of `pub const FOO: &'static Encoding`
@@ -739,7 +747,8 @@ pub static ISO_8859_13: &'static Encoding = &ISO_8859_13_INIT;
 ///
 /// For use only for taking the address of this form when
 /// Rust prohibits the use of the non-`_INIT` form directly,
-/// such as in initializers of other `static`s.
+/// such as in initializers of other `static`s. If in doubt,
+/// use the corresponding non-`_INIT` reference-typed `static`.
 ///
 /// This part of the public API will go away if Rust changes
 /// to make the referent of `pub const FOO: &'static Encoding`
@@ -763,7 +772,8 @@ pub static ISO_8859_14: &'static Encoding = &ISO_8859_14_INIT;
 ///
 /// For use only for taking the address of this form when
 /// Rust prohibits the use of the non-`_INIT` form directly,
-/// such as in initializers of other `static`s.
+/// such as in initializers of other `static`s. If in doubt,
+/// use the corresponding non-`_INIT` reference-typed `static`.
 ///
 /// This part of the public API will go away if Rust changes
 /// to make the referent of `pub const FOO: &'static Encoding`
@@ -787,7 +797,8 @@ pub static ISO_8859_15: &'static Encoding = &ISO_8859_15_INIT;
 ///
 /// For use only for taking the address of this form when
 /// Rust prohibits the use of the non-`_INIT` form directly,
-/// such as in initializers of other `static`s.
+/// such as in initializers of other `static`s. If in doubt,
+/// use the corresponding non-`_INIT` reference-typed `static`.
 ///
 /// This part of the public API will go away if Rust changes
 /// to make the referent of `pub const FOO: &'static Encoding`
@@ -811,7 +822,8 @@ pub static ISO_8859_16: &'static Encoding = &ISO_8859_16_INIT;
 ///
 /// For use only for taking the address of this form when
 /// Rust prohibits the use of the non-`_INIT` form directly,
-/// such as in initializers of other `static`s.
+/// such as in initializers of other `static`s. If in doubt,
+/// use the corresponding non-`_INIT` reference-typed `static`.
 ///
 /// This part of the public API will go away if Rust changes
 /// to make the referent of `pub const FOO: &'static Encoding`
@@ -835,7 +847,8 @@ pub static ISO_8859_2: &'static Encoding = &ISO_8859_2_INIT;
 ///
 /// For use only for taking the address of this form when
 /// Rust prohibits the use of the non-`_INIT` form directly,
-/// such as in initializers of other `static`s.
+/// such as in initializers of other `static`s. If in doubt,
+/// use the corresponding non-`_INIT` reference-typed `static`.
 ///
 /// This part of the public API will go away if Rust changes
 /// to make the referent of `pub const FOO: &'static Encoding`
@@ -859,7 +872,8 @@ pub static ISO_8859_3: &'static Encoding = &ISO_8859_3_INIT;
 ///
 /// For use only for taking the address of this form when
 /// Rust prohibits the use of the non-`_INIT` form directly,
-/// such as in initializers of other `static`s.
+/// such as in initializers of other `static`s. If in doubt,
+/// use the corresponding non-`_INIT` reference-typed `static`.
 ///
 /// This part of the public API will go away if Rust changes
 /// to make the referent of `pub const FOO: &'static Encoding`
@@ -883,7 +897,8 @@ pub static ISO_8859_4: &'static Encoding = &ISO_8859_4_INIT;
 ///
 /// For use only for taking the address of this form when
 /// Rust prohibits the use of the non-`_INIT` form directly,
-/// such as in initializers of other `static`s.
+/// such as in initializers of other `static`s. If in doubt,
+/// use the corresponding non-`_INIT` reference-typed `static`.
 ///
 /// This part of the public API will go away if Rust changes
 /// to make the referent of `pub const FOO: &'static Encoding`
@@ -907,7 +922,8 @@ pub static ISO_8859_5: &'static Encoding = &ISO_8859_5_INIT;
 ///
 /// For use only for taking the address of this form when
 /// Rust prohibits the use of the non-`_INIT` form directly,
-/// such as in initializers of other `static`s.
+/// such as in initializers of other `static`s. If in doubt,
+/// use the corresponding non-`_INIT` reference-typed `static`.
 ///
 /// This part of the public API will go away if Rust changes
 /// to make the referent of `pub const FOO: &'static Encoding`
@@ -931,7 +947,8 @@ pub static ISO_8859_6: &'static Encoding = &ISO_8859_6_INIT;
 ///
 /// For use only for taking the address of this form when
 /// Rust prohibits the use of the non-`_INIT` form directly,
-/// such as in initializers of other `static`s.
+/// such as in initializers of other `static`s. If in doubt,
+/// use the corresponding non-`_INIT` reference-typed `static`.
 ///
 /// This part of the public API will go away if Rust changes
 /// to make the referent of `pub const FOO: &'static Encoding`
@@ -955,7 +972,8 @@ pub static ISO_8859_7: &'static Encoding = &ISO_8859_7_INIT;
 ///
 /// For use only for taking the address of this form when
 /// Rust prohibits the use of the non-`_INIT` form directly,
-/// such as in initializers of other `static`s.
+/// such as in initializers of other `static`s. If in doubt,
+/// use the corresponding non-`_INIT` reference-typed `static`.
 ///
 /// This part of the public API will go away if Rust changes
 /// to make the referent of `pub const FOO: &'static Encoding`
@@ -979,7 +997,8 @@ pub static ISO_8859_8: &'static Encoding = &ISO_8859_8_INIT;
 ///
 /// For use only for taking the address of this form when
 /// Rust prohibits the use of the non-`_INIT` form directly,
-/// such as in initializers of other `static`s.
+/// such as in initializers of other `static`s. If in doubt,
+/// use the corresponding non-`_INIT` reference-typed `static`.
 ///
 /// This part of the public API will go away if Rust changes
 /// to make the referent of `pub const FOO: &'static Encoding`
@@ -1003,7 +1022,8 @@ pub static ISO_8859_8_I: &'static Encoding = &ISO_8859_8_I_INIT;
 ///
 /// For use only for taking the address of this form when
 /// Rust prohibits the use of the non-`_INIT` form directly,
-/// such as in initializers of other `static`s.
+/// such as in initializers of other `static`s. If in doubt,
+/// use the corresponding non-`_INIT` reference-typed `static`.
 ///
 /// This part of the public API will go away if Rust changes
 /// to make the referent of `pub const FOO: &'static Encoding`
@@ -1027,7 +1047,8 @@ pub static KOI8_R: &'static Encoding = &KOI8_R_INIT;
 ///
 /// For use only for taking the address of this form when
 /// Rust prohibits the use of the non-`_INIT` form directly,
-/// such as in initializers of other `static`s.
+/// such as in initializers of other `static`s. If in doubt,
+/// use the corresponding non-`_INIT` reference-typed `static`.
 ///
 /// This part of the public API will go away if Rust changes
 /// to make the referent of `pub const FOO: &'static Encoding`
@@ -1051,7 +1072,8 @@ pub static KOI8_U: &'static Encoding = &KOI8_U_INIT;
 ///
 /// For use only for taking the address of this form when
 /// Rust prohibits the use of the non-`_INIT` form directly,
-/// such as in initializers of other `static`s.
+/// such as in initializers of other `static`s. If in doubt,
+/// use the corresponding non-`_INIT` reference-typed `static`.
 ///
 /// This part of the public API will go away if Rust changes
 /// to make the referent of `pub const FOO: &'static Encoding`
@@ -1075,7 +1097,8 @@ pub static SHIFT_JIS: &'static Encoding = &SHIFT_JIS_INIT;
 ///
 /// For use only for taking the address of this form when
 /// Rust prohibits the use of the non-`_INIT` form directly,
-/// such as in initializers of other `static`s.
+/// such as in initializers of other `static`s. If in doubt,
+/// use the corresponding non-`_INIT` reference-typed `static`.
 ///
 /// This part of the public API will go away if Rust changes
 /// to make the referent of `pub const FOO: &'static Encoding`
@@ -1099,7 +1122,8 @@ pub static UTF_16BE: &'static Encoding = &UTF_16BE_INIT;
 ///
 /// For use only for taking the address of this form when
 /// Rust prohibits the use of the non-`_INIT` form directly,
-/// such as in initializers of other `static`s.
+/// such as in initializers of other `static`s. If in doubt,
+/// use the corresponding non-`_INIT` reference-typed `static`.
 ///
 /// This part of the public API will go away if Rust changes
 /// to make the referent of `pub const FOO: &'static Encoding`
@@ -1123,7 +1147,8 @@ pub static UTF_16LE: &'static Encoding = &UTF_16LE_INIT;
 ///
 /// For use only for taking the address of this form when
 /// Rust prohibits the use of the non-`_INIT` form directly,
-/// such as in initializers of other `static`s.
+/// such as in initializers of other `static`s. If in doubt,
+/// use the corresponding non-`_INIT` reference-typed `static`.
 ///
 /// This part of the public API will go away if Rust changes
 /// to make the referent of `pub const FOO: &'static Encoding`
@@ -1147,7 +1172,8 @@ pub static UTF_8: &'static Encoding = &UTF_8_INIT;
 ///
 /// For use only for taking the address of this form when
 /// Rust prohibits the use of the non-`_INIT` form directly,
-/// such as in initializers of other `static`s.
+/// such as in initializers of other `static`s. If in doubt,
+/// use the corresponding non-`_INIT` reference-typed `static`.
 ///
 /// This part of the public API will go away if Rust changes
 /// to make the referent of `pub const FOO: &'static Encoding`
@@ -1171,7 +1197,8 @@ pub static GB18030: &'static Encoding = &GB18030_INIT;
 ///
 /// For use only for taking the address of this form when
 /// Rust prohibits the use of the non-`_INIT` form directly,
-/// such as in initializers of other `static`s.
+/// such as in initializers of other `static`s. If in doubt,
+/// use the corresponding non-`_INIT` reference-typed `static`.
 ///
 /// This part of the public API will go away if Rust changes
 /// to make the referent of `pub const FOO: &'static Encoding`
@@ -1195,7 +1222,8 @@ pub static MACINTOSH: &'static Encoding = &MACINTOSH_INIT;
 ///
 /// For use only for taking the address of this form when
 /// Rust prohibits the use of the non-`_INIT` form directly,
-/// such as in initializers of other `static`s.
+/// such as in initializers of other `static`s. If in doubt,
+/// use the corresponding non-`_INIT` reference-typed `static`.
 ///
 /// This part of the public API will go away if Rust changes
 /// to make the referent of `pub const FOO: &'static Encoding`
@@ -1219,7 +1247,8 @@ pub static REPLACEMENT: &'static Encoding = &REPLACEMENT_INIT;
 ///
 /// For use only for taking the address of this form when
 /// Rust prohibits the use of the non-`_INIT` form directly,
-/// such as in initializers of other `static`s.
+/// such as in initializers of other `static`s. If in doubt,
+/// use the corresponding non-`_INIT` reference-typed `static`.
 ///
 /// This part of the public API will go away if Rust changes
 /// to make the referent of `pub const FOO: &'static Encoding`
@@ -1243,7 +1272,8 @@ pub static WINDOWS_1250: &'static Encoding = &WINDOWS_1250_INIT;
 ///
 /// For use only for taking the address of this form when
 /// Rust prohibits the use of the non-`_INIT` form directly,
-/// such as in initializers of other `static`s.
+/// such as in initializers of other `static`s. If in doubt,
+/// use the corresponding non-`_INIT` reference-typed `static`.
 ///
 /// This part of the public API will go away if Rust changes
 /// to make the referent of `pub const FOO: &'static Encoding`
@@ -1267,7 +1297,8 @@ pub static WINDOWS_1251: &'static Encoding = &WINDOWS_1251_INIT;
 ///
 /// For use only for taking the address of this form when
 /// Rust prohibits the use of the non-`_INIT` form directly,
-/// such as in initializers of other `static`s.
+/// such as in initializers of other `static`s. If in doubt,
+/// use the corresponding non-`_INIT` reference-typed `static`.
 ///
 /// This part of the public API will go away if Rust changes
 /// to make the referent of `pub const FOO: &'static Encoding`
@@ -1291,7 +1322,8 @@ pub static WINDOWS_1252: &'static Encoding = &WINDOWS_1252_INIT;
 ///
 /// For use only for taking the address of this form when
 /// Rust prohibits the use of the non-`_INIT` form directly,
-/// such as in initializers of other `static`s.
+/// such as in initializers of other `static`s. If in doubt,
+/// use the corresponding non-`_INIT` reference-typed `static`.
 ///
 /// This part of the public API will go away if Rust changes
 /// to make the referent of `pub const FOO: &'static Encoding`
@@ -1315,7 +1347,8 @@ pub static WINDOWS_1253: &'static Encoding = &WINDOWS_1253_INIT;
 ///
 /// For use only for taking the address of this form when
 /// Rust prohibits the use of the non-`_INIT` form directly,
-/// such as in initializers of other `static`s.
+/// such as in initializers of other `static`s. If in doubt,
+/// use the corresponding non-`_INIT` reference-typed `static`.
 ///
 /// This part of the public API will go away if Rust changes
 /// to make the referent of `pub const FOO: &'static Encoding`
@@ -1339,7 +1372,8 @@ pub static WINDOWS_1254: &'static Encoding = &WINDOWS_1254_INIT;
 ///
 /// For use only for taking the address of this form when
 /// Rust prohibits the use of the non-`_INIT` form directly,
-/// such as in initializers of other `static`s.
+/// such as in initializers of other `static`s. If in doubt,
+/// use the corresponding non-`_INIT` reference-typed `static`.
 ///
 /// This part of the public API will go away if Rust changes
 /// to make the referent of `pub const FOO: &'static Encoding`
@@ -1363,7 +1397,8 @@ pub static WINDOWS_1255: &'static Encoding = &WINDOWS_1255_INIT;
 ///
 /// For use only for taking the address of this form when
 /// Rust prohibits the use of the non-`_INIT` form directly,
-/// such as in initializers of other `static`s.
+/// such as in initializers of other `static`s. If in doubt,
+/// use the corresponding non-`_INIT` reference-typed `static`.
 ///
 /// This part of the public API will go away if Rust changes
 /// to make the referent of `pub const FOO: &'static Encoding`
@@ -1387,7 +1422,8 @@ pub static WINDOWS_1256: &'static Encoding = &WINDOWS_1256_INIT;
 ///
 /// For use only for taking the address of this form when
 /// Rust prohibits the use of the non-`_INIT` form directly,
-/// such as in initializers of other `static`s.
+/// such as in initializers of other `static`s. If in doubt,
+/// use the corresponding non-`_INIT` reference-typed `static`.
 ///
 /// This part of the public API will go away if Rust changes
 /// to make the referent of `pub const FOO: &'static Encoding`
@@ -1411,7 +1447,8 @@ pub static WINDOWS_1257: &'static Encoding = &WINDOWS_1257_INIT;
 ///
 /// For use only for taking the address of this form when
 /// Rust prohibits the use of the non-`_INIT` form directly,
-/// such as in initializers of other `static`s.
+/// such as in initializers of other `static`s. If in doubt,
+/// use the corresponding non-`_INIT` reference-typed `static`.
 ///
 /// This part of the public API will go away if Rust changes
 /// to make the referent of `pub const FOO: &'static Encoding`
@@ -1435,7 +1472,8 @@ pub static WINDOWS_1258: &'static Encoding = &WINDOWS_1258_INIT;
 ///
 /// For use only for taking the address of this form when
 /// Rust prohibits the use of the non-`_INIT` form directly,
-/// such as in initializers of other `static`s.
+/// such as in initializers of other `static`s. If in doubt,
+/// use the corresponding non-`_INIT` reference-typed `static`.
 ///
 /// This part of the public API will go away if Rust changes
 /// to make the referent of `pub const FOO: &'static Encoding`
@@ -1459,7 +1497,8 @@ pub static WINDOWS_874: &'static Encoding = &WINDOWS_874_INIT;
 ///
 /// For use only for taking the address of this form when
 /// Rust prohibits the use of the non-`_INIT` form directly,
-/// such as in initializers of other `static`s.
+/// such as in initializers of other `static`s. If in doubt,
+/// use the corresponding non-`_INIT` reference-typed `static`.
 ///
 /// This part of the public API will go away if Rust changes
 /// to make the referent of `pub const FOO: &'static Encoding`
@@ -1483,7 +1522,8 @@ pub static X_MAC_CYRILLIC: &'static Encoding = &X_MAC_CYRILLIC_INIT;
 ///
 /// For use only for taking the address of this form when
 /// Rust prohibits the use of the non-`_INIT` form directly,
-/// such as in initializers of other `static`s.
+/// such as in initializers of other `static`s. If in doubt,
+/// use the corresponding non-`_INIT` reference-typed `static`.
 ///
 /// This part of the public API will go away if Rust changes
 /// to make the referent of `pub const FOO: &'static Encoding`
