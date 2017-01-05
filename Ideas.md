@@ -117,3 +117,15 @@ Consider having an accelerated Kanji and Hanzi encode table for the N most
 common Kanji is JIS X 0208, most common Hanzi in GBK and Hanzi in Big, for some
 suitable value for N.
 
+==Compress away duplication in the two upper alternative Kanji extension ranges==
+
+The ranges starting at jis0208 pointer 8272 and 10744 look the same. Avoid
+storing twice.
+
+==Use binary search for EUC-KR and gbk extension ranges==
+
+It seems that the parts of EUC-KR and gbk that were added to cover all
+Unicode 1.1 Hangul and ideographs, respectively, are ordered. If they actually
+are, store the start points of consecutive code points and use binary search
+on these.
+

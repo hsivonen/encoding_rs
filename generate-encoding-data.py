@@ -971,6 +971,7 @@ Instead, please regenerate using generate-encoding-data.py
 '''
 
 index = indexes["jis0208"]
+
 jis0208_in_file = open("src/test_data/jis0208_in.txt", "w")
 jis0208_in_file.write(TEST_HEADER)
 for pointer in range(0, len(index)):
@@ -994,5 +995,34 @@ for pointer in range(0, len(index)):
     else:
       jis0208_in_ref_file.write(u"\uFFFD\n".encode("utf-8"))
 jis0208_in_ref_file.close()
+
+jis0208_out_file = open("src/test_data/jis0208_out.txt", "w")
+jis0208_out_ref_file = open("src/test_data/jis0208_out_ref.txt", "w")
+jis0208_out_file.write(TEST_HEADER)
+jis0208_out_ref_file.write(TEST_HEADER)
+for pointer in range(0, 8272):
+  code_point = index[pointer]
+  if code_point:
+    revised_pointer = pointer
+    if revised_pointer >= 1207 and revised_pointer < 1220:
+      revised_pointer = index.index(code_point)
+    (lead, trail) = divmod(revised_pointer, 188)
+    lead += 0x81 if lead < 0x1F else 0xC1
+    trail += 0x40 if trail < 0x3F else 0x41
+    jis0208_out_ref_file.write("%s%s\n" % (chr(lead), chr(trail)))
+    jis0208_out_file.write((u"%s\n" % unichr(code_point)).encode("utf-8"))
+for pointer in range(8836, len(index)):
+  code_point = index[pointer]
+  if code_point:
+    revised_pointer = index.index(code_point)
+    if revised_pointer >= 8272 and revised_pointer < 8836:
+      revised_pointer = pointer
+    (lead, trail) = divmod(revised_pointer, 188)
+    lead += 0x81 if lead < 0x1F else 0xC1
+    trail += 0x40 if trail < 0x3F else 0x41
+    jis0208_out_ref_file.write("%s%s\n" % (chr(lead), chr(trail)))
+    jis0208_out_file.write((u"%s\n" % unichr(code_point)).encode("utf-8"))
+jis0208_out_file.close()
+jis0208_out_ref_file.close()
 
 subprocess.call(["cargo", "fmt"])

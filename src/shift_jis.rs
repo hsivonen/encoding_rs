@@ -277,4 +277,14 @@ mod tests {
         assert!(had_errors, "Should have had errors.");
         assert_eq!(&cow[..], expectation);
     }
+
+    #[test]
+    fn test_shift_jis_encode_all() {
+        let input = include_str!("test_data/jis0208_out.txt");
+        let expectation = include_bytes!("test_data/jis0208_out_ref.txt");
+        let (cow, encoding, had_errors) = SHIFT_JIS.encode(input);
+        assert!(!had_errors, "Should not have had errors.");
+        assert_eq!(encoding, SHIFT_JIS);
+        assert_eq!(&cow[..], &expectation[..]);
+    }
 }
