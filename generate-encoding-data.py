@@ -321,6 +321,8 @@ prefer_last = [
   0x5345,
 ]
 
+pointer_for_prefer_last = []
+
 for code_point in prefer_last:
   # Python lists don't have .rindex() :-(
   for i in xrange(len(index) - 1, -1, -1):
@@ -330,6 +332,7 @@ for code_point in prefer_last:
    return %d;
 },
 ''' % (code_point, i))
+       pointer_for_prefer_last.append(i)
        break
 
 data_file.write('''_ => {},
@@ -1108,5 +1111,62 @@ for pointer in range(0, len(index)):
     gb18030_out_file.write((u"%s\n" % unichr(code_point)).encode("utf-8"))
 gb18030_out_file.close()
 gb18030_out_ref_file.close()
+
+index = indexes["big5"]
+
+big5_in_file = open("src/test_data/big5_in.txt", "w")
+big5_in_file.write(TEST_HEADER)
+for pointer in range(0, len(index)):
+  (lead, trail) = divmod(pointer, 157)
+  lead += 0x81
+  trail += 0x40 if trail < 0x3F else 0x62
+  big5_in_file.write("%s%s\n" % (chr(lead), chr(trail)))
+big5_in_file.close()
+
+big5_two_characters = {
+  1133: u"\u00CA\u0304",
+  1135: u"\u00CA\u030C",
+  1164: u"\u00EA\u0304",
+  1166: u"\u00EA\u030C",
+}
+
+big5_in_ref_file = open("src/test_data/big5_in_ref.txt", "w")
+big5_in_ref_file.write(TEST_HEADER)
+for pointer in range(0, len(index)):
+  if pointer in big5_two_characters.keys():
+    big5_in_ref_file.write((u"%s\n" % big5_two_characters[pointer]).encode("utf-8"))
+    continue
+  code_point = index[pointer]
+  if code_point:
+    big5_in_ref_file.write((u"%s\n" % unichr(code_point)).encode("utf-8"))
+  else:
+    trail = pointer % 157
+    trail += 0x40 if trail < 0x3F else 0x62
+    if trail < 0x80:
+      big5_in_ref_file.write((u"\uFFFD%s\n" % unichr(trail)).encode("utf-8"))
+    else:
+      big5_in_ref_file.write(u"\uFFFD\n".encode("utf-8"))
+big5_in_ref_file.close()
+
+big5_out_file = open("src/test_data/big5_out.txt", "w")
+big5_out_ref_file = open("src/test_data/big5_out_ref.txt", "w")
+big5_out_file.write(TEST_HEADER)
+big5_out_ref_file.write(TEST_HEADER)
+for pointer in range(((0xA1 - 0x81) * 157), len(index)):
+  code_point = index[pointer]
+  if code_point:
+    if code_point in prefer_last:
+      if pointer != pointer_for_prefer_last[prefer_last.index(code_point)]:
+        continue
+    else:
+      if pointer != index.index(code_point):
+        continue
+    (lead, trail) = divmod(pointer, 157)
+    lead += 0x81
+    trail += 0x40 if trail < 0x3F else 0x62
+    big5_out_ref_file.write("%s%s\n" % (chr(lead), chr(trail)))
+    big5_out_file.write((u"%s\n" % unichr(code_point)).encode("utf-8"))
+big5_out_file.close()
+big5_out_ref_file.close()
 
 subprocess.call(["cargo", "fmt"])
