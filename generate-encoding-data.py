@@ -1025,4 +1025,45 @@ for pointer in range(8836, len(index)):
 jis0208_out_file.close()
 jis0208_out_ref_file.close()
 
+index = indexes["euc-kr"]
+
+euc_kr_in_file = open("src/test_data/euc_kr_in.txt", "w")
+euc_kr_in_file.write(TEST_HEADER)
+for pointer in range(0, len(index)):
+  (lead, trail) = divmod(pointer, 190)
+  lead += 0x81
+  trail += 0x41
+  euc_kr_in_file.write("%s%s\n" % (chr(lead), chr(trail)))
+euc_kr_in_file.close()
+
+euc_kr_in_ref_file = open("src/test_data/euc_kr_in_ref.txt", "w")
+euc_kr_in_ref_file.write(TEST_HEADER)
+for pointer in range(0, len(index)):
+  code_point = index[pointer]
+  if code_point:
+    euc_kr_in_ref_file.write((u"%s\n" % unichr(code_point)).encode("utf-8"))
+  else:
+    trail = pointer % 190
+    trail += 0x41
+    if trail < 0x80:
+      euc_kr_in_ref_file.write((u"\uFFFD%s\n" % unichr(trail)).encode("utf-8"))
+    else:
+      euc_kr_in_ref_file.write(u"\uFFFD\n".encode("utf-8"))
+euc_kr_in_ref_file.close()
+
+euc_kr_out_file = open("src/test_data/euc_kr_out.txt", "w")
+euc_kr_out_ref_file = open("src/test_data/euc_kr_out_ref.txt", "w")
+euc_kr_out_file.write(TEST_HEADER)
+euc_kr_out_ref_file.write(TEST_HEADER)
+for pointer in range(0, len(index)):
+  code_point = index[pointer]
+  if code_point:
+    (lead, trail) = divmod(pointer, 190)
+    lead += 0x81
+    trail += 0x41
+    euc_kr_out_ref_file.write("%s%s\n" % (chr(lead), chr(trail)))
+    euc_kr_out_file.write((u"%s\n" % unichr(code_point)).encode("utf-8"))
+euc_kr_out_file.close()
+euc_kr_out_ref_file.close()
+
 subprocess.call(["cargo", "fmt"])
