@@ -198,11 +198,6 @@ impl<'a, 'b> Utf16AstralHandle<'a, 'b>
         self.dest.written()
     }
     #[inline(always)]
-    pub fn write_char_excl_ascii(self, c: char) -> &'a mut Utf16Destination<'b> {
-        self.dest.write_char(c);
-        self.dest
-    }
-    #[inline(always)]
     pub fn write_ascii(self, ascii: u8) -> &'a mut Utf16Destination<'b> {
         self.dest.write_ascii(ascii);
         self.dest
@@ -286,14 +281,6 @@ impl<'a> Utf16Destination<'a> {
             *(self.slice.get_unchecked_mut(self.pos)) = u;
         }
         self.pos += 1;
-    }
-    #[inline(always)]
-    fn write_char(&mut self, c: char) {
-        if c <= '\u{FFFF}' {
-            self.write_code_unit(c as u16);
-        } else {
-            self.write_astral(c as u32);
-        }
     }
     #[inline(always)]
     fn write_ascii(&mut self, ascii: u8) {
@@ -479,11 +466,6 @@ impl<'a, 'b> Utf8AstralHandle<'a, 'b>
         self.dest.written()
     }
     #[inline(always)]
-    pub fn write_char_excl_ascii(self, c: char) -> &'a mut Utf8Destination<'b> {
-        self.dest.write_char(c);
-        self.dest
-    }
-    #[inline(always)]
     pub fn write_ascii(self, ascii: u8) -> &'a mut Utf8Destination<'b> {
         self.dest.write_ascii(ascii);
         self.dest
@@ -567,18 +549,6 @@ impl<'a> Utf8Destination<'a> {
             *(self.slice.get_unchecked_mut(self.pos)) = u;
         }
         self.pos += 1;
-    }
-    #[inline(always)]
-    fn write_char(&mut self, c: char) {
-        if c <= '\u{7F}' {
-            self.write_ascii(c as u8);
-        } else if c <= '\u{07FF}' {
-            self.write_mid_bmp(c as u16);
-        } else if c <= '\u{FFFF}' {
-            self.write_upper_bmp(c as u16);
-        } else {
-            self.write_astral(c as u32);
-        }
     }
     #[inline(always)]
     fn write_ascii(&mut self, ascii: u8) {

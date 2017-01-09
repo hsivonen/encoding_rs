@@ -12,22 +12,6 @@ use data::*;
 use variant::*;
 use super::*;
 
-#[inline(always)]
-fn call_gb18030_range_decode(first_minus_offset: u8,
-                             second_minus_offset: u8,
-                             third_minus_offset: u8,
-                             fourth_minus_offset: u8)
-                             -> Option<char> {
-    if fourth_minus_offset > (0x39 - 0x30) {
-        return None;
-    }
-    let pointer = (first_minus_offset as usize * (10 * 126 * 10)) +
-                  (second_minus_offset as usize * (10 * 126)) +
-                  (third_minus_offset as usize * 10) +
-                  fourth_minus_offset as usize;
-    gb18030_range_decode(pointer)
-}
-
 enum Gb18030Pending {
     None,
     One(u8),
@@ -181,13 +165,8 @@ impl Gb18030Decoder {
                                {
     // If fourth is between 0x30 and 0x39, inclusive,
     // subtract offset 0x30.
-                                   let fourth_minus_offset = fourth.wrapping_sub(0x30);
-                                   match call_gb18030_range_decode(first_minus_offset,
-                                                                     second_minus_offset,
-                                                                     third_minus_offset,
-                                                                     fourth_minus_offset) {
-                                       None => {
-    // We have an error. Let's inline what's going
+    //
+    // If we have an error, we'll inline what's going
     // to happen when `second` and `third` are
     // reprocessed. (`fourth` gets unread.)
     // `second` is guaranteed ASCII, so let's
@@ -195,19 +174,40 @@ impl Gb18030Decoder {
     // `second` from `second_minus_offset` to
     // make this block reusable when `second`
     // is not in scope.
-                                           self.pending_ascii = Some(second_minus_offset + 0x30);
+    //
     // `third` is guaranteed to be in the range
     // that makes it become the new `self.first`.
-                                           self.pending = Gb18030Pending::One(third_minus_offset);
-    // Now unread `fourth` and designate the previous
-    // `first` as being in error.
-                                           return (DecoderResult::Malformed(1, 2),
-                                                   unread_handle_fourth.unread(),
-                                                   handle.written());
+    //
+    // `fourth` gets unread and the previous
+    // `first` gets designates as being in error.
+                                   let fourth_minus_offset = fourth.wrapping_sub(0x30);
+                                   if fourth_minus_offset > (0x39 - 0x30) {
+                                       self.pending_ascii = Some(second_minus_offset + 0x30);
+                                       self.pending = Gb18030Pending::One(third_minus_offset);
+                                       return (DecoderResult::Malformed(1, 2),
+                                               unread_handle_fourth.unread(),
+                                               handle.written());
+                                   }
+                                   let pointer = (first_minus_offset as usize * (10 * 126 * 10)) +
+                                                 (second_minus_offset as usize * (10 * 126)) +
+                                                 (third_minus_offset as usize * 10) +
+                                                 fourth_minus_offset as usize;
+                                   if pointer <= 39419 {
+    // BMP
+                                       if pointer == 7457 {
+                                           handle.write_upper_bmp(0xE7C7)
+                                       } else {
+                                           handle.write_bmp_excl_ascii(gb18030_range_decode(pointer as u16))
                                        }
-                                       Some(c) => {
-                                           handle.write_char_excl_ascii(c)
-                                       }
+                                   } else if pointer >= 189000 && pointer <= 1237575 {
+    // Astral
+                                       handle.write_astral((pointer - (189000usize - 0x10000usize)) as u32)
+                                   } else {
+                                       self.pending_ascii = Some(second_minus_offset + 0x30);
+                                       self.pending = Gb18030Pending::One(third_minus_offset);
+                                       return (DecoderResult::Malformed(1, 2),
+                                               unread_handle_fourth.unread(),
+                                               handle.written());
                                    }
                                },
                                self,

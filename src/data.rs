@@ -12768,26 +12768,10 @@ fn map_with_ranges(haystack: &[u16], other: &[u16], needle: u16) -> u16 {
 }
 
 #[inline(always)]
-pub fn gb18030_range_decode(pointer: usize) -> Option<char> {
-    if pointer >= 189000 {
-        if pointer > 1237575 {
-            return None;
-        }
-        return Some(unsafe {
-            ::std::mem::transmute((pointer - (189000usize - 0x10000usize)) as u32)
-        });
-    }
-    if pointer > 39419 {
-        return None;
-    }
-    if pointer == 7457 {
-        return Some('\u{E7C7}');
-    }
-    Some(unsafe {
-        ::std::mem::transmute(map_with_ranges(&GB18030_RANGE_POINTERS[..],
-                                              &GB18030_RANGE_OFFSETS[..],
-                                              pointer as u16) as u32)
-    })
+pub fn gb18030_range_decode(pointer: u16) -> u16 {
+    map_with_ranges(&GB18030_RANGE_POINTERS[..],
+                    &GB18030_RANGE_OFFSETS[..],
+                    pointer)
 }
 
 #[inline(always)]
