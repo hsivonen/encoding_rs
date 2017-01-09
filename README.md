@@ -49,6 +49,11 @@ A framework for measuring performance is [available separately][1].
 
 [1]: https://github.com/hsivonen/encoding_bench/
 
+## C binding
+
+An FFI layer for encoding_rs is available as a
+[separate crate](https://github.com/hsivonen/encoding_c).
+
 ## Compatibility with rust-encoding
 
 A compatibility layer that implements the rust-encoding API on top of
@@ -71,7 +76,7 @@ encoding_rs is
 - [x] Accelerate ASCII conversions using SSE2 on x86.
 - [x] Accelerate ASCII conversions using ALU register-sized operations on
       non-x86 architectures (process an `usize` instead of `u8` at a time).
-- [ ] Split FFI into a separate crate so that the FFI doesn't interfere with
+- [x] Split FFI into a separate crate so that the FFI doesn't interfere with
       LTO in pure-Rust usage.
 - [ ] Compress CJK indices by making use of sequential code points as well
       as Unicode-ordered parts of indices.
@@ -90,6 +95,11 @@ encoding_rs is
       adapted to Rust in rust-encoding.
 
 ## Release Notes
+
+### 0.4.0
+
+* Split FFI into a separate crate.
+* Performance tweaks.
 
 ### 0.3.2
 

@@ -9,22 +9,13 @@ documentation = "https://docs.rs/encoding_rs/"
 homepage = "https://docs.rs/encoding_rs/"
 repository = "https://github.com/hsivonen/encoding_rs"
 keywords = ["encoding", "web", "unicode", "charset"]
-build = "build.rs"
 
 [features]
 simd-accel = ["simd"]
 
-[lib]
-name = "encoding_rs"
-# The below line confuses rustfmt. Uncomment to build a staticlib.
-# crate-type = ["rlib", "staticlib"]
-
 [dependencies]
 cfg-if = "0.1.0"
 simd = { version = "0.1.1", optional = true }
-
-[build-dependencies]
-rusty-cheddar = "0.3.1"
 
 [profile.release]
 lto = true

@@ -185,21 +185,21 @@
 //! The API in Rust has two modes of operation: streaming and non-streaming.
 //! The streaming API is the foundation of the implementation and should be
 //! used when processing data that arrives piecemeal from an i/o stream. The
-//! streaming API has an FFI wrapper that exposes it to C callers. The
-//! non-streaming part of the API is for Rust callers only and is smart about
-//! borrowing instead of copying when possible. When streamability is not
-//! needed, the non-streaming API should be preferrer in order to avoid copying
-//! data when a borrow suffices.
+//! streaming API has an FFI wrapper (as a [separate crate][1]) that exposes it
+//! to C callers. The non-streaming part of the API is for Rust callers only and
+//! is smart about borrowing instead of copying when possible. When
+//! streamability is not needed, the non-streaming API should be preferrer in
+//! order to avoid copying data when a borrow suffices.
 //!
-//! There is no analogous C API exposed via FFI,  mainly because C doesn't have
+//! There is no analogous C API exposed via FFI, mainly because C doesn't have
 //! standard types for growable byte buffers and Unicode strings that know
 //! their length.
 //!
 //! The C API (header file generated at `target/include/encoding_rs.h` when
 //! building encoding_rs) can, in turn, be wrapped for use from C++. Such a
 //! C++ wrapper could re-create the non-streaming API in C++ for C++ callers.
-//! Currently, encoding_rs comes with a
-//! [C++ wrapper](https://github.com/hsivonen/encoding_rs/blob/master/include/encoding_rs_cpp.h)
+//! Currently, the C binding comes with a
+//! [C++ wrapper](https://github.com/hsivonen/encoding_c/blob/master/include/encoding_rs_cpp.h)
 //! that uses STL+[GSL](https://github.com/Microsoft/GSL/) types, but this
 //! wrapper doesn't provide non-streaming convenience methods at this time. A
 //! C++ wrapper with XPCOM/MFBT types is planned but does not exist yet.
@@ -210,6 +210,8 @@
 //! `Encoding`. In the non-streaming mode, decoding and encoding operations are
 //! performed using methods on `Encoding` objects themselves, so the `Decoder`
 //! and `Encoder` objects are not used at all.
+//!
+//! [1]: https://github.com/hsivonen/encoding_c
 //!
 //! # Memory management
 //!
@@ -525,12 +527,10 @@ mod ascii;
 mod handles;
 mod data;
 mod variant;
-pub mod ffi;
 
 use variant::*;
 use utf_8::utf8_valid_up_to;
 use ascii::ascii_valid_up_to;
-pub use ffi::*;
 
 use std::borrow::Cow;
 
@@ -540,8 +540,6 @@ const NCR_EXTRA: usize = 9; // #1114111;
 // Instead, please regenerate using generate-encoding-data.py
 
 const LONGEST_LABEL_LENGTH: usize = 19; // cseucpkdfmtjapanese
-
-const LONGEST_NAME_LENGTH: usize = 14; // x-mac-cyrillic
 
 /// The initializer for the Big5 encoding.
 ///
