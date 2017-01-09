@@ -12760,34 +12760,34 @@ static GB18030_RANGE_OFFSETS: [u16; 206] = [0x0080, 0x00A5, 0x00A9, 0x00B2, 0x00
                                             0xFF5F, 0xFFE6];
 
 #[inline(always)]
-pub fn gb18030_range_decode(pointer: usize) -> char {
-    if pointer > 1237575 || (pointer > 39419 && pointer < 189000) {
-        return '\u{0}';
+fn map_with_ranges(haystack: &[u16], other: &[u16], needle: u16) -> u16 {
+    match haystack.binary_search(&needle) {
+        Ok(i) => other[i],
+        Err(i) => other[i - 1] + (needle - haystack[i - 1]),
     }
+}
+
+#[inline(always)]
+pub fn gb18030_range_decode(pointer: usize) -> Option<char> {
     if pointer >= 189000 {
-        return unsafe { ::std::mem::transmute((pointer - 189000usize + 0x10000usize) as u32) };
+        if pointer > 1237575 {
+            return None;
+        }
+        return Some(unsafe {
+            ::std::mem::transmute((pointer - (189000usize - 0x10000usize)) as u32)
+        });
+    }
+    if pointer > 39419 {
+        return None;
     }
     if pointer == 7457 {
-        return '\u{E7C7}';
+        return Some('\u{E7C7}');
     }
-    let mut it = GB18030_RANGE_POINTERS.iter().enumerate();
-    loop {
-        match it.next() {
-            Some((i, candidate)) => {
-                if *candidate as usize <= pointer {
-                    continue;
-                }
-                return unsafe {
-                    ::std::mem::transmute((pointer - GB18030_RANGE_POINTERS[i-1] as usize + GB18030_RANGE_OFFSETS[i-1] as usize) as u32)
-                };
-            }
-            None => {
-                return unsafe {
-                    ::std::mem::transmute((pointer - GB18030_RANGE_POINTERS[GB18030_RANGE_POINTERS.len()-1] as usize + GB18030_RANGE_OFFSETS[GB18030_RANGE_OFFSETS.len()-1] as usize) as u32)
-                };
-            }
-        }
-    }
+    Some(unsafe {
+        ::std::mem::transmute(map_with_ranges(&GB18030_RANGE_POINTERS[..],
+                                              &GB18030_RANGE_OFFSETS[..],
+                                              pointer as u16) as u32)
+    })
 }
 
 #[inline(always)]
@@ -12795,21 +12795,5 @@ pub fn gb18030_range_encode(bmp: u16) -> usize {
     if bmp == 0xE7C7 {
         return 7457;
     }
-    let mut it = GB18030_RANGE_OFFSETS.iter().enumerate();
-    loop {
-        match it.next() {
-            Some((i, candidate)) => {
-                if *candidate <= bmp {
-                    continue;
-                }
-                return bmp as usize - GB18030_RANGE_OFFSETS[i - 1] as usize +
-                       GB18030_RANGE_POINTERS[i - 1] as usize;
-            }
-            None => {
-                return bmp as usize -
-                       GB18030_RANGE_OFFSETS[GB18030_RANGE_OFFSETS.len() - 1] as usize +
-                       GB18030_RANGE_POINTERS[GB18030_RANGE_POINTERS.len() - 1] as usize;
-            }
-        }
-    }
+    map_with_ranges(&GB18030_RANGE_OFFSETS[..], &GB18030_RANGE_POINTERS[..], bmp) as usize
 }
