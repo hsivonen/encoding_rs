@@ -126,9 +126,7 @@ label_file.write("""
 
 const LONGEST_LABEL_LENGTH: usize = %d; // %s
 
-const LONGEST_NAME_LENGTH: usize = %d; // %s
-
-""" % (longest_label_length, longest_label, longest_name_length, longest_name))
+""" % (longest_label_length, longest_label))
 
 for name in preferred:
   variant = None
@@ -589,30 +587,18 @@ for i in xrange(len(pointers)):
 data_file.write('''];
 
 #[inline(always)]
-pub fn gb18030_range_decode(pointer: usize) -> char {
-    if pointer > 1237575 || (pointer > 39419 && pointer < 189000) {
-        return '\u{0}';
+fn map_with_ranges(haystack: &[u16], other: &[u16], needle: u16) -> u16 {
+    match haystack.binary_search(&needle) {
+        Ok(i) => other[i],
+        Err(i) => other[i - 1] + (needle - haystack[i - 1]),
     }
-    if pointer >= 189000 {
-        return unsafe { ::std::mem::transmute((pointer - 189000usize + 0x10000usize) as u32) };
-    }
-    if pointer == 7457 {
-        return '\u{E7C7}';
-    }
-    let mut it = GB18030_RANGE_POINTERS.iter().enumerate();
-    loop {
-        match it.next() {
-            Some((i, candidate)) => {
-                if *candidate as usize <= pointer {
-                    continue;
-                }
-                return unsafe { ::std::mem::transmute((pointer - GB18030_RANGE_POINTERS[i-1] as usize + GB18030_RANGE_OFFSETS[i-1] as usize) as u32) };
-            }
-            None => {
-                return unsafe { ::std::mem::transmute((pointer - GB18030_RANGE_POINTERS[GB18030_RANGE_POINTERS.len()-1] as usize + GB18030_RANGE_OFFSETS[GB18030_RANGE_OFFSETS.len()-1] as usize) as u32) };
-            }
-        }
-    }
+}
+
+#[inline(always)]
+pub fn gb18030_range_decode(pointer: u16) -> u16 {
+    map_with_ranges(&GB18030_RANGE_POINTERS[..],
+                    &GB18030_RANGE_OFFSETS[..],
+                    pointer)
 }
 
 #[inline(always)]
@@ -620,20 +606,7 @@ pub fn gb18030_range_encode(bmp: u16) -> usize {
     if bmp == 0xE7C7 {
         return 7457;
     }
-    let mut it = GB18030_RANGE_OFFSETS.iter().enumerate();
-    loop {
-        match it.next() {
-            Some((i, candidate)) => {
-                if *candidate <= bmp {
-                    continue;
-                }
-                return bmp as usize - GB18030_RANGE_OFFSETS[i - 1] as usize + GB18030_RANGE_POINTERS[i -1] as usize;
-            }
-            None => {
-                return bmp as usize - GB18030_RANGE_OFFSETS[GB18030_RANGE_OFFSETS.len() - 1] as usize + GB18030_RANGE_POINTERS[GB18030_RANGE_POINTERS.len() -1] as usize;
-            }
-        }
-    }
+    map_with_ranges(&GB18030_RANGE_OFFSETS[..], &GB18030_RANGE_POINTERS[..], bmp) as usize
 }
 ''')
 
@@ -822,15 +795,18 @@ impl VariantEncoding {
 
 variant_file.close()
 
-(ffi_rs_begin, ffi_rs_end) = read_non_generated("src/ffi.rs")
+(ffi_rs_begin, ffi_rs_end) = read_non_generated("../encoding_c/src/lib.rs")
 
-ffi_file = open("src/ffi.rs", "w")
+ffi_file = open("../encoding_c/src/lib.rs", "w")
 
 ffi_file.write(ffi_rs_begin)
 ffi_file.write("""
 // Instead, please regenerate using generate-encoding-data.py
 
-""")
+/// The minimum length of buffers that may be passed to `encoding_name()`.
+pub const ENCODING_NAME_MAX_LENGTH: usize = %d; // %s
+
+""" % (longest_name_length, longest_name))
 
 for name in preferred:
   ffi_file.write('''/// The %s encoding.
@@ -881,7 +857,7 @@ single_byte_file.write("""
 single_byte_file.write(single_byte_rs_end)
 single_byte_file.close()
 
-static_file = open("include/encoding_rs_statics.h", "w")
+static_file = open("../encoding_c/include/encoding_rs_statics.h", "w")
 
 static_file.write("""// Copyright 2016 Mozilla Foundation. See the COPYRIGHT
 // file at the top-level directory of this distribution.
