@@ -113,7 +113,7 @@ impl Gb18030Decoder {
                                {
                                    // Two-byte (or error)
                                    if first_minus_offset >= 0x20 {
-                                       // Not the extension range above the old
+                                       // Not the gbk ideograph range above GB2312
                                        let trail_minus_offset = second.wrapping_sub(0xA1);
                                        if trail_minus_offset <= (0xFE - 0xA1) {
                                            // GB2312
@@ -142,11 +142,11 @@ impl Gb18030Decoder {
                                                handle.write_bmp_excl_ascii(bmp)
                                            }
                                        } else {
-                                           // Extension range on the left
+                                           // gbk range on the left
                                            let mut trail_minus_offset = second.wrapping_sub(0x40);
                                            if trail_minus_offset > (0x7E - 0x40) {
                                                let trail_minus_range_start = second.wrapping_sub(0x80);
-                                               if trail_minus_range_start > (0xFE - 0x80) {
+                                               if trail_minus_range_start > (0xA0 - 0x80) {
                                                    if second < 0x80 {
                                                        return (DecoderResult::Malformed(1, 0),
                                                                unread_handle_second.unread(),
@@ -158,23 +158,25 @@ impl Gb18030Decoder {
                                                }
                                                trail_minus_offset = second - 0x41;
                                            }
-                                           let pointer = first_minus_offset as usize * 190usize +
-                                                         trail_minus_offset as usize;
-                                           let bmp = gb18030_decode(pointer);
-                                           if bmp == 0 {
-                                               if second < 0x80 {
-                                                   return (DecoderResult::Malformed(1, 0),
-                                                           unread_handle_second.unread(),
-                                                           handle.written());
-                                               }
-                                               return (DecoderResult::Malformed(2, 0),
-                                                       unread_handle_second.consumed(),
-                                                       handle.written());
+                                           // Zero-base lead
+                                           let left_lead = first_minus_offset - 0x20;
+                                           let left_pointer = left_lead as usize * (190 - 94) +
+                                                              trail_minus_offset as usize;
+                                           let gbk_left_ideograph_pointer = left_pointer.wrapping_sub((0x29 - 0x20) * (190 - 94));
+                                           if gbk_left_ideograph_pointer < (((0x7D - 0x29) * (190 - 94)) - 5) {
+                                               let upper_bmp = gbk_left_ideograph_decode(gbk_left_ideograph_pointer as u16);
+                                               handle.write_upper_bmp(upper_bmp)
+                                           } else if left_pointer < ((0x29 - 0x20) * (190 - 94)) {
+                                               let bmp = gbk_other_decode(left_pointer as u16);
+                                               handle.write_bmp_excl_ascii(bmp)
+                                           } else {
+                                               let bottom_pointer = left_pointer - (((0x7D - 0x20) * (190 - 94)) - 5);
+                                               let upper_bmp = GBK_BOTTOM[bottom_pointer];
+                                               handle.write_upper_bmp(upper_bmp)
                                            }
-                                           handle.write_bmp_excl_ascii(bmp)
                                        }
                                    } else {
-                                       // Extension range above the old
+                                       // gbk ideograph range above GB2312
                                        let mut trail_minus_offset = second.wrapping_sub(0x40);
                                        if trail_minus_offset > (0x7E - 0x40) {
                                            let trail_minus_range_start = second.wrapping_sub(0x80);

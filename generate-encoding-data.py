@@ -532,15 +532,7 @@ for i in xrange(len(index)):
 
 data_file.write('''];
 
-#[inline(always)]
-pub fn gb18030_decode(pointer: usize) -> u16 {
-    if pointer < %d {
-        GB18030_INDEX[pointer]
-    } else {
-        0
-    }
-}
-''' % len(index))
+''')
 
 data_file.write('''
 #[inline(always)]
@@ -582,13 +574,62 @@ for i in xrange(6080):
   code_point = index[i]
   if previous_code_point > code_point:
     raise Error()
-  if code_point - previous_code_point > 1:
+  if code_point - previous_code_point != 1:
     pointers.append(i)
     offsets.append(code_point)
   previous_code_point = code_point
 
 static_u16_table("GBK_TOP_IDEOGRAPH_POINTERS", pointers)
 static_u16_table("GBK_TOP_IDEOGRAPH_OFFSETS", offsets)
+
+# Unicode 1.1 ideographs to the left of the old GB2312 block
+# Compressed form takes 40% of uncompressed form
+pointers = []
+offsets = []
+previous_code_point = 0
+for row in xrange(0x7D - 0x29):
+  for column in xrange(190 - 94):
+    i = 7790 + column + (row * 190)
+    if i > 23650:
+      # Exclude compatibility ideographs at the end
+      break
+    code_point = index[i]
+    if previous_code_point > code_point:
+      raise Error()
+    if code_point - previous_code_point != 1:
+      pointers.append(column + (row * (190 - 94)))
+      offsets.append(code_point)
+    previous_code_point = code_point
+
+static_u16_table("GBK_LEFT_IDEOGRAPH_POINTERS", pointers)
+static_u16_table("GBK_LEFT_IDEOGRAPH_OFFSETS", offsets)
+
+# GBK other (excl. Ext A, Compat & PUA at the bottom)
+pointers = []
+offsets = []
+previous_code_point = 0
+for row in xrange(0x29 - 0x20):
+  for column in xrange(190 - 94):
+    i = 6080 + column + (row * 190)
+    code_point = index[i]
+    if code_point - previous_code_point != 1:
+      pointers.append(column + (row * (190 - 94)))
+      offsets.append(code_point)
+    previous_code_point = code_point
+
+static_u16_table("GBK_OTHER_POINTERS", pointers)
+static_u16_table("GBK_OTHER_UNSORTED_OFFSETS", offsets)
+
+# GBK bottom: Compatibility ideagraphs, Ext A and PUA
+bottom_index = []
+# 5 compat following Unified Ideographs
+for i in range(23651, 23656):
+  bottom_index.append(index[i])
+# Last row
+for i in range(23750, 23846):
+  bottom_index.append(index[i])
+
+static_u16_table("GBK_BOTTOM", bottom_index)
 
 # GB2312 Hanzi
 # (and the 5 PUA code points in between Level 1 and Level 2)
@@ -677,14 +718,28 @@ pub fn gb18030_range_encode(bmp: u16) -> usize {
 }
 
 #[inline(always)]
-pub fn GBK_TOP_IDEOGRAPH_decode(pointer: u16) -> u16 {
+pub fn gbk_top_ideograph_decode(pointer: u16) -> u16 {
     map_with_ranges(&GBK_TOP_IDEOGRAPH_POINTERS[..],
                     &GBK_TOP_IDEOGRAPH_OFFSETS[..],
                     pointer)
 }
 
 #[inline(always)]
-pub fn GB2312_other_decode(pointer: u16) -> u16 {
+pub fn gbk_left_ideograph_decode(pointer: u16) -> u16 {
+    map_with_ranges(&GBK_LEFT_IDEOGRAPH_POINTERS[..],
+                    &GBK_LEFT_IDEOGRAPH_OFFSETS[..],
+                    pointer)
+}
+
+#[inline(always)]
+pub fn gbk_other_decode(pointer: u16) -> u16 {
+    map_with_ranges(&GBK_OTHER_POINTERS[..],
+                    &GBK_OTHER_UNSORTED_OFFSETS[..],
+                    pointer)
+}
+
+#[inline(always)]
+pub fn gb2312_other_decode(pointer: u16) -> u16 {
     map_with_ranges(&GB2312_OTHER_POINTERS[..],
                     &GB2312_OTHER_UNSORTED_OFFSETS[..],
                     pointer)
