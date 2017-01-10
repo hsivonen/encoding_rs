@@ -15237,6 +15237,11 @@ fn map_with_ranges(haystack: &[u16], other: &[u16], needle: u16) -> u16 {
 }
 
 #[inline(always)]
+pub fn position(haystack: &[u16], needle: u16) -> Option<usize> {
+    haystack.iter().position(|&x| x == needle)
+}
+
+#[inline(always)]
 pub fn gb18030_range_decode(pointer: u16) -> u16 {
     map_with_ranges(&GB18030_RANGE_POINTERS[..],
                     &GB18030_RANGE_OFFSETS[..],
@@ -15259,9 +15264,23 @@ pub fn gbk_top_ideograph_decode(pointer: u16) -> u16 {
 }
 
 #[inline(always)]
+pub fn gbk_top_ideograph_encode(pointer: u16) -> u16 {
+    map_with_ranges(&GBK_TOP_IDEOGRAPH_OFFSETS[..],
+                    &GBK_TOP_IDEOGRAPH_POINTERS[..],
+                    pointer)
+}
+
+#[inline(always)]
 pub fn gbk_left_ideograph_decode(pointer: u16) -> u16 {
     map_with_ranges(&GBK_LEFT_IDEOGRAPH_POINTERS[..],
                     &GBK_LEFT_IDEOGRAPH_OFFSETS[..],
+                    pointer)
+}
+
+#[inline(always)]
+pub fn gbk_left_ideograph_encode(pointer: u16) -> u16 {
+    map_with_ranges(&GBK_LEFT_IDEOGRAPH_OFFSETS[..],
+                    &GBK_LEFT_IDEOGRAPH_POINTERS[..],
                     pointer)
 }
 

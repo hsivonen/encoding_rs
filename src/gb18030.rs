@@ -319,12 +319,53 @@ impl Gb18030Encoder {
     }
 
     ascii_compatible_encoder_functions!({
-                                            if bmp == 0xE5E5 {
+                                            let bmp_minus_unified_start = bmp.wrapping_sub(0x4E00);
+                                            if bmp_minus_unified_start < (0x9FA6 - 0x4E00) {
+                                                // CJK Unified Ideographs
+                                                // Can't fail now, since all are
+                                                // mapped.
+                                                // XXX Can we do something smarter
+                                                // than linear search for GB2312
+                                                // Level 2 Hanzi, which are almost
+                                                // Unicode-ordered?
+                                                let (lead, trail) = match position(&GB2312_HANZI[..], bmp) {
+                                                    Some(hanzi_pointer) => {
+                                                        let hanzi_lead = (hanzi_pointer / 94) + (0x81 + 0x2F);
+                                                        let hanzi_trail = (hanzi_pointer % 94) + 0xA1;
+                                                        (hanzi_lead, hanzi_trail)
+                                                    }
+                                                    None => {
+                                                        if bmp_minus_unified_start < (0x72DC - 0x4E00) {
+                                                            // Above GB2312
+                                                            let pointer = gbk_top_ideograph_encode(bmp) as usize;
+                                                            let lead = (pointer / 190) + 0x81;
+                                                            let trail = pointer % 190;
+                                                            let offset = if trail < 0x3F {
+                                                                0x40
+                                                            } else {
+                                                                0x41
+                                                            };
+                                                            (lead, trail + offset)
+                                                        } else {
+                                                            // To the left of GB2312
+                                                            let gbk_left_ideograph_pointer = gbk_left_ideograph_encode(bmp) as usize;
+                                                            let lead = (gbk_left_ideograph_pointer / (190 - 94)) + (0x81 + 0x29);
+                                                            let trail = gbk_left_ideograph_pointer % (190 - 94);
+                                                            let offset = if trail < 0x3F {
+                                                                0x40
+                                                            } else {
+                                                                0x41
+                                                            };
+                                                            (lead, trail + offset)
+                                                        }
+                                                    }
+                                                };
+                                                handle.write_two(lead as u8, trail as u8)
+                                            } else if bmp == 0xE5E5 {
                                                 return (EncoderResult::unmappable_from_bmp(bmp),
                                                         source.consumed(),
                                                         handle.written());
-                                            }
-                                            if bmp == 0x20AC && !self.extended {
+                                            } else if bmp == 0x20AC && !self.extended {
                                                 handle.write_one(0x80u8)
                                             } else {
                                                 let pointer = gb18030_encode(bmp);
