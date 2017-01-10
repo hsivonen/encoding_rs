@@ -562,6 +562,86 @@ pub fn gb18030_encode(bmp: u16) -> usize {
 }
 ''')
 
+def static_u16_table(name, data):
+  data_file.write('''pub static %s: [u16; %d] = [
+  ''' % (name, len(data)))
+
+  for i in xrange(len(data)):
+    data_file.write('0x%04X,\n' % data[i])
+
+  data_file.write('''];
+
+  ''')
+
+# Unicode 1.1 ideographs above the old GB2312 block
+# Compressed form takes 63% of uncompressed form
+pointers = []
+offsets = []
+previous_code_point = 0
+for i in xrange(6080):
+  code_point = index[i]
+  if previous_code_point > code_point:
+    raise Error()
+  if code_point - previous_code_point > 1:
+    pointers.append(i)
+    offsets.append(code_point)
+  previous_code_point = code_point
+
+static_u16_table("GBK_TOP_IDEOGRAPH_POINTERS", pointers)
+static_u16_table("GBK_TOP_IDEOGRAPH_OFFSETS", offsets)
+
+# GB2312 Hanzi
+# (and the 5 PUA code points in between Level 1 and Level 2)
+hanzi_index = []
+for row in xrange(0x77 - 0x2F):
+  for column in xrange(94):
+    hanzi_index.append(index[9026 + column + (row * 190)])
+
+static_u16_table("GB2312_HANZI", hanzi_index)
+
+# GB2312 symbols
+symbol_index = []
+for i in xrange(94):
+  symbol_index.append(index[6176 + i])
+
+static_u16_table("GB2312_SYMBOLS", symbol_index)
+
+# GB2312 symbols on Greek row (incl. PUA)
+symbol_index = []
+for i in xrange(22):
+  symbol_index.append(index[7189 + i])
+
+static_u16_table("GB2312_SYMBOLS_AFTER_GREEK", symbol_index)
+
+# GB2312 Pinyin
+pinyin_index = []
+for i in xrange(32):
+  pinyin_index.append(index[7506 + i])
+
+static_u16_table("GB2312_PINYIN", pinyin_index)
+
+# GB2312 other (excl. bottom PUA)
+pointers = []
+offsets = []
+previous_code_point = 0
+for row in xrange(14):
+  for column in xrange(94):
+    i = 6366 + column + (row * 190)
+    # Exclude the two ranges that were processed as
+    # lookup tables above.
+    if (i >= 7189 and i < 7189 + 22) or (i >= 7506 and i < 7506 + 32):
+      previous_code_point = 0
+      continue
+    code_point = index[i]
+    if code_point - previous_code_point != 1:
+      pointers.append(column + (row * 94))
+      offsets.append(code_point)
+    previous_code_point = code_point
+
+static_u16_table("GB2312_OTHER_POINTERS", pointers)
+static_u16_table("GB2312_OTHER_UNSORTED_OFFSETS", offsets)
+
+# Non-gbk code points
 pointers = []
 offsets = []
 for pair in indexes["gb18030-ranges"]:
@@ -570,23 +650,10 @@ for pair in indexes["gb18030-ranges"]:
   pointers.append(pair[0])
   offsets.append(pair[1])
 
-data_file.write('''static GB18030_RANGE_POINTERS: [u16; %d] = [
-''' % len(pointers))
+static_u16_table("GB18030_RANGE_POINTERS", pointers)
+static_u16_table("GB18030_RANGE_OFFSETS", offsets)
 
-for i in xrange(len(pointers)):
-  data_file.write('0x%04X,\n' % pointers[i])
-
-data_file.write('''];
-
-static GB18030_RANGE_OFFSETS: [u16; %d] = [
-''' % len(pointers))
-
-for i in xrange(len(pointers)):
-  data_file.write('0x%04X,\n' % offsets[i])
-
-data_file.write('''];
-
-#[inline(always)]
+data_file.write('''#[inline(always)]
 fn map_with_ranges(haystack: &[u16], other: &[u16], needle: u16) -> u16 {
     match haystack.binary_search(&needle) {
         Ok(i) => other[i],
@@ -607,6 +674,25 @@ pub fn gb18030_range_encode(bmp: u16) -> usize {
         return 7457;
     }
     map_with_ranges(&GB18030_RANGE_OFFSETS[..], &GB18030_RANGE_POINTERS[..], bmp) as usize
+}
+
+#[inline(always)]
+pub fn GBK_TOP_IDEOGRAPH_decode(pointer: u16) -> u16 {
+    map_with_ranges(&GBK_TOP_IDEOGRAPH_POINTERS[..],
+                    &GBK_TOP_IDEOGRAPH_OFFSETS[..],
+                    pointer)
+}
+
+#[inline(always)]
+pub fn GB2312_other_decode(pointer: u16) -> u16 {
+    map_with_ranges(&GB2312_OTHER_POINTERS[..],
+                    &GB2312_OTHER_UNSORTED_OFFSETS[..],
+                    pointer)
+}
+
+#[inline(always)]
+pub fn mul_94(lead: u8) -> usize {
+    lead as usize * 94
 }
 ''')
 

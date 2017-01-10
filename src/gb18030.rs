@@ -112,35 +112,89 @@ impl Gb18030Decoder {
                                },
                                {
                                    // Two-byte (or error)
-                                   let mut trail_minus_offset = second.wrapping_sub(0x40);
-                                   if trail_minus_offset > (0x7E - 0x40) {
-                                       let trail_minus_range_start = second.wrapping_sub(0x80);
-                                       if trail_minus_range_start > (0xFE - 0x80) {
-                                           if second < 0x80 {
-                                               return (DecoderResult::Malformed(1, 0),
-                                                       unread_handle_second.unread(),
+                                   if first_minus_offset >= 0x20 {
+                                       // Not the extension range above the old
+                                       let trail_minus_offset = second.wrapping_sub(0xA1);
+                                       if trail_minus_offset <= (0xFE - 0xA1) {
+                                           // GB2312
+                                           let hanzi_lead = first_minus_offset.wrapping_sub(0x2F);
+                                           if hanzi_lead < (0x77 - 0x2F) {
+                                               // Level 1 Hanzi, Level 2 Hanzi
+                                               // or one of the 5 PUA code
+                                               // points in between.
+                                               let hanzi_pointer = mul_94(hanzi_lead) + trail_minus_offset as usize;
+                                               let upper_bmp = GB2312_HANZI[hanzi_pointer];
+                                               handle.write_upper_bmp(upper_bmp)
+                                           } else if first_minus_offset == 0x20 {
+                                               // Symbols (starting with ideographic space)
+                                               let bmp = GB2312_SYMBOLS[trail_minus_offset as usize];
+                                               handle.write_bmp_excl_ascii(bmp)
+                                           } else if first_minus_offset == 0x25 && ((trail_minus_offset.wrapping_sub(63) as usize) < GB2312_SYMBOLS_AFTER_GREEK.len()) {
+                                               handle.write_bmp_excl_ascii(GB2312_SYMBOLS_AFTER_GREEK[trail_minus_offset.wrapping_sub(63) as usize])
+                                           } else if first_minus_offset == 0x27 && (trail_minus_offset as usize) < GB2312_PINYIN.len() {
+                                               handle.write_bmp_excl_ascii(GB2312_PINYIN[trail_minus_offset as usize])
+                                           } else if first_minus_offset > 0x76 {
+                                               // Bottom PUA
+                                               let pua = (0xE234 + mul_94(first_minus_offset - 0x77) + trail_minus_offset as usize) as u16;
+                                               handle.write_upper_bmp(pua)
+                                           } else {
+                                               let bmp = gb2312_other_decode((mul_94(first_minus_offset - 0x21) + (trail_minus_offset as usize)) as u16);
+                                               handle.write_bmp_excl_ascii(bmp)
+                                           }
+                                       } else {
+                                           // Extension range on the left
+                                           let mut trail_minus_offset = second.wrapping_sub(0x40);
+                                           if trail_minus_offset > (0x7E - 0x40) {
+                                               let trail_minus_range_start = second.wrapping_sub(0x80);
+                                               if trail_minus_range_start > (0xFE - 0x80) {
+                                                   if second < 0x80 {
+                                                       return (DecoderResult::Malformed(1, 0),
+                                                               unread_handle_second.unread(),
+                                                               handle.written());
+                                                   }
+                                                   return (DecoderResult::Malformed(2, 0),
+                                                           unread_handle_second.consumed(),
+                                                           handle.written());
+                                               }
+                                               trail_minus_offset = second - 0x41;
+                                           }
+                                           let pointer = first_minus_offset as usize * 190usize +
+                                                         trail_minus_offset as usize;
+                                           let bmp = gb18030_decode(pointer);
+                                           if bmp == 0 {
+                                               if second < 0x80 {
+                                                   return (DecoderResult::Malformed(1, 0),
+                                                           unread_handle_second.unread(),
+                                                           handle.written());
+                                               }
+                                               return (DecoderResult::Malformed(2, 0),
+                                                       unread_handle_second.consumed(),
                                                        handle.written());
                                            }
-                                           return (DecoderResult::Malformed(2, 0),
-                                                   unread_handle_second.consumed(),
-                                                   handle.written());
+                                           handle.write_bmp_excl_ascii(bmp)
                                        }
-                                       trail_minus_offset = second - 0x41;
-                                   }
-                                   let pointer = first_minus_offset as usize * 190usize +
-                                                 trail_minus_offset as usize;
-                                   let bmp = gb18030_decode(pointer);
-                                   if bmp == 0 {
-                                       if second < 0x80 {
-                                           return (DecoderResult::Malformed(1, 0),
-                                                   unread_handle_second.unread(),
-                                                   handle.written());
+                                   } else {
+                                       // Extension range above the old
+                                       let mut trail_minus_offset = second.wrapping_sub(0x40);
+                                       if trail_minus_offset > (0x7E - 0x40) {
+                                           let trail_minus_range_start = second.wrapping_sub(0x80);
+                                           if trail_minus_range_start > (0xFE - 0x80) {
+                                               if second < 0x80 {
+                                                   return (DecoderResult::Malformed(1, 0),
+                                                           unread_handle_second.unread(),
+                                                           handle.written());
+                                               }
+                                               return (DecoderResult::Malformed(2, 0),
+                                                       unread_handle_second.consumed(),
+                                                       handle.written());
+                                           }
+                                           trail_minus_offset = second - 0x41;
                                        }
-                                       return (DecoderResult::Malformed(2, 0),
-                                               unread_handle_second.consumed(),
-                                               handle.written());
+                                       let pointer = first_minus_offset as usize * 190usize +
+                                                     trail_minus_offset as usize;
+                                       let upper_bmp = gbk_top_ideograph_decode(pointer as u16);
+                                       handle.write_upper_bmp(upper_bmp)
                                    }
-                                   handle.write_bmp_excl_ascii(bmp)
                                },
                                {
                                    // If third is between 0x81 and 0xFE, inclusive,

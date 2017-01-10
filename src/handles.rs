@@ -213,6 +213,11 @@ impl<'a, 'b> Utf16AstralHandle<'a, 'b>
         self.dest
     }
     #[inline(always)]
+    pub fn write_mid_bmp(self, bmp: u16) -> &'a mut Utf16Destination<'b> {
+        self.dest.write_mid_bmp(bmp);
+        self.dest
+    }
+    #[inline(always)]
     pub fn write_upper_bmp(self, bmp: u16) -> &'a mut Utf16Destination<'b> {
         self.dest.write_upper_bmp(bmp);
         self.dest
@@ -478,6 +483,11 @@ impl<'a, 'b> Utf8AstralHandle<'a, 'b>
     #[inline(always)]
     pub fn write_bmp_excl_ascii(self, bmp: u16) -> &'a mut Utf8Destination<'b> {
         self.dest.write_bmp_excl_ascii(bmp);
+        self.dest
+    }
+    #[inline(always)]
+    pub fn write_mid_bmp(self, bmp: u16) -> &'a mut Utf8Destination<'b> {
+        self.dest.write_mid_bmp(bmp);
         self.dest
     }
     #[inline(always)]

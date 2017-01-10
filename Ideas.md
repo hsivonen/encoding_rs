@@ -129,3 +129,9 @@ Unicode 1.1 Hangul and ideographs, respectively, are ordered. If they actually
 are, store the start points of consecutive code points and use binary search
 on these.
 
+## Use Level 2 Hanzi and Level 2 Hanzi ordering
+
+These two are ordered by radical and then by stroke count, so in principle,
+they should be mostly Unicode-ordered, although at least Level 2 Hanzi isn't
+fully Unicode-ordered. Is "mostly" good enough for encode accelelation?
+
