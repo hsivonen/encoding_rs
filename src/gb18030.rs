@@ -283,6 +283,119 @@ impl Gb18030Decoder {
                                'outermost);
 }
 
+// XXX Experiment with inline directives
+fn gbk_encode_non_unified(bmp: u16) -> Option<(u8, u8)> {
+    // Try ideographic punctuation first as it's the most likely case, so
+    // search the first row of GB2312 to get it out of the way.
+    if let Some(pos) = position(&GB2312_SYMBOLS[..], bmp) {
+        return Some((0xA1, pos as u8 + 0xA1));
+    }
+    // Ext A
+    let bmp_minus_ext_a = bmp.wrapping_sub(0x3400);
+    if bmp_minus_ext_a < (0x4E00 - 0x3400) {
+        return position(&GBK_BOTTOM[21..100], bmp).map(|pos| {
+            (0xFE,
+             (pos +
+              if pos < (0x3F - 16) {
+                0x40 + 16
+            } else {
+                0x41 + 16
+            }) as u8)
+        });
+    }
+    // Compatibility ideographs
+    let bmp_minus_compat = bmp.wrapping_sub(0xF900);
+    if bmp_minus_compat < (0xFB00 - 0xF900) {
+        return position(&GBK_BOTTOM[0..21], bmp).map(|pos| {
+            if pos < 5 {
+                // end of second to last row
+                (0xFD, pos as u8 + (190 - 94 - 5 + 0x41))
+            } else {
+                // last row
+                (0xFE, pos as u8 + (0x40 - 5))
+            }
+        });
+    }
+    // Handle everything below U+02CA, which is in GBK_OTHER.
+    if bmp < 0x02CA {
+        let bmp_minus_pinyin = bmp.wrapping_sub(0x00E0);
+        if bmp_minus_pinyin < (0x0262 - 0x00E0) {
+            // Pinyin except U+1E3F
+            if let Some(pos) = position(&GB2312_PINYIN[..], bmp) {
+                return Some((0xA8, pos as u8 + 0xA1));
+            }
+        }
+        return None;
+    }
+    if bmp >= 0xE794 {
+        // Various brackets, all in PUA or full-width regions
+        if let Some(pos) = position(&GB2312_SYMBOLS_AFTER_GREEK[..], bmp) {
+            return Some((0xA6, pos as u8 + (0x9F - 0x60 + 0xA1)));
+        }
+    } else if bmp == 0x1E3F {
+        // The one Pinyin placed elsewhere on the BMP
+        return Some((0xA8, 0x7B - 0x60 + 0xA1));
+    } else {
+        // Since Korean has usage in China, let's spend a branch to fast-track
+        // Hangul.
+        let bmp_minus_hangul = bmp.wrapping_sub(0xA000);
+        if bmp_minus_hangul < (0xD800 - 0xA000) {
+            return None;
+        }
+    }
+    // GB2312 other (except bottom PUA and PUA between Hanzi levels).
+    if let Some(other_pointer) = gb2312_other_encode(bmp) {
+        let other_lead = other_pointer / 94;
+        let other_trail = other_pointer % 94;
+        return Some((0xA2 + other_lead as u8, 0xA1 + other_trail as u8));
+    }
+    // At this point, we've handled all mappable characters above U+02D9 but
+    // below U+2010. Let's check for that range in order to let lower BMP
+    // characters used for minority languages in China avoid the subsequent
+    // search that deals mainly with various symbols.
+    let bmp_minus_middle = bmp.wrapping_sub(0x02DA);
+    if bmp_minus_middle < (0x2010 - 0x02DA) {
+        return None;
+    }
+    // GBK other (except radicals and PUA in GBK_BOTTOM).
+    if let Some(other_pointer) = gbk_other_encode(bmp) {
+        let other_lead = other_pointer / (190 - 94);
+        let other_trail = other_pointer % (190 - 94);
+        let offset = if other_trail < 0x3F {
+            0x40
+        } else {
+            0x41
+        };
+        return Some((other_lead as u8 + (0x81 + 0x20), other_trail as u8 + offset));
+    }
+    // CJK Radicals Supplement or PUA in GBK_BOTTOM
+    if (bmp.wrapping_sub(0x2E81) <= (0x2ECA - 0x2E81)) ||
+       (bmp.wrapping_sub(0xE816) <= (0xE864 - 0xE816)) {
+        if let Some(pos) = position(&GBK_BOTTOM[21..], bmp) {
+            let trail = pos + 16;
+            let offset = if trail < 0x3F {
+                0x40
+            } else {
+                0x41
+            };
+            return Some((0xFE, trail as u8 + offset));
+        }
+    }
+    // GB2312 bottom PUA
+    let bmp_minus_gb2312_bottom_pua = bmp.wrapping_sub(0xE234);
+    if bmp_minus_gb2312_bottom_pua <= (0xE4C5 - 0xE234) {
+        let pua_lead = bmp_minus_gb2312_bottom_pua / 94;
+        let pua_trail = bmp_minus_gb2312_bottom_pua % 94;
+        return Some((0x81 + 0x77 + pua_lead as u8, 0xA1 + pua_trail as u8));
+    }
+    // PUA between Hanzi Levels
+    let bmp_minus_pua_between_hanzi = bmp.wrapping_sub(0xE810);
+    if bmp_minus_pua_between_hanzi < 5 {
+        return Some((0x81 + 0x56, 0xFF - 5 + bmp_minus_pua_between_hanzi as u8));
+    }
+    None
+}
+
 pub struct Gb18030Encoder {
     extended: bool,
 }
@@ -328,74 +441,83 @@ impl Gb18030Encoder {
                                                 // than linear search for GB2312
                                                 // Level 2 Hanzi, which are almost
                                                 // Unicode-ordered?
-                                                let (lead, trail) = match position(&GB2312_HANZI[..], bmp) {
-                                                    Some(hanzi_pointer) => {
-                                                        let hanzi_lead = (hanzi_pointer / 94) + (0x81 + 0x2F);
-                                                        let hanzi_trail = (hanzi_pointer % 94) + 0xA1;
-                                                        (hanzi_lead, hanzi_trail)
-                                                    }
-                                                    None => {
-                                                        if bmp_minus_unified_start < (0x72DC - 0x4E00) {
-                                                            // Above GB2312
-                                                            let pointer = gbk_top_ideograph_encode(bmp) as usize;
-                                                            let lead = (pointer / 190) + 0x81;
-                                                            let trail = pointer % 190;
-                                                            let offset = if trail < 0x3F {
-                                                                0x40
-                                                            } else {
-                                                                0x41
-                                                            };
-                                                            (lead, trail + offset)
-                                                        } else {
-                                                            // To the left of GB2312
-                                                            let gbk_left_ideograph_pointer = gbk_left_ideograph_encode(bmp) as usize;
-                                                            let lead = (gbk_left_ideograph_pointer / (190 - 94)) + (0x81 + 0x29);
-                                                            let trail = gbk_left_ideograph_pointer % (190 - 94);
-                                                            let offset = if trail < 0x3F {
-                                                                0x40
-                                                            } else {
-                                                                0x41
-                                                            };
-                                                            (lead, trail + offset)
+                                                let (lead, trail) =
+                                                    match position(&GB2312_HANZI[..], bmp) {
+                                                        Some(hanzi_pointer) => {
+                                                            let hanzi_lead = (hanzi_pointer / 94) +
+                                                                             (0x81 + 0x2F);
+                                                            let hanzi_trail = (hanzi_pointer % 94) +
+                                                                              0xA1;
+                                                            (hanzi_lead, hanzi_trail)
                                                         }
-                                                    }
-                                                };
+                                                        None => {
+                                                            if bmp_minus_unified_start <
+                                                               (0x72DC - 0x4E00) {
+                                                                // Above GB2312
+                                                                let pointer = gbk_top_ideograph_encode(bmp) as usize;
+                                                                let lead = (pointer / 190) + 0x81;
+                                                                let trail = pointer % 190;
+                                                                let offset = if trail < 0x3F {
+                                                                    0x40
+                                                                } else {
+                                                                    0x41
+                                                                };
+                                                                (lead, trail + offset)
+                                                            } else {
+                                                                // To the left of GB2312
+                                                                let gbk_left_ideograph_pointer = gbk_left_ideograph_encode(bmp) as usize;
+                                                                let lead =
+                                                                    (gbk_left_ideograph_pointer /
+                                                                     (190 - 94)) +
+                                                                    (0x81 + 0x29);
+                                                                let trail =
+                                                                    gbk_left_ideograph_pointer %
+                                                                    (190 - 94);
+                                                                let offset = if trail < 0x3F {
+                                                                    0x40
+                                                                } else {
+                                                                    0x41
+                                                                };
+                                                                (lead, trail + offset)
+                                                            }
+                                                        }
+                                                    };
                                                 handle.write_two(lead as u8, trail as u8)
                                             } else if bmp == 0xE5E5 {
+                                                // It's not optimal to check for the unmappable
+                                                // and for euro at this stage, but getting
+                                                // the out of the way makes the rest of the
+                                                // code less messy.
                                                 return (EncoderResult::unmappable_from_bmp(bmp),
                                                         source.consumed(),
                                                         handle.written());
                                             } else if bmp == 0x20AC && !self.extended {
                                                 handle.write_one(0x80u8)
                                             } else {
-                                                let pointer = gb18030_encode(bmp);
-                                                if pointer != usize::max_value() {
-                                                    let lead = (pointer / 190) + 0x81;
-                                                    let trail = pointer % 190;
-                                                    let offset = if trail < 0x3F {
-                                                        0x40
-                                                    } else {
-                                                        0x41
-                                                    };
-                                                    handle.write_two(lead as u8,
-                                                                     (trail + offset) as u8)
-                                                } else {
-                                                    if !self.extended {
-                                                        return (EncoderResult::unmappable_from_bmp(bmp),
-                                                            source.consumed(),
-                                                            handle.written());
+                                                match gbk_encode_non_unified(bmp) {
+                                                    Some((lead, trail)) => {
+                                                        handle.write_two(lead, trail)
                                                     }
-                                                    let range_pointer = gb18030_range_encode(bmp);
-                                                    let first = range_pointer / (10 * 126 * 10);
-                                                    let rem_first = range_pointer % (10 * 126 * 10);
-                                                    let second = rem_first / (10 * 126);
-                                                    let rem_second = rem_first % (10 * 126);
-                                                    let third = rem_second / 10;
-                                                    let fourth = rem_second % 10;
-                                                    handle.write_four((first + 0x81) as u8,
-                                                                      (second + 0x30) as u8,
-                                                                      (third + 0x81) as u8,
-                                                                      (fourth + 0x30) as u8)
+                                                    None => {
+                                                        if !self.extended {
+                                                            return (EncoderResult::unmappable_from_bmp(bmp),
+                                                                source.consumed(),
+                                                                handle.written());
+                                                        }
+                                                        let range_pointer =
+                                                            gb18030_range_encode(bmp);
+                                                        let first = range_pointer / (10 * 126 * 10);
+                                                        let rem_first = range_pointer %
+                                                                        (10 * 126 * 10);
+                                                        let second = rem_first / (10 * 126);
+                                                        let rem_second = rem_first % (10 * 126);
+                                                        let third = rem_second / 10;
+                                                        let fourth = rem_second % 10;
+                                                        handle.write_four((first + 0x81) as u8,
+                                                                          (second + 0x30) as u8,
+                                                                          (third + 0x81) as u8,
+                                                                          (fourth + 0x30) as u8)
+                                                    }
                                                 }
                                             }
                                         },

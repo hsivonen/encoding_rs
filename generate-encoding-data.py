@@ -515,44 +515,7 @@ pub fn jis0212_decode(pointer: usize) -> u16 {
 
 # gb18030
 
-index = []
-highest = 0
-
-for code_point in indexes["gb18030"]:
-  n_or_z = null_to_zero(code_point)
-  index.append(n_or_z)
-
-# TODO: Compress away empty ranges
-
-data_file.write('''static GB18030_INDEX: [u16; %d] = [
-''' % len(index))
-
-for i in xrange(len(index)):
-  data_file.write('0x%04X,\n' % index[i])
-
-data_file.write('''];
-
-''')
-
-data_file.write('''
-#[inline(always)]
-pub fn gb18030_encode(bmp: u16) -> usize {
-    let mut it = GB18030_INDEX.iter().enumerate();
-    loop {
-        match it.next() {
-            Some((i, code_point)) => {
-                if *code_point != bmp {
-                    continue;
-                }
-                return i;
-            }
-            None => {
-                return usize::max_value();
-            }
-        }
-    }
-}
-''')
+index = indexes["gb18030"]
 
 def static_u16_table(name, data):
   data_file.write('''pub static %s: [u16; %d] = [
@@ -617,6 +580,7 @@ for row in xrange(0x29 - 0x20):
       offsets.append(code_point)
     previous_code_point = code_point
 
+pointers.append((190 - 94) * (0x29 - 0x20))
 static_u16_table("GBK_OTHER_POINTERS", pointers)
 static_u16_table("GBK_OTHER_UNSORTED_OFFSETS", offsets)
 
@@ -668,17 +632,21 @@ previous_code_point = 0
 for row in xrange(14):
   for column in xrange(94):
     i = 6366 + column + (row * 190)
-    # Exclude the two ranges that were processed as
-    # lookup tables above.
-    if (i >= 7189 and i < 7189 + 22) or (i >= 7506 and i < 7506 + 32):
-      previous_code_point = 0
-      continue
     code_point = index[i]
+    # Exclude the two ranges that were processed as
+    # lookup tables above by filling them with
+    # ASCII. Upon encode, ASCII code points will
+    # never appear as the search key.
+    if (i >= 7189 and i < 7189 + 22):
+      code_point = i - 7189
+    elif (i >= 7506 and i < 7506 + 32):
+      code_point = i - 7506
     if code_point - previous_code_point != 1:
       pointers.append(column + (row * 94))
       offsets.append(code_point)
     previous_code_point = code_point
 
+pointers.append(14 * 94)
 static_u16_table("GB2312_OTHER_POINTERS", pointers)
 static_u16_table("GB2312_OTHER_UNSORTED_OFFSETS", offsets)
 
@@ -696,10 +664,26 @@ static_u16_table("GB18030_RANGE_OFFSETS", offsets)
 
 data_file.write('''#[inline(always)]
 fn map_with_ranges(haystack: &[u16], other: &[u16], needle: u16) -> u16 {
+    debug_assert_eq!(haystack.len(), other.len());
     match haystack.binary_search(&needle) {
         Ok(i) => other[i],
         Err(i) => other[i - 1] + (needle - haystack[i - 1]),
     }
+}
+
+#[inline(always)]
+fn map_with_unsorted_ranges(haystack: &[u16], other: &[u16], needle: u16) -> Option<u16> {
+    debug_assert_eq!(haystack.len() + 1, other.len());
+    for i in 0..haystack.len() {
+        let start = other[i];
+        let end = other[i + 1];
+        let length = end - start;
+        let offset = needle.wrapping_sub(haystack[i]);
+        if offset < length {
+            return Some(start + offset);
+        }
+    }
+    None
 }
 
 #[inline(always)]
@@ -752,16 +736,30 @@ pub fn gbk_left_ideograph_encode(bmp: u16) -> u16 {
 
 #[inline(always)]
 pub fn gbk_other_decode(pointer: u16) -> u16 {
-    map_with_ranges(&GBK_OTHER_POINTERS[..],
+    map_with_ranges(&GBK_OTHER_POINTERS[..GBK_OTHER_POINTERS.len() - 1],
                     &GBK_OTHER_UNSORTED_OFFSETS[..],
                     pointer)
 }
 
 #[inline(always)]
+pub fn gbk_other_encode(bmp: u16) -> Option<u16> {
+    map_with_unsorted_ranges(&GBK_OTHER_UNSORTED_OFFSETS[..],
+                             &GBK_OTHER_POINTERS[..],
+                             bmp)
+}
+
+#[inline(always)]
 pub fn gb2312_other_decode(pointer: u16) -> u16 {
-    map_with_ranges(&GB2312_OTHER_POINTERS[..],
+    map_with_ranges(&GB2312_OTHER_POINTERS[..GB2312_OTHER_POINTERS.len() - 1],
                     &GB2312_OTHER_UNSORTED_OFFSETS[..],
                     pointer)
+}
+
+#[inline(always)]
+pub fn gb2312_other_encode(bmp: u16) -> Option<u16> {
+    map_with_unsorted_ranges(&GB2312_OTHER_UNSORTED_OFFSETS[..],
+                             &GB2312_OTHER_POINTERS[..],
+                             bmp)
 }
 
 #[inline(always)]
