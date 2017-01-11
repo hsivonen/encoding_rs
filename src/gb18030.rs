@@ -285,14 +285,17 @@ impl Gb18030Decoder {
 
 // XXX Experiment with inline directives
 fn gbk_encode_non_unified(bmp: u16) -> Option<(u8, u8)> {
-    // Try ideographic punctuation first as it's the most likely case, so
-    // search the first row of GB2312 to get it out of the way.
-    if let Some(pos) = position(&GB2312_SYMBOLS[..], bmp) {
-        return Some((0xA1, pos as u8 + 0xA1));
+    // Try ideographic punctuation first as it's the most likely case.
+    // Throwing in the check for full-width currencies and tilde is probably
+    // more size-efficient here than elsewhere.
+    if (bmp.wrapping_sub(0x2014) <= (0x3017 - 0x2014)) ||
+       (bmp.wrapping_sub(0xFF04) <= (0xFFE1 - 0xFF04)) {
+        if let Some(pos) = position(&GB2312_SYMBOLS[..], bmp) {
+            return Some((0xA1, pos as u8 + 0xA1));
+        }
     }
     // Ext A
-    let bmp_minus_ext_a = bmp.wrapping_sub(0x3400);
-    if bmp_minus_ext_a < (0x4E00 - 0x3400) {
+    if bmp.wrapping_sub(0x3400) < (0x4E00 - 0x3400) {
         return position(&GBK_BOTTOM[21..100], bmp).map(|pos| {
             (0xFE,
              (pos +
@@ -304,8 +307,7 @@ fn gbk_encode_non_unified(bmp: u16) -> Option<(u8, u8)> {
         });
     }
     // Compatibility ideographs
-    let bmp_minus_compat = bmp.wrapping_sub(0xF900);
-    if bmp_minus_compat < (0xFB00 - 0xF900) {
+    if bmp.wrapping_sub(0xF900) < (0xFB00 - 0xF900) {
         return position(&GBK_BOTTOM[0..21], bmp).map(|pos| {
             if pos < 5 {
                 // end of second to last row
@@ -318,11 +320,16 @@ fn gbk_encode_non_unified(bmp: u16) -> Option<(u8, u8)> {
     }
     // Handle everything below U+02CA, which is in GBK_OTHER.
     if bmp < 0x02CA {
-        let bmp_minus_pinyin = bmp.wrapping_sub(0x00E0);
-        if bmp_minus_pinyin < (0x0262 - 0x00E0) {
+        if bmp.wrapping_sub(0x00E0) < (0x0262 - 0x00E0) && bmp != 0x00F7 {
             // Pinyin except U+1E3F
             if let Some(pos) = position(&GB2312_PINYIN[..], bmp) {
                 return Some((0xA8, pos as u8 + 0xA1));
+            }
+        } else if (bmp.wrapping_sub(0x00A4) <= (0x00F7 - 0x00A4)) ||
+           (bmp.wrapping_sub(0x02C7) <= (0x02C9 - 0x02C7)) {
+            // Diacritics and Latin 1 symbols
+            if let Some(pos) = position(&GB2312_SYMBOLS[3..(0xAC - 0x60)], bmp) {
+                return Some((0xA1, pos as u8 + 0xA1 + 3));
             }
         }
         return None;
@@ -338,8 +345,7 @@ fn gbk_encode_non_unified(bmp: u16) -> Option<(u8, u8)> {
     } else {
         // Since Korean has usage in China, let's spend a branch to fast-track
         // Hangul.
-        let bmp_minus_hangul = bmp.wrapping_sub(0xA000);
-        if bmp_minus_hangul < (0xD800 - 0xA000) {
+        if bmp.wrapping_sub(0xA000) < (0xD800 - 0xA000) {
             return None;
         }
     }
@@ -353,8 +359,7 @@ fn gbk_encode_non_unified(bmp: u16) -> Option<(u8, u8)> {
     // below U+2010. Let's check for that range in order to let lower BMP
     // characters used for minority languages in China avoid the subsequent
     // search that deals mainly with various symbols.
-    let bmp_minus_middle = bmp.wrapping_sub(0x02DA);
-    if bmp_minus_middle < (0x2010 - 0x02DA) {
+    if bmp.wrapping_sub(0x02DA) < (0x2010 - 0x02DA) {
         return None;
     }
     // GBK other (except radicals and PUA in GBK_BOTTOM).
@@ -645,6 +650,9 @@ mod tests {
         encode_gb18030("\u{2603}", b"\x81\x37\xA3\x30");
         encode_gb18030("\u{1F4A9}", b"\x94\x39\xDA\x33");
         encode_gb18030("\u{10FFFF}", b"\xE3\x32\x9A\x35");
+
+        // Edge cases
+        encode_gb18030("\u{00F7}", b"\xA1\xC2");
     }
 
     #[test]
@@ -678,6 +686,9 @@ mod tests {
         encode_gbk("\u{2603}", b"&#9731;");
         encode_gbk("\u{1F4A9}", b"&#128169;");
         encode_gbk("\u{10FFFF}", b"&#1114111;");
+
+        // Edge cases
+        encode_gbk("\u{00F7}", b"\xA1\xC2");
     }
 
     #[test]
