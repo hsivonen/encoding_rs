@@ -111,9 +111,13 @@ impl EucKrDecoder {
     // Extension range to the left of
     // KS X 1001
                                                              let left_lead = lead_minus_offset - 0x20;
-                                                             let left_trail = if byte >= (0x40 + 0x41) {
+                                                             let left_trail = if byte.wrapping_sub(0x40 + 0x41) < (0x60 - 0x40) {
                                                                  byte - (12 + 0x41)
-                                                             } else if byte > (0x39 + 0x41) {
+                                                             } else if byte.wrapping_sub(0x20 + 0x41) < (0x3A - 0x20) {
+                                                                 byte - (6 + 0x41)
+                                                             } else if byte.wrapping_sub(0x41) < 0x1A {
+                                                                 byte - 0x41
+                                                             } else {
                                                                  if byte < 0x80 {
                                                                      return (DecoderResult::Malformed(1, 0),
                                                                              unread_handle_trail.unread(),
@@ -121,18 +125,6 @@ impl EucKrDecoder {
                                                                  }
                                                                  return (DecoderResult::Malformed(2, 0),
                                                                          unread_handle_trail.consumed(),
-                                                                         handle.written());
-                                                             } else if byte >= (0x20 + 0x41) {
-                                                                 byte - (6 + 0x41)
-                                                             } else if byte > (0x19 + 0x41) {
-                                                                 return (DecoderResult::Malformed(1, 0),
-                                                                         unread_handle_trail.unread(),
-                                                                         handle.written());
-                                                             } else if byte >= 0x41 {
-                                                                 byte - 0x41
-                                                             } else {
-                                                                 return (DecoderResult::Malformed(1, 0),
-                                                                         unread_handle_trail.unread(),
                                                                          handle.written());
                                                              };
                                                              let left_pointer = ((left_lead as usize) * (190 - 94 - 12)) + left_trail as usize;
@@ -261,6 +253,7 @@ mod tests {
         decode_euc_kr(b"\xFE\x41", "\u{FFFD}\x41");
         decode_euc_kr(b"\xFF\x41", "\u{FFFD}\x41");
         decode_euc_kr(b"\x80\x41", "\u{FFFD}\x41");
+        decode_euc_kr(b"\xA1\xFF", "\u{FFFD}");
     }
 
     #[test]
