@@ -144,35 +144,25 @@ impl EucKrDecoder {
                                                          }
                                                      } else {
     // Extension range above KS X 1001
-    // If trail is between 0x41 and 0xFE, inclusive,
-    // subtract offset 0x41.
-                                                     let trail_minus_offset =
-                                                         byte.wrapping_sub(0x41);
-                                                     if trail_minus_offset > (0xFE - 0x41) {
-                                                         if byte < 0x80 {
-                                                             return (DecoderResult::Malformed(1, 0),
-                                                                     unread_handle_trail.unread(),
+                                                         let top_trail = if byte.wrapping_sub(0x40 + 0x41) < (0xBE - 0x40) {
+                                                             byte - (12 + 0x41)
+                                                         } else if byte.wrapping_sub(0x20 + 0x41) < (0x3A - 0x20) {
+                                                             byte - (6 + 0x41)
+                                                         } else if byte.wrapping_sub(0x41) < 0x1A {
+                                                             byte - 0x41
+                                                         } else {
+                                                             if byte < 0x80 {
+                                                                 return (DecoderResult::Malformed(1, 0),
+                                                                         unread_handle_trail.unread(),
+                                                                         handle.written());
+                                                             }
+                                                             return (DecoderResult::Malformed(2, 0),
+                                                                     unread_handle_trail.consumed(),
                                                                      handle.written());
-                                                         }
-                                                         return (DecoderResult::Malformed(2, 0),
-                                                                 unread_handle_trail.consumed(),
-                                                                 handle.written());
-                                                     }
-                                                     let pointer = lead_minus_offset as usize *
-                                                                   190usize +
-                                                                   trail_minus_offset as usize;
-                                                     let bmp = euc_kr_decode(pointer);
-                                                     if bmp == 0 {
-                                                         if byte < 0x80 {
-                                                             return (DecoderResult::Malformed(1, 0),
-                                                                     unread_handle_trail.unread(),
-                                                                     handle.written());
-                                                         }
-                                                         return (DecoderResult::Malformed(2, 0),
-                                                                 unread_handle_trail.consumed(),
-                                                                 handle.written());
-                                                     }
-                                                     handle.write_bmp_excl_ascii(bmp)
+                                                         };
+                                                         let top_pointer = ((lead_minus_offset as usize) * (190 - 12)) + top_trail as usize;
+                                                         let upper_bmp = cp949_top_hangul_decode(top_pointer as u16);
+                                                         handle.write_upper_bmp(upper_bmp)
                                                      }
                                                  },
                                                  self,
@@ -254,6 +244,7 @@ mod tests {
         decode_euc_kr(b"\xFF\x41", "\u{FFFD}\x41");
         decode_euc_kr(b"\x80\x41", "\u{FFFD}\x41");
         decode_euc_kr(b"\xA1\xFF", "\u{FFFD}");
+        decode_euc_kr(b"\x81\xFF", "\u{FFFD}");
     }
 
     #[test]

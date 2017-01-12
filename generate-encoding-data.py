@@ -490,12 +490,12 @@ pub fn euc_kr_encode(bmp: u16) -> usize {
 ''')
 
 # Unicode 1.1 Hangul above the old KS X 1001 block
-# Compressed form takes 18% of uncompressed form
+# Compressed form takes 35% of uncompressed form
 pointers = []
 offsets = []
 previous_code_point = 0
 for row in xrange(0x20):
-  for column in xrange(190 - 94):
+  for column in xrange(190):
     i = column + (row * 190)
     # Skip the gaps
     if (column >= 0x1A and column < 0x20) or (column >= 0x3A and column < 0x40):
