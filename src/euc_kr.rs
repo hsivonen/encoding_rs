@@ -56,6 +56,102 @@ impl EucKrDecoder {
                                                      non_ascii_minus_offset
                                                  },
                                                  {
+                                                     if lead_minus_offset >= 0x20 {
+    // Not the extension range above KS X 1001
+                                                         let trail_minus_offset =
+                                                             byte.wrapping_sub(0xA1);
+                                                         if trail_minus_offset <= (0xFE - 0xA1) {
+    // KS X 1001
+                                                             let ksx_pointer = mul_94(lead_minus_offset - 0x20) + trail_minus_offset as usize;
+                                                             let hangul_pointer = ksx_pointer.wrapping_sub((0x2F - 0x20) * 94);
+                                                             if hangul_pointer < KSX1001_HANGUL.len() {
+                                                                 let upper_bmp = KSX1001_HANGUL[hangul_pointer];
+                                                                 handle.write_upper_bmp(upper_bmp)
+                                                             } else if ksx_pointer < KSX1001_SYMBOLS.len() {
+                                                                 let bmp = KSX1001_SYMBOLS[ksx_pointer];
+                                                                 handle.write_bmp_excl_ascii(bmp)
+                                                             } else {
+                                                                 let hanja_pointer = ksx_pointer.wrapping_sub((0x49 - 0x20) * 94);
+                                                                 if hanja_pointer < KSX1001_HANJA.len() {
+                                                                     let upper_bmp = KSX1001_HANJA[hanja_pointer];
+                                                                     handle.write_upper_bmp(upper_bmp)
+                                                                 } else if (lead_minus_offset == 0x27) && ((trail_minus_offset as usize) < KSX1001_UPPERCASE.len()) {
+                                                                     let mid_bmp = KSX1001_UPPERCASE[trail_minus_offset as usize];
+                                                                     if mid_bmp == 0 {
+                                                                         return (DecoderResult::Malformed(2, 0),
+                                                                                 unread_handle_trail.consumed(),
+                                                                                 handle.written());
+                                                                     }
+                                                                     handle.write_mid_bmp(mid_bmp)
+                                                                 } else if (lead_minus_offset == 0x28) && ((trail_minus_offset as usize) < KSX1001_LOWERCASE.len()) {
+                                                                     let mid_bmp = KSX1001_LOWERCASE[trail_minus_offset as usize];
+                                                                     handle.write_mid_bmp(mid_bmp)
+                                                                 } else if (lead_minus_offset == 0x25) && ((trail_minus_offset as usize) < KSX1001_BOX.len()) {
+                                                                     let upper_bmp = KSX1001_BOX[trail_minus_offset as usize];
+                                                                     handle.write_upper_bmp(upper_bmp)
+                                                                 } else {
+                                                                     let other_pointer = ksx_pointer.wrapping_sub(2 * 94);
+                                                                     if other_pointer < 0x039F {
+                                                                         let bmp = ksx1001_other_decode(other_pointer as u16);
+    // ASCII range means unassigned
+                                                                         if bmp < 0x80 {
+                                                                             return (DecoderResult::Malformed(2, 0),
+                                                                                     unread_handle_trail.consumed(),
+                                                                                     handle.written());
+                                                                         }
+                                                                         handle.write_bmp_excl_ascii(bmp)
+                                                                     } else {
+                                                                         return (DecoderResult::Malformed(2, 0),
+                                                                                 unread_handle_trail.consumed(),
+                                                                                 handle.written());
+                                                                     }
+                                                                 }
+                                                             }
+                                                         } else {
+    // Extension range to the left of
+    // KS X 1001
+                                                             let left_lead = lead_minus_offset - 0x20;
+                                                             let left_trail = if byte >= (0x40 + 0x41) {
+                                                                 byte - (12 + 0x41)
+                                                             } else if byte > (0x39 + 0x41) {
+                                                                 if byte < 0x80 {
+                                                                     return (DecoderResult::Malformed(1, 0),
+                                                                             unread_handle_trail.unread(),
+                                                                             handle.written());
+                                                                 }
+                                                                 return (DecoderResult::Malformed(2, 0),
+                                                                         unread_handle_trail.consumed(),
+                                                                         handle.written());
+                                                             } else if byte >= (0x20 + 0x41) {
+                                                                 byte - (6 + 0x41)
+                                                             } else if byte > (0x19 + 0x41) {
+                                                                 return (DecoderResult::Malformed(1, 0),
+                                                                         unread_handle_trail.unread(),
+                                                                         handle.written());
+                                                             } else if byte >= 0x41 {
+                                                                 byte - 0x41
+                                                             } else {
+                                                                 return (DecoderResult::Malformed(1, 0),
+                                                                         unread_handle_trail.unread(),
+                                                                         handle.written());
+                                                             };
+                                                             let left_pointer = ((left_lead as usize) * (190 - 94 - 12)) + left_trail as usize;
+                                                             if left_pointer < (0x45 - 0x20) * (190 - 94 - 12) + 0x12 {
+                                                                 let upper_bmp = cp949_left_hangul_decode(left_pointer as u16);
+                                                                 handle.write_upper_bmp(upper_bmp)
+                                                             } else {
+                                                                 if byte < 0x80 {
+                                                                     return (DecoderResult::Malformed(1, 0),
+                                                                             unread_handle_trail.unread(),
+                                                                             handle.written());
+                                                                 }
+                                                                 return (DecoderResult::Malformed(2, 0),
+                                                                         unread_handle_trail.consumed(),
+                                                                         handle.written());
+                                                             }
+                                                         }
+                                                     } else {
+    // Extension range above KS X 1001
     // If trail is between 0x41 and 0xFE, inclusive,
     // subtract offset 0x41.
                                                      let trail_minus_offset =
@@ -85,6 +181,7 @@ impl EucKrDecoder {
                                                                  handle.written());
                                                      }
                                                      handle.write_bmp_excl_ascii(bmp)
+                                                     }
                                                  },
                                                  self,
                                                  non_ascii,

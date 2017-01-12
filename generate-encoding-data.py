@@ -20,6 +20,17 @@ class Label:
   def __cmp__(self, other):
     return cmp(self.label, other.label)
 
+def static_u16_table(name, data):
+  data_file.write('''pub static %s: [u16; %d] = [
+  ''' % (name, len(data)))
+
+  for i in xrange(len(data)):
+    data_file.write('0x%04X,\n' % data[i])
+
+  data_file.write('''];
+
+  ''')
+
 # If a multi-byte encoding is on this list, it is assumed to have a
 # non-generated implementation class
 MULTI_BYTE_IMPLEMENTED = [
@@ -478,6 +489,159 @@ pub fn euc_kr_encode(bmp: u16) -> usize {
 }
 ''')
 
+# Unicode 1.1 Hangul above the old KS X 1001 block
+# Compressed form takes 18% of uncompressed form
+pointers = []
+offsets = []
+previous_code_point = 0
+for row in xrange(0x20):
+  for column in xrange(190 - 94):
+    i = column + (row * 190)
+    # Skip the gaps
+    if (column >= 0x1A and column < 0x20) or (column >= 0x3A and column < 0x40):
+      continue
+    code_point = index[i]
+    if previous_code_point > code_point:
+      raise Error()
+    if code_point - previous_code_point != 1:
+      adjustment = 0
+      if column >= 0x40:
+        adjustment = 12
+      elif column >= 0x20:
+        adjustment = 6
+      pointers.append(column - adjustment + (row * (190 - 12)))
+      offsets.append(code_point)
+    previous_code_point = code_point
+
+static_u16_table("CP949_TOP_HANGUL_POINTERS", pointers)
+static_u16_table("CP949_TOP_HANGUL_OFFSETS", offsets)
+
+# Unicode 1.1 Hangul to the left of the old KS X 1001 block
+pointers = []
+offsets = []
+previous_code_point = 0
+for row in xrange(0x46 - 0x20):
+  for column in xrange(190 - 94):
+    i = 6080 + column + (row * 190)
+    # Skip the gaps
+    if (column >= 0x1A and column < 0x20) or (column >= 0x3A and column < 0x40):
+      continue
+    if i > 13127:
+      # Exclude unassigned on partial last row
+      break
+    code_point = index[i]
+    if previous_code_point > code_point:
+      raise Error()
+    if code_point - previous_code_point != 1:
+      adjustment = 0
+      if column >= 0x40:
+        adjustment = 12
+      elif column >= 0x20:
+        adjustment = 6
+      pointers.append(column - adjustment + (row * (190 - 94 - 12)))
+      offsets.append(code_point)
+    previous_code_point = code_point
+
+static_u16_table("CP949_LEFT_HANGUL_POINTERS", pointers)
+static_u16_table("CP949_LEFT_HANGUL_OFFSETS", offsets)
+
+# KS X 1001 Hangul
+hangul_index = []
+previous_code_point = 0
+for row in xrange(0x48 - 0x2F):
+  for column in xrange(94):
+    code_point = index[9026 + column + (row * 190)]
+    if previous_code_point >= code_point:
+      raise Error()
+    hangul_index.append(code_point)
+    previous_code_point = code_point
+
+static_u16_table("KSX1001_HANGUL", hangul_index)
+
+# KS X 1001 Hanja
+hanja_index = []
+for row in xrange(0x7D - 0x49):
+  for column in xrange(94):
+    hanja_index.append(index[13966 + column + (row * 190)])
+
+static_u16_table("KSX1001_HANJA", hanja_index)
+
+# KS X 1001 symbols
+symbol_index = []
+for i in range(6176, 6270):
+  symbol_index.append(index[i])
+for i in range(6366, 6437):
+  symbol_index.append(index[i])
+
+static_u16_table("KSX1001_SYMBOLS", symbol_index)
+
+# KS X 1001 Uppercase Latin
+subindex = []
+for i in range(7506, 7521):
+  subindex.append(null_to_zero(index[i]))
+
+static_u16_table("KSX1001_UPPERCASE", subindex)
+
+# KS X 1001 Lowercase Latin
+subindex = []
+for i in range(7696, 7712):
+  subindex.append(index[i])
+
+static_u16_table("KSX1001_LOWERCASE", subindex)
+
+# KS X 1001 Box drawing
+subindex = []
+for i in range(7126, 7194):
+  subindex.append(index[i])
+
+static_u16_table("KSX1001_BOX", subindex)
+
+# KS X 1001 other
+pointers = []
+offsets = []
+previous_code_point = 0
+for row in xrange(10):
+  for column in xrange(94):
+    i = 6556 + column + (row * 190)
+    code_point = index[i]
+    # Exclude ranges that were processed as lookup tables
+    # or that contain unmapped cells by filling them with
+    # ASCII. Upon encode, ASCII code points will
+    # never appear as the search key.
+    if (i >= 6946 and i <= 6950):
+      code_point = i - 6946
+    elif (i >= 6961 and i <= 6967):
+      code_point = i - 6961
+    elif (i >= 6992 and i <= 6999):
+      code_point = i - 6992
+    elif (i >= 7024 and i <= 7029):
+      code_point = i - 7024
+    elif (i >= 7126 and i <= 7219):
+      code_point = i - 7126
+    elif (i >= 7395 and i <= 7409):
+      code_point = i - 7395
+    elif (i >= 7506 and i <= 7521):
+      code_point = i - 7506
+    elif (i >= 7696 and i <= 7711):
+      code_point = i - 7696
+    elif (i >= 7969 and i <= 7979):
+      code_point = i - 7969
+    elif (i >= 8162 and i <= 8169):
+      code_point = i - 8162
+    elif (i >= 8299 and i <= 8313):
+      code_point = i - 8299
+    elif (i >= 8347 and i <= 8359):
+      code_point = i - 8347
+    if code_point - previous_code_point != 1:
+      pointers.append(column + (row * 94))
+      offsets.append(code_point)
+    previous_code_point = code_point
+
+static_u16_table("KSX1001_OTHER_POINTERS", pointers)
+# Omit the last offset, because the end of the last line
+# is unmapped, so we don't want to look at it.
+static_u16_table("KSX1001_OTHER_UNSORTED_OFFSETS", offsets[:-1])
+
 # EUC-JP
 
 index = []
@@ -516,17 +680,6 @@ pub fn jis0212_decode(pointer: usize) -> u16 {
 # gb18030
 
 index = indexes["gb18030"]
-
-def static_u16_table(name, data):
-  data_file.write('''pub static %s: [u16; %d] = [
-  ''' % (name, len(data)))
-
-  for i in xrange(len(data)):
-    data_file.write('0x%04X,\n' % data[i])
-
-  data_file.write('''];
-
-  ''')
 
 # Unicode 1.1 ideographs above the old GB2312 block
 # Compressed form takes 63% of uncompressed form
@@ -735,6 +888,34 @@ pub fn gbk_left_ideograph_encode(bmp: u16) -> u16 {
 }
 
 #[inline(always)]
+pub fn cp949_top_hangul_decode(pointer: u16) -> u16 {
+    map_with_ranges(&CP949_TOP_HANGUL_POINTERS[..],
+                    &CP949_TOP_HANGUL_OFFSETS[..],
+                    pointer)
+}
+
+#[inline(always)]
+pub fn cp949_top_hangul_encode(bmp: u16) -> u16 {
+    map_with_ranges(&CP949_TOP_HANGUL_OFFSETS[..],
+                    &CP949_TOP_HANGUL_POINTERS[..],
+                    bmp)
+}
+
+#[inline(always)]
+pub fn cp949_left_hangul_decode(pointer: u16) -> u16 {
+    map_with_ranges(&CP949_LEFT_HANGUL_POINTERS[..],
+                    &CP949_LEFT_HANGUL_OFFSETS[..],
+                    pointer)
+}
+
+#[inline(always)]
+pub fn cp949_left_hangul_encode(bmp: u16) -> u16 {
+    map_with_ranges(&CP949_LEFT_HANGUL_OFFSETS[..],
+                    &CP949_LEFT_HANGUL_POINTERS[..],
+                    bmp)
+}
+
+#[inline(always)]
 pub fn gbk_other_decode(pointer: u16) -> u16 {
     map_with_ranges(&GBK_OTHER_POINTERS[..GBK_OTHER_POINTERS.len() - 1],
                     &GBK_OTHER_UNSORTED_OFFSETS[..],
@@ -759,6 +940,20 @@ pub fn gb2312_other_decode(pointer: u16) -> u16 {
 pub fn gb2312_other_encode(bmp: u16) -> Option<u16> {
     map_with_unsorted_ranges(&GB2312_OTHER_UNSORTED_OFFSETS[..],
                              &GB2312_OTHER_POINTERS[..],
+                             bmp)
+}
+
+#[inline(always)]
+pub fn ksx1001_other_decode(pointer: u16) -> u16 {
+    map_with_ranges(&KSX1001_OTHER_POINTERS[..KSX1001_OTHER_POINTERS.len() - 1],
+                    &KSX1001_OTHER_UNSORTED_OFFSETS[..],
+                    pointer)
+}
+
+#[inline(always)]
+pub fn ksx1001_other_encode(bmp: u16) -> Option<u16> {
+    map_with_unsorted_ranges(&KSX1001_OTHER_UNSORTED_OFFSETS[..],
+                             &KSX1001_OTHER_POINTERS[..],
                              bmp)
 }
 
