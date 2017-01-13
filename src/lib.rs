@@ -3636,6 +3636,16 @@ fn write_ncr(unmappable: char, dst: &mut [u8]) -> usize {
     len
 }
 
+#[inline(always)]
+fn in_range16(i: u16, start: u16, end: u16) -> bool {
+    i.wrapping_sub(start) < (end - start)
+}
+
+#[inline(always)]
+fn in_inclusive_range16(i: u16, start: u16, end: u16) -> bool {
+    i.wrapping_sub(start) <= (end - start)
+}
+
 // ############## TESTS ###############
 
 #[cfg(test)]

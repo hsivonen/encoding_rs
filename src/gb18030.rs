@@ -456,18 +456,13 @@ impl Gb18030Encoder {
                                                             (hanzi_lead, hanzi_trail)
                                                         }
                                                         None => {
-                                                            if bmp_minus_unified_start <
-                                                               (0x72DC - 0x4E00) {
+                                                            let (lead, gbk_trail) = if bmp <
+                                                                                       0x72DC {
                                                                 // Above GB2312
                                                                 let pointer = gbk_top_ideograph_encode(bmp) as usize;
                                                                 let lead = (pointer / 190) + 0x81;
-                                                                let trail = pointer % 190;
-                                                                let offset = if trail < 0x3F {
-                                                                    0x40
-                                                                } else {
-                                                                    0x41
-                                                                };
-                                                                (lead, trail + offset)
+                                                                let gbk_trail = pointer % 190;
+                                                                (lead, gbk_trail)
                                                             } else {
                                                                 // To the left of GB2312
                                                                 let gbk_left_ideograph_pointer = gbk_left_ideograph_encode(bmp) as usize;
@@ -475,16 +470,17 @@ impl Gb18030Encoder {
                                                                     (gbk_left_ideograph_pointer /
                                                                      (190 - 94)) +
                                                                     (0x81 + 0x29);
-                                                                let trail =
+                                                                let gbk_trail =
                                                                     gbk_left_ideograph_pointer %
                                                                     (190 - 94);
-                                                                let offset = if trail < 0x3F {
-                                                                    0x40
-                                                                } else {
-                                                                    0x41
-                                                                };
-                                                                (lead, trail + offset)
-                                                            }
+                                                                (lead, gbk_trail)
+                                                            };
+                                                            let offset = if gbk_trail < 0x3F {
+                                                                0x40
+                                                            } else {
+                                                                0x41
+                                                            };
+                                                            (lead, gbk_trail + offset)
                                                         }
                                                     };
                                                 handle.write_two(lead as u8, trail as u8)

@@ -441,53 +441,7 @@ pub fn shift_jis_encode(bmp: u16) -> usize {
 
 # EUC-KR
 
-index = []
-highest = 0
-
-for code_point in indexes["euc-kr"]:
-  n_or_z = null_to_zero(code_point)
-  index.append(n_or_z)
-
-# TODO: Compress away empty ranges
-
-data_file.write('''
-static EUC_KR_INDEX: [u16; %d] = [
-''' % len(index))
-
-for i in xrange(len(index)):
-  data_file.write('0x%04X,\n' % index[i])
-
-data_file.write('''];
-
-#[inline(always)]
-pub fn euc_kr_decode(pointer: usize) -> u16 {
-    if pointer < %d {
-        EUC_KR_INDEX[pointer]
-    } else {
-        0
-    }
-}
-''' % len(index))
-
-data_file.write('''
-#[inline(always)]
-pub fn euc_kr_encode(bmp: u16) -> usize {
-    let mut it = EUC_KR_INDEX.iter().enumerate();
-    loop {
-        match it.next() {
-            Some((i, code_point)) => {
-                if *code_point != bmp {
-                    continue;
-                }
-                return i;
-            }
-            None => {
-                return usize::max_value();
-            }
-        }
-    }
-}
-''')
+index = indexes["euc-kr"]
 
 # Unicode 1.1 Hangul above the old KS X 1001 block
 # Compressed form takes 35% of uncompressed form
