@@ -284,52 +284,50 @@ impl Gb18030Decoder {
 }
 
 // XXX Experiment with inline directives
-fn gbk_encode_non_unified(bmp: u16) -> Option<(u8, u8)> {
+fn gbk_encode_non_unified(bmp: u16) -> Option<(usize, usize)> {
     // Try ideographic punctuation first as it's the most likely case.
     // Throwing in the check for full-width currencies and tilde is probably
     // more size-efficient here than elsewhere.
-    if (bmp.wrapping_sub(0x2014) <= (0x3017 - 0x2014)) ||
-       (bmp.wrapping_sub(0xFF04) <= (0xFFE1 - 0xFF04)) {
+    if in_inclusive_range16(bmp, 0x2014, 0x3017) || in_inclusive_range16(bmp, 0xFF04, 0xFFE1) {
         if let Some(pos) = position(&GB2312_SYMBOLS[..], bmp) {
-            return Some((0xA1, pos as u8 + 0xA1));
+            return Some((0xA1, pos + 0xA1));
         }
     }
     // Ext A
-    if bmp.wrapping_sub(0x3400) < (0x4E00 - 0x3400) {
+    if in_range16(bmp, 0x3400, 0x4E00) {
         return position(&GBK_BOTTOM[21..100], bmp).map(|pos| {
             (0xFE,
-             (pos +
-              if pos < (0x3F - 16) {
+             pos +
+             if pos < (0x3F - 16) {
                 0x40 + 16
             } else {
                 0x41 + 16
-            }) as u8)
+            })
         });
     }
     // Compatibility ideographs
-    if bmp.wrapping_sub(0xF900) < (0xFB00 - 0xF900) {
+    if in_range16(bmp, 0xF900, 0xFB00) {
         return position(&GBK_BOTTOM[0..21], bmp).map(|pos| {
             if pos < 5 {
                 // end of second to last row
-                (0xFD, pos as u8 + (190 - 94 - 5 + 0x41))
+                (0xFD, pos + (190 - 94 - 5 + 0x41))
             } else {
                 // last row
-                (0xFE, pos as u8 + (0x40 - 5))
+                (0xFE, pos + (0x40 - 5))
             }
         });
     }
     // Handle everything below U+02CA, which is in GBK_OTHER.
     if bmp < 0x02CA {
-        if bmp.wrapping_sub(0x00E0) < (0x0262 - 0x00E0) && bmp != 0x00F7 {
+        if in_range16(bmp, 0x00E0, 0x0262) && bmp != 0x00F7 {
             // Pinyin except U+1E3F
             if let Some(pos) = position(&GB2312_PINYIN[..], bmp) {
-                return Some((0xA8, pos as u8 + 0xA1));
+                return Some((0xA8, pos + 0xA1));
             }
-        } else if (bmp.wrapping_sub(0x00A4) <= (0x00F7 - 0x00A4)) ||
-           (bmp.wrapping_sub(0x02C7) <= (0x02C9 - 0x02C7)) {
+        } else if in_inclusive_range16(bmp, 0x00A4, 0x00F7) || in_inclusive_range16(bmp, 0x02C7, 0x02C9) {
             // Diacritics and Latin 1 symbols
             if let Some(pos) = position(&GB2312_SYMBOLS[3..(0xAC - 0x60)], bmp) {
-                return Some((0xA1, pos as u8 + 0xA1 + 3));
+                return Some((0xA1, pos + 0xA1 + 3));
             }
         }
         return None;
@@ -337,7 +335,7 @@ fn gbk_encode_non_unified(bmp: u16) -> Option<(u8, u8)> {
     if bmp >= 0xE794 {
         // Various brackets, all in PUA or full-width regions
         if let Some(pos) = position(&GB2312_SYMBOLS_AFTER_GREEK[..], bmp) {
-            return Some((0xA6, pos as u8 + (0x9F - 0x60 + 0xA1)));
+            return Some((0xA6, pos + (0x9F - 0x60 + 0xA1)));
         }
     } else if bmp == 0x1E3F {
         // The one Pinyin placed elsewhere on the BMP
@@ -345,37 +343,36 @@ fn gbk_encode_non_unified(bmp: u16) -> Option<(u8, u8)> {
     } else {
         // Since Korean has usage in China, let's spend a branch to fast-track
         // Hangul.
-        if bmp.wrapping_sub(0xA000) < (0xD800 - 0xA000) {
+        if in_range16(bmp, 0xA000, 0xD800) {
             return None;
         }
     }
     // GB2312 other (except bottom PUA and PUA between Hanzi levels).
     if let Some(other_pointer) = gb2312_other_encode(bmp) {
-        let other_lead = other_pointer / 94;
-        let other_trail = other_pointer % 94;
-        return Some((0xA2 + other_lead as u8, 0xA1 + other_trail as u8));
+        let other_lead = other_pointer as usize / 94;
+        let other_trail = other_pointer as usize % 94;
+        return Some((0xA2 + other_lead, 0xA1 + other_trail));
     }
     // At this point, we've handled all mappable characters above U+02D9 but
     // below U+2010. Let's check for that range in order to let lower BMP
     // characters used for minority languages in China avoid the subsequent
     // search that deals mainly with various symbols.
-    if bmp.wrapping_sub(0x02DA) < (0x2010 - 0x02DA) {
+    if in_range16(bmp, 0x02DA, 0x2010) {
         return None;
     }
     // GBK other (except radicals and PUA in GBK_BOTTOM).
     if let Some(other_pointer) = gbk_other_encode(bmp) {
-        let other_lead = other_pointer / (190 - 94);
-        let other_trail = other_pointer % (190 - 94);
+        let other_lead = other_pointer as usize / (190 - 94);
+        let other_trail = other_pointer as usize % (190 - 94);
         let offset = if other_trail < 0x3F {
             0x40
         } else {
             0x41
         };
-        return Some((other_lead as u8 + (0x81 + 0x20), other_trail as u8 + offset));
+        return Some((other_lead + (0x81 + 0x20), other_trail + offset));
     }
     // CJK Radicals Supplement or PUA in GBK_BOTTOM
-    if (bmp.wrapping_sub(0x2E81) <= (0x2ECA - 0x2E81)) ||
-       (bmp.wrapping_sub(0xE816) <= (0xE864 - 0xE816)) {
+    if in_inclusive_range16(bmp, 0x2E81, 0x2ECA) || in_inclusive_range16(bmp, 0xE816, 0xE864) {
         if let Some(pos) = position(&GBK_BOTTOM[21..], bmp) {
             let trail = pos + 16;
             let offset = if trail < 0x3F {
@@ -383,20 +380,20 @@ fn gbk_encode_non_unified(bmp: u16) -> Option<(u8, u8)> {
             } else {
                 0x41
             };
-            return Some((0xFE, trail as u8 + offset));
+            return Some((0xFE, trail + offset));
         }
     }
     // GB2312 bottom PUA
     let bmp_minus_gb2312_bottom_pua = bmp.wrapping_sub(0xE234);
     if bmp_minus_gb2312_bottom_pua <= (0xE4C5 - 0xE234) {
-        let pua_lead = bmp_minus_gb2312_bottom_pua / 94;
-        let pua_trail = bmp_minus_gb2312_bottom_pua % 94;
-        return Some((0x81 + 0x77 + pua_lead as u8, 0xA1 + pua_trail as u8));
+        let pua_lead = bmp_minus_gb2312_bottom_pua as usize / 94;
+        let pua_trail = bmp_minus_gb2312_bottom_pua as usize % 94;
+        return Some((0x81 + 0x77 + pua_lead, 0xA1 + pua_trail));
     }
     // PUA between Hanzi Levels
     let bmp_minus_pua_between_hanzi = bmp.wrapping_sub(0xE810);
     if bmp_minus_pua_between_hanzi < 5 {
-        return Some((0x81 + 0x56, 0xFF - 5 + bmp_minus_pua_between_hanzi as u8));
+        return Some((0x81 + 0x56, 0xFF - 5 + bmp_minus_pua_between_hanzi as usize));
     }
     None
 }
@@ -497,7 +494,7 @@ impl Gb18030Encoder {
                                             } else {
                                                 match gbk_encode_non_unified(bmp) {
                                                     Some((lead, trail)) => {
-                                                        handle.write_two(lead, trail)
+                                                        handle.write_two(lead as u8, trail as u8)
                                                     }
                                                     None => {
                                                         if !self.extended {
