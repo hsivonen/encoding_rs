@@ -72,10 +72,18 @@ impl EucJpDecoder {
     }
 
     euc_jp_decoder_functions!({
-                                  // If trail is between 0xA1 and 0xFE, inclusive,
-                                  // subtract 0xA1.
                                   let trail_minus_offset = byte.wrapping_sub(0xA1);
-                                  if trail_minus_offset > (0xFE - 0xA1) {
+                                  // Fast-track Hiragana (60% according to Lunde)
+                                  // and Katakana (10% acconding to Lunde).
+                                  if jis0208_lead_minus_offset == 0x03 &&
+                                     trail_minus_offset < 0x53 {
+                                      // Hiragana
+                                      handle.write_upper_bmp(0x3041 + trail_minus_offset as u16)
+                                  } else if jis0208_lead_minus_offset == 0x04 &&
+                                     trail_minus_offset < 0x56 {
+                                      // Katakana
+                                      handle.write_upper_bmp(0x30A1 + trail_minus_offset as u16)
+                                  } else if trail_minus_offset > (0xFE - 0xA1) {
                                       if byte < 0x80 {
                                           return (DecoderResult::Malformed(1, 0),
                                                   unread_handle_trail.unread(),
@@ -84,21 +92,33 @@ impl EucJpDecoder {
                                       return (DecoderResult::Malformed(2, 0),
                                               unread_handle_trail.consumed(),
                                               handle.written());
-                                  }
-                                  let pointer = jis0208_lead_minus_offset as usize * 94usize +
-                                                trail_minus_offset as usize;
-                                  let bmp = jis0208_decode(pointer);
-                                  if bmp == 0 {
-                                      if byte < 0x80 {
-                                          return (DecoderResult::Malformed(1, 0),
-                                                  unread_handle_trail.unread(),
-                                                  handle.written());
+                                  } else {
+                                      let pointer = mul_94(jis0208_lead_minus_offset) +
+                                                    trail_minus_offset as usize;
+                                      let level1_pointer = pointer.wrapping_sub(1410);
+                                      if level1_pointer < JIS0208_LEVEL1_KANJI.len() {
+                                          handle.write_upper_bmp(JIS0208_LEVEL1_KANJI[level1_pointer])
+                                      } else {
+                                          let level2_pointer = pointer.wrapping_sub(4418);
+                                          if level2_pointer <
+                                             JIS0208_LEVEL2_AND_ADDITIONAL_KANJI.len() {
+                                              handle.write_upper_bmp(JIS0208_LEVEL2_AND_ADDITIONAL_KANJI[level2_pointer])
+                                          } else {
+                                              let ibm_pointer = pointer.wrapping_sub(8272);
+                                              if ibm_pointer < IBM_KANJI.len() {
+                                                  handle.write_upper_bmp(IBM_KANJI[ibm_pointer])
+                                              } else if let Some(bmp) = jis0208_symbol_decode(pointer) {
+                                                  handle.write_bmp_excl_ascii(bmp)
+                                              } else if let Some(bmp) = jis0208_range_decode(pointer) {
+                                                  handle.write_bmp_excl_ascii(bmp)
+                                              } else {
+                                                  return (DecoderResult::Malformed(2, 0),
+                                                          unread_handle_trail.consumed(),
+                                                          handle.written());
+                                              }
+                                          }
                                       }
-                                      return (DecoderResult::Malformed(2, 0),
-                                              unread_handle_trail.consumed(),
-                                              handle.written());
                                   }
-                                  handle.write_bmp_excl_ascii(bmp)
                               },
                               {
                                   // If lead is between 0xA1 and 0xFE, inclusive,
@@ -189,6 +209,7 @@ impl EucJpEncoder {
     }
 
     ascii_compatible_bmp_encoder_functions!({
+                                                // Lunde says 60% Hiragana, 30% Kanji, 10% Katakana
                                                 if bmp == 0xA5 {
                                                     handle.write_one(0x5Cu8)
                                                 } else if bmp == 0x203E {

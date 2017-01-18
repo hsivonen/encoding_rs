@@ -439,6 +439,125 @@ pub fn shift_jis_encode(bmp: u16) -> usize {
 }
 ''')
 
+index = indexes["jis0208"]
+
+# JIS 0208 Level 1 Kanji
+static_u16_table("JIS0208_LEVEL1_KANJI", index[1410:4375])
+
+# JIS 0208 Level 2 Kanji and Additional Kanji
+static_u16_table("JIS0208_LEVEL2_AND_ADDITIONAL_KANJI", index[4418:7808])
+
+# IBM Kanji
+static_u16_table("IBM_KANJI", index[8272:8632])
+
+# Check that the other instance is the same
+if index[8272:8632] != index[10744:11104]:
+  raise Error()
+
+# JIS 0208 symbols (all non-Kanji, non-range items)
+symbol_index = []
+symbol_triples = []
+pointers_to_scan = [
+  (0, 188),
+  (658, 691),
+  (1159, 1221),
+]
+in_run = False
+run_start_pointer = 0
+run_start_array_index = 0
+for (start, end) in pointers_to_scan:
+  for i in range(start, end):
+    code_point = index[i]
+    if in_run:
+      if code_point:
+        symbol_index.append(code_point)
+      else:
+        symbol_triples.append(run_start_pointer)
+        symbol_triples.append(i - run_start_pointer)
+        symbol_triples.append(run_start_array_index)
+        in_run = False
+    else:
+      if code_point:
+        in_run = True
+        run_start_pointer = i
+        run_start_array_index = len(symbol_index)
+        symbol_index.append(code_point)
+  if in_run:
+    symbol_triples.append(run_start_pointer)
+    symbol_triples.append(end - run_start_pointer)
+    symbol_triples.append(run_start_array_index)
+    in_run = False
+if in_run:
+  raise Error()
+
+# Now add manually the two overlapping slices of
+# index from the NEC/IBM extensions.
+run_start_array_index = len(symbol_index)
+symbol_index.extend(index[10736:10744])
+# Later
+symbol_triples.append(10736)
+symbol_triples.append(8)
+symbol_triples.append(run_start_array_index)
+# Earlier
+symbol_triples.append(8644)
+symbol_triples.append(4)
+symbol_triples.append(run_start_array_index)
+
+static_u16_table("JIS0208_SYMBOLS", symbol_index)
+static_u16_table("JIS0208_SYMBOL_TRIPLES", symbol_triples)
+
+# JIS 0208 ranges (excluding kana)
+range_triples = []
+pointers_to_scan = [
+  (188, 281),
+  (470, 657),
+  (1128, 1159),
+  (8634, 8644),
+  (10716, 10736),
+]
+in_run = False
+run_start_pointer = 0
+run_start_code_point = 0
+previous_code_point = 0
+for (start, end) in pointers_to_scan:
+  for i in range(start, end):
+    code_point = index[i]
+    if in_run:
+      if code_point:
+        if previous_code_point + 1 != code_point:
+          range_triples.append(run_start_pointer)
+          range_triples.append(i - run_start_pointer)
+          range_triples.append(run_start_code_point)
+          run_start_pointer = i
+          run_start_code_point = code_point
+        previous_code_point = code_point
+      else:
+          range_triples.append(run_start_pointer)
+          range_triples.append(i - run_start_pointer)
+          range_triples.append(run_start_code_point)
+          run_start_pointer = 0
+          run_start_code_point = 0
+          previous_code_point = 0
+          in_run = False
+    else:
+      if code_point:
+        in_run = True
+        run_start_pointer = i
+        run_start_code_point = code_point
+        previous_code_point = code_point
+  if in_run:
+    range_triples.append(run_start_pointer)
+    range_triples.append(end - run_start_pointer)
+    range_triples.append(run_start_code_point)
+    run_start_pointer = 0
+    run_start_code_point = 0
+    previous_code_point = 0
+    in_run = False
+if in_run:
+  raise Error()
+
+static_u16_table("JIS0208_RANGE_TRIPLES", range_triples)
+
 # EUC-KR
 
 index = indexes["euc-kr"]
@@ -909,6 +1028,37 @@ pub fn ksx1001_other_encode(bmp: u16) -> Option<u16> {
     map_with_unsorted_ranges(&KSX1001_OTHER_UNSORTED_OFFSETS[..],
                              &KSX1001_OTHER_POINTERS[..],
                              bmp)
+}
+
+pub fn jis0208_symbol_decode(pointer: usize) -> Option<u16> {
+    let mut i = 0;
+    while i < JIS0208_SYMBOL_TRIPLES.len() {
+        let start = JIS0208_SYMBOL_TRIPLES[i] as usize;
+        let length = JIS0208_SYMBOL_TRIPLES[i + 1] as usize;
+        let pointer_minus_start = pointer.wrapping_sub(start);
+        if pointer_minus_start < length {
+            let offset = JIS0208_SYMBOL_TRIPLES[i + 2] as usize;
+            return Some(JIS0208_SYMBOLS[pointer_minus_start + offset]);
+        }
+        i += 3;
+    }
+    None
+}
+
+#[inline(always)]
+pub fn jis0208_range_decode(pointer: usize) -> Option<u16> {
+    let mut i = 0;
+    while i < JIS0208_RANGE_TRIPLES.len() {
+        let start = JIS0208_RANGE_TRIPLES[i] as usize;
+        let length = JIS0208_RANGE_TRIPLES[i + 1] as usize;
+        let pointer_minus_start = pointer.wrapping_sub(start);
+        if pointer_minus_start < length {
+            let offset = JIS0208_RANGE_TRIPLES[i + 2] as usize;
+            return Some((pointer_minus_start + offset) as u16);
+        }
+        i += 3;
+    }
+    None
 }
 
 #[inline(always)]
