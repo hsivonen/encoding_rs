@@ -740,4 +740,14 @@ mod tests {
         assert!(had_errors, "Should have had errors.");
         assert_eq!(&cow[..], expectation);
     }
+
+    #[test]
+    fn test_iso_2022_jp_encode_all() {
+        let input = include_str!("test_data/iso_2022_jp_out.txt");
+        let expectation = include_bytes!("test_data/iso_2022_jp_out_ref.txt");
+        let (cow, encoding, had_errors) = ISO_2022_JP.encode(input);
+        assert!(!had_errors, "Should not have had errors.");
+        assert_eq!(encoding, ISO_2022_JP);
+        assert_eq!(&cow[..], &expectation[..]);
+    }
 }
