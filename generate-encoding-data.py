@@ -1578,6 +1578,25 @@ for pointer in range(8836, len(index)):
 shift_jis_out_file.close()
 shift_jis_out_ref_file.close()
 
+iso_2022_jp_in_file = open("src/test_data/iso_2022_jp_in.txt", "w")
+iso_2022_jp_in_file.write(TEST_HEADER)
+for pointer in range(0, 94 * 94):
+  (lead, trail) = divmod(pointer, 94)
+  lead += 0x21
+  trail += 0x21
+  iso_2022_jp_in_file.write("\x1B$B%s%s\x1B(B\n" % (chr(lead), chr(trail)))
+iso_2022_jp_in_file.close()
+
+iso_2022_jp_in_ref_file = open("src/test_data/iso_2022_jp_in_ref.txt", "w")
+iso_2022_jp_in_ref_file.write(TEST_HEADER)
+for pointer in range(0, 94 * 94):
+  code_point = index[pointer]
+  if code_point:
+    iso_2022_jp_in_ref_file.write((u"%s\n" % unichr(code_point)).encode("utf-8"))
+  else:
+    iso_2022_jp_in_ref_file.write(u"\uFFFD\n".encode("utf-8"))
+iso_2022_jp_in_ref_file.close()
+
 index = indexes["euc-kr"]
 
 euc_kr_in_file = open("src/test_data/euc_kr_in.txt", "w")

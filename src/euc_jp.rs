@@ -160,9 +160,11 @@ impl EucJpDecoder {
                                   } else {
                                       let pointer_minus_upper_cyrillic = pointer.wrapping_sub(597);
                                       if pointer_minus_upper_cyrillic <= (607 - 597) {
-                                          handle.write_mid_bmp(0x0402 + pointer_minus_upper_cyrillic as u16)
+                                          handle.write_mid_bmp(0x0402 +
+                                                               pointer_minus_upper_cyrillic as u16)
                                       } else {
-                                          let pointer_minus_lower_cyrillic = pointer.wrapping_sub(645);
+                                          let pointer_minus_lower_cyrillic =
+                                              pointer.wrapping_sub(645);
                                           if pointer_minus_lower_cyrillic <= (655 - 645) {
                                               handle.write_mid_bmp(0x0452 + pointer_minus_lower_cyrillic as u16)
                                           } else {

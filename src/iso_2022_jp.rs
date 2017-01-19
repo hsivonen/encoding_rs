@@ -695,4 +695,12 @@ mod tests {
 
     }
 
+    #[test]
+    fn test_iso_2022_jp_decode_all() {
+        let input = include_bytes!("test_data/iso_2022_jp_in.txt");
+        let expectation = include_str!("test_data/iso_2022_jp_in_ref.txt");
+        let (cow, had_errors) = ISO_2022_JP.decode_without_bom_handling(input);
+        assert!(had_errors, "Should have had errors.");
+        assert_eq!(&cow[..], expectation);
+    }
 }
