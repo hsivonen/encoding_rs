@@ -1048,6 +1048,18 @@ pub fn ksx1001_other_encode(bmp: u16) -> Option<u16> {
                              bmp)
 }
 
+#[inline(always)]
+pub fn jis0208_level1_kanji_encode(bmp: u16) -> Option<usize> {
+    // TODO: optimize
+    position(&JIS0208_LEVEL1_KANJI[..], bmp)
+}
+
+#[inline(always)]
+pub fn jis0208_level2_and_additional_kanji_encode(bmp: u16) -> Option<usize> {
+    // TODO: optimize
+    position(&JIS0208_LEVEL2_AND_ADDITIONAL_KANJI[..], bmp)
+}
+
 pub fn jis0208_symbol_decode(pointer: usize) -> Option<u16> {
     let mut i = 0;
     while i < JIS0208_SYMBOL_TRIPLES.len() {
