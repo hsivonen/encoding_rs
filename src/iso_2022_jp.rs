@@ -204,24 +204,61 @@ impl Iso2022JpDecoder {
                                                unread_handle.consumed(),
                                                destination_handle.written());
                                    }
-                                   if b >= 0x21u8 && b <= 0x7Eu8 {
-                                       self.decoder_state = Iso2022JpDecoderState::LeadByte;
-                                       let pointer = (self.lead as usize - 0x21usize) * 94usize +
-                                                     b as usize -
-                                                     0x21usize;
-                                       let c = jis0208_decode(pointer);
-                                       if c == 0 {
-                                           return (DecoderResult::Malformed(2, 0),
-                                                   unread_handle.consumed(),
-                                                   destination_handle.written());
-                                       }
-                                       destination_handle.write_bmp_excl_ascii(c);
-                                       continue;
-                                   }
                                    self.decoder_state = Iso2022JpDecoderState::LeadByte;
-                                   return (DecoderResult::Malformed(2, 0),
-                                           unread_handle.consumed(),
-                                           destination_handle.written());
+                                   let jis0208_lead_minus_offset = self.lead - 0x21;
+                                   let byte = b;
+                                   let handle = destination_handle;
+                                   // The code below uses else after continue in
+                                   // order to retain the structure seen in EUC-JP.
+                                   let trail_minus_offset = byte.wrapping_sub(0x21);
+                                   // Fast-track Hiragana (60% according to Lunde)
+                                   // and Katakana (10% acconding to Lunde).
+                                   if jis0208_lead_minus_offset == 0x03 &&
+                                      trail_minus_offset < 0x53 {
+                                       // Hiragana
+                                       handle.write_upper_bmp(0x3041 + trail_minus_offset as u16);
+                                       continue;
+                                   } else if jis0208_lead_minus_offset == 0x04 &&
+                                      trail_minus_offset < 0x56 {
+                                       // Katakana
+                                       handle.write_upper_bmp(0x30A1 + trail_minus_offset as u16);
+                                       continue;
+                                   } else if trail_minus_offset > (0xFE - 0xA1) {
+                                       return (DecoderResult::Malformed(2, 0),
+                                               unread_handle.consumed(),
+                                               handle.written());
+                                   } else {
+                                       let pointer = mul_94(jis0208_lead_minus_offset) +
+                                                     trail_minus_offset as usize;
+                                       let level1_pointer = pointer.wrapping_sub(1410);
+                                       if level1_pointer < JIS0208_LEVEL1_KANJI.len() {
+                                           handle.write_upper_bmp(JIS0208_LEVEL1_KANJI[level1_pointer]);
+                                           continue;
+                                       } else {
+                                           let level2_pointer = pointer.wrapping_sub(4418);
+                                           if level2_pointer <
+                                              JIS0208_LEVEL2_AND_ADDITIONAL_KANJI.len() {
+                                               handle.write_upper_bmp(JIS0208_LEVEL2_AND_ADDITIONAL_KANJI[level2_pointer]);
+                                               continue;
+                                           } else {
+                                               let ibm_pointer = pointer.wrapping_sub(8272);
+                                               if ibm_pointer < IBM_KANJI.len() {
+                                                   handle.write_upper_bmp(IBM_KANJI[ibm_pointer]);
+                                                   continue;
+                                               } else if let Some(bmp) = jis0208_symbol_decode(pointer) {
+                                                   handle.write_bmp_excl_ascii(bmp);
+                                                   continue;
+                                               } else if let Some(bmp) = jis0208_range_decode(pointer) {
+                                                   handle.write_bmp_excl_ascii(bmp);
+                                                   continue;
+                                               } else {
+                                                   return (DecoderResult::Malformed(2, 0),
+                                                           unread_handle.consumed(),
+                                                           handle.written());
+                                               }
+                                           }
+                                       }
+                                   }
                                }
                                Iso2022JpDecoderState::EscapeStart => {
                                    if b == 0x24u8 || b == 0x28u8 {
