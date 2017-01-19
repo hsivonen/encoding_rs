@@ -386,15 +386,7 @@ for i in xrange(len(index)):
 
 data_file.write('''];
 
-#[inline(always)]
-pub fn jis0208_decode(pointer: usize) -> u16 {
-    if pointer < %d {
-        JIS0208[pointer]
-    } else {
-        0
-    }
-}
-''' % len(index))
+''')
 
 data_file.write('''
 #[inline(always)]

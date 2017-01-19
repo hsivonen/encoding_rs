@@ -79,41 +79,77 @@ impl ShiftJisDecoder {
     // subtract offset 0x40. Else if trail is
     // between 0x80 and 0xFC, inclusive, subtract
     // offset 0x41.
-                                                     let mut trail_minus_offset =
-                                                         byte.wrapping_sub(0x40);
-                                                     if trail_minus_offset > (0x7E - 0x40) {
-                                                         let trail_minus_range_start =
-                                                             byte.wrapping_sub(0x80);
-                                                         if trail_minus_range_start > (0xFC - 0x80) {
-                                                             if byte < 0x80 {
-                                                                 return (DecoderResult::Malformed(1, 0),
-                                                                         unread_handle_trail.unread(),
-                                                                         handle.written());
-                                                             }
-                                                             return (DecoderResult::Malformed(2, 0),
-                                                                     unread_handle_trail.consumed(),
-                                                                     handle.written());
-                                                         }
-                                                         trail_minus_offset = byte - 0x41;
-                                                     }
-                                                     let pointer = lead_minus_offset as usize *
-                                                                   188usize +
-                                                                   trail_minus_offset as usize;
-                                                     if pointer >= 8836 && pointer <= 10715 {
-                                                         handle.write_upper_bmp((0xE000 - 8836 + pointer) as u16)
+    // Fast-track Hiragana (60% according to Lunde)
+    // and Katakana (10% acconding to Lunde).
+    // Hiragana doesn't cross 0x7F, but Katakana does.
+    // We can check for Hiragana before normalizing
+    // trail.
+                                                     let trail_minus_hiragana = byte.wrapping_sub(0x9F);
+                                                     if lead_minus_offset == 0x01 && trail_minus_hiragana < 0x53 {
+    // Hiragana
+                                                         handle.write_upper_bmp(0x3041 + trail_minus_hiragana as u16)
                                                      } else {
-                                                         let bmp = jis0208_decode(pointer);
-                                                         if bmp == 0 {
-                                                             if byte < 0x80 {
-                                                                 return (DecoderResult::Malformed(1, 0),
-                                                                         unread_handle_trail.unread(),
+                                                         let mut trail_minus_offset =
+                                                             byte.wrapping_sub(0x40);
+                                                         if trail_minus_offset > (0x7E - 0x40) {
+                                                             let trail_minus_range_start =
+                                                                 byte.wrapping_sub(0x80);
+                                                             if trail_minus_range_start > (0xFC - 0x80) {
+                                                                 if byte < 0x80 {
+                                                                     return (DecoderResult::Malformed(1, 0),
+                                                                             unread_handle_trail.unread(),
+                                                                             handle.written());
+                                                                 }
+                                                                 return (DecoderResult::Malformed(2, 0),
+                                                                         unread_handle_trail.consumed(),
                                                                          handle.written());
                                                              }
-                                                             return (DecoderResult::Malformed(2, 0),
-                                                                     unread_handle_trail.consumed(),
-                                                                     handle.written());
+                                                             trail_minus_offset = byte - 0x41;
                                                          }
-                                                         handle.write_bmp_excl_ascii(bmp)
+                                                         if lead_minus_offset == 0x02 &&
+                                                            trail_minus_offset < 0x56 {
+    // Katakana
+                                                             handle.write_upper_bmp(0x30A1 + trail_minus_offset as u16)
+                                                         } else {
+                                                             let pointer = lead_minus_offset as usize *
+                                                                           188usize +
+                                                                           trail_minus_offset as usize;
+                                                             let level1_pointer = pointer.wrapping_sub(1410);
+                                                             if level1_pointer < JIS0208_LEVEL1_KANJI.len() {
+                                                                 handle.write_upper_bmp(JIS0208_LEVEL1_KANJI[level1_pointer])
+                                                             } else {
+                                                                 let level2_pointer = pointer.wrapping_sub(4418);
+                                                                 if level2_pointer <
+                                                                    JIS0208_LEVEL2_AND_ADDITIONAL_KANJI.len() {
+                                                                     handle.write_upper_bmp(JIS0208_LEVEL2_AND_ADDITIONAL_KANJI[level2_pointer])
+                                                                 } else {
+                                                                     let upper_ibm_pointer = pointer.wrapping_sub(10744);
+                                                                     if upper_ibm_pointer < IBM_KANJI.len() {
+                                                                         handle.write_upper_bmp(IBM_KANJI[upper_ibm_pointer])
+                                                                     } else {
+                                                                         let lower_ibm_pointer = pointer.wrapping_sub(8272);
+                                                                         if lower_ibm_pointer < IBM_KANJI.len() {
+                                                                             handle.write_upper_bmp(IBM_KANJI[lower_ibm_pointer])
+                                                                         } else if in_inclusive_range(pointer, 8836, 10715) {
+                                                                             handle.write_upper_bmp((0xE000 - 8836 + pointer) as u16)
+                                                                         } else if let Some(bmp) = jis0208_symbol_decode(pointer) {
+                                                                             handle.write_bmp_excl_ascii(bmp)
+                                                                         } else if let Some(bmp) = jis0208_range_decode(pointer) {
+                                                                             handle.write_bmp_excl_ascii(bmp)
+                                                                         } else {
+                                                                             if byte < 0x80 {
+                                                                                 return (DecoderResult::Malformed(1, 0),
+                                                                                         unread_handle_trail.unread(),
+                                                                                         handle.written());
+                                                                             }
+                                                                             return (DecoderResult::Malformed(2, 0),
+                                                                                     unread_handle_trail.consumed(),
+                                                                                     handle.written());
+                                                                         }
+                                                                     }
+                                                                 }
+                                                             }
+                                                         }
                                                      }
                                                  },
                                                  self,

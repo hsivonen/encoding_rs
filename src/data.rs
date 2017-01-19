@@ -4644,14 +4644,6 @@ static JIS0208: [u16; 11280] = [0x3000, 0x3001, 0x3002, 0xFF0C, 0xFF0E, 0x30FB, 
                                 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
                                 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000];
 
-#[inline(always)]
-pub fn jis0208_decode(pointer: usize) -> u16 {
-    if pointer < 11280 {
-        JIS0208[pointer]
-    } else {
-        0
-    }
-}
 
 #[inline(always)]
 pub fn jis0208_encode(bmp: u16) -> usize {
