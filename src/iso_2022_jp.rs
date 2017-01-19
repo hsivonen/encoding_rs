@@ -483,10 +483,6 @@ impl Iso2022JpEncoder {
                                        unread_handle.unread();
                                        continue;
                                    }
-                                   if c == '\u{2212}' {
-                                       destination_handle.write_two(0x21, 0x5D);
-                                       continue;
-                                   }
                                    if c > '\u{FFFF}' {
                                        // Transition to ASCII here in order
                                        // not to make it the responsibility
@@ -496,20 +492,92 @@ impl Iso2022JpEncoder {
                                                unread_handle.consumed(),
                                                destination_handle.write_three_return_written(0x1Bu8, 0x28u8, 0x42u8));
                                    }
-                                   let pointer = jis0208_encode(c as u16);
-                                   if pointer == usize::max_value() {
-                                       // Transition to ASCII here in order
-                                       // not to make it the responsibility
-                                       // of the caller.
-                                       self.state = Iso2022JpEncoderState::Ascii;
-                                       return (EncoderResult::Unmappable(c),
-                                               unread_handle.consumed(),
-                                               destination_handle.write_three_return_written(0x1Bu8, 0x28u8, 0x42u8));
+                                   let bmp = c as u16;
+                                   let handle = destination_handle;
+                                   // The code below uses else after continue to
+                                   // keep the same structure as in EUC-JP.
+                                   // Lunde says 60% Hiragana, 30% Kanji, 10% Katakana
+                                   let bmp_minus_hiragana = bmp.wrapping_sub(0x3041);
+                                   if bmp_minus_hiragana < 0x53 {
+                                       handle.write_two(0x24, 0x21 + bmp_minus_hiragana as u8);
+                                       continue;
+                                   } else if in_inclusive_range16(bmp, 0x4E00, 0x9FA0) {
+                                       if 0x4EDD == bmp {
+                                           // Ideograph on the symbol row!
+                                           handle.write_two(0x21, 0xB8 - 0x80);
+                                           continue;
+                                       } else if let Some(pos) = jis0208_level1_kanji_encode(bmp) {
+                                           let lead = (pos / 94) + (0xB0 - 0x80);
+                                           let trail = (pos % 94) + 0x21;
+                                           handle.write_two(lead as u8, trail as u8);
+                                           continue;
+                                       } else if let Some(pos) =
+                                              jis0208_level2_and_additional_kanji_encode(bmp) {
+                                           let lead = (pos / 94) + (0xD0 - 0x80);
+                                           let trail = (pos % 94) + 0x21;
+                                           handle.write_two(lead as u8, trail as u8);
+                                           continue;
+                                       } else if let Some(pos) = position(&IBM_KANJI[..], bmp) {
+                                           let lead = (pos / 94) + (0xF9 - 0x80);
+                                           let trail = (pos % 94) + 0x21;
+                                           handle.write_two(lead as u8, trail as u8);
+                                           continue;
+                                       } else {
+                                           self.state = Iso2022JpEncoderState::Ascii;
+                                           return (EncoderResult::Unmappable(c),
+                                                   unread_handle.consumed(),
+                                                   handle.write_three_return_written(0x1Bu8,
+                                                                                     0x28u8,
+                                                                                     0x42u8));
+                                       }
+                                   } else {
+                                       let bmp_minus_katakana = bmp.wrapping_sub(0x30A1);
+                                       if bmp_minus_katakana < 0x56 {
+                                           handle.write_two(0x25, 0x21 + bmp_minus_katakana as u8);
+                                           continue;
+                                       } else {
+                                           let bmp_minus_space = bmp.wrapping_sub(0x3000);
+                                           if bmp_minus_space < 3 {
+                                               // fast-track common punctuation
+                                               handle.write_two(0x21, 0x21 + bmp_minus_space as u8);
+                                               continue;
+                                           } else if bmp == 0x2212 {
+                                               handle.write_two(0x21, 0x5D);
+                                               continue;
+                                           } else if let Some(pointer) = jis0208_range_encode(bmp) {
+                                               let lead = (pointer / 94) + 0x21;
+                                               let trail = (pointer % 94) + 0x21;
+                                               handle.write_two(lead as u8, trail as u8);
+                                               continue;
+                                           } else if in_inclusive_range16(bmp, 0xFA0E, 0xFA2D) ||
+                                              bmp == 0xF929 ||
+                                              bmp == 0xF9DC {
+                                               // Guaranteed to be found in IBM_KANJI
+                                               let pos = position(&IBM_KANJI[..], bmp).unwrap();
+                                               let lead = (pos / 94) + (0xF9 - 0x80);
+                                               let trail = (pos % 94) + 0x21;
+                                               handle.write_two(lead as u8, trail as u8);
+                                               continue;
+                                           } else if let Some(pointer) = ibm_symbol_encode(bmp) {
+                                               let lead = (pointer / 94) + 0x21;
+                                               let trail = (pointer % 94) + 0x21;
+                                               handle.write_two(lead as u8, trail as u8);
+                                               continue;
+                                           } else if let Some(pointer) = jis0208_symbol_encode(bmp) {
+                                               let lead = (pointer / 94) + 0x21;
+                                               let trail = (pointer % 94) + 0x21;
+                                               handle.write_two(lead as u8, trail as u8);
+                                               continue;
+                                           } else {
+                                               self.state = Iso2022JpEncoderState::Ascii;
+                                               return (EncoderResult::Unmappable(c),
+                                                       unread_handle.consumed(),
+                                                       handle.write_three_return_written(0x1Bu8,
+                                                                                         0x28u8,
+                                                                                         0x42u8));
+                                           }
+                                       }
                                    }
-                                   let lead = (pointer / 94) + 0x21;
-                                   let trail = (pointer % 94) + 0x21;
-                                   destination_handle.write_two(lead as u8, trail as u8);
-                                   continue;
                                }
                            }
                        },
