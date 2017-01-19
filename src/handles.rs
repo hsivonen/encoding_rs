@@ -178,6 +178,10 @@ impl<'a, 'b> Utf16BmpHandle<'a, 'b>
         self.dest.write_upper_bmp(bmp);
         self.dest
     }
+    #[inline(always)]
+    pub fn commit(self) -> &'a mut Utf16Destination<'b> {
+        self.dest
+    }
 }
 
 pub struct Utf16AstralHandle<'a, 'b>
@@ -444,6 +448,10 @@ impl<'a, 'b> Utf8BmpHandle<'a, 'b>
     #[inline(always)]
     pub fn write_upper_bmp(self, bmp: u16) -> &'a mut Utf8Destination<'b> {
         self.dest.write_upper_bmp(bmp);
+        self.dest
+    }
+    #[inline(always)]
+    pub fn commit(self) -> &'a mut Utf8Destination<'b> {
         self.dest
     }
 }

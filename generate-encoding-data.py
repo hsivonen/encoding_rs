@@ -720,40 +720,53 @@ static_u16_table("KSX1001_OTHER_POINTERS", pointers)
 # is unmapped, so we don't want to look at it.
 static_u16_table("KSX1001_OTHER_UNSORTED_OFFSETS", offsets[:-1])
 
-# EUC-JP
+# JIS 0212
 
-index = []
+index = indexes["jis0212"]
 
-for code_point in indexes["jis0212"]:
-  index.append(null_to_zero(code_point))
+# JIS 0212 Kanji
+static_u16_table("JIS0212_KANJI", index[1410:7211])
 
-index_first = 0
+# JIS 0212 accented (all non-Kanji, non-range items)
+symbol_index = []
+symbol_triples = []
+pointers_to_scan = [
+  (0, 596),
+  (608, 644),
+  (656, 1409),
+]
+in_run = False
+run_start_pointer = 0
+run_start_array_index = 0
+for (start, end) in pointers_to_scan:
+  for i in range(start, end):
+    code_point = index[i]
+    if in_run:
+      if code_point:
+        symbol_index.append(code_point)
+      elif index[i + 1]:
+        symbol_index.append(0)
+      else:
+        symbol_triples.append(run_start_pointer)
+        symbol_triples.append(i - run_start_pointer)
+        symbol_triples.append(run_start_array_index)
+        in_run = False
+    else:
+      if code_point:
+        in_run = True
+        run_start_pointer = i
+        run_start_array_index = len(symbol_index)
+        symbol_index.append(code_point)
+  if in_run:
+    symbol_triples.append(run_start_pointer)
+    symbol_triples.append(end - run_start_pointer)
+    symbol_triples.append(run_start_array_index)
+    in_run = False
+if in_run:
+  raise Error()
 
-for i in xrange(len(index)):
-  if index[i]:
-    index_first = i
-    break
-
-# TODO: Compress away empty ranges
-
-data_file.write('''static JIS0212: [u16; %d] = [
-''' % (len(index) - index_first))
-
-for i in xrange(index_first, len(index)):
-  data_file.write('0x%04X,\n' % index[i])
-
-data_file.write('''];
-
-#[inline(always)]
-pub fn jis0212_decode(pointer: usize) -> u16 {
-    let i = pointer.wrapping_sub(%d);
-    if i < %d {
-        JIS0212[i]
-    } else {
-        0
-    }
-}
-''' % (index_first, len(index) - index_first))
+static_u16_table("JIS0212_ACCENTED", symbol_index)
+static_u16_table("JIS0212_ACCENTED_TRIPLES", symbol_triples)
 
 # gb18030
 
@@ -1103,6 +1116,25 @@ pub fn jis0208_range_encode(bmp: u16) -> Option<usize> {
         if bmp_minus_start < length {
             let offset = JIS0208_RANGE_TRIPLES[i] as usize;
             return Some(bmp_minus_start + offset);
+        }
+        i += 3;
+    }
+    None
+}
+
+pub fn jis0212_accented_decode(pointer: usize) -> Option<u16> {
+    let mut i = 0;
+    while i < JIS0212_ACCENTED_TRIPLES.len() {
+        let start = JIS0212_ACCENTED_TRIPLES[i] as usize;
+        let length = JIS0212_ACCENTED_TRIPLES[i + 1] as usize;
+        let pointer_minus_start = pointer.wrapping_sub(start);
+        if pointer_minus_start < length {
+            let offset = JIS0212_ACCENTED_TRIPLES[i + 2] as usize;
+            let candidate = JIS0212_ACCENTED[pointer_minus_start + offset];
+            if candidate == 0 {
+                return None;
+            }
+            return Some(candidate);
         }
         i += 3;
     }

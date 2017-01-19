@@ -692,7 +692,7 @@ macro_rules! euc_jp_decoder_function {
                     return (DecoderResult::InputEmpty, src_consumed, dest.written());
                 }
                 Space::Available(source_handle) => {
-                    match dest.check_space_astral() {
+                    match dest.check_space_bmp() {
                         Space::Full(dst_written) => {
                             return (DecoderResult::OutputFull,
                                     source_handle.consumed(),

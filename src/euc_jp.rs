@@ -150,20 +150,28 @@ impl EucJpDecoder {
                                               unread_handle_trail.consumed(),
                                               handle.written());
                                   }
-                                  let pointer = jis0212_lead_minus_offset as usize * 94usize +
+                                  let pointer = mul_94(jis0212_lead_minus_offset) +
                                                 trail_minus_offset as usize;
-                                  let bmp = jis0212_decode(pointer);
-                                  if bmp == 0 {
-                                      if byte < 0x80 {
-                                          return (DecoderResult::Malformed(2, 0),
-                                                  unread_handle_trail.unread(),
-                                                  handle.written());
+                                  let pointer_minus_kanji = pointer.wrapping_sub(1410);
+                                  if pointer_minus_kanji < JIS0212_KANJI.len() {
+                                      handle.write_upper_bmp(JIS0212_KANJI[pointer_minus_kanji])
+                                  } else if let Some(bmp) = jis0212_accented_decode(pointer) {
+                                      handle.write_bmp_excl_ascii(bmp)
+                                  } else {
+                                      let pointer_minus_upper_cyrillic = pointer.wrapping_sub(597);
+                                      if pointer_minus_upper_cyrillic <= (607 - 597) {
+                                          handle.write_mid_bmp(0x0402 + pointer_minus_upper_cyrillic as u16)
+                                      } else {
+                                          let pointer_minus_lower_cyrillic = pointer.wrapping_sub(645);
+                                          if pointer_minus_lower_cyrillic <= (655 - 645) {
+                                              handle.write_mid_bmp(0x0452 + pointer_minus_lower_cyrillic as u16)
+                                          } else {
+                                              return (DecoderResult::Malformed(3, 0),
+                                                      unread_handle_trail.consumed(),
+                                                      handle.written());
+                                          }
                                       }
-                                      return (DecoderResult::Malformed(3, 0),
-                                              unread_handle_trail.consumed(),
-                                              handle.written());
                                   }
-                                  handle.write_bmp_excl_ascii(bmp)
                               },
                               {
                                   // If trail is between 0xA1 and 0xDF, inclusive,
