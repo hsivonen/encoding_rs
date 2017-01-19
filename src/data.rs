@@ -6132,6 +6132,9 @@ pub static JIS0208_SYMBOL_TRIPLES: [u16; 33] = [0x0000, 0x006C, 0x0000, 0x0077, 
                                                 0x04A6, 0x001E, 0x00CA, 0x29F0, 0x0008, 0x00E8,
                                                 0x21C4, 0x0004, 0x00E8];
 
+const IBM_SYMBOL_START: usize = 233;
+const IBM_SYMBOL_END: usize = 236;
+const IBM_SYMBOL_POINTER_START: usize = 8645;
 pub static JIS0208_RANGE_TRIPLES: [u16; 54] = [0x00CB, 0x000A, 0xFF10, 0x00DC, 0x001A, 0xFF21,
                                                0x00FC, 0x001A, 0xFF41, 0x01D6, 0x0011, 0x0391,
                                                0x01E7, 0x0007, 0x03A3, 0x01F6, 0x0011, 0x03B1,
@@ -11712,6 +11715,33 @@ pub fn jis0208_symbol_decode(pointer: usize) -> Option<u16> {
     None
 }
 
+/// Prefers Shift_JIS pointers for the three symbols that are in both ranges.
+#[inline(always)]
+pub fn jis0208_symbol_encode(bmp: u16) -> Option<usize> {
+    let mut i = 0;
+    while i < JIS0208_SYMBOL_TRIPLES.len() {
+        let pointer_start = JIS0208_SYMBOL_TRIPLES[i] as usize;
+        let length = JIS0208_SYMBOL_TRIPLES[i + 1] as usize;
+        let symbol_start = JIS0208_SYMBOL_TRIPLES[i + 2] as usize;
+        let symbol_end = symbol_start + length;
+        let mut symbol_pos = symbol_start;
+        while symbol_pos < symbol_end {
+            if JIS0208_SYMBOLS[symbol_pos] == bmp {
+                return Some(symbol_pos - symbol_start + pointer_start);
+            }
+            symbol_pos += 1;
+        }
+        i += 3;
+    }
+    None
+}
+
+#[inline(always)]
+pub fn ibm_symbol_encode(bmp: u16) -> Option<usize> {
+    position(&JIS0208_SYMBOLS[IBM_SYMBOL_START..IBM_SYMBOL_END], bmp)
+        .map(|x| x + IBM_SYMBOL_POINTER_START)
+}
+
 #[inline(always)]
 pub fn jis0208_range_decode(pointer: usize) -> Option<u16> {
     let mut i = 0;
@@ -11722,6 +11752,22 @@ pub fn jis0208_range_decode(pointer: usize) -> Option<u16> {
         if pointer_minus_start < length {
             let offset = JIS0208_RANGE_TRIPLES[i + 2] as usize;
             return Some((pointer_minus_start + offset) as u16);
+        }
+        i += 3;
+    }
+    None
+}
+
+#[inline(always)]
+pub fn jis0208_range_encode(bmp: u16) -> Option<usize> {
+    let mut i = 0;
+    while i < JIS0208_RANGE_TRIPLES.len() {
+        let start = JIS0208_RANGE_TRIPLES[i + 2] as usize;
+        let length = JIS0208_RANGE_TRIPLES[i + 1] as usize;
+        let bmp_minus_start = (bmp as usize).wrapping_sub(start);
+        if bmp_minus_start < length {
+            let offset = JIS0208_RANGE_TRIPLES[i] as usize;
+            return Some(bmp_minus_start + offset);
         }
         i += 3;
     }
