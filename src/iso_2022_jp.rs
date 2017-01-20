@@ -330,6 +330,51 @@ impl Iso2022JpDecoder {
                        check_space_bmp);
 }
 
+fn is_mapped_for_two_byte_encode(bmp: u16) -> bool {
+    // The code below uses else after return to
+    // keep the same structure as in EUC-JP.
+    // Lunde says 60% Hiragana, 30% Kanji, 10% Katakana
+    let bmp_minus_hiragana = bmp.wrapping_sub(0x3041);
+    if bmp_minus_hiragana < 0x53 {
+        return true;
+    } else if in_inclusive_range16(bmp, 0x4E00, 0x9FA0) {
+        if 0x4EDD == bmp {
+            return true;
+        } else if let Some(_) = jis0208_level1_kanji_encode(bmp) {
+            return true;
+        } else if let Some(_) = jis0208_level2_and_additional_kanji_encode(bmp) {
+            return true;
+        } else if let Some(_) = position(&IBM_KANJI[..], bmp) {
+            return true;
+        } else {
+            return false;
+        }
+    } else {
+        let bmp_minus_katakana = bmp.wrapping_sub(0x30A1);
+        if bmp_minus_katakana < 0x56 {
+            return true;
+        } else {
+            let bmp_minus_space = bmp.wrapping_sub(0x3000);
+            if bmp_minus_space < 3 {
+                // fast-track common punctuation
+                return true;
+            } else if bmp == 0x2212 {
+                return true;
+            } else if let Some(_) = jis0208_range_encode(bmp) {
+                return true;
+            } else if in_inclusive_range16(bmp, 0xFA0E, 0xFA2D) || bmp == 0xF929 || bmp == 0xF9DC {
+                return true;
+            } else if let Some(_) = ibm_symbol_encode(bmp) {
+                return true;
+            } else if let Some(_) = jis0208_symbol_encode(bmp) {
+                return true;
+            } else {
+                return false;
+            }
+        }
+    }
+}
+
 enum Iso2022JpEncoderState {
     Ascii,
     Roman,
@@ -416,8 +461,7 @@ impl Iso2022JpEncoder {
                                    // Yes, if c is in index, we'll search
                                    // again in the Jis0208 state, but this
                                    // encoder is not worth optimizing.
-                                   if c == '\u{2212}' ||
-                                      jis0208_encode(c as u16) != usize::max_value() {
+                                   if is_mapped_for_two_byte_encode(c as u16) {
                                        self.state = Iso2022JpEncoderState::Jis0208;
                                        destination_handle.write_three(0x1Bu8, 0x24u8, 0x42u8);
                                        unread_handle.unread();
