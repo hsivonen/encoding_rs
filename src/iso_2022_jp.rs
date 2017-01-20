@@ -503,8 +503,7 @@ impl Iso2022JpEncoder {
                                    // Yes, if c is in index, we'll search
                                    // again in the Jis0208 state, but this
                                    // encoder is not worth optimizing.
-                                   if c == '\u{2212}' ||
-                                      jis0208_encode(c as u16) != usize::max_value() {
+                                   if is_mapped_for_two_byte_encode(c as u16) {
                                        self.state = Iso2022JpEncoderState::Jis0208;
                                        destination_handle.write_three(0x1Bu8, 0x24u8, 0x42u8);
                                        unread_handle.unread();

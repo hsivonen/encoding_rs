@@ -369,68 +369,6 @@ data_file.write('''_ => {},
 
 # JIS0208
 
-index = []
-highest = 0
-
-for code_point in indexes["jis0208"]:
-  n_or_z = null_to_zero(code_point)
-  index.append(n_or_z)
-
-# TODO: Compress away empty ranges
-
-data_file.write('''static JIS0208: [u16; %d] = [
-''' % len(index))
-
-for i in xrange(len(index)):
-  data_file.write('0x%04X,\n' % index[i])
-
-data_file.write('''];
-
-''')
-
-data_file.write('''
-#[inline(always)]
-pub fn jis0208_encode(bmp: u16) -> usize {
-    let mut it = JIS0208.iter().enumerate();
-    loop {
-        match it.next() {
-            Some((i, code_point)) => {
-                if *code_point != bmp {
-                    continue;
-                }
-                return i;
-            }
-            None => {
-                return usize::max_value();
-            }
-        }
-    }
-}
-''')
-
-data_file.write('''
-#[inline(always)]
-pub fn shift_jis_encode(bmp: u16) -> usize {
-    let mut i = 0usize;
-    // No entries between 7807 and 8272
-    while i < 7808 {
-        if JIS0208[i] == bmp {
-            return i;
-        }
-        i += 1;
-    }
-    // No entries between 8834 and 10716
-    i = 10716;
-    while i < JIS0208.len() {
-        if JIS0208[i] == bmp {
-            return i;
-        }
-        i += 1;
-    }
-    return usize::max_value();
-}
-''')
-
 index = indexes["jis0208"]
 
 # JIS 0208 Level 1 Kanji

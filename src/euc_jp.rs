@@ -265,7 +265,9 @@ impl EucJpEncoder {
                                                             handle.write_one(0x5Cu8)
                                                         } else if bmp == 0x203E {
                                                             handle.write_one(0x7Eu8)
-                                                        } else if bmp >= 0xFF61 && bmp <= 0xFF9F {
+                                                        } else if in_inclusive_range16(bmp,
+                                                                                0xFF61,
+                                                                                0xFF9F) {
                                                             handle.write_two(0x8Eu8,
                                                                              (bmp - (0xFF61 - 0xA1)) as u8)
                                                         } else if bmp == 0x2212 {
