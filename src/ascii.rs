@@ -608,6 +608,10 @@ cfg_if! {
         #[inline(always)]
         fn find_non_ascii(word: usize, second_word: usize) -> Option<(u8, usize)> {
             let word_masked = word & ASCII_MASK;
+            let second_masked = second_word & ASCII_MASK;
+            if (word_masked | second_masked) == 0 {
+                return None;
+            }
             if word_masked != 0 {
                 let trailing = word_masked.trailing_zeros();
 // Trailing now contains 7 (for the seven bits of non-ASCII)
@@ -618,23 +622,25 @@ cfg_if! {
                 let non_ascii = (word >> (trailing & !7)) as u8;
                 return Some((non_ascii, num_ascii));
             }
-            let second_masked = second_word & ASCII_MASK;
-            if second_masked != 0 {
-                let trailing = second_masked.trailing_zeros();
+            let trailing = second_masked.trailing_zeros();
 // Trailing now contains 7 (for the seven bits of non-ASCII)
 // plus 8 times the number of ASCII in text order before the
 // non-ASCII byte.
-                let num_ascii = (trailing >> 3) as usize;
+            let num_ascii = (trailing >> 3) as usize;
 // `as u8` truncates, so no need to do `& 0xFF`.
-                let non_ascii = (second_word >> (trailing & !7)) as u8;
-                return Some((non_ascii, ALIGNMENT + num_ascii));
-            }
-            return None;
+            let non_ascii = (second_word >> (trailing & !7)) as u8;
+            return Some((non_ascii, ALIGNMENT + num_ascii));
         }
 
         #[inline(always)]
         fn find_non_basic_latin(first: usize, second: usize, third: usize, fourth: usize) -> Option<(u16, usize)> {
             let first_masked = first & BASIC_LATIN_MASK;
+            let second_masked = second & BASIC_LATIN_MASK;
+            let third_masked = third & BASIC_LATIN_MASK;
+            let fourth_masked = fourth & BASIC_LATIN_MASK;
+            if (first_masked | second_masked | third_masked | fourth_masked) == 0 {
+                return None;
+            }
             if first_masked != 0 {
                 let trailing = first_masked.trailing_zeros();
 // Trailing now contains 7 to 15 for the trailing bits of
@@ -645,7 +651,6 @@ cfg_if! {
                 let non_ascii = (first >> (trailing & !0xF)) as u16;
                 return Some((non_ascii, num_ascii));
             }
-            let second_masked = second & BASIC_LATIN_MASK;
             if second_masked != 0 {
                 let trailing = second_masked.trailing_zeros();
 // Trailing now contains 7 to 15 for the trailing bits of
@@ -656,7 +661,6 @@ cfg_if! {
                 let non_ascii = (second >> (trailing & !0xF)) as u16;
                 return Some((non_ascii, (ALIGNMENT / 2) + num_ascii));
             }
-            let third_masked = third & BASIC_LATIN_MASK;
             if third_masked != 0 {
                 let trailing = third_masked.trailing_zeros();
 // Trailing now contains 7 to 15 for the trailing bits of
@@ -667,18 +671,14 @@ cfg_if! {
                 let non_ascii = (third >> (trailing & !0xF)) as u16;
                 return Some((non_ascii, ALIGNMENT + num_ascii));
             }
-            let fourth_masked = fourth & BASIC_LATIN_MASK;
-            if fourth_masked != 0 {
-                let trailing = fourth_masked.trailing_zeros();
+            let trailing = fourth_masked.trailing_zeros();
 // Trailing now contains 7 to 15 for the trailing bits of
 // non-ASCII plus 16 times the number of ASCII in text order
 // before the non-ASCII code unit.
-                let num_ascii = (trailing >> 4) as usize;
+            let num_ascii = (trailing >> 4) as usize;
 // `as u16` truncates, so no need to do `& 0xFFFF`.
-                let non_ascii = (fourth >> (trailing & !0xF)) as u16;
-                return Some((non_ascii, (ALIGNMENT + (ALIGNMENT / 2)) + num_ascii));
-            }
-            return None;
+            let non_ascii = (fourth >> (trailing & !0xF)) as u16;
+            return Some((non_ascii, (ALIGNMENT + (ALIGNMENT / 2)) + num_ascii));
         }
 
         ascii_alu!(ascii_to_ascii, u8, u8, ascii_to_ascii_stride);
