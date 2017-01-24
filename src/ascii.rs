@@ -85,13 +85,15 @@ macro_rules! ascii_alu {
                    until_alignment -= 1;
                }
                loop {
-                   match $stride_fn(src.offset(offset as isize) as *const usize,
+                   if !$stride_fn(src.offset(offset as isize) as *const usize,
                                   dst.offset(offset as isize) as *mut usize) {
-                       Some(num_ascii) => {
-                           offset += num_ascii;
-                           return Some((*(src.offset(offset as isize)), offset));
+                       loop {
+                           let byte = *(src.offset(offset as isize));
+                           if byte > 127 {
+                               return Some((byte, offset));
+                           }
+                           offset += 1;
                        }
-                       None => {}
                    }
                    offset += STRIDE_SIZE;
                    if offset + STRIDE_SIZE > len {
@@ -290,7 +292,7 @@ cfg_if! {
         const ALIGNMENT_MASK: usize = 7;
 
         #[inline(always)]
-        unsafe fn ascii_to_basic_latin_stride_little_64(src: *const usize, dst: *mut usize) -> Option<usize> {
+        unsafe fn ascii_to_basic_latin_stride_little_64(src: *const usize, dst: *mut usize) -> bool {
             let word = *src;
             let second_word = *(src.offset(1));
             let first = ((0x00000000_FF000000usize & word) << 24) |
@@ -317,7 +319,7 @@ cfg_if! {
         }
 
         #[inline(always)]
-        unsafe fn basic_latin_to_ascii_stride_little_64(src: *const usize, dst: *mut usize) -> Option<usize> {
+        unsafe fn basic_latin_to_ascii_stride_little_64(src: *const usize, dst: *mut usize) -> bool {
             let first = *src;
             let second = *(src.offset(1));
             let third = *(src.offset(2));
@@ -355,7 +357,7 @@ cfg_if! {
         const ALIGNMENT_MASK: usize = 3;
 
         #[inline(always)]
-        unsafe fn ascii_to_basic_latin_stride_little_32(src: *const usize, dst: *mut usize) -> Option<usize> {
+        unsafe fn ascii_to_basic_latin_stride_little_32(src: *const usize, dst: *mut usize) -> bool {
             let word = *src;
             let second_word = *(src.offset(1));
             let first = ((0x0000FF00usize & word) << 8) |
@@ -374,7 +376,7 @@ cfg_if! {
         }
 
         #[inline(always)]
-        unsafe fn basic_latin_to_ascii_stride_little_32(src: *const usize, dst: *mut usize) -> Option<usize> {
+        unsafe fn basic_latin_to_ascii_stride_little_32(src: *const usize, dst: *mut usize) -> bool {
             let first = *src;
             let second = *(src.offset(1));
             let third = *(src.offset(2));
@@ -591,7 +593,7 @@ cfg_if! {
         const BASIC_LATIN_MASK: usize = 0xFF80FF80_FF80FF80u64 as usize;
 
         #[inline(always)]
-        unsafe fn ascii_to_ascii_stride(src: *const usize, dst: *mut usize) -> Option<usize> {
+        unsafe fn ascii_to_ascii_stride(src: *const usize, dst: *mut usize) -> bool {
             let word = *src;
             let second_word = *(src.offset(1));
             *dst = word;
@@ -600,74 +602,26 @@ cfg_if! {
         }
 
         #[inline(always)]
-        unsafe fn validate_ascii_stride(src: *const usize) -> Option<usize> {
+        unsafe fn validate_ascii_stride(src: *const usize) -> bool {
             let word = *src;
             let second_word = *(src.offset(1));
             find_non_ascii(word, second_word)
         }
 
         #[inline(always)]
-        fn find_non_ascii(word: usize, second_word: usize) -> Option<usize> {
+        fn find_non_ascii(word: usize, second_word: usize) -> bool {
             let word_masked = word & ASCII_MASK;
             let second_masked = second_word & ASCII_MASK;
-            if (word_masked | second_masked) == 0 {
-                return None;
-            }
-            if word_masked != 0 {
-                let trailing = word_masked.trailing_zeros();
-// Trailing now contains 7 (for the seven bits of non-ASCII)
-// plus 8 times the number of ASCII in text order before the
-// non-ASCII byte.
-                let num_ascii = (trailing >> 3) as usize;
-                return Some(num_ascii);
-            }
-            let trailing = second_masked.trailing_zeros();
-// Trailing now contains 7 (for the seven bits of non-ASCII)
-// plus 8 times the number of ASCII in text order before the
-// non-ASCII byte.
-            let num_ascii = (trailing >> 3) as usize;
-            return Some(ALIGNMENT + num_ascii);
+            (word_masked | second_masked) == 0
         }
 
         #[inline(always)]
-        fn find_non_basic_latin(first: usize, second: usize, third: usize, fourth: usize) -> Option<usize> {
+        fn find_non_basic_latin(first: usize, second: usize, third: usize, fourth: usize) -> bool {
             let first_masked = first & BASIC_LATIN_MASK;
             let second_masked = second & BASIC_LATIN_MASK;
             let third_masked = third & BASIC_LATIN_MASK;
             let fourth_masked = fourth & BASIC_LATIN_MASK;
-            if (first_masked | second_masked | third_masked | fourth_masked) == 0 {
-                return None;
-            }
-            if first_masked != 0 {
-                let trailing = first_masked.trailing_zeros();
-// Trailing now contains 7 to 15 for the trailing bits of
-// non-ASCII plus 16 times the number of ASCII in text order
-// before the non-ASCII code unit.
-                let num_ascii = (trailing >> 4) as usize;
-                return Some(num_ascii);
-            }
-            if second_masked != 0 {
-                let trailing = second_masked.trailing_zeros();
-// Trailing now contains 7 to 15 for the trailing bits of
-// non-ASCII plus 16 times the number of ASCII in text order
-// before the non-ASCII code unit.
-                let num_ascii = (trailing >> 4) as usize;
-                return Some((ALIGNMENT / 2) + num_ascii);
-            }
-            if third_masked != 0 {
-                let trailing = third_masked.trailing_zeros();
-// Trailing now contains 7 to 15 for the trailing bits of
-// non-ASCII plus 16 times the number of ASCII in text order
-// before the non-ASCII code unit.
-                let num_ascii = (trailing >> 4) as usize;
-                return Some(ALIGNMENT + num_ascii);
-            }
-            let trailing = fourth_masked.trailing_zeros();
-// Trailing now contains 7 to 15 for the trailing bits of
-// non-ASCII plus 16 times the number of ASCII in text order
-// before the non-ASCII code unit.
-            let num_ascii = (trailing >> 4) as usize;
-            return Some((ALIGNMENT + (ALIGNMENT / 2)) + num_ascii);
+            (first_masked | second_masked | third_masked | fourth_masked) == 0
         }
 
         ascii_alu!(ascii_to_ascii, u8, u8, ascii_to_ascii_stride);
@@ -688,13 +642,17 @@ cfg_if! {
                    until_alignment -= 1;
                }
                loop {
-                   let ptr = unsafe { src.offset(offset as isize) as *const usize };
-                   match unsafe { validate_ascii_stride(ptr) } {
-                       Some(num_ascii) => {
-                           offset += num_ascii;
-                           return Some((unsafe { *(src.offset(offset as isize)) }, offset));
+                   unsafe {
+                       let ptr = src.offset(offset as isize) as *const usize;
+                       if !validate_ascii_stride(ptr) {
+                           loop {
+                               let byte = *(src.offset(offset as isize));
+                               if byte > 127 {
+                                   return Some((byte, offset));
+                               }
+                               offset += 1;
+                           }
                        }
-                       None => {}
                    }
                    offset += STRIDE_SIZE;
                    if offset + STRIDE_SIZE > len {
