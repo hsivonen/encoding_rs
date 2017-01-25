@@ -340,7 +340,9 @@ fn is_mapped_for_two_byte_encode(bmp: u16) -> bool {
     } else if in_inclusive_range16(bmp, 0x4E00, 0x9FA0) {
         if 0x4EDD == bmp {
             return true;
-        } else if let Some(_) = jis0208_level1_kanji_encode(bmp) {
+        } else if let Some(_) = jis0208_level1_kanji_shift_jis_encode(bmp) {
+            // Use the shift_jis variant, because we don't care about the
+            // byte values here.
             return true;
         } else if let Some(_) = jis0208_level2_and_additional_kanji_encode(bmp) {
             return true;
@@ -549,10 +551,9 @@ impl Iso2022JpEncoder {
                                            // Ideograph on the symbol row!
                                            handle.write_two(0x21, 0xB8 - 0x80);
                                            continue;
-                                       } else if let Some(pos) = jis0208_level1_kanji_encode(bmp) {
-                                           let lead = (pos / 94) + (0xB0 - 0x80);
-                                           let trail = (pos % 94) + 0x21;
-                                           handle.write_two(lead as u8, trail as u8);
+                                       } else if let Some((lead, trail)) =
+                                              jis0208_level1_kanji_iso_2022_jp_encode(bmp) {
+                                           handle.write_two(lead, trail);
                                            continue;
                                        } else if let Some(pos) =
                                               jis0208_level2_and_additional_kanji_encode(bmp) {

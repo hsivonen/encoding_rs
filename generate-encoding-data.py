@@ -1130,10 +1130,39 @@ pub fn jis0208_level1_kanji_euc_jp_encode(bmp: u16) -> Option<(u8, u8)> {
     })
 }
 
+#[cfg(feature = "no-static-ideograph-encoder-tables")]
 #[inline(always)]
-pub fn jis0208_level1_kanji_encode(bmp: u16) -> Option<usize> {
-    // TODO: optimize
-    position(&JIS0208_LEVEL1_KANJI[..], bmp)
+pub fn jis0208_level1_kanji_iso_2022_jp_encode(bmp: u16) -> Option<(u8, u8)> {
+    position(&JIS0208_LEVEL1_KANJI[..], bmp).map(|kanji_pointer| {
+        let lead = (kanji_pointer / 94) + (0xB0 - 0x80);
+        let trail = (kanji_pointer % 94) + 0x21;
+        (lead as u8, trail as u8)
+    })
+}
+
+#[cfg(not(feature = "no-static-ideograph-encoder-tables"))]
+#[inline(always)]
+pub fn jis0208_level1_kanji_iso_2022_jp_encode(bmp: u16) -> Option<(u8, u8)> {
+    jis0208_level1_kanji_shift_jis_encode(bmp).map(|(shift_jis_lead, shift_jis_trail)| {
+        let mut lead = shift_jis_lead as usize;
+        if shift_jis_lead >= 0xA0 {
+            lead -= 0xC1 - 0x81;
+        }
+        // The next line would overflow u8. Letting it go over allows us to
+        // subtract fewer times.
+        lead <<= 1;
+        // Bring it back to u8 range
+        lead -= 0xE1;
+        let trail = if shift_jis_trail >= 0x9F {
+            lead += 1;
+            shift_jis_trail - (0x9F - 0x21)
+        } else if shift_jis_trail < 0x7F {
+            shift_jis_trail - (0x40 - 0x21)
+        } else {
+            shift_jis_trail - (0x41 - 0x21)
+        };
+        (lead as u8, trail)
+    })
 }
 
 #[inline(always)]
