@@ -10003,6 +10003,18 @@ pub fn gb2312_other_encode(bmp: u16) -> Option<u16> {
 }
 
 #[inline(always)]
+pub fn gb2312_level1_hanzi_encode(bmp: u16) -> Option<usize> {
+    // TODO: optimize
+    position(&GB2312_HANZI[..(94 * (0xD8 - 0xB0) - 5)], bmp)
+}
+
+#[inline(always)]
+pub fn gb2312_level2_hanzi_encode(bmp: u16) -> Option<usize> {
+    // TODO: optimize
+    position(&GB2312_HANZI[(94 * (0xD8 - 0xB0))..], bmp)
+}
+
+#[inline(always)]
 pub fn ksx1001_other_decode(pointer: u16) -> u16 {
     map_with_ranges(&KSX1001_OTHER_POINTERS[..KSX1001_OTHER_POINTERS.len() - 1],
                     &KSX1001_OTHER_UNSORTED_OFFSETS[..],

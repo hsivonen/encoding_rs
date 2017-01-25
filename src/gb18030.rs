@@ -444,41 +444,44 @@ impl Gb18030Encoder {
                                                 // Level 2 Hanzi, which are almost
                                                 // Unicode-ordered?
                                                 let (lead, trail) =
-                                                    match position(&GB2312_HANZI[..], bmp) {
-                                                        Some(hanzi_pointer) => {
-                                                            let hanzi_lead = (hanzi_pointer / 94) +
-                                                                             (0x81 + 0x2F);
-                                                            let hanzi_trail = (hanzi_pointer % 94) +
-                                                                              0xA1;
-                                                            (hanzi_lead, hanzi_trail)
-                                                        }
-                                                        None => {
-                                                            let (lead, gbk_trail) = if bmp <
-                                                                                       0x72DC {
-                                                                // Above GB2312
-                                                                let pointer = gbk_top_ideograph_encode(bmp) as usize;
-                                                                let lead = (pointer / 190) + 0x81;
-                                                                let gbk_trail = pointer % 190;
-                                                                (lead, gbk_trail)
-                                                            } else {
-                                                                // To the left of GB2312
-                                                                let gbk_left_ideograph_pointer = gbk_left_ideograph_encode(bmp) as usize;
-                                                                let lead =
-                                                                    (gbk_left_ideograph_pointer /
-                                                                     (190 - 94)) +
-                                                                    (0x81 + 0x29);
-                                                                let gbk_trail =
-                                                                    gbk_left_ideograph_pointer %
-                                                                    (190 - 94);
-                                                                (lead, gbk_trail)
-                                                            };
-                                                            let offset = if gbk_trail < 0x3F {
-                                                                0x40
-                                                            } else {
-                                                                0x41
-                                                            };
-                                                            (lead, gbk_trail + offset)
-                                                        }
+                                                    if let Some(hanzi_pointer) =
+                                                           gb2312_level1_hanzi_encode(bmp) {
+                                                        let hanzi_lead = (hanzi_pointer / 94) +
+                                                                         (0xB0);
+                                                        let hanzi_trail = (hanzi_pointer % 94) +
+                                                                          0xA1;
+                                                        (hanzi_lead, hanzi_trail)
+                                                    } else if let Some(hanzi_pointer) =
+                                                           gb2312_level2_hanzi_encode(bmp) {
+                                                        let hanzi_lead = (hanzi_pointer / 94) +
+                                                                         (0xD8);
+                                                        let hanzi_trail = (hanzi_pointer % 94) +
+                                                                          0xA1;
+                                                        (hanzi_lead, hanzi_trail)
+                                                    } else {
+                                                        let (lead, gbk_trail) = if bmp < 0x72DC {
+                                                            // Above GB2312
+                                                            let pointer = gbk_top_ideograph_encode(bmp) as usize;
+                                                            let lead = (pointer / 190) + 0x81;
+                                                            let gbk_trail = pointer % 190;
+                                                            (lead, gbk_trail)
+                                                        } else {
+                                                            // To the left of GB2312
+                                                            let gbk_left_ideograph_pointer = gbk_left_ideograph_encode(bmp) as usize;
+                                                            let lead = (gbk_left_ideograph_pointer /
+                                                                        (190 - 94)) +
+                                                                       (0x81 + 0x29);
+                                                            let gbk_trail =
+                                                                gbk_left_ideograph_pointer %
+                                                                (190 - 94);
+                                                            (lead, gbk_trail)
+                                                        };
+                                                        let offset = if gbk_trail < 0x3F {
+                                                            0x40
+                                                        } else {
+                                                            0x41
+                                                        };
+                                                        (lead, gbk_trail + offset)
                                                     };
                                                 handle.write_two(lead as u8, trail as u8)
                                             } else if bmp == 0xE5E5 {
