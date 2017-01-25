@@ -12,6 +12,7 @@ keywords = ["encoding", "web", "unicode", "charset"]
 
 [features]
 simd-accel = ["simd"]
+no-static-ideograph-encoder-tables = []
 
 [dependencies]
 cfg-if = "0.1.0"

@@ -31,6 +31,28 @@ def static_u16_table(name, data):
 
   ''')
 
+def static_u16_table_from_indexable(name, data, item):
+  data_file.write('''static %s: [u16; %d] = [
+  ''' % (name, len(data)))
+
+  for i in xrange(len(data)):
+    data_file.write('0x%04X,\n' % data[i][item])
+
+  data_file.write('''];
+
+  ''')
+
+def static_u8_pair_table_from_indexable(name, data, item):
+  data_file.write('''static %s: [[u8; 2]; %d] = [
+  ''' % (name, len(data)))
+
+  for i in xrange(len(data)):
+    data_file.write('[0x%02X, 0x%02X],\n' % data[i][item])
+
+  data_file.write('''];
+
+  ''')
+
 # If a multi-byte encoding is on this list, it is assumed to have a
 # non-generated implementation class
 MULTI_BYTE_IMPLEMENTED = [
@@ -836,6 +858,22 @@ for pair in indexes["gb18030-ranges"]:
 static_u16_table("GB18030_RANGE_POINTERS", pointers)
 static_u16_table("GB18030_RANGE_OFFSETS", offsets)
 
+# Encoder table for Level 1 Hanzi
+# The units here really fit into 12 bits, but since we're
+# looking for speed here, let's use 16 bits per unit.
+# Once we use 16 bits per unit, we might as well precompute
+# the output bytes.
+level1_hanzi_index = hanzi_index[:(94 * (0xD8 - 0xB0) - 5)]
+level1_hanzi_pairs = []
+for i in xrange(len(level1_hanzi_index)):
+  hanzi_lead = (i / 94) + 0xB0;
+  hanzi_trail = (i % 94) + 0xA1;
+  level1_hanzi_pairs.append((level1_hanzi_index[i], (hanzi_lead, hanzi_trail)))
+level1_hanzi_pairs.sort(key=lambda x: x[0])
+
+static_u16_table_from_indexable("GB2312_LEVEL1_HANZI_CODE_POINTS", level1_hanzi_pairs, 0)
+static_u8_pair_table_from_indexable("GB2312_LEVEL1_HANZI_BYTES", level1_hanzi_pairs, 1)
+
 data_file.write('''#[inline(always)]
 fn map_with_ranges(haystack: &[u16], other: &[u16], needle: u16) -> u16 {
     debug_assert_eq!(haystack.len(), other.len());
@@ -964,10 +1002,26 @@ pub fn gb2312_other_encode(bmp: u16) -> Option<u16> {
                              bmp)
 }
 
+#[cfg(feature = "no-static-ideograph-encoder-tables")]
 #[inline(always)]
-pub fn gb2312_level1_hanzi_encode(bmp: u16) -> Option<usize> {
-    // TODO: optimize
-    position(&GB2312_HANZI[..(94 * (0xD8 - 0xB0) - 5)], bmp)
+pub fn gb2312_level1_hanzi_encode(bmp: u16) -> Option<(u8, u8)> {
+    position(&GB2312_HANZI[..(94 * (0xD8 - 0xB0) - 5)], bmp).map(|hanzi_pointer| {
+        let hanzi_lead = (hanzi_pointer / 94) + 0xB0;
+        let hanzi_trail = (hanzi_pointer % 94) + 0xA1;
+        (hanzi_lead, hanzi_trail)
+    })
+}
+
+#[cfg(not(feature = "no-static-ideograph-encoder-tables"))]
+#[inline(always)]
+pub fn gb2312_level1_hanzi_encode(bmp: u16) -> Option<(u8, u8)> {
+    match GB2312_LEVEL1_HANZI_CODE_POINTS.binary_search(&bmp) {
+        Ok(i) => {
+            let pair = &GB2312_LEVEL1_HANZI_BYTES[i];
+            Some((pair[0], pair[1]))
+        }
+        Err(_) => None,
+    }
 }
 
 #[inline(always)]
