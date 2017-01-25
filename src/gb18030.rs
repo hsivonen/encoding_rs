@@ -443,32 +443,32 @@ impl Gb18030Encoder {
                                                 // than linear search for GB2312
                                                 // Level 2 Hanzi, which are almost
                                                 // Unicode-ordered?
-                                                if let Some(byte_pair) =
+                                                if let Some((lead, trail)) =
                                                        gb2312_level1_hanzi_encode(bmp) {
-                                                    handle.write_two(byte_pair.0, byte_pair.1)
+                                                    handle.write_two(lead, trail)
                                                 } else if let Some(hanzi_pointer) =
                                                        gb2312_level2_hanzi_encode(bmp) {
-                                                    let hanzi_lead = (hanzi_pointer / 94) +
-                                                                     (0xD8);
-                                                    let hanzi_trail = (hanzi_pointer % 94) +
-                                                                      0xA1;
-                                                    handle.write_two(hanzi_lead as u8, hanzi_trail as u8)
+                                                    let hanzi_lead = (hanzi_pointer / 94) + (0xD8);
+                                                    let hanzi_trail = (hanzi_pointer % 94) + 0xA1;
+                                                    handle.write_two(hanzi_lead as u8,
+                                                                     hanzi_trail as u8)
                                                 } else {
                                                     let (lead, gbk_trail) = if bmp < 0x72DC {
                                                         // Above GB2312
-                                                        let pointer = gbk_top_ideograph_encode(bmp) as usize;
+                                                        let pointer =
+                                                            gbk_top_ideograph_encode(bmp) as usize;
                                                         let lead = (pointer / 190) + 0x81;
                                                         let gbk_trail = pointer % 190;
                                                         (lead, gbk_trail)
                                                     } else {
                                                         // To the left of GB2312
-                                                        let gbk_left_ideograph_pointer = gbk_left_ideograph_encode(bmp) as usize;
+                                                        let gbk_left_ideograph_pointer =
+                                                            gbk_left_ideograph_encode(bmp) as usize;
                                                         let lead = (gbk_left_ideograph_pointer /
                                                                     (190 - 94)) +
                                                                    (0x81 + 0x29);
-                                                        let gbk_trail =
-                                                            gbk_left_ideograph_pointer %
-                                                            (190 - 94);
+                                                        let gbk_trail = gbk_left_ideograph_pointer %
+                                                                        (190 - 94);
                                                         (lead, gbk_trail)
                                                     };
                                                     let offset = if gbk_trail < 0x3F {
@@ -476,7 +476,8 @@ impl Gb18030Encoder {
                                                     } else {
                                                         0x41
                                                     };
-                                                    handle.write_two(lead as u8, (gbk_trail + offset) as u8)
+                                                    handle.write_two(lead as u8,
+                                                                     (gbk_trail + offset) as u8)
                                                 }
                                             } else if bmp == 0xE5E5 {
                                                 // It's not optimal to check for the unmappable

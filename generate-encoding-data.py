@@ -32,7 +32,8 @@ def static_u16_table(name, data):
   ''')
 
 def static_u16_table_from_indexable(name, data, item):
-  data_file.write('''static %s: [u16; %d] = [
+  data_file.write('''#[cfg(not(feature = "no-static-ideograph-encoder-tables"))]
+static %s: [u16; %d] = [
   ''' % (name, len(data)))
 
   for i in xrange(len(data)):
@@ -43,7 +44,8 @@ def static_u16_table_from_indexable(name, data, item):
   ''')
 
 def static_u8_pair_table_from_indexable(name, data, item):
-  data_file.write('''static %s: [[u8; 2]; %d] = [
+  data_file.write('''#[cfg(not(feature = "no-static-ideograph-encoder-tables"))]
+static %s: [[u8; 2]; %d] = [
   ''' % (name, len(data)))
 
   for i in xrange(len(data)):
@@ -514,6 +516,22 @@ if in_run:
   raise Error()
 
 static_u16_table("JIS0208_RANGE_TRIPLES", range_triples)
+
+# Encoder table for Level 1 Kanji
+# Note: If we were OK with 30 KB more footprint, we
+# could use a directly-indexable table instead...
+level1_kanji_index = index[1410:4375]
+level1_kanji_pairs = []
+for i in xrange(len(level1_kanji_index)):
+  pointer = 1410 + i
+  (lead, trail) = divmod(pointer, 188)
+  lead += 0x81 if lead < 0x1F else 0xC1
+  trail += 0x40 if trail < 0x3F else 0x41
+  level1_kanji_pairs.append((level1_kanji_index[i], (lead, trail)))
+level1_kanji_pairs.sort(key=lambda x: x[0])
+
+static_u16_table_from_indexable("JIS0208_LEVEL1_KANJI_CODE_POINTS", level1_kanji_pairs, 0)
+static_u8_pair_table_from_indexable("JIS0208_LEVEL1_KANJI_SHIFT_JIS_BYTES", level1_kanji_pairs, 1)
 
 # EUC-KR
 
@@ -1042,6 +1060,39 @@ pub fn ksx1001_other_encode(bmp: u16) -> Option<u16> {
     map_with_unsorted_ranges(&KSX1001_OTHER_UNSORTED_OFFSETS[..],
                              &KSX1001_OTHER_POINTERS[..],
                              bmp)
+}
+
+#[cfg(feature = "no-static-ideograph-encoder-tables")]
+#[inline(always)]
+pub fn jis0208_level1_kanji_shift_jis_encode(bmp: u16) -> Option<(u8, u8)> {
+    position(&JIS0208_LEVEL1_KANJI[..], bmp).map(|kanji_pointer| {
+        let pointer = 1410 + kanji_pointer;
+        let lead = pointer / 188;
+        let lead_offset = if lead < 0x1F {
+            0x81
+        } else {
+            0xC1
+        };
+        let trail = pointer % 188;
+        let trail_offset = if trail < 0x3F {
+            0x40
+        } else {
+            0x41
+        };
+        ((lead + lead_offset) as u8, (trail + trail_offset) as u8)
+    })
+}
+
+#[cfg(not(feature = "no-static-ideograph-encoder-tables"))]
+#[inline(always)]
+pub fn jis0208_level1_kanji_shift_jis_encode(bmp: u16) -> Option<(u8, u8)> {
+    match JIS0208_LEVEL1_KANJI_CODE_POINTS.binary_search(&bmp) {
+        Ok(i) => {
+            let pair = &JIS0208_LEVEL1_KANJI_SHIFT_JIS_BYTES[i];
+            Some((pair[0], pair[1]))
+        }
+        Err(_) => None,
+    }
 }
 
 #[inline(always)]
