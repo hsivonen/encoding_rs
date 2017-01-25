@@ -229,10 +229,8 @@ impl EucJpEncoder {
                                                     if 0x4EDD == bmp {
                                                         // Ideograph on the symbol row!
                                                         handle.write_two(0xA1, 0xB8)
-                                                    } else if let Some(pos) = jis0208_level1_kanji_encode(bmp) {
-                                                        let lead = (pos / 94) + 0xB0;
-                                                        let trail = (pos % 94) + 0xA1;
-                                                        handle.write_two(lead as u8, trail as u8)
+                                                    } else if let Some((lead, trail)) = jis0208_level1_kanji_euc_jp_encode(bmp) {
+                                                        handle.write_two(lead, trail)
                                                     } else if let Some(pos) = jis0208_level2_and_additional_kanji_encode(bmp) {
                                                         let lead = (pos / 94) + 0xD0;
                                                         let trail = (pos % 94) + 0xA1;
