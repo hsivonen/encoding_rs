@@ -321,6 +321,8 @@ if in_run:
 static_u16_table("BIG5_SYMBOLS", symbol_index)
 static_u16_table("BIG5_SYMBOL_TRIPLES", symbol_triples)
 
+data_file.write('''const BIG5_SYMBOL_MIDDLE_IDEOGRAPH_START: usize = %d;\n\n''' % (symbol_triples[14]))
+
 # Big5 potentially astral
 symbol_index = []
 symbol_triples = []
@@ -332,33 +334,15 @@ pointers_to_scan = [
   (11201, 11214),
   (18997, 19782),
 ]
-in_run = False
 run_start_pointer = 0
 run_start_array_index = 0
 for (start, end) in pointers_to_scan:
+  run_start_array_index = len(symbol_index)
   for i in range(start, end):
-    code_point = index[i]
-    if in_run:
-      if code_point:
-        symbol_index.append(code_point)
-      else:
-        symbol_triples.append(run_start_pointer)
-        symbol_triples.append(i - run_start_pointer)
-        symbol_triples.append(run_start_array_index)
-        in_run = False
-    else:
-      if code_point:
-        in_run = True
-        run_start_pointer = i
-        run_start_array_index = len(symbol_index)
-        symbol_index.append(code_point)
-  if in_run:
-    symbol_triples.append(run_start_pointer)
-    symbol_triples.append(end - run_start_pointer)
-    symbol_triples.append(run_start_array_index)
-    in_run = False
-if in_run:
-  raise Error()
+    symbol_index.append(index[i])
+  symbol_triples.append(start)
+  symbol_triples.append(end - start)
+  symbol_triples.append(run_start_array_index)
 
 astralness = []
 low_bits = []
@@ -388,14 +372,16 @@ data_file.write('''];
 static_u16_table("BIG5_POTENTIALLY_ASTRAL_LOW_BITS", low_bits)
 static_u16_table("BIG5_POTENTIALLY_ASTRAL_TRIPLES", symbol_triples)
 
+data_file.write('''const BIG5_POTENTIALLY_ASTRAL_LAST_LOW_BITS_START: usize = %d;\n\n''' % (symbol_triples[14]))
+
 # Big5 ranges
 range_triples = []
 pointers_to_scan = [
   (5215, 5223),
-  (5255, 5428),
+  (5255, 5427),
   (5432, 5464),
-  (10896, 10927),
-  (10966, 11202),
+  (10896, 10926),
+  (10966, 11201),
 ]
 in_run = False
 run_start_pointer = 0
@@ -440,130 +426,6 @@ if in_run:
 
 static_u16_table("BIG5_RANGE_TRIPLES", range_triples)
 
-
-##########
-
-index_first = 0
-
-for i in xrange(len(index)):
-  if index[i]:
-    index_first = i
-    break
-
-bits = []
-for code_point in index:
-  bits.append(1 if code_point > 0xFFFF else 0)
-
-bits_cap = len(bits)
-
-bits_first = 0
-for i in xrange(len(bits)):
-  if bits[i]:
-    bits_first = i
-    break
-
-# pad length to multiple of 32
-for j in xrange(32 - ((len(bits) - bits_first) % 32)):
-  bits.append(0)
-
-data_file.write('''static ASTRALNESS: [u32; %d] = [
-''' % ((len(bits) - bits_first) / 32))
-
-i = bits_first
-while i < len(bits):
-  accu = 0
-  for j in xrange(32):
-    accu |= bits[i + j] << j
-  data_file.write('0x%08X,\n' % accu)
-  i += 32
-
-data_file.write('''];
-
-static LOW_BITS: [u16; %d] = [
-''' % (len(index) - index_first))
-
-for i in xrange(index_first, len(index)):
-  data_file.write('0x%04X,\n' % (index[i] & 0xFFFF))
-
-data_file.write('''];
-
-#[inline(always)]
-pub fn big5_is_astral(pointer: usize) -> bool {
-    let i = pointer.wrapping_sub(%d);
-    if i < %d {
-        (ASTRALNESS[i >> 5] & (1 << (i & 0x1F))) != 0
-    } else {
-        false
-    }
-}
-
-#[inline(always)]
-pub fn big5_low_bits(pointer: usize) -> u16 {
-    let i = pointer.wrapping_sub(%d);
-    if i < %d {
-        LOW_BITS[i]
-    } else {
-        0
-    }
-}
-''' % (bits_first, bits_cap - bits_first, index_first, len(index) - index_first))
-
-data_file.write('''
-#[inline(always)]
-pub fn big5_find_pointer(low_bits: u16, is_astral: bool) -> usize {
-    if !is_astral {
-        match low_bits {
-''')
-
-hkscs_bound = (0xA1 - 0x81) * 157
-
-hkscs_start_index = hkscs_bound -  index_first
-
-prefer_last = [
-  0x2550,
-  0x255E,
-  0x2561,
-  0x256A,
-  0x5341,
-  0x5345,
-]
-
-pointer_for_prefer_last = []
-
-for code_point in prefer_last:
-  # Python lists don't have .rindex() :-(
-  for i in xrange(len(index) - 1, -1, -1):
-    candidate = index[i]
-    if candidate == code_point:
-       data_file.write('''0x%04X => {
-   return %d;
-},
-''' % (code_point, i))
-       pointer_for_prefer_last.append(i)
-       break
-
-data_file.write('''_ => {},
-        }
-    }
-    let mut it = LOW_BITS[%d..].iter().enumerate();
-    loop {
-        match it.next() {
-            Some((i, bits)) => {
-                if *bits != low_bits {
-                    continue;
-                }
-                let pointer = i + %d;
-                if is_astral == big5_is_astral(pointer) {
-                    return pointer;
-                }
-            },
-            None => {
-                    return 0;
-            }
-        }
-    }
-}
-''' % (hkscs_start_index, hkscs_bound))
 
 # JIS0208
 
@@ -635,9 +497,9 @@ static_u16_table("JIS0208_SYMBOLS", symbol_index)
 static_u16_table("JIS0208_SYMBOL_TRIPLES", symbol_triples)
 
 # Write down the magic numbers needed when preferring the earlier case
-data_file.write('''const IBM_SYMBOL_START: usize = %d;''' % (run_start_array_index + 1))
-data_file.write('''const IBM_SYMBOL_END: usize = %d;''' % (run_start_array_index + 4))
-data_file.write('''const IBM_SYMBOL_POINTER_START: usize = %d;''' % 8645)
+data_file.write('''const IBM_SYMBOL_START: usize = %d;\n\n''' % (run_start_array_index + 1))
+data_file.write('''const IBM_SYMBOL_END: usize = %d;\n\n''' % (run_start_array_index + 4))
+data_file.write('''const IBM_SYMBOL_POINTER_START: usize = %d;\n\n''' % 8645)
 
 # JIS 0208 ranges (excluding kana)
 range_triples = []
@@ -1271,7 +1133,7 @@ pub fn gb2312_level1_hanzi_encode(bmp: u16) -> Option<(u8, u8)> {
     position(&GB2312_HANZI[..(94 * (0xD8 - 0xB0) - 5)], bmp).map(|hanzi_pointer| {
         let hanzi_lead = (hanzi_pointer / 94) + 0xB0;
         let hanzi_trail = (hanzi_pointer % 94) + 0xA1;
-        (hanzi_lead, hanzi_trail)
+        (hanzi_lead as u8, hanzi_trail as u8)
     })
 }
 
@@ -1525,6 +1387,89 @@ pub fn big5_range_decode(pointer: usize) -> Option<u16> {
 #[inline(always)]
 pub fn big5_range_encode(bmp: u16) -> Option<usize> {
     range_triple_encode(&BIG5_RANGE_TRIPLES[..], bmp)
+}
+
+// #[cfg(feature = "no-static-ideograph-encoder-tables")]
+#[inline(always)]
+pub fn big5_level1_hanzi_encode(bmp: u16) -> Option<(u8, u8)> {
+    position(&BIG5_LEVEL1_HANZI[..], bmp).map(|hanzi_pointer| {
+        let lead = hanzi_pointer / 157 + 0xA4;
+        let remainder = hanzi_pointer % 157;
+        let trail = if remainder < 0x3F {
+            remainder + 0x40
+        } else {
+            remainder + 0x62
+        };
+        (lead as u8, trail as u8)
+    })
+}
+
+// #[cfg(not(feature = "no-static-ideograph-encoder-tables"))]
+// #[inline(always)]
+// pub fn big5_level1_hanzi_encode(bmp: u16) -> Option<(u8, u8)> {
+//    match BIG5_LEVEL1_HANZI_CODE_POINTS.binary_search(&bmp) {
+//        Ok(i) => {
+//            let pair = &BIG5_LEVEL1_HANZI_BYTES[i];
+//            Some((pair[0], pair[1]))
+//        }
+//        Err(_) => None,
+//    }
+// }
+
+#[inline(always)]
+pub fn big5_level2_hanzi_encode(bmp: u16) -> Option<usize> {
+    position(&BIG5_LEVEL2_HANZI_AND_BOX[..(18963 - 11304)], bmp)
+}
+
+#[inline(always)]
+pub fn big5_ideograph_among_symbols_encode(bmp: u16) -> Option<usize> {
+    if let Some(pos) = position(&BIG5_SYMBOLS[(5206 - 5024)..(5215 - 5024)], bmp) {
+        return Some(pos + 5206);
+    }
+    if let Some(pos) = position(&BIG5_SYMBOLS[BIG5_SYMBOL_MIDDLE_IDEOGRAPH_START..BIG5_SYMBOL_MIDDLE_IDEOGRAPH_START + 5 + (10951 - 10926)], bmp) {
+        return Some(pos + 10926);
+    }
+    if bmp == 0x5344 {
+        return Some(5288);
+    }
+    None
+}
+
+#[inline(always)]
+pub fn big5_ext_a_encode(bmp: u16) -> Option<usize> {
+    if super::in_inclusive_range16(bmp, 0x347A, 0x4D10) {
+        if 0x4491 == bmp {
+            return Some(11209);
+        }
+        if let Some(pos) = position(&BIG5_POTENTIALLY_ASTRAL_LOW_BITS[(BIG5_POTENTIALLY_ASTRAL_LAST_LOW_BITS_START + 5)..(BIG5_POTENTIALLY_ASTRAL_LAST_LOW_BITS_START + 5 + (19779 - 19002))], bmp) {
+            if !big5_potentially_astral_is_astral(BIG5_POTENTIALLY_ASTRAL_LAST_LOW_BITS_START + 5 + pos) {
+                return Some(pos + 19002);
+            }
+            // No need to search further in the else case, because the low bits
+            // are unique.
+        }
+    }
+    None
+}
+
+#[inline(always)]
+pub fn big5_box_encode(bmp: u16) -> Option<usize> {
+    if super::in_inclusive_range16(bmp, 0x2550, 0x256C) {
+        position(&BIG5_LEVEL2_HANZI_AND_BOX[(18963 - 11304)..(18992 - 11304)],
+                 bmp)
+    } else {
+        None
+    }
+}
+
+#[inline(always)]
+pub fn big5_misc_encode(bmp: u16) -> Option<usize> {
+    match bmp {
+        0xFA0C => Some(11314),
+        0xFA0D => Some(14598),
+        0xFFED => Some(18996),
+        _ => None,
+    }
 }
 
 #[inline(always)]
@@ -2120,6 +2065,25 @@ for pointer in range(0, len(index)):
     else:
       big5_in_ref_file.write(u"\uFFFD\n".encode("utf-8"))
 big5_in_ref_file.close()
+
+prefer_last = [
+  0x2550,
+  0x255E,
+  0x2561,
+  0x256A,
+  0x5341,
+  0x5345,
+]
+
+pointer_for_prefer_last = []
+
+for code_point in prefer_last:
+  # Python lists don't have .rindex() :-(
+  for i in xrange(len(index) - 1, -1, -1):
+    candidate = index[i]
+    if candidate == code_point:
+       pointer_for_prefer_last.append(i)
+       break
 
 big5_out_file = open("src/test_data/big5_out.txt", "w")
 big5_out_ref_file = open("src/test_data/big5_out_ref.txt", "w")

@@ -212,42 +212,95 @@ impl Big5Encoder {
     }
 
     ascii_compatible_encoder_functions!({
-                                            let pointer = big5_find_pointer(bmp, false);
-                                            if pointer == 0 {
-                                                return (EncoderResult::unmappable_from_bmp(bmp),
-                                                        source.consumed(),
-                                                        handle.written());
-                                            }
-                                            let lead = pointer / 157 + 0x81;
-                                            let remainder = pointer % 157;
-                                            let trail = if remainder < 0x3F {
-                                                remainder + 0x40
+                                            if in_inclusive_range16(bmp, 0x4E00, 0x9FB1) {
+                                                if let Some((lead, trail)) =
+                                                       big5_level1_hanzi_encode(bmp) {
+                                                    // This has the effect of preferring last for
+                                                    // U+5341 and U+5345.
+                                                    handle.write_two(lead, trail)
+                                                } else {
+                                                    let pointer = if bmp == 0x4EDD {
+                                                        10958
+                                                    } else if let Some(level2_pos) = big5_level2_hanzi_encode(bmp) {
+                                                        11304 + level2_pos
+                                                    } else if let Some(pointer) = big5_ideograph_among_symbols_encode(bmp) {
+                                                        // Must be before the next one to get the preferences right.
+                                                        pointer
+                                                    } else if let Some(pointer) = big5_potentially_astral_encode(bmp, false) {
+                                                        pointer
+                                                    } else {
+                                                        return (EncoderResult::unmappable_from_bmp(bmp),
+                                                                source.consumed(),
+                                                                handle.written());
+                                                    };
+                                                    let lead = pointer / 157 + 0x81;
+                                                    let remainder = pointer % 157;
+                                                    let trail = if remainder < 0x3F {
+                                                        remainder + 0x40
+                                                    } else {
+                                                        remainder + 0x62
+                                                    };
+                                                    handle.write_two(lead as u8, trail as u8)
+                                                }
                                             } else {
-                                                remainder + 0x62
-                                            };
-                                            handle.write_two(lead as u8, trail as u8)
+                                                let pointer = if let Some(pointer) =
+                                                                     big5_ext_a_encode(bmp) {
+                                                    pointer
+                                                } else if let Some(pos) =
+                                                                     big5_box_encode(bmp) {
+                                                    // We need to do this before symbols in order
+                                                    // to prefer last for U+2550, U+255E, U+2561
+                                                    // and U+256A.
+                                                    18963 + pos
+                                                } else if let Some(pointer) =
+                                                                     big5_symbol_encode(bmp) {
+                                                    pointer
+                                                } else if let Some(pointer) =
+                                                                     big5_range_encode(bmp) {
+                                                    pointer
+                                                } else if let Some(pointer) =
+                                                                     big5_misc_encode(bmp) {
+                                                    pointer
+                                                } else {
+                                                    return (EncoderResult::unmappable_from_bmp(bmp),
+                                                            source.consumed(),
+                                                            handle.written());
+                                                };
+                                                let lead = pointer / 157 + 0x81;
+                                                let remainder = pointer % 157;
+                                                let trail = if remainder < 0x3F {
+                                                    remainder + 0x40
+                                                } else {
+                                                    remainder + 0x62
+                                                };
+                                                handle.write_two(lead as u8, trail as u8)
+                                            }
                                         },
                                         {
-                                            if astral as u32 & 0xFF0000 != 0x20000 {
-                                                // Only Plane 2 is potentially mappable of the astral planes.
-                                                return (EncoderResult::Unmappable(astral),
-                                                        source.consumed(),
-                                                        handle.written());
-                                            }
-                                            let pointer = big5_find_pointer(astral as u16, true);
-                                            if pointer == 0 {
-                                                return (EncoderResult::Unmappable(astral),
-                                                        source.consumed(),
-                                                        handle.written());
-                                            }
-                                            let lead = pointer / 157 + 0x81;
-                                            let remainder = pointer % 157;
-                                            let trail = if remainder < 0x3F {
-                                                remainder + 0x40
+                                            if in_inclusive_range32(astral as u32,
+                                                                    0x2008A,
+                                                                    0x2F8A6) {
+                                                if let Some(pointer) =
+                                                       big5_potentially_astral_encode(astral as u16,
+                                                                                      true) {
+                                                    let lead = pointer / 157 + 0x81;
+                                                    let remainder = pointer % 157;
+                                                    let trail = if remainder < 0x3F {
+                                                        remainder + 0x40
+                                                    } else {
+                                                        remainder + 0x62
+                                                    };
+                                                    handle.write_two(lead as u8, trail as u8)
+                                                } else {
+                                                    return (EncoderResult::Unmappable(astral),
+                                                            source.consumed(),
+                                                            handle.written());
+                                                }
                                             } else {
-                                                remainder + 0x62
-                                            };
-                                            handle.write_two(lead as u8, trail as u8)
+                                                return (EncoderResult::Unmappable(astral),
+                                                        source.consumed(),
+                                                        handle.written());
+                                            }
                                         },
                                         bmp,
                                         astral,

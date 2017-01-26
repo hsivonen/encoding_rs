@@ -3647,6 +3647,11 @@ fn in_inclusive_range16(i: u16, start: u16, end: u16) -> bool {
 }
 
 #[inline(always)]
+fn in_inclusive_range32(i: u32, start: u32, end: u32) -> bool {
+    i.wrapping_sub(start) <= (end - start)
+}
+
+#[inline(always)]
 fn in_inclusive_range(i: usize, start: usize, end: usize) -> bool {
     i.wrapping_sub(start) <= (end - start)
 }
