@@ -104,25 +104,18 @@ impl Big5Decoder {
                                                      let pointer = lead_minus_offset as usize *
                                                                    157usize +
                                                                    trail_minus_offset as usize;
-                                                     match pointer {
-                                                         1133 => {
-                                                             handle.write_big5_combination(0x00CAu16,
-                                                                                           0x0304u16)
-                                                         }
-                                                         1135 => {
-                                                             handle.write_big5_combination(0x00CAu16,
-                                                                                           0x030Cu16)
-                                                         }
-                                                         1164 => {
-                                                             handle.write_big5_combination(0x00EAu16,
-                                                                                           0x0304u16)
-                                                         }
-                                                         1166 => {
-                                                             handle.write_big5_combination(0x00EAu16,
-                                                                                           0x030Cu16)
-                                                         }
-                                                         _ => {
-                                                             let low_bits = big5_low_bits(pointer);
+                                                     let pointer_minus_level1 = pointer.wrapping_sub(5495);
+                                                     if pointer_minus_level1 < BIG5_LEVEL1_HANZI.len() {
+                                                         let upper_bmp = BIG5_LEVEL1_HANZI[pointer_minus_level1];
+                                                         handle.write_upper_bmp(upper_bmp)
+                                                     } else {
+                                                         let pointer_minus_level2 = pointer.wrapping_sub(11304);
+                                                         if pointer_minus_level2 < BIG5_LEVEL2_HANZI_AND_BOX.len() {
+                                                             let upper_bmp = BIG5_LEVEL2_HANZI_AND_BOX[pointer_minus_level2];
+                                                             handle.write_upper_bmp(upper_bmp)
+                                                         } else if let Some(bmp) = big5_symbol_decode(pointer) {
+                                                             handle.write_bmp_excl_ascii(bmp)
+                                                         } else if let Some((low_bits, is_astral)) = big5_potentially_astral_decode(pointer) {
                                                              if low_bits == 0 {
                                                                  if byte < 0x80 {
                                                                      return (DecoderResult::Malformed(1, 0),
@@ -133,11 +126,52 @@ impl Big5Decoder {
                                                                          unread_handle_trail.consumed(),
                                                                          handle.written());
                                                              }
-                                                             if big5_is_astral(pointer) {
+                                                             if is_astral {
                                                                  handle.write_astral(low_bits as u32 |
                                                                                      0x20000u32)
                                                              } else {
-                                                                 handle.write_bmp_excl_ascii(low_bits)
+                                                                 handle.write_upper_bmp(low_bits)
+                                                             }
+                                                         } else {
+                                                             let pointer_minus_hkscs_latin = pointer.wrapping_sub(1121);
+                                                             if pointer_minus_hkscs_latin < BIG5_HKSCS_LATIN.len() {
+                                                                 let bmp = BIG5_HKSCS_LATIN[pointer_minus_hkscs_latin];
+                                                                 if bmp == 0 {
+                                                                     match pointer {
+                                                                         1133 => {
+                                                                             handle.write_big5_combination(0x00CAu16,
+                                                                                                           0x0304u16)
+                                                                         }
+                                                                         1135 => {
+                                                                             handle.write_big5_combination(0x00CAu16,
+                                                                                                           0x030Cu16)
+                                                                         }
+                                                                         1164 => {
+                                                                             handle.write_big5_combination(0x00EAu16,
+                                                                                                           0x0304u16)
+                                                                         }
+                                                                         1166 => {
+                                                                             handle.write_big5_combination(0x00EAu16,
+                                                                                                           0x030Cu16)
+                                                                         }
+                                                                         _ => {
+                                                                             unreachable!();
+                                                                         }
+                                                                     }
+                                                                 } else {
+                                                                     handle.write_bmp_excl_ascii(bmp)
+                                                                 }
+                                                             } else if let Some(bmp) = big5_range_decode(pointer) {
+                                                                 handle.write_bmp_excl_ascii(bmp)
+                                                             } else {
+                                                                 if byte < 0x80 {
+                                                                     return (DecoderResult::Malformed(1, 0),
+                                                                             unread_handle_trail.unread(),
+                                                                             handle.written());
+                                                                 }
+                                                                 return (DecoderResult::Malformed(2, 0),
+                                                                         unread_handle_trail.consumed(),
+                                                                         handle.written());
                                                              }
                                                          }
                                                      }

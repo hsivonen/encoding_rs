@@ -269,6 +269,180 @@ index = []
 for code_point in indexes["big5"]:
   index.append(null_to_zero(code_point))
 
+# Big5 Level 1 Hanzi
+static_u16_table("BIG5_LEVEL1_HANZI", index[5495:10896])
+
+# Big5 Level 2 Hanzi
+static_u16_table("BIG5_LEVEL2_HANZI_AND_BOX", index[11304:18997])
+
+# Big5 HKSCS Latin
+static_u16_table("BIG5_HKSCS_LATIN", index[1121:1172])
+
+# Big5 symbols (all non-extension, non-potentially-astral, non-Hanzi, non-range items)
+symbol_index = []
+symbol_triples = []
+pointers_to_scan = [
+  (5024, 5215),
+  (5223, 5255),
+  (5427, 5432),
+  (5464, 5466),
+  (10926, 10966),
+  (11254, 11291),
+  (11294, 11304),
+]
+in_run = False
+run_start_pointer = 0
+run_start_array_index = 0
+for (start, end) in pointers_to_scan:
+  for i in range(start, end):
+    code_point = index[i]
+    if in_run:
+      if code_point:
+        symbol_index.append(code_point)
+      else:
+        symbol_triples.append(run_start_pointer)
+        symbol_triples.append(i - run_start_pointer)
+        symbol_triples.append(run_start_array_index)
+        in_run = False
+    else:
+      if code_point:
+        in_run = True
+        run_start_pointer = i
+        run_start_array_index = len(symbol_index)
+        symbol_index.append(code_point)
+  if in_run:
+    symbol_triples.append(run_start_pointer)
+    symbol_triples.append(end - run_start_pointer)
+    symbol_triples.append(run_start_array_index)
+    in_run = False
+if in_run:
+  raise Error()
+
+static_u16_table("BIG5_SYMBOLS", symbol_index)
+static_u16_table("BIG5_SYMBOL_TRIPLES", symbol_triples)
+
+# Big5 potentially astral
+symbol_index = []
+symbol_triples = []
+pointers_to_scan = [
+  (942, 1068),
+  (1099, 1121),
+  (1256, 5024),
+  # Start not ignored on encode
+  (11201, 11214),
+  (18997, 19782),
+]
+in_run = False
+run_start_pointer = 0
+run_start_array_index = 0
+for (start, end) in pointers_to_scan:
+  for i in range(start, end):
+    code_point = index[i]
+    if in_run:
+      if code_point:
+        symbol_index.append(code_point)
+      else:
+        symbol_triples.append(run_start_pointer)
+        symbol_triples.append(i - run_start_pointer)
+        symbol_triples.append(run_start_array_index)
+        in_run = False
+    else:
+      if code_point:
+        in_run = True
+        run_start_pointer = i
+        run_start_array_index = len(symbol_index)
+        symbol_index.append(code_point)
+  if in_run:
+    symbol_triples.append(run_start_pointer)
+    symbol_triples.append(end - run_start_pointer)
+    symbol_triples.append(run_start_array_index)
+    in_run = False
+if in_run:
+  raise Error()
+
+astralness = []
+low_bits = []
+for code_point in symbol_index:
+  astralness.append(1 if code_point > 0xFFFF else 0)
+  low_bits.append(code_point & 0xFFFF)
+
+# pad length to multiple of 32
+for j in xrange(32 - (len(astralness) % 32)):
+  astralness.append(0)
+
+data_file.write('''static BIG5_POTENTIALLY_ASTRAL_ASTRALNESS: [u32; %d] = [
+''' % (len(astralness) / 32))
+
+i = 0
+while i < len(astralness):
+  accu = 0
+  for j in xrange(32):
+    accu |= astralness[i + j] << j
+  data_file.write('0x%08X,\n' % accu)
+  i += 32
+
+data_file.write('''];
+
+''')
+
+static_u16_table("BIG5_POTENTIALLY_ASTRAL_LOW_BITS", low_bits)
+static_u16_table("BIG5_POTENTIALLY_ASTRAL_TRIPLES", symbol_triples)
+
+# Big5 ranges
+range_triples = []
+pointers_to_scan = [
+  (5215, 5223),
+  (5255, 5428),
+  (5432, 5464),
+  (10896, 10927),
+  (10966, 11202),
+]
+in_run = False
+run_start_pointer = 0
+run_start_code_point = 0
+previous_code_point = 0
+for (start, end) in pointers_to_scan:
+  for i in range(start, end):
+    code_point = index[i]
+    if in_run:
+      if code_point:
+        if previous_code_point + 1 != code_point:
+          range_triples.append(run_start_pointer)
+          range_triples.append(i - run_start_pointer)
+          range_triples.append(run_start_code_point)
+          run_start_pointer = i
+          run_start_code_point = code_point
+        previous_code_point = code_point
+      else:
+          range_triples.append(run_start_pointer)
+          range_triples.append(i - run_start_pointer)
+          range_triples.append(run_start_code_point)
+          run_start_pointer = 0
+          run_start_code_point = 0
+          previous_code_point = 0
+          in_run = False
+    else:
+      if code_point:
+        in_run = True
+        run_start_pointer = i
+        run_start_code_point = code_point
+        previous_code_point = code_point
+  if in_run:
+    range_triples.append(run_start_pointer)
+    range_triples.append(end - run_start_pointer)
+    range_triples.append(run_start_code_point)
+    run_start_pointer = 0
+    run_start_code_point = 0
+    previous_code_point = 0
+    in_run = False
+if in_run:
+  raise Error()
+
+static_u16_table("BIG5_RANGE_TRIPLES", range_triples)
+
+
+##########
+
 index_first = 0
 
 for i in xrange(len(index)):
@@ -917,6 +1091,77 @@ fn map_with_unsorted_ranges(haystack: &[u16], other: &[u16], needle: u16) -> Opt
 }
 
 #[inline(always)]
+fn symbol_decode(symbols: &[u16], triples: &[u16], pointer: usize) -> Option<u16> {
+    let mut i = 0;
+    while i < triples.len() {
+        let start = triples[i] as usize;
+        let length = triples[i + 1] as usize;
+        let pointer_minus_start = pointer.wrapping_sub(start);
+        if pointer_minus_start < length {
+            let offset = triples[i + 2] as usize;
+            return Some(symbols[pointer_minus_start + offset]);
+        }
+        i += 3;
+    }
+    None
+}
+
+#[inline(always)]
+fn symbol_encode(symbols: &[u16], triples: &[u16], bmp: u16) -> Option<usize> {
+    let mut i = 0;
+    while i < triples.len() {
+        let pointer_start = triples[i] as usize;
+        let length = triples[i + 1] as usize;
+        let symbol_start = triples[i + 2] as usize;
+        let symbol_end = symbol_start + length;
+        let mut symbol_pos = symbol_start;
+        while symbol_pos < symbol_end {
+            if symbols[symbol_pos] == bmp {
+                return Some(symbol_pos - symbol_start + pointer_start);
+            }
+            symbol_pos += 1;
+        }
+        i += 3;
+    }
+    None
+}
+
+#[inline(always)]
+fn range_triple_decode(triples: &[u16], pointer: usize) -> Option<u16> {
+    let mut i = 0;
+    while i < triples.len() {
+        let start = triples[i] as usize;
+        // At this point, in both jis0208 and big5, we have only malformed
+        // byte pairs below `start`, so no point in optimizing for that
+        // and checking for `pointer < start`.
+        let length = triples[i + 1] as usize;
+        let pointer_minus_start = pointer.wrapping_sub(start);
+        if pointer_minus_start < length {
+            let offset = triples[i + 2] as usize;
+            return Some((pointer_minus_start + offset) as u16);
+        }
+        i += 3;
+    }
+    None
+}
+
+#[inline(always)]
+fn range_triple_encode(triples: &[u16], bmp: u16) -> Option<usize> {
+    let mut i = 0;
+    while i < triples.len() {
+        let start = triples[i + 2] as usize;
+        let length = triples[i + 1] as usize;
+        let bmp_minus_start = (bmp as usize).wrapping_sub(start);
+        if bmp_minus_start < length {
+            let offset = triples[i] as usize;
+            return Some(bmp_minus_start + offset);
+        }
+        i += 3;
+    }
+    None
+}
+
+#[inline(always)]
 pub fn position(haystack: &[u16], needle: u16) -> Option<usize> {
     haystack.iter().position(|&x| x == needle)
 }
@@ -1171,40 +1416,15 @@ pub fn jis0208_level2_and_additional_kanji_encode(bmp: u16) -> Option<usize> {
     position(&JIS0208_LEVEL2_AND_ADDITIONAL_KANJI[..], bmp)
 }
 
+#[inline(always)]
 pub fn jis0208_symbol_decode(pointer: usize) -> Option<u16> {
-    let mut i = 0;
-    while i < JIS0208_SYMBOL_TRIPLES.len() {
-        let start = JIS0208_SYMBOL_TRIPLES[i] as usize;
-        let length = JIS0208_SYMBOL_TRIPLES[i + 1] as usize;
-        let pointer_minus_start = pointer.wrapping_sub(start);
-        if pointer_minus_start < length {
-            let offset = JIS0208_SYMBOL_TRIPLES[i + 2] as usize;
-            return Some(JIS0208_SYMBOLS[pointer_minus_start + offset]);
-        }
-        i += 3;
-    }
-    None
+    symbol_decode(&JIS0208_SYMBOLS[..], &JIS0208_SYMBOL_TRIPLES[..], pointer)
 }
 
 /// Prefers Shift_JIS pointers for the three symbols that are in both ranges.
 #[inline(always)]
 pub fn jis0208_symbol_encode(bmp: u16) -> Option<usize> {
-    let mut i = 0;
-    while i < JIS0208_SYMBOL_TRIPLES.len() {
-        let pointer_start = JIS0208_SYMBOL_TRIPLES[i] as usize;
-        let length = JIS0208_SYMBOL_TRIPLES[i + 1] as usize;
-        let symbol_start = JIS0208_SYMBOL_TRIPLES[i + 2] as usize;
-        let symbol_end = symbol_start + length;
-        let mut symbol_pos = symbol_start;
-        while symbol_pos < symbol_end {
-            if JIS0208_SYMBOLS[symbol_pos] == bmp {
-                return Some(symbol_pos - symbol_start + pointer_start);
-            }
-            symbol_pos += 1;
-        }
-        i += 3;
-    }
-    None
+    symbol_encode(&JIS0208_SYMBOLS[..], &JIS0208_SYMBOL_TRIPLES[..], bmp)
 }
 
 #[inline(always)]
@@ -1215,34 +1435,12 @@ pub fn ibm_symbol_encode(bmp: u16) -> Option<usize> {
 
 #[inline(always)]
 pub fn jis0208_range_decode(pointer: usize) -> Option<u16> {
-    let mut i = 0;
-    while i < JIS0208_RANGE_TRIPLES.len() {
-        let start = JIS0208_RANGE_TRIPLES[i] as usize;
-        let length = JIS0208_RANGE_TRIPLES[i + 1] as usize;
-        let pointer_minus_start = pointer.wrapping_sub(start);
-        if pointer_minus_start < length {
-            let offset = JIS0208_RANGE_TRIPLES[i + 2] as usize;
-            return Some((pointer_minus_start + offset) as u16);
-        }
-        i += 3;
-    }
-    None
+    range_triple_decode(&JIS0208_RANGE_TRIPLES[..], pointer)
 }
 
 #[inline(always)]
 pub fn jis0208_range_encode(bmp: u16) -> Option<usize> {
-    let mut i = 0;
-    while i < JIS0208_RANGE_TRIPLES.len() {
-        let start = JIS0208_RANGE_TRIPLES[i + 2] as usize;
-        let length = JIS0208_RANGE_TRIPLES[i + 1] as usize;
-        let bmp_minus_start = (bmp as usize).wrapping_sub(start);
-        if bmp_minus_start < length {
-            let offset = JIS0208_RANGE_TRIPLES[i] as usize;
-            return Some(bmp_minus_start + offset);
-        }
-        i += 3;
-    }
-    None
+    range_triple_encode(&JIS0208_RANGE_TRIPLES[..], bmp)
 }
 
 pub fn jis0212_accented_decode(pointer: usize) -> Option<u16> {
@@ -1262,6 +1460,71 @@ pub fn jis0212_accented_decode(pointer: usize) -> Option<u16> {
         i += 3;
     }
     None
+}
+
+#[inline(always)]
+pub fn big5_symbol_decode(pointer: usize) -> Option<u16> {
+    symbol_decode(&BIG5_SYMBOLS[..], &BIG5_SYMBOL_TRIPLES[..], pointer)
+}
+
+#[inline(always)]
+pub fn big5_symbol_encode(bmp: u16) -> Option<usize> {
+    symbol_encode(&BIG5_SYMBOLS[..], &BIG5_SYMBOL_TRIPLES[..], bmp)
+}
+
+#[inline(always)]
+fn big5_potentially_astral_is_astral(potentially_astral_position: usize) -> bool {
+    (BIG5_POTENTIALLY_ASTRAL_ASTRALNESS[potentially_astral_position >> 5] &
+     (1 << (potentially_astral_position & 0x1F))) != 0
+}
+
+#[inline(always)]
+pub fn big5_potentially_astral_decode(pointer: usize) -> Option<(u16, bool)> {
+    let mut i = 0;
+    while i < BIG5_POTENTIALLY_ASTRAL_TRIPLES.len() {
+        let start = BIG5_POTENTIALLY_ASTRAL_TRIPLES[i] as usize;
+        let length = BIG5_POTENTIALLY_ASTRAL_TRIPLES[i + 1] as usize;
+        let pointer_minus_start = pointer.wrapping_sub(start);
+        if pointer_minus_start < length {
+            let offset = BIG5_POTENTIALLY_ASTRAL_TRIPLES[i + 2] as usize;
+            let potentially_astral_position = pointer_minus_start + offset;
+            return Some((BIG5_POTENTIALLY_ASTRAL_LOW_BITS[potentially_astral_position],
+                         big5_potentially_astral_is_astral(potentially_astral_position)));
+        }
+        i += 3;
+    }
+    None
+}
+
+#[inline(always)]
+pub fn big5_potentially_astral_encode(low_bits: u16, is_astral: bool) -> Option<usize> {
+    let mut i = 9; // Skip the ranges excluded from encode
+    while i < BIG5_POTENTIALLY_ASTRAL_TRIPLES.len() {
+        let pointer_start = BIG5_POTENTIALLY_ASTRAL_TRIPLES[i] as usize;
+        let length = BIG5_POTENTIALLY_ASTRAL_TRIPLES[i + 1] as usize;
+        let symbol_start = BIG5_POTENTIALLY_ASTRAL_TRIPLES[i + 2] as usize;
+        let symbol_end = symbol_start + length;
+        let mut symbol_pos = symbol_start;
+        while symbol_pos < symbol_end {
+            if (BIG5_POTENTIALLY_ASTRAL_LOW_BITS[symbol_pos] == low_bits) &&
+               (big5_potentially_astral_is_astral(symbol_pos) == is_astral) {
+                return Some(symbol_pos - symbol_start + pointer_start);
+            }
+            symbol_pos += 1;
+        }
+        i += 3;
+    }
+    None
+}
+
+#[inline(always)]
+pub fn big5_range_decode(pointer: usize) -> Option<u16> {
+    range_triple_decode(&BIG5_RANGE_TRIPLES[..], pointer)
+}
+
+#[inline(always)]
+pub fn big5_range_encode(bmp: u16) -> Option<usize> {
+    range_triple_encode(&BIG5_RANGE_TRIPLES[..], bmp)
 }
 
 #[inline(always)]
