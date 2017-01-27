@@ -104,26 +104,26 @@ impl Big5Decoder {
                                                      let pointer = lead_minus_offset as usize *
                                                                    157usize +
                                                                    trail_minus_offset as usize;
-                                                     match pointer {
-                                                         1133 => {
-                                                             handle.write_big5_combination(0x00CAu16,
-                                                                                           0x0304u16)
-                                                         }
-                                                         1135 => {
-                                                             handle.write_big5_combination(0x00CAu16,
-                                                                                           0x030Cu16)
-                                                         }
-                                                         1164 => {
-                                                             handle.write_big5_combination(0x00EAu16,
-                                                                                           0x0304u16)
-                                                         }
-                                                         1166 => {
-                                                             handle.write_big5_combination(0x00EAu16,
-                                                                                           0x030Cu16)
-                                                         }
-                                                         _ => {
-                                                             let low_bits = big5_low_bits(pointer);
-                                                             if low_bits == 0 {
+                                                     let low_bits = big5_low_bits(pointer);
+                                                     if low_bits == 0 {
+                                                         match pointer {
+                                                             1133 => {
+                                                                 handle.write_big5_combination(0x00CAu16,
+                                                                                               0x0304u16)
+                                                             }
+                                                             1135 => {
+                                                                 handle.write_big5_combination(0x00CAu16,
+                                                                                               0x030Cu16)
+                                                             }
+                                                             1164 => {
+                                                                 handle.write_big5_combination(0x00EAu16,
+                                                                                               0x0304u16)
+                                                             }
+                                                             1166 => {
+                                                                 handle.write_big5_combination(0x00EAu16,
+                                                                                               0x030Cu16)
+                                                             }
+                                                             _ => {
                                                                  if byte < 0x80 {
                                                                      return (DecoderResult::Malformed(1, 0),
                                                                              unread_handle_trail.unread(),
@@ -133,13 +133,12 @@ impl Big5Decoder {
                                                                          unread_handle_trail.consumed(),
                                                                          handle.written());
                                                              }
-                                                             if big5_is_astral(pointer) {
-                                                                 handle.write_astral(low_bits as u32 |
-                                                                                     0x20000u32)
-                                                             } else {
-                                                                 handle.write_bmp_excl_ascii(low_bits)
-                                                             }
                                                          }
+                                                     } else if big5_is_astral(pointer) {
+                                                         handle.write_astral(low_bits as u32 |
+                                                                             0x20000u32)
+                                                     } else {
+                                                         handle.write_bmp_excl_ascii(low_bits)
                                                      }
                                                  },
                                                  self,
