@@ -178,20 +178,33 @@ impl Big5Encoder {
     }
 
     ascii_compatible_encoder_functions!({
-                                            let pointer = big5_find_pointer(bmp, false);
-                                            if pointer == 0 {
-                                                return (EncoderResult::unmappable_from_bmp(bmp),
-                                                        source.consumed(),
-                                                        handle.written());
-                                            }
-                                            let lead = pointer / 157 + 0x81;
-                                            let remainder = pointer % 157;
-                                            let trail = if remainder < 0x3F {
-                                                remainder + 0x40
+                                            // For simplicity, unified ideographs
+                                            // in the pointer range 11206...11212 are handled
+                                            // as Level 1 Hanzi.
+                                            if let Some((lead, trail)) =
+                                                   big5_level1_hanzi_encode(bmp) {
+                                                handle.write_two(lead, trail)
                                             } else {
-                                                remainder + 0x62
-                                            };
-                                            handle.write_two(lead as u8, trail as u8)
+                                                let pointer = if let Some(pointer) =
+                                                                     big5_box_encode(bmp) {
+                                                    pointer
+                                                } else if let Some(pointer) =
+                                                                     big5_other_encode(bmp) {
+                                                    pointer
+                                                } else {
+                                                    return (EncoderResult::unmappable_from_bmp(bmp),
+                                                            source.consumed(),
+                                                            handle.written());
+                                                };
+                                                let lead = pointer / 157 + 0x81;
+                                                let remainder = pointer % 157;
+                                                let trail = if remainder < 0x3F {
+                                                    remainder + 0x40
+                                                } else {
+                                                    remainder + 0x62
+                                                };
+                                                handle.write_two(lead as u8, trail as u8)
+                                            }
                                         },
                                         {
                                             if in_inclusive_range32(astral as u32,

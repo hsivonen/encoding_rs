@@ -18614,7 +18614,7 @@ pub fn big5_astral_encode(low_bits: u16) -> Option<usize> {
         0x7607 => Some(11213 - 942),
         _ => {
             let mut i = 18997 - 942;
-            while i < BIG5_LOW_BITS.len() {
+            while i < BIG5_LOW_BITS.len() - 1 {
                 if BIG5_LOW_BITS[i] == low_bits && big5_is_astral(i) {
                     return Some(i);
                 }
@@ -18626,47 +18626,69 @@ pub fn big5_astral_encode(low_bits: u16) -> Option<usize> {
 }
 
 #[inline(always)]
-pub fn big5_find_pointer(low_bits: u16, is_astral: bool) -> usize {
-    if !is_astral {
-        match low_bits {
-            0x2550 => {
-                return 18991;
-            }
-            0x255E => {
-                return 18975;
-            }
-            0x2561 => {
-                return 18977;
-            }
-            0x256A => {
-                return 18976;
-            }
-            0x5341 => {
-                return 5512;
-            }
-            0x5345 => {
-                return 5599;
-            }
-            _ => {}
+pub fn big5_level1_hanzi_encode(bmp: u16) -> Option<(u8, u8)> {
+    if super::in_inclusive_range16(bmp, 0x4E00, 0x9FB1) {
+        if let Some(hanzi_pointer) = position(&BIG5_LOW_BITS[(5495 - 942)..(10951 - 942)], bmp) {
+            let lead = hanzi_pointer / 157 + 0xA4;
+            let remainder = hanzi_pointer % 157;
+            let trail = if remainder < 0x3F {
+                remainder + 0x40
+            } else {
+                remainder + 0x62
+            };
+            return Some((lead as u8, trail as u8));
         }
-    }
-    let mut it = BIG5_LOW_BITS[4082..].iter().enumerate();
-    loop {
-        match it.next() {
-            Some((i, bits)) => {
-                if *bits != low_bits {
-                    continue;
-                }
-                let pointer = i + 5024;
-                if is_astral == big5_is_astral(pointer - 942) {
-                    return pointer;
-                }
+        match bmp {
+            0x4E5A => {
+                return Some((0xC8, 0x7B));
             }
-            None => {
-                return 0;
+            0x5202 => {
+                return Some((0xC8, 0x7D));
+            }
+            0x9FB0 => {
+                return Some((0xC8, 0xA1));
+            }
+            0x5188 => {
+                return Some((0xC8, 0xA2));
+            }
+            0x9FB1 => {
+                return Some((0xC8, 0xA3));
+            }
+            _ => {
+                return None;
             }
         }
     }
+    None
+}
+
+#[inline(always)]
+pub fn big5_box_encode(bmp: u16) -> Option<usize> {
+    position(&BIG5_LOW_BITS[(18963 - 942)..(18992 - 942)], bmp).map(|x| x + 18963)
+}
+
+#[inline(always)]
+pub fn big5_other_encode(bmp: u16) -> Option<usize> {
+    if 0x4491 == bmp {
+        return Some(11209);
+    }
+    if let Some(pos) = position(&BIG5_LOW_BITS[(5024 - 942)..(5466 - 942)], bmp) {
+        return Some(pos + 5024);
+    }
+    if let Some(pos) = position(&BIG5_LOW_BITS[(10896 - 942)..(11205 - 942)], bmp) {
+        return Some(pos + 10896);
+    }
+    if let Some(pos) = position(&BIG5_LOW_BITS[(11254 - 942)..(18963 - 942)], bmp) {
+        return Some(pos + 11254);
+    }
+    let mut i = 18996 - 942;
+    while i < BIG5_LOW_BITS.len() {
+        if BIG5_LOW_BITS[i] == bmp && !big5_is_astral(i) {
+            return Some(i + 942);
+        }
+        i += 1;
+    }
+    None
 }
 
 #[inline(always)]
