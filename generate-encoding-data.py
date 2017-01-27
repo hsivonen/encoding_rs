@@ -953,7 +953,7 @@ pub fn gb2312_level1_hanzi_encode(bmp: u16) -> Option<(u8, u8)> {
     position(&GB2312_HANZI[..(94 * (0xD8 - 0xB0) - 5)], bmp).map(|hanzi_pointer| {
         let hanzi_lead = (hanzi_pointer / 94) + 0xB0;
         let hanzi_trail = (hanzi_pointer % 94) + 0xA1;
-        (hanzi_lead, hanzi_trail)
+        (hanzi_lead as u8, hanzi_trail as u8)
     })
 }
 
