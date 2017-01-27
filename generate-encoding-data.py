@@ -298,6 +298,26 @@ data_file.write('''];
 
 static_u16_table("BIG5_LOW_BITS", low_bits)
 
+# Encoder table for Level 1 Hanzi
+# Note: If we were OK with doubling this table, we
+# could use a directly-indexable table instead...
+level1_hanzi_index = index[5495:10896]
+level1_hanzi_pairs = []
+for i in xrange(len(level1_hanzi_index)):
+  hanzi_lead = (i / 157) + 0xA4
+  hanzi_trail = (i % 157)
+  hanzi_trail += 0x40 if hanzi_trail < 0x3F else 0x62
+  level1_hanzi_pairs.append((level1_hanzi_index[i], (hanzi_lead, hanzi_trail)))
+level1_hanzi_pairs.append((0x4E5A, (0xC8, 0x7B)))
+level1_hanzi_pairs.append((0x5202, (0xC8, 0x7D)))
+level1_hanzi_pairs.append((0x9FB0, (0xC8, 0xA1)))
+level1_hanzi_pairs.append((0x5188, (0xC8, 0xA2)))
+level1_hanzi_pairs.append((0x9FB1, (0xC8, 0xA3)))
+level1_hanzi_pairs.sort(key=lambda x: x[0])
+
+static_u16_table_from_indexable("BIG5_LEVEL1_HANZI_CODE_POINTS", level1_hanzi_pairs, 0)
+static_u8_pair_table_from_indexable("BIG5_LEVEL1_HANZI_BYTES", level1_hanzi_pairs, 1)
+
 # JIS0208
 
 index = indexes["jis0208"]
@@ -791,8 +811,8 @@ static_u16_table("GB18030_RANGE_OFFSETS", offsets)
 level1_hanzi_index = hanzi_index[:(94 * (0xD8 - 0xB0) - 5)]
 level1_hanzi_pairs = []
 for i in xrange(len(level1_hanzi_index)):
-  hanzi_lead = (i / 94) + 0xB0;
-  hanzi_trail = (i % 94) + 0xA1;
+  hanzi_lead = (i / 94) + 0xB0
+  hanzi_trail = (i % 94) + 0xA1
   level1_hanzi_pairs.append((level1_hanzi_index[i], (hanzi_lead, hanzi_trail)))
 level1_hanzi_pairs.sort(key=lambda x: x[0])
 
@@ -1204,6 +1224,7 @@ pub fn big5_astral_encode(low_bits: u16) -> Option<usize> {
     }
 }
 
+#[cfg(feature = "no-static-ideograph-encoder-tables")]
 #[inline(always)]
 pub fn big5_level1_hanzi_encode(bmp: u16) -> Option<(u8, u8)> {
     if super::in_inclusive_range16(bmp, 0x4E00, 0x9FB1) {
@@ -1239,6 +1260,22 @@ pub fn big5_level1_hanzi_encode(bmp: u16) -> Option<(u8, u8)> {
         }
     }
     None
+}
+
+#[cfg(not(feature = "no-static-ideograph-encoder-tables"))]
+#[inline(always)]
+pub fn big5_level1_hanzi_encode(bmp: u16) -> Option<(u8, u8)> {
+    if super::in_inclusive_range16(bmp, 0x4E00, 0x9FB1) {
+        match BIG5_LEVEL1_HANZI_CODE_POINTS.binary_search(&bmp) {
+            Ok(i) => {
+                let pair = &BIG5_LEVEL1_HANZI_BYTES[i];
+                Some((pair[0], pair[1]))
+            }
+            Err(_) => None,
+        }
+    } else {
+        None
+    }
 }
 
 #[inline(always)]
