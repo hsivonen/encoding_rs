@@ -264,132 +264,39 @@ for encoding in single_byte:
 
 # Big5
 
-index = []
+index = indexes["big5"]
 
-for code_point in indexes["big5"]:
-  index.append(null_to_zero(code_point))
+astralness = []
+low_bits = []
 
-index_first = 0
-
-for i in xrange(len(index)):
-  if index[i]:
-    index_first = i
-    break
-
-bits = []
-for code_point in index:
-  bits.append(1 if code_point > 0xFFFF else 0)
-
-bits_cap = len(bits)
-
-bits_first = 0
-for i in xrange(len(bits)):
-  if bits[i]:
-    bits_first = i
-    break
+for code_point in index[942:19782]:
+  if code_point:
+    astralness.append(1 if code_point > 0xFFFF else 0)
+    low_bits.append(code_point & 0xFFFF)
+  else:
+    astralness.append(0)
+    low_bits.append(0)
 
 # pad length to multiple of 32
-for j in xrange(32 - ((len(bits) - bits_first) % 32)):
-  bits.append(0)
+for j in xrange(32 - (len(astralness) % 32)):
+  astralness.append(0)
 
-data_file.write('''static ASTRALNESS: [u32; %d] = [
-''' % ((len(bits) - bits_first) / 32))
+data_file.write('''static BIG5_ASTRALNESS: [u32; %d] = [
+''' % (len(astralness) / 32))
 
-i = bits_first
-while i < len(bits):
+i = 0
+while i < len(astralness):
   accu = 0
   for j in xrange(32):
-    accu |= bits[i + j] << j
+    accu |= astralness[i + j] << j
   data_file.write('0x%08X,\n' % accu)
   i += 32
 
 data_file.write('''];
 
-static LOW_BITS: [u16; %d] = [
-''' % (len(index) - index_first))
-
-for i in xrange(index_first, len(index)):
-  data_file.write('0x%04X,\n' % (index[i] & 0xFFFF))
-
-data_file.write('''];
-
-#[inline(always)]
-pub fn big5_is_astral(pointer: usize) -> bool {
-    let i = pointer.wrapping_sub(%d);
-    if i < %d {
-        (ASTRALNESS[i >> 5] & (1 << (i & 0x1F))) != 0
-    } else {
-        false
-    }
-}
-
-#[inline(always)]
-pub fn big5_low_bits(pointer: usize) -> u16 {
-    let i = pointer.wrapping_sub(%d);
-    if i < %d {
-        LOW_BITS[i]
-    } else {
-        0
-    }
-}
-''' % (bits_first, bits_cap - bits_first, index_first, len(index) - index_first))
-
-data_file.write('''
-#[inline(always)]
-pub fn big5_find_pointer(low_bits: u16, is_astral: bool) -> usize {
-    if !is_astral {
-        match low_bits {
 ''')
 
-hkscs_bound = (0xA1 - 0x81) * 157
-
-hkscs_start_index = hkscs_bound -  index_first
-
-prefer_last = [
-  0x2550,
-  0x255E,
-  0x2561,
-  0x256A,
-  0x5341,
-  0x5345,
-]
-
-pointer_for_prefer_last = []
-
-for code_point in prefer_last:
-  # Python lists don't have .rindex() :-(
-  for i in xrange(len(index) - 1, -1, -1):
-    candidate = index[i]
-    if candidate == code_point:
-       data_file.write('''0x%04X => {
-   return %d;
-},
-''' % (code_point, i))
-       pointer_for_prefer_last.append(i)
-       break
-
-data_file.write('''_ => {},
-        }
-    }
-    let mut it = LOW_BITS[%d..].iter().enumerate();
-    loop {
-        match it.next() {
-            Some((i, bits)) => {
-                if *bits != low_bits {
-                    continue;
-                }
-                let pointer = i + %d;
-                if is_astral == big5_is_astral(pointer) {
-                    return pointer;
-                }
-            },
-            None => {
-                    return 0;
-            }
-        }
-    }
-}
-''' % (hkscs_start_index, hkscs_bound))
+static_u16_table("BIG5_LOW_BITS", low_bits)
 
 # JIS0208
 
@@ -1265,6 +1172,64 @@ pub fn jis0212_accented_decode(pointer: usize) -> Option<u16> {
 }
 
 #[inline(always)]
+pub fn big5_is_astral(rebased_pointer: usize) -> bool {
+    (BIG5_ASTRALNESS[rebased_pointer >> 5] & (1 << (rebased_pointer & 0x1F))) != 0
+}
+
+#[inline(always)]
+pub fn big5_low_bits(rebased_pointer: usize) -> u16 {
+    if rebased_pointer < BIG5_LOW_BITS.len() {
+        BIG5_LOW_BITS[rebased_pointer]
+    } else {
+        0
+    }
+}
+
+#[inline(always)]
+pub fn big5_find_pointer(low_bits: u16, is_astral: bool) -> usize {
+    if !is_astral {
+        match low_bits {
+            0x2550 => {
+                return 18991;
+            }
+            0x255E => {
+                return 18975;
+            }
+            0x2561 => {
+                return 18977;
+            }
+            0x256A => {
+                return 18976;
+            }
+            0x5341 => {
+                return 5512;
+            }
+            0x5345 => {
+                return 5599;
+            }
+            _ => {}
+        }
+    }
+    let mut it = BIG5_LOW_BITS[4082..].iter().enumerate();
+    loop {
+        match it.next() {
+            Some((i, bits)) => {
+                if *bits != low_bits {
+                    continue;
+                }
+                let pointer = i + 5024;
+                if is_astral == big5_is_astral(pointer - 942) {
+                    return pointer;
+                }
+            }
+            None => {
+                return 0;
+            }
+        }
+    }
+}
+
+#[inline(always)]
 pub fn mul_94(lead: u8) -> usize {
     lead as usize * 94
 }
@@ -1857,6 +1822,25 @@ for pointer in range(0, len(index)):
     else:
       big5_in_ref_file.write(u"\uFFFD\n".encode("utf-8"))
 big5_in_ref_file.close()
+
+prefer_last = [
+  0x2550,
+  0x255E,
+  0x2561,
+  0x256A,
+  0x5341,
+  0x5345,
+]
+
+pointer_for_prefer_last = []
+
+for code_point in prefer_last:
+  # Python lists don't have .rindex() :-(
+  for i in xrange(len(index) - 1, -1, -1):
+    candidate = index[i]
+    if candidate == code_point:
+       pointer_for_prefer_last.append(i)
+       break
 
 big5_out_file = open("src/test_data/big5_out.txt", "w")
 big5_out_ref_file = open("src/test_data/big5_out_ref.txt", "w")

@@ -104,7 +104,8 @@ impl Big5Decoder {
                                                      let pointer = lead_minus_offset as usize *
                                                                    157usize +
                                                                    trail_minus_offset as usize;
-                                                     let low_bits = big5_low_bits(pointer);
+                                                     let rebased_pointer = pointer.wrapping_sub(942);
+                                                     let low_bits = big5_low_bits(rebased_pointer);
                                                      if low_bits == 0 {
                                                          match pointer {
                                                              1133 => {
@@ -134,7 +135,7 @@ impl Big5Decoder {
                                                                          handle.written());
                                                              }
                                                          }
-                                                     } else if big5_is_astral(pointer) {
+                                                     } else if big5_is_astral(rebased_pointer) {
                                                          handle.write_astral(low_bits as u32 |
                                                                              0x20000u32)
                                                      } else {
