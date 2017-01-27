@@ -18607,6 +18607,25 @@ pub fn big5_low_bits(rebased_pointer: usize) -> u16 {
 }
 
 #[inline(always)]
+pub fn big5_astral_encode(low_bits: u16) -> Option<usize> {
+    match low_bits {
+        0x00CC => Some(11205 - 942),
+        0x008A => Some(11207 - 942),
+        0x7607 => Some(11213 - 942),
+        _ => {
+            let mut i = 18997 - 942;
+            while i < BIG5_LOW_BITS.len() {
+                if BIG5_LOW_BITS[i] == low_bits && big5_is_astral(i) {
+                    return Some(i);
+                }
+                i += 1;
+            }
+            None
+        }
+    }
+}
+
+#[inline(always)]
 pub fn big5_find_pointer(low_bits: u16, is_astral: bool) -> usize {
     if !is_astral {
         match low_bits {

@@ -194,26 +194,31 @@ impl Big5Encoder {
                                             handle.write_two(lead as u8, trail as u8)
                                         },
                                         {
-                                            if astral as u32 & 0xFF0000 != 0x20000 {
-                                                // Only Plane 2 is potentially mappable of the astral planes.
-                                                return (EncoderResult::Unmappable(astral),
-                                                        source.consumed(),
-                                                        handle.written());
-                                            }
-                                            let pointer = big5_find_pointer(astral as u16, true);
-                                            if pointer == 0 {
-                                                return (EncoderResult::Unmappable(astral),
-                                                        source.consumed(),
-                                                        handle.written());
-                                            }
-                                            let lead = pointer / 157 + 0x81;
-                                            let remainder = pointer % 157;
-                                            let trail = if remainder < 0x3F {
-                                                remainder + 0x40
+                                            if in_inclusive_range32(astral as u32,
+                                                                    0x2008A,
+                                                                    0x2F8A6) {
+                                                if let Some(rebased_pointer) =
+                                                       big5_astral_encode(astral as u16) {
+                                                    // big5_astral_encode returns rebased pointer,
+                                                    // so adding 0x87 instead of 0x81.
+                                                    let lead = rebased_pointer / 157 + 0x87;
+                                                    let remainder = rebased_pointer % 157;
+                                                    let trail = if remainder < 0x3F {
+                                                        remainder + 0x40
+                                                    } else {
+                                                        remainder + 0x62
+                                                    };
+                                                    handle.write_two(lead as u8, trail as u8)
+                                                } else {
+                                                    return (EncoderResult::Unmappable(astral),
+                                                            source.consumed(),
+                                                            handle.written());
+                                                }
                                             } else {
-                                                remainder + 0x62
-                                            };
-                                            handle.write_two(lead as u8, trail as u8)
+                                                return (EncoderResult::Unmappable(astral),
+                                                        source.consumed(),
+                                                        handle.written());
+                                            }
                                         },
                                         bmp,
                                         astral,
@@ -321,6 +326,7 @@ mod tests {
 
         // duplicate low bits
         encode_big5("\u{203B5}", b"\xFD\x6A");
+        encode_big5("\u{25605}", b"\xFE\x46");
 
         // prefer last
         encode_big5("\u{2550}", b"\xF9\xF9");
