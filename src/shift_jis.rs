@@ -11,6 +11,9 @@ use handles::*;
 use data::*;
 use variant::*;
 use super::*;
+// Rust 1.14.0 requires the following despite the asterisk above.
+use super::in_inclusive_range;
+use super::in_inclusive_range16;
 
 pub struct ShiftJisDecoder {
     lead: Option<u8>,

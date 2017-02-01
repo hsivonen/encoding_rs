@@ -11,6 +11,8 @@ use handles::*;
 use data::*;
 use variant::*;
 use super::*;
+// Rust 1.14.0 requires the following despite the asterisk above.
+use super::in_inclusive_range32;
 
 pub struct Big5Decoder {
     lead: Option<u8>,
