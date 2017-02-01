@@ -2686,7 +2686,7 @@ impl Encoding {
 
     /// Validates UTF-8.
     ///
-    /// Returns the index of the first byte that make the input malformed as
+    /// Returns the index of the first byte that makes the input malformed as
     /// UTF-8 or the length of the slice if the slice is entirely valid.
     ///
     /// This is currently faster than the corresponding standard library
@@ -2700,7 +2700,7 @@ impl Encoding {
 
     /// Validates ASCII.
     ///
-    /// Returns the index of the first byte that make the input malformed as
+    /// Returns the index of the first byte that makes the input malformed as
     /// ASCII or the length of the slice if the slice is entirely valid.
     ///
     /// Available via the C wrapper.
@@ -2710,7 +2710,7 @@ impl Encoding {
 
     /// Validates ISO-2022-JP ASCII-state data.
     ///
-    /// Returns the index of the first byte that make the input not
+    /// Returns the index of the first byte that makes the input not
     /// representable in the ASCII state of ISO-2022-JP or the length of the
     /// slice if the slice is entirely representable in the ASCII state of
     /// ISO-2022-JP.
