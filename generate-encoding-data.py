@@ -13,12 +13,25 @@ import json
 import subprocess
 import sys
 
+def cmp_from_end(one, other):
+  c = cmp(len(one), len(other))
+  if c != 0:
+    return c
+  i = len(one) - 1
+  while i >= 0:
+    c = cmp(one[i], other[i])
+    if c != 0:
+      return c
+    i -= 1
+  return 0
+
+
 class Label:
   def __init__(self, label, preferred):
     self.label = label
     self.preferred = preferred
   def __cmp__(self, other):
-    return cmp(self.label, other.label)
+    return cmp_from_end(self.label, other.label)
 
 def static_u16_table(name, data):
   data_file.write('''pub static %s: [u16; %d] = [
@@ -102,7 +115,7 @@ for name in preferred:
 
 preferred.sort()
 labels.sort()
-dom.sort()
+dom.sort(cmp=cmp_from_end)
 
 longest_label_length = 0
 longest_name_length = 0
@@ -192,10 +205,11 @@ pub static %s: &'static Encoding = &%s_INIT;
 ''' % (to_dom_name(name), to_constant_name(name), to_dom_name(name), variant, to_dom_name(name), to_constant_name(name), to_constant_name(name)))
 
 label_file.write("""static ENCODINGS_SORTED_BY_NAME: [&'static Encoding; %d] = [
-""" % len(dom))
+""" % (len(dom) - 1))
 
 for dom_name in dom:
-  label_file.write("&%s_INIT,\n" % to_constant_name(dom_name))
+  if dom_name != "UTF-8":
+    label_file.write("&%s_INIT,\n" % to_constant_name(dom_name))
 
 label_file.write("""];
 
@@ -218,6 +232,35 @@ label_file.write('''];
 ''')
 label_file.write(lib_rs_end)
 label_file.close()
+
+label_test_file = open("src/test_labels_names.rs", "w")
+label_test_file.write('''// Any copyright to the test code below this comment is dedicated to the
+// Public Domain. http://creativecommons.org/publicdomain/zero/1.0/
+
+// THIS IS A GENERATED FILE. PLEASE DO NOT EDIT.
+// Instead, please regenerate using generate-encoding-data.py
+
+use super::*;
+
+#[test]
+fn test_all_labels() {
+''')
+
+for label in labels:
+  label_test_file.write('''assert_eq!(Encoding::for_label(b"%s"), Some(%s));\n''' % (label.label, to_constant_name(label.preferred)))
+
+label_test_file.write('''}
+
+#[test]
+fn test_all_names() {
+''')
+
+for dom_name in dom:
+  label_test_file.write('''assert_eq!(Encoding::for_name(b"%s"), %s);\n''' % (dom_name, to_constant_name(dom_name)))
+
+label_test_file.write('''}
+''')
+label_test_file.close()
 
 def null_to_zero(code_point):
   if not code_point:
