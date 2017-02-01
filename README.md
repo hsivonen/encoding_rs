@@ -102,6 +102,7 @@ encoding_rs is
 * Performance tweaks.
 * CJK binary size and encoding performance changes.
 * Parallelize UTF-8 validation in the case of long buffers.
+* Borrow even with ISO-2022-JP when possible.
 
 ### 0.3.2
 

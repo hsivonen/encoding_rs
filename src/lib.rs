@@ -531,6 +531,7 @@ mod variant;
 use variant::*;
 use utf_8::utf8_valid_up_to;
 use ascii::ascii_valid_up_to;
+use ascii::ascii_without_iso_2022_jp_specials_valid_up_to;
 
 use std::borrow::Cow;
 use std::cmp::Ordering;
@@ -2319,11 +2320,13 @@ impl Encoding {
     ///
     /// Available via the C wrapper.
     pub fn is_ascii_compatible(&'static self) -> bool {
-        if self == REPLACEMENT || self == UTF_16BE || self == UTF_16LE || self == ISO_2022_JP {
-            false
-        } else {
-            true
-        }
+        !(self == REPLACEMENT || self == UTF_16BE || self == UTF_16LE || self == ISO_2022_JP)
+    }
+
+    /// Checks whether the bytes 0x00...0x7F map mostly to the characters
+    /// U+0000...U+007F and vice versa.
+    fn is_potentially_borrowable(&'static self) -> bool {
+        !(self == REPLACEMENT || self == UTF_16BE || self == UTF_16LE)
     }
 
     /// Returns the _output encoding_ of this encoding. This is UTF-8 for
@@ -2431,9 +2434,11 @@ impl Encoding {
     ///
     /// Available to Rust only.
     pub fn decode_without_bom_handling<'a>(&'static self, bytes: &'a [u8]) -> (Cow<'a, str>, bool) {
-        let (mut decoder, mut string, input) = if self.is_ascii_compatible() {
+        let (mut decoder, mut string, input) = if self.is_potentially_borrowable() {
             let valid_up_to = if self == UTF_8 {
                 utf8_valid_up_to(bytes)
+            } else if self == ISO_2022_JP {
+                ascii_without_iso_2022_jp_specials_valid_up_to(bytes)
             } else {
                 ascii_valid_up_to(bytes)
             };
@@ -2500,8 +2505,12 @@ impl Encoding {
             }
             return None;
         }
-        let (mut decoder, mut string, input) = if self.is_ascii_compatible() {
-            let valid_up_to = ascii_valid_up_to(bytes);
+        let (mut decoder, mut string, input) = if self.is_potentially_borrowable() {
+            let valid_up_to = if self == ISO_2022_JP {
+                ascii_without_iso_2022_jp_specials_valid_up_to(bytes)
+            } else {
+                ascii_valid_up_to(bytes)
+            };
             if valid_up_to == bytes.len() {
                 let str: &str = unsafe { std::mem::transmute(bytes) };
                 return Some(Cow::Borrowed(str));
@@ -2571,9 +2580,13 @@ impl Encoding {
         if output_encoding == UTF_8 {
             return (Cow::Borrowed(string.as_bytes()), output_encoding, false);
         }
-        let (mut encoder, mut vec, mut total_read) = if self.is_ascii_compatible() {
+        let (mut encoder, mut vec, mut total_read) = if self.is_potentially_borrowable() {
             let bytes = string.as_bytes();
-            let valid_up_to = ascii_valid_up_to(bytes);
+            let valid_up_to = if self == ISO_2022_JP {
+                ascii_without_iso_2022_jp_specials_valid_up_to(bytes)
+            } else {
+                ascii_valid_up_to(bytes)
+            };
             if valid_up_to == bytes.len() {
                 return (Cow::Borrowed(bytes), output_encoding, false);
             }

@@ -742,6 +742,16 @@ pub fn ascii_valid_up_to(bytes: &[u8]) -> usize {
     }
 }
 
+pub fn ascii_without_iso_2022_jp_specials_valid_up_to(bytes: &[u8]) -> usize {
+    for (i, b_ref) in bytes.iter().enumerate() {
+        let b = *b_ref;
+        if b >= 0x80 || b == 0x1B || b == 0x0E || b == 0x0F {
+            return i;
+        }
+    }
+    bytes.len()
+}
+
 // Any copyright to the test code below this comment is dedicated to the
 // Public Domain. http://creativecommons.org/publicdomain/zero/1.0/
 
