@@ -531,7 +531,7 @@ mod variant;
 use variant::*;
 use utf_8::utf8_valid_up_to;
 use ascii::ascii_valid_up_to;
-use ascii::ascii_without_iso_2022_jp_specials_valid_up_to;
+use ascii::iso_2022_jp_ascii_valid_up_to;
 
 use std::borrow::Cow;
 use std::cmp::Ordering;
@@ -2438,7 +2438,7 @@ impl Encoding {
             let valid_up_to = if self == UTF_8 {
                 utf8_valid_up_to(bytes)
             } else if self == ISO_2022_JP {
-                ascii_without_iso_2022_jp_specials_valid_up_to(bytes)
+                iso_2022_jp_ascii_valid_up_to(bytes)
             } else {
                 ascii_valid_up_to(bytes)
             };
@@ -2507,7 +2507,7 @@ impl Encoding {
         }
         let (mut decoder, mut string, input) = if self.is_potentially_borrowable() {
             let valid_up_to = if self == ISO_2022_JP {
-                ascii_without_iso_2022_jp_specials_valid_up_to(bytes)
+                iso_2022_jp_ascii_valid_up_to(bytes)
             } else {
                 ascii_valid_up_to(bytes)
             };
@@ -2583,7 +2583,7 @@ impl Encoding {
         let (mut encoder, mut vec, mut total_read) = if self.is_potentially_borrowable() {
             let bytes = string.as_bytes();
             let valid_up_to = if self == ISO_2022_JP {
-                ascii_without_iso_2022_jp_specials_valid_up_to(bytes)
+                iso_2022_jp_ascii_valid_up_to(bytes)
             } else {
                 ascii_valid_up_to(bytes)
             };
