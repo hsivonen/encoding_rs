@@ -2250,7 +2250,7 @@ impl Encoding {
     ///
     /// # Panics
     ///
-    /// If the argument is not the name of an encoding
+    /// Panics if the argument is not the name of an encoding.
     pub fn for_name(name: &[u8]) -> &'static Encoding {
         // The length of `"UTF-8"` is unique, so it's easy to check the most
         // common case first.
