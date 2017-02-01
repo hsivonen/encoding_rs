@@ -55,12 +55,6 @@ static %s: [[u8; 2]; %d] = [
 
   ''')
 
-# If a multi-byte encoding is on this list, it is assumed to have a
-# non-generated implementation class
-MULTI_BYTE_IMPLEMENTED = [
-  u"big5",
-]
-
 preferred = []
 
 dom = []
