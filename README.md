@@ -82,7 +82,7 @@ encoding_rs is
       as Unicode-ordered parts of indices.
 - [ ] Make lookups by label or name use binary search that searches from the
       end of the label/name to the start.
-- [ ] Make labels with non-ASCII bytes fail fast.
+- [x] Make labels with non-ASCII bytes fail fast.
 - [ ] Parallelize UTF-8 validation using [Rayon](https://github.com/nikomatsakis/rayon).
 - [ ] Provide an XPCOM/MFBT-flavored C++ API.
 - [ ] Investigate accelerating single-byte encode with a single fast-tracked

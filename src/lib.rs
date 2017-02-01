@@ -2117,6 +2117,10 @@ impl Encoding {
                     return None;
                 }
                 Some(byte) => {
+                    // The characters used in labels are:
+                    // a-z (except q, but excluding it below seems excessive)
+                    // 0-9
+                    // . _ - :
                     match *byte {
                         0x09u8 | 0x0Au8 | 0x0Cu8 | 0x0Du8 | 0x20u8 => {
                             continue;
@@ -2126,11 +2130,13 @@ impl Encoding {
                             trimmed_pos = 1usize;
                             break;
                         }
-                        // XXX reject bytes that aren't allowed in labels
-                        _ => {
+                        b'a'...b'z' | b'0'...b'9' | b'-' | b'_' | b':' | b'.' => {
                             trimmed[trimmed_pos] = *byte;
                             trimmed_pos = 1usize;
                             break;
+                        }
+                        _ => {
+                            return None;
                         }
                     }
                 }
@@ -2156,8 +2162,7 @@ impl Encoding {
                             }
                             continue;
                         }
-                        // XXX reject bytes that aren't allowed in labels
-                        _ => {
+                        b'a'...b'z' | b'0'...b'9' | b'-' | b'_' | b':' | b'.' => {
                             trimmed[trimmed_pos] = *byte;
                             trimmed_pos += 1usize;
                             if trimmed_pos == LONGEST_LABEL_LENGTH {
@@ -2165,6 +2170,9 @@ impl Encoding {
                                 return None;
                             }
                             continue;
+                        }
+                        _ => {
+                            return None;
                         }
                     }
                 }
