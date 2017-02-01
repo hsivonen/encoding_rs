@@ -2683,6 +2683,42 @@ impl Encoding {
         let enc = self.output_encoding();
         enc.variant.new_encoder(enc)
     }
+
+    /// Validates UTF-8.
+    ///
+    /// Returns the index of the first byte that make the input malformed as
+    /// UTF-8 or the length of the slice if the slice is entirely valid.
+    ///
+    /// This is currently faster than the corresponding standard library
+    /// functionality. If this implementation gets upstreamed to the standard
+    /// library, this method may be removed in the future.
+    ///
+    /// Available via the C wrapper.
+    pub fn utf8_valid_up_to(bytes: &[u8]) -> usize {
+        utf8_valid_up_to(bytes)
+    }
+
+    /// Validates ASCII.
+    ///
+    /// Returns the index of the first byte that make the input malformed as
+    /// ASCII or the length of the slice if the slice is entirely valid.
+    ///
+    /// Available via the C wrapper.
+    pub fn ascii_valid_up_to(bytes: &[u8]) -> usize {
+        ascii_valid_up_to(bytes)
+    }
+
+    /// Validates ISO-2022-JP ASCII-state data.
+    ///
+    /// Returns the index of the first byte that make the input not
+    /// representable in the ASCII state of ISO-2022-JP or the length of the
+    /// slice if the slice is entirely representable in the ASCII state of
+    /// ISO-2022-JP.
+    ///
+    /// Available via the C wrapper.
+    pub fn iso_2022_jp_ascii_valid_up_to(bytes: &[u8]) -> usize {
+        iso_2022_jp_ascii_valid_up_to(bytes)
+    }
 }
 
 impl PartialEq for Encoding {
