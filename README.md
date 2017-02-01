@@ -80,7 +80,7 @@ encoding_rs is
       LTO in pure-Rust usage.
 - [x] Compress CJK indices by making use of sequential code points as well
       as Unicode-ordered parts of indices.
-- [ ] Make lookups by label or name use binary search that searches from the
+- [x] Make lookups by label or name use binary search that searches from the
       end of the label/name to the start.
 - [x] Make labels with non-ASCII bytes fail fast.
 - [ ] Parallelize UTF-8 validation using [Rayon](https://github.com/nikomatsakis/rayon).
