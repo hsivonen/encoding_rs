@@ -7,6 +7,8 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
+extern crate rayon;
+
 use handles::*;
 use variant::*;
 use super::*;
@@ -54,9 +56,37 @@ static UTF8_TRAIL_INVALID: [u8; 256] = [248, 248, 248, 248, 248, 248, 248, 248, 
 // END GENERATED CODE
 
 pub fn utf8_valid_up_to(bytes: &[u8]) -> usize {
-    match run_utf8_validation(bytes) {
-        Ok(()) => bytes.len(),
-        Err(e) => e.valid_up_to(),
+    let mut len = bytes.len();
+    // The purpose of the outer loop is to avoid recursion when the entire
+    // tail is garbage and the attempt to split ends up traversing the trail
+    // without parallelism.
+    'outer: loop {
+        if len < 16 {
+            return match run_utf8_validation(&bytes[..len]) {
+                Ok(()) => bytes.len(),
+                Err(e) => e.valid_up_to(),
+            };
+        }
+        let mid = len >> 1;
+        let mut adjusted = mid;
+        'inner: loop {
+            if adjusted == len {
+                // The entire tail was garbage!
+                len = mid;
+                continue 'outer;
+            }
+            if (bytes[adjusted] & 0xC0) != 0x80 {
+                break 'inner;
+            }
+            adjusted += 1;
+        }
+        let (head, tail) = bytes[..len].split_at(adjusted);
+        let (head_valid_up_to, tail_valid_up_to) = rayon::join(|| utf8_valid_up_to(head),
+                                                               || utf8_valid_up_to(tail));
+        if head_valid_up_to == adjusted {
+            return adjusted + tail_valid_up_to;
+        }
+        return head_valid_up_to;
     }
 }
 

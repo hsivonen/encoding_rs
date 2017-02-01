@@ -17,6 +17,7 @@ no-static-ideograph-encoder-tables = []
 [dependencies]
 cfg-if = "0.1.0"
 simd = { version = "0.1.1", optional = true }
+rayon = "0.6.0"
 
 [profile.release]
 lto = true
