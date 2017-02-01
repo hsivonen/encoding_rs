@@ -57,11 +57,10 @@ static UTF8_TRAIL_INVALID: [u8; 256] = [248, 248, 248, 248, 248, 248, 248, 248, 
 
 pub fn utf8_valid_up_to(bytes: &[u8]) -> usize {
     let mut len = bytes.len();
-    // The purpose of the outer loop is to avoid recursion when the entire
-    // tail is garbage and the attempt to split ends up traversing the trail
-    // without parallelism.
+    // The purpose of the outer loop is to avoid recursion when the attempt
+    // to find the split point discovers and over-long sequence.
     'outer: loop {
-        if len < 16 {
+        if len < 8192 {
             return match run_utf8_validation(&bytes[..len]) {
                 Ok(()) => bytes.len(),
                 Err(e) => e.valid_up_to(),
@@ -69,9 +68,12 @@ pub fn utf8_valid_up_to(bytes: &[u8]) -> usize {
         }
         let mid = len >> 1;
         let mut adjusted = mid;
+        let mut i = 0;
         'inner: loop {
-            if adjusted == len {
-                // The entire tail was garbage!
+            // No need to check for `adjusted` reaching `len` because we
+            // already know that `len` is way larger than `(len / 2) + 4`.
+            if i == 3 {
+                // `mid` landed inside an overlong sequence.
                 len = mid;
                 continue 'outer;
             }
@@ -79,6 +81,7 @@ pub fn utf8_valid_up_to(bytes: &[u8]) -> usize {
                 break 'inner;
             }
             adjusted += 1;
+            i += 1;
         }
         let (head, tail) = bytes[..len].split_at(adjusted);
         let (head_valid_up_to, tail_valid_up_to) = rayon::join(|| utf8_valid_up_to(head),
