@@ -60,7 +60,13 @@ pub fn utf8_valid_up_to(bytes: &[u8]) -> usize {
     // The purpose of the outer loop is to avoid recursion when the attempt
     // to find the split point discovers and over-long sequence.
     'outer: loop {
-        if len < 8192 {
+        // This magic number has been determined on i7-4770 with SSE2 enabled.
+        // It's very likely that the number should be different when different
+        // ISA is used for ASCII acceleration. The number has been chosen
+        // to optimize the all-ASCII case. With mostly non-ASCII, the number
+        // should be much smaller, but that would pessimize the all-ASCII case,
+        // which we are trying to optimize here.
+        if len < 290000 {
             return match run_utf8_validation(&bytes[..len]) {
                 Ok(()) => bytes.len(),
                 Err(e) => e.valid_up_to(),
