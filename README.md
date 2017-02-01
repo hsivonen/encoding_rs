@@ -78,7 +78,7 @@ encoding_rs is
       non-x86 architectures (process an `usize` instead of `u8` at a time).
 - [x] Split FFI into a separate crate so that the FFI doesn't interfere with
       LTO in pure-Rust usage.
-- [ ] Compress CJK indices by making use of sequential code points as well
+- [x] Compress CJK indices by making use of sequential code points as well
       as Unicode-ordered parts of indices.
 - [ ] Make lookups by label or name use binary search that searches from the
       end of the label/name to the start.
@@ -100,6 +100,7 @@ encoding_rs is
 
 * Split FFI into a separate crate.
 * Performance tweaks.
+* CJK binary size and encoding performance changes.
 
 ### 0.3.2
 
