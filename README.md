@@ -101,6 +101,7 @@ encoding_rs is
 * Split FFI into a separate crate.
 * Performance tweaks.
 * CJK binary size and encoding performance changes.
+* Parallelize UTF-8 validation in the case of long buffers.
 
 ### 0.3.2
 
