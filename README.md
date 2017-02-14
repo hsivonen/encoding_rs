@@ -101,7 +101,8 @@ encoding_rs is
 * Split FFI into a separate crate.
 * Performance tweaks.
 * CJK binary size and encoding performance changes.
-* Parallelize UTF-8 validation in the case of long buffers.
+* Parallelize UTF-8 validation in the case of long buffers (with optional
+  feature `parallel-utf8`).
 * Borrow even with ISO-2022-JP when possible.
 
 ### 0.3.2

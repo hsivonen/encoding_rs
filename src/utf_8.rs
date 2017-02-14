@@ -7,6 +7,7 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
+#[cfg(feature = "parallel-utf8")]
 extern crate rayon;
 
 use handles::*;
@@ -55,6 +56,7 @@ static UTF8_TRAIL_INVALID: [u8; 256] = [248, 248, 248, 248, 248, 248, 248, 248, 
                                         248, 248, 248, 248, 248, 248, 248, 248, 248, 248];
 // END GENERATED CODE
 
+#[cfg(feature = "parallel-utf8")]
 pub fn utf8_valid_up_to(bytes: &[u8]) -> usize {
     let mut len = bytes.len();
     // The purpose of the outer loop is to avoid recursion when the attempt
@@ -96,6 +98,14 @@ pub fn utf8_valid_up_to(bytes: &[u8]) -> usize {
             return adjusted + tail_valid_up_to;
         }
         return head_valid_up_to;
+    }
+}
+
+#[cfg(not(feature = "parallel-utf8"))]
+pub fn utf8_valid_up_to(bytes: &[u8]) -> usize {
+    match run_utf8_validation(bytes) {
+        Ok(()) => bytes.len(),
+        Err(e) => e.valid_up_to(),
     }
 }
 
