@@ -2517,8 +2517,8 @@ impl Encoding {
             }
             let decoder = self.new_decoder_without_bom_handling();
             let mut string = String::with_capacity(valid_up_to +
-                                                   decoder.max_utf8_buffer_length(bytes.len() -
-                                                                                  valid_up_to));
+                                                   decoder.max_utf8_buffer_length_without_replacement(bytes.len() -
+                                                                                                      valid_up_to));
             unsafe {
                 let mut vec = string.as_mut_vec();
                 vec.set_len(valid_up_to);

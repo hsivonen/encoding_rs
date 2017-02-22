@@ -96,6 +96,10 @@ encoding_rs is
 
 ## Release Notes
 
+### 0.4.1
+
+* Avoid allocating an excessively long buffer when decoding without replacement.
+
 ### 0.4.0
 
 * Split FFI into a separate crate.
