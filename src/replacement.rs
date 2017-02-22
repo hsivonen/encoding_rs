@@ -24,41 +24,47 @@ impl ReplacementDecoder {
     }
 
     pub fn max_utf8_buffer_length_without_replacement(&self, _byte_length: usize) -> usize {
-        1 // really zero, but that might surprise callers
+        3
     }
 
     pub fn max_utf8_buffer_length(&self, _byte_length: usize) -> usize {
         3
     }
 
-    fn decode(&mut self, src: &[u8]) -> (DecoderResult, usize, usize) {
+    pub fn decode_to_utf16_raw(&mut self,
+                               src: &[u8],
+                               dst: &mut [u16],
+                               _last: bool)
+                               -> (DecoderResult, usize, usize) {
         // Don't err if the input stream is empty. See
         // https://github.com/whatwg/encoding/issues/33
         if self.emitted || src.is_empty() {
             (DecoderResult::InputEmpty, src.len(), 0)
+        } else if dst.len() < 1 {
+            // Make sure there's room for the replacement character.
+            (DecoderResult::OutputFull, 0, 0)
         } else {
-            // We don't need to check if output has enough space, because
-            // everything is weird anyway if the caller of the `Decoder` API
-            // passes an output buffer that violates the minimum size rules.
             self.emitted = true;
             (DecoderResult::Malformed(1, 0), 1, 0)
         }
     }
 
-    pub fn decode_to_utf16_raw(&mut self,
-                               src: &[u8],
-                               _dst: &mut [u16],
-                               _last: bool)
-                               -> (DecoderResult, usize, usize) {
-        self.decode(src)
-    }
-
     pub fn decode_to_utf8_raw(&mut self,
                               src: &[u8],
-                              _dst: &mut [u8],
+                              dst: &mut [u8],
                               _last: bool)
                               -> (DecoderResult, usize, usize) {
-        self.decode(src)
+        // Don't err if the input stream is empty. See
+        // https://github.com/whatwg/encoding/issues/33
+        if self.emitted || src.is_empty() {
+            (DecoderResult::InputEmpty, src.len(), 0)
+        } else if dst.len() < 3 {
+            // Make sure there's room for the replacement character.
+            (DecoderResult::OutputFull, 0, 0)
+        } else {
+            self.emitted = true;
+            (DecoderResult::Malformed(1, 0), 1, 0)
+        }
     }
 }
 

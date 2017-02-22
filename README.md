@@ -98,7 +98,9 @@ encoding_rs is
 
 ### 0.4.1
 
-* Avoid allocating an excessively long buffer when decoding without replacement.
+* Avoid allocating an excessively long buffers in non-streaming decode.
+* Fix the behavior of ISO-2022-JP and replacement decoders near the end of the
+  output buffer.
 
 ### 0.4.0
 

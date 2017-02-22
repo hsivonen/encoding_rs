@@ -2359,10 +2359,15 @@ impl Encoding {
     /// a segment of the input instead of the whole input. Use `new_decoder()`
     /// when decoding segmented input.
     ///
-    /// This method performs a single heap allocation for the backing buffer
-    /// of the `String` when unable to borrow. A borrow is performed if
-    /// decoding UTF-8 and the input is valid UTF-8 or if decoding an
-    /// ASCII-compatible encoding and the input is ASCII-only.
+    /// This method performs a one or two heap allocations for the backing
+    /// buffer of the `String` when unable to borrow. (One allocation if not
+    /// errors and potentially another one in the presence of errors.) The
+    /// first allocation assumes jemalloc and may not be optimal with
+    /// allocators that do not use power-of-two buckets. A borrow is performed
+    /// if decoding UTF-8 and the input is valid UTF-8, if decoding an
+    /// ASCII-compatible encoding and the input is ASCII-only, or when decoding
+    /// ISO-2022-JP and the input is entirely in the ASCII state without state
+    /// transitions.
     ///
     /// Available to Rust only.
     pub fn decode<'a>(&'static self, bytes: &'a [u8]) -> (Cow<'a, str>, &'static Encoding, bool) {
@@ -2391,10 +2396,15 @@ impl Encoding {
     /// a segment of the input instead of the whole input. Use
     /// `new_decoder_with_bom_removal()` when decoding segmented input.
     ///
-    /// This method performs a single heap allocation for the backing buffer
-    /// of the `String` when unable to borrow. A borrow is performed if
-    /// decoding UTF-8 and the input is valid UTF-8 or if decoding an
-    /// ASCII-compatible encoding and the input is ASCII-only.
+    /// This method performs a one or two heap allocations for the backing
+    /// buffer of the `String` when unable to borrow. (One allocation if not
+    /// errors and potentially another one in the presence of errors.) The
+    /// first allocation assumes jemalloc and may not be optimal with
+    /// allocators that do not use power-of-two buckets. A borrow is performed
+    /// if decoding UTF-8 and the input is valid UTF-8, if decoding an
+    /// ASCII-compatible encoding and the input is ASCII-only, or when decoding
+    /// ISO-2022-JP and the input is entirely in the ASCII state without state
+    /// transitions.
     ///
     /// Available to Rust only.
     pub fn decode_with_bom_removal<'a>(&'static self, bytes: &'a [u8]) -> (Cow<'a, str>, bool) {
@@ -2427,14 +2437,19 @@ impl Encoding {
     /// a segment of the input instead of the whole input. Use
     /// `new_decoder_without_bom_handling()` when decoding segmented input.
     ///
-    /// This method performs a single heap allocation for the backing buffer
-    /// of the `String` when unable to borrow. A borrow is performed if
-    /// decoding UTF-8 and the input is valid UTF-8 or if decoding an
-    /// ASCII-compatible encoding and the input is ASCII-only.
+    /// This method performs a one or two heap allocations for the backing
+    /// buffer of the `String` when unable to borrow. (One allocation if not
+    /// errors and potentially another one in the presence of errors.) The
+    /// first allocation assumes jemalloc and may not be optimal with
+    /// allocators that do not use power-of-two buckets. A borrow is performed
+    /// if decoding UTF-8 and the input is valid UTF-8, if decoding an
+    /// ASCII-compatible encoding and the input is ASCII-only, or when decoding
+    /// ISO-2022-JP and the input is entirely in the ASCII state without state
+    /// transitions.
     ///
     /// Available to Rust only.
     pub fn decode_without_bom_handling<'a>(&'static self, bytes: &'a [u8]) -> (Cow<'a, str>, bool) {
-        let (mut decoder, mut string, input) = if self.is_potentially_borrowable() {
+        let (mut decoder, mut string, mut total_read) = if self.is_potentially_borrowable() {
             let valid_up_to = if self == UTF_8 {
                 utf8_valid_up_to(bytes)
             } else if self == ISO_2022_JP {
@@ -2447,27 +2462,53 @@ impl Encoding {
                 return (Cow::Borrowed(str), false);
             }
             let decoder = self.new_decoder_without_bom_handling();
-            let mut string = String::with_capacity(valid_up_to +
-                                                   decoder.max_utf8_buffer_length(bytes.len() -
-                                                                                  valid_up_to));
+
+            let rounded_without_replacement =
+                valid_up_to +
+                decoder.max_utf8_buffer_length_without_replacement(bytes.len() - valid_up_to)
+                       .next_power_of_two();
+            let with_replacement = valid_up_to +
+                                   decoder.max_utf8_buffer_length(bytes.len() - valid_up_to);
+            let mut string = String::with_capacity(::std::cmp::min(rounded_without_replacement,
+                                                                   with_replacement));
             unsafe {
                 let mut vec = string.as_mut_vec();
                 vec.set_len(valid_up_to);
                 std::ptr::copy_nonoverlapping(bytes.as_ptr(), vec.as_mut_ptr(), valid_up_to);
             }
-            (decoder, string, &bytes[valid_up_to..])
+            (decoder, string, valid_up_to)
         } else {
             let decoder = self.new_decoder_without_bom_handling();
-            let string = String::with_capacity(decoder.max_utf8_buffer_length(bytes.len()));
-            (decoder, string, bytes)
+            let rounded_without_replacement =
+                decoder.max_utf8_buffer_length_without_replacement(bytes.len())
+                       .next_power_of_two();
+            let with_replacement = decoder.max_utf8_buffer_length(bytes.len());
+            let string = String::with_capacity(::std::cmp::min(rounded_without_replacement,
+                                                               with_replacement));
+            (decoder, string, 0)
         };
-        let (result, read, had_errors) = decoder.decode_to_string(input, &mut string, true);
-        match result {
-            CoderResult::InputEmpty => {
-                debug_assert_eq!(read, input.len());
-                (Cow::Owned(string), had_errors)
+
+        let mut total_had_errors = false;
+        loop {
+            let (result, read, had_errors) = decoder.decode_to_string(&bytes[total_read..],
+                                                                      &mut string,
+                                                                      true);
+            total_read += read;
+            if had_errors {
+                total_had_errors = true;
             }
-            CoderResult::OutputFull => unreachable!(),
+            match result {
+                CoderResult::InputEmpty => {
+                    debug_assert_eq!(total_read, bytes.len());
+                    return (Cow::Owned(string), total_had_errors);
+                }
+                CoderResult::OutputFull => {
+                    // Allocate for the worst case. That is, we should come
+                    // here at most once per invocation of this method.
+                    let needed = decoder.max_utf8_buffer_length(bytes.len() - total_read);
+                    string.reserve(needed);
+                }
+            }
         }
     }
 
@@ -2488,10 +2529,12 @@ impl Encoding {
     /// a segment of the input instead of the whole input. Use
     /// `new_decoder_without_bom_handling()` when decoding segmented input.
     ///
-    /// This method performs a single heap allocation for the backing buffer
-    /// of the `String` when unable to borrow. A borrow is performed if
-    /// decoding UTF-8 and the input is valid UTF-8 or if decoding an
-    /// ASCII-compatible encoding and the input is ASCII-only.
+    /// This method performs a single heap allocation for the backing
+    /// buffer of the `String` when unable to borrow. A borrow is performed if
+    /// decoding UTF-8 and the input is valid UTF-8, if decoding an
+    /// ASCII-compatible encoding and the input is ASCII-only, or when decoding
+    /// ISO-2022-JP and the input is entirely in the ASCII state without state
+    /// transitions.
     ///
     /// Available to Rust only.
     pub fn decode_without_bom_handling_and_without_replacement<'a>(&'static self,

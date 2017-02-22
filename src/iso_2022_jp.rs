@@ -54,7 +54,7 @@ impl Iso2022JpDecoder {
     }
 
     fn one_if_pending_prepended(&self) -> usize {
-        if self.lead != 0 && !self.pending_prepended {
+        if self.lead != 0 && self.pending_prepended {
             1
         } else {
             0
