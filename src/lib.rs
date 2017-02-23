@@ -3002,6 +3002,8 @@ impl Decoder {
     ///
     /// BOM sniffing can change the return value of this method during the life
     /// of the decoder.
+    ///
+    /// Available via the C wrapper.
     pub fn encoding(&self) -> &'static Encoding {
         self.encoding
     }
