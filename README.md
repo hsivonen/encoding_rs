@@ -96,11 +96,12 @@ encoding_rs is
 
 ## Release Notes
 
-### 0.4.1
+### 0.5.0
 
 * Avoid allocating an excessively long buffers in non-streaming decode.
 * Fix the behavior of ISO-2022-JP and replacement decoders near the end of the
   output buffer.
+* Annotate the result structs with `#[must_use]`.
 
 ### 0.4.0
 
