@@ -96,6 +96,10 @@ encoding_rs is
 
 ## Release Notes
 
+### 0.5.1
+
+* Reorder methods for better documentation readability.
+
 ### 0.5.0
 
 * Avoid allocating an excessively long buffers in non-streaming decode.

@@ -2238,6 +2238,29 @@ impl Encoding {
         }
     }
 
+    /// Performs non-incremental BOM sniffing.
+    ///
+    /// The argument must either be a buffer representing the entire input
+    /// stream (non-streaming case) or a buffer representing at least the first
+    /// three bytes of the input stream (streaming case).
+    ///
+    /// Returns `Some((UTF_8, 3))`, `Some((UTF_16LE, 2))` or
+    /// `Some((UTF_16BE, 3))` if the argument starts with the UTF-8, UTF-16LE
+    /// or UTF-16BE BOM or `None` otherwise.
+    ///
+    /// Available via the C wrapper.
+    pub fn for_bom(buffer: &[u8]) -> Option<(&'static Encoding, usize)> {
+        if buffer.starts_with(b"\xEF\xBB\xBF") {
+            Some((UTF_8, 3))
+        } else if buffer.starts_with(b"\xFF\xFE") {
+            Some((UTF_16LE, 2))
+        } else if buffer.starts_with(b"\xFE\xFF") {
+            Some((UTF_16BE, 2))
+        } else {
+            None
+        }
+    }
+
     /// If the argument matches exactly (case-sensitively; no whitespace
     /// removal performed) the name of an encoding, returns
     /// `&'static Encoding` representing that encoding. Otherwise panics.
@@ -2271,29 +2294,6 @@ impl Encoding {
         }) {
             Ok(i) => ENCODINGS_SORTED_BY_NAME[i],
             Err(_) => panic!("Bogus encoding name"),
-        }
-    }
-
-    /// Performs non-incremental BOM sniffing.
-    ///
-    /// The argument must either be a buffer representing the entire input
-    /// stream (non-streaming case) or a buffer representing at least the first
-    /// three bytes of the input stream (streaming case).
-    ///
-    /// Returns `Some((UTF_8, 3))`, `Some((UTF_16LE, 2))` or
-    /// `Some((UTF_16BE, 3))` if the argument starts with the UTF-8, UTF-16LE
-    /// or UTF-16BE BOM or `None` otherwise.
-    ///
-    /// Available via the C wrapper.
-    pub fn for_bom(buffer: &[u8]) -> Option<(&'static Encoding, usize)> {
-        if buffer.starts_with(b"\xEF\xBB\xBF") {
-            Some((UTF_8, 3))
-        } else if buffer.starts_with(b"\xFF\xFE") {
-            Some((UTF_16LE, 2))
-        } else if buffer.starts_with(b"\xFE\xFF") {
-            Some((UTF_16BE, 2))
-        } else {
-            None
         }
     }
 
@@ -3010,19 +3010,17 @@ impl Decoder {
         self.encoding
     }
 
-    /// Query the worst-case UTF-16 output size (with or without replacement).
+    /// Query the worst-case UTF-8 output size _with replacement_.
     ///
-    /// Returns the size of the output buffer in UTF-16 code units (`u16`)
+    /// Returns the size of the output buffer in UTF-8 code units (`u8`)
     /// that will not overflow given the current state of the decoder and
-    /// `byte_length` number of additional input bytes.
-    ///
-    /// Since the REPLACEMENT CHARACTER fits into one UTF-16 code unit, the
-    /// return value of this method applies also in the
-    /// `_without_replacement` case.
+    /// `byte_length` number of additional input bytes when decoding with
+    /// errors handled by outputting a REPLACEMENT CHARACTER for each malformed
+    /// sequence.
     ///
     /// Available via the C wrapper.
-    pub fn max_utf16_buffer_length(&self, byte_length: usize) -> usize {
-        self.variant.max_utf16_buffer_length(byte_length)
+    pub fn max_utf8_buffer_length(&self, byte_length: usize) -> usize {
+        self.variant.max_utf8_buffer_length(byte_length)
     }
 
     /// Query the worst-case UTF-8 output size _without replacement_.
@@ -3038,162 +3036,6 @@ impl Decoder {
     /// Available via the C wrapper.
     pub fn max_utf8_buffer_length_without_replacement(&self, byte_length: usize) -> usize {
         self.variant.max_utf8_buffer_length_without_replacement(byte_length)
-    }
-
-    /// Query the worst-case UTF-8 output size _with replacement_.
-    ///
-    /// Returns the size of the output buffer in UTF-8 code units (`u8`)
-    /// that will not overflow given the current state of the decoder and
-    /// `byte_length` number of additional input bytes when decoding with
-    /// errors handled by outputting a REPLACEMENT CHARACTER for each malformed
-    /// sequence.
-    ///
-    /// Available via the C wrapper.
-    pub fn max_utf8_buffer_length(&self, byte_length: usize) -> usize {
-        self.variant.max_utf8_buffer_length(byte_length)
-    }
-
-    public_decode_function!(/// Incrementally decode a byte stream into UTF-16
-                            /// _without replacement_.
-                            ///
-                            /// See the documentation of the struct for
-                            /// documentation for `decode_*` methods
-                            /// collectively.
-                            ///
-                            /// Available via the C wrapper.
-                            ,
-                            decode_to_utf16_without_replacement,
-                            decode_to_utf16_raw,
-                            decode_to_utf16_checking_end,
-                            decode_to_utf16_after_one_potential_bom_byte,
-                            decode_to_utf16_after_two_potential_bom_bytes,
-                            decode_to_utf16_checking_end_with_offset,
-                            u16);
-
-    public_decode_function!(/// Incrementally decode a byte stream into UTF-8
-                            /// _without replacement_.
-                            ///
-                            /// See the documentation of the struct for
-                            /// documentation for `decode_*` methods
-                            /// collectively.
-                            ///
-                            /// Available via the C wrapper.
-                            ,
-                            decode_to_utf8_without_replacement,
-                            decode_to_utf8_raw,
-                            decode_to_utf8_checking_end,
-                            decode_to_utf8_after_one_potential_bom_byte,
-                            decode_to_utf8_after_two_potential_bom_bytes,
-                            decode_to_utf8_checking_end_with_offset,
-                            u8);
-
-    /// Incrementally decode a byte stream into UTF-8 with type system signaling
-    /// of UTF-8 validity.
-    ///
-    /// This methods calls `decode_to_utf8` and then zeroes out up to three
-    /// bytes that aren't logically part of the write in order to retain the
-    /// UTF-8 validity even for the unwritten part of the buffer.
-    ///
-    /// See the documentation of the struct for documentation for `decode_*`
-    /// methods collectively.
-    ///
-    /// Available to Rust only.
-    pub fn decode_to_str_without_replacement(&mut self,
-                                             src: &[u8],
-                                             dst: &mut str,
-                                             last: bool)
-                                             -> (DecoderResult, usize, usize) {
-        let bytes: &mut [u8] = unsafe { std::mem::transmute(dst) };
-        let (result, read, written) = self.decode_to_utf8_without_replacement(src, bytes, last);
-        let len = bytes.len();
-        let mut trail = written;
-        // Non-UTF-8 ASCII-compatible decoders may write up to `STRIDE_SIZE`
-        // bytes of trailing garbage. No need to optimize non-ASCII-compatible
-        // encodings to avoid overwriting here.
-        if self.encoding != UTF_8 {
-            let max = std::cmp::min(len, trail + ascii::STRIDE_SIZE);
-            while trail < max {
-                bytes[trail] = 0;
-                trail += 1;
-            }
-        }
-        while trail < len && ((bytes[trail] & 0xC0) == 0x80) {
-            bytes[trail] = 0;
-            trail += 1;
-        }
-        (result, read, written)
-    }
-
-    /// Incrementally decode a byte stream into UTF-8 using a `String` receiver.
-    ///
-    /// Like the others, this method follows the logic that the output buffer is
-    /// caller-allocated. This method treats the capacity of the `String` as
-    /// the output limit. That is, this method guarantees not to cause a
-    /// reallocation of the backing buffer of `String`.
-    ///
-    /// The return value is a pair that contains the `DecoderResult` and the
-    /// number of bytes read. The number of bytes written is signaled via
-    /// the length of the `String` changing.
-    ///
-    /// See the documentation of the struct for documentation for `decode_*`
-    /// methods collectively.
-    ///
-    /// Available to Rust only.
-    pub fn decode_to_string_without_replacement(&mut self,
-                                                src: &[u8],
-                                                dst: &mut String,
-                                                last: bool)
-                                                -> (DecoderResult, usize) {
-        unsafe {
-            let vec = dst.as_mut_vec();
-            let old_len = vec.len();
-            let capacity = vec.capacity();
-            vec.set_len(capacity);
-            let (result, read, written) =
-                self.decode_to_utf8_without_replacement(src, &mut vec[old_len..], last);
-            vec.set_len(old_len + written);
-            (result, read)
-        }
-    }
-
-    /// Incrementally decode a byte stream into UTF-16 with malformed sequences
-    /// replaced with the REPLACEMENT CHARACTER.
-    ///
-    /// See the documentation of the struct for documentation for `decode_*`
-    /// methods collectively.
-    ///
-    /// Available via the C wrapper.
-    pub fn decode_to_utf16(&mut self,
-                           src: &[u8],
-                           dst: &mut [u16],
-                           last: bool)
-                           -> (CoderResult, usize, usize, bool) {
-        let mut had_errors = false;
-        let mut total_read = 0usize;
-        let mut total_written = 0usize;
-        loop {
-            let (result, read, written) =
-                self.decode_to_utf16_without_replacement(&src[total_read..],
-                                                         &mut dst[total_written..],
-                                                         last);
-            total_read += read;
-            total_written += written;
-            match result {
-                DecoderResult::InputEmpty => {
-                    return (CoderResult::InputEmpty, total_read, total_written, had_errors);
-                }
-                DecoderResult::OutputFull => {
-                    return (CoderResult::OutputFull, total_read, total_written, had_errors);
-                }
-                DecoderResult::Malformed(_, _) => {
-                    had_errors = true;
-                    // There should always be space for the U+FFFD, because
-                    // otherwise we'd have gotten OutputFull already.
-                    dst[total_written] = 0xFFFD;
-                    total_written += 1;
-                }
-            }
-        }
     }
 
     /// Incrementally decode a byte stream into UTF-8 with malformed sequences
@@ -3314,6 +3156,165 @@ impl Decoder {
             (result, read, replaced)
         }
     }
+
+    public_decode_function!(/// Incrementally decode a byte stream into UTF-8
+                            /// _without replacement_.
+                            ///
+                            /// See the documentation of the struct for
+                            /// documentation for `decode_*` methods
+                            /// collectively.
+                            ///
+                            /// Available via the C wrapper.
+                            ,
+                            decode_to_utf8_without_replacement,
+                            decode_to_utf8_raw,
+                            decode_to_utf8_checking_end,
+                            decode_to_utf8_after_one_potential_bom_byte,
+                            decode_to_utf8_after_two_potential_bom_bytes,
+                            decode_to_utf8_checking_end_with_offset,
+                            u8);
+
+    /// Incrementally decode a byte stream into UTF-8 with type system signaling
+    /// of UTF-8 validity.
+    ///
+    /// This methods calls `decode_to_utf8` and then zeroes out up to three
+    /// bytes that aren't logically part of the write in order to retain the
+    /// UTF-8 validity even for the unwritten part of the buffer.
+    ///
+    /// See the documentation of the struct for documentation for `decode_*`
+    /// methods collectively.
+    ///
+    /// Available to Rust only.
+    pub fn decode_to_str_without_replacement(&mut self,
+                                             src: &[u8],
+                                             dst: &mut str,
+                                             last: bool)
+                                             -> (DecoderResult, usize, usize) {
+        let bytes: &mut [u8] = unsafe { std::mem::transmute(dst) };
+        let (result, read, written) = self.decode_to_utf8_without_replacement(src, bytes, last);
+        let len = bytes.len();
+        let mut trail = written;
+        // Non-UTF-8 ASCII-compatible decoders may write up to `STRIDE_SIZE`
+        // bytes of trailing garbage. No need to optimize non-ASCII-compatible
+        // encodings to avoid overwriting here.
+        if self.encoding != UTF_8 {
+            let max = std::cmp::min(len, trail + ascii::STRIDE_SIZE);
+            while trail < max {
+                bytes[trail] = 0;
+                trail += 1;
+            }
+        }
+        while trail < len && ((bytes[trail] & 0xC0) == 0x80) {
+            bytes[trail] = 0;
+            trail += 1;
+        }
+        (result, read, written)
+    }
+
+    /// Incrementally decode a byte stream into UTF-8 using a `String` receiver.
+    ///
+    /// Like the others, this method follows the logic that the output buffer is
+    /// caller-allocated. This method treats the capacity of the `String` as
+    /// the output limit. That is, this method guarantees not to cause a
+    /// reallocation of the backing buffer of `String`.
+    ///
+    /// The return value is a pair that contains the `DecoderResult` and the
+    /// number of bytes read. The number of bytes written is signaled via
+    /// the length of the `String` changing.
+    ///
+    /// See the documentation of the struct for documentation for `decode_*`
+    /// methods collectively.
+    ///
+    /// Available to Rust only.
+    pub fn decode_to_string_without_replacement(&mut self,
+                                                src: &[u8],
+                                                dst: &mut String,
+                                                last: bool)
+                                                -> (DecoderResult, usize) {
+        unsafe {
+            let vec = dst.as_mut_vec();
+            let old_len = vec.len();
+            let capacity = vec.capacity();
+            vec.set_len(capacity);
+            let (result, read, written) =
+                self.decode_to_utf8_without_replacement(src, &mut vec[old_len..], last);
+            vec.set_len(old_len + written);
+            (result, read)
+        }
+    }
+
+    /// Query the worst-case UTF-16 output size (with or without replacement).
+    ///
+    /// Returns the size of the output buffer in UTF-16 code units (`u16`)
+    /// that will not overflow given the current state of the decoder and
+    /// `byte_length` number of additional input bytes.
+    ///
+    /// Since the REPLACEMENT CHARACTER fits into one UTF-16 code unit, the
+    /// return value of this method applies also in the
+    /// `_without_replacement` case.
+    ///
+    /// Available via the C wrapper.
+    pub fn max_utf16_buffer_length(&self, byte_length: usize) -> usize {
+        self.variant.max_utf16_buffer_length(byte_length)
+    }
+
+    /// Incrementally decode a byte stream into UTF-16 with malformed sequences
+    /// replaced with the REPLACEMENT CHARACTER.
+    ///
+    /// See the documentation of the struct for documentation for `decode_*`
+    /// methods collectively.
+    ///
+    /// Available via the C wrapper.
+    pub fn decode_to_utf16(&mut self,
+                           src: &[u8],
+                           dst: &mut [u16],
+                           last: bool)
+                           -> (CoderResult, usize, usize, bool) {
+        let mut had_errors = false;
+        let mut total_read = 0usize;
+        let mut total_written = 0usize;
+        loop {
+            let (result, read, written) =
+                self.decode_to_utf16_without_replacement(&src[total_read..],
+                                                         &mut dst[total_written..],
+                                                         last);
+            total_read += read;
+            total_written += written;
+            match result {
+                DecoderResult::InputEmpty => {
+                    return (CoderResult::InputEmpty, total_read, total_written, had_errors);
+                }
+                DecoderResult::OutputFull => {
+                    return (CoderResult::OutputFull, total_read, total_written, had_errors);
+                }
+                DecoderResult::Malformed(_, _) => {
+                    had_errors = true;
+                    // There should always be space for the U+FFFD, because
+                    // otherwise we'd have gotten OutputFull already.
+                    dst[total_written] = 0xFFFD;
+                    total_written += 1;
+                }
+            }
+        }
+    }
+
+    public_decode_function!(/// Incrementally decode a byte stream into UTF-16
+                            /// _without replacement_.
+                            ///
+                            /// See the documentation of the struct for
+                            /// documentation for `decode_*` methods
+                            /// collectively.
+                            ///
+                            /// Available via the C wrapper.
+                            ,
+                            decode_to_utf16_without_replacement,
+                            decode_to_utf16_raw,
+                            decode_to_utf16_checking_end,
+                            decode_to_utf16_after_one_potential_bom_byte,
+                            decode_to_utf16_after_two_potential_bom_bytes,
+                            decode_to_utf16_checking_end_with_offset,
+                            u16);
+
 }
 
 /// Result of a (potentially partial) encode operation without replacement.
@@ -3476,48 +3477,6 @@ impl Encoder {
         self.encoding
     }
 
-    /// Query the worst-case output size when encoding from UTF-16 without
-    /// replacement.
-    ///
-    /// Returns the size of the output buffer in bytes that will not overflow
-    /// given the current state of the encoder and `u16_length` number of
-    /// additional input code units.
-    ///
-    /// Available via the C wrapper.
-    pub fn max_buffer_length_from_utf16_without_replacement(&self, u16_length: usize) -> usize {
-        self.variant.max_buffer_length_from_utf16_without_replacement(u16_length)
-    }
-
-    /// Query the worst-case output size when encoding from UTF-8 without
-    /// replacement.
-    ///
-    /// Returns the size of the output buffer in bytes that will not overflow
-    /// given the current state of the encoder and `byte_length` number of
-    /// additional input code units.
-    ///
-    /// Available via the C wrapper.
-    pub fn max_buffer_length_from_utf8_without_replacement(&self, byte_length: usize) -> usize {
-        self.variant.max_buffer_length_from_utf8_without_replacement(byte_length)
-    }
-
-    /// Query the worst-case output size when encoding from UTF-16 with
-    /// replacement.
-    ///
-    /// Returns the size of the output buffer in bytes that will not overflow
-    /// given the current state of the encoder and `u16_length` number of
-    /// additional input code units if there are no unmappable characters in
-    /// the input.
-    ///
-    /// Available via the C wrapper.
-    pub fn max_buffer_length_from_utf16_if_no_unmappables(&self, u16_length: usize) -> usize {
-        self.max_buffer_length_from_utf16_without_replacement(u16_length) +
-        if self.encoding().can_encode_everything() {
-            0
-        } else {
-            NCR_EXTRA
-        }
-    }
-
     /// Query the worst-case output size when encoding from UTF-8 with
     /// replacement.
     ///
@@ -3536,107 +3495,16 @@ impl Encoder {
         }
     }
 
-    /// Incrementally encode into byte stream from UTF-16 _without replacement_.
+    /// Query the worst-case output size when encoding from UTF-8 without
+    /// replacement.
     ///
-    /// See the documentation of the struct for documentation for `encode_*`
-    /// methods collectively.
-    ///
-    /// Available via the C wrapper.
-    pub fn encode_from_utf16_without_replacement(&mut self,
-                                                 src: &[u16],
-                                                 dst: &mut [u8],
-                                                 last: bool)
-                                                 -> (EncoderResult, usize, usize) {
-        self.variant.encode_from_utf16_raw(src, dst, last)
-    }
-
-    /// Incrementally encode into byte stream from UTF-8 _without replacement_.
-    ///
-    /// See the documentation of the struct for documentation for `encode_*`
-    /// methods collectively.
+    /// Returns the size of the output buffer in bytes that will not overflow
+    /// given the current state of the encoder and `byte_length` number of
+    /// additional input code units.
     ///
     /// Available via the C wrapper.
-    pub fn encode_from_utf8_without_replacement(&mut self,
-                                                src: &str,
-                                                dst: &mut [u8],
-                                                last: bool)
-                                                -> (EncoderResult, usize, usize) {
-        self.variant.encode_from_utf8_raw(src, dst, last)
-    }
-
-    /// Incrementally encode into byte stream from UTF-8 _without replacement_.
-    ///
-    /// See the documentation of the struct for documentation for `encode_*`
-    /// methods collectively.
-    ///
-    /// Available to Rust only.
-    pub fn encode_from_utf8_to_vec_without_replacement(&mut self,
-                                                       src: &str,
-                                                       dst: &mut Vec<u8>,
-                                                       last: bool)
-                                                       -> (EncoderResult, usize) {
-        unsafe {
-            let old_len = dst.len();
-            let capacity = dst.capacity();
-            dst.set_len(capacity);
-            let (result, read, written) =
-                self.encode_from_utf8_without_replacement(src, &mut dst[old_len..], last);
-            dst.set_len(old_len + written);
-            (result, read)
-        }
-    }
-
-    /// Incrementally encode into byte stream from UTF-16 with unmappable
-    /// characters replaced with HTML (decimal) numeric character references.
-    ///
-    /// See the documentation of the struct for documentation for `encode_*`
-    /// methods collectively.
-    ///
-    /// Available via the C wrapper.
-    pub fn encode_from_utf16(&mut self,
-                             src: &[u16],
-                             dst: &mut [u8],
-                             last: bool)
-                             -> (CoderResult, usize, usize, bool) {
-        let effective_dst_len = dst.len() -
-                                if self.encoding().can_encode_everything() {
-            0
-        } else {
-            NCR_EXTRA
-        };
-        let mut had_unmappables = false;
-        let mut total_read = 0usize;
-        let mut total_written = 0usize;
-        loop {
-            let (result, read, written) = self.encode_from_utf16_without_replacement(&src[total_read..],
-                                   &mut dst[total_written..effective_dst_len],
-                                   last);
-            total_read += read;
-            total_written += written;
-            match result {
-                EncoderResult::InputEmpty => {
-                    return (CoderResult::InputEmpty, total_read, total_written, had_unmappables);
-                }
-                EncoderResult::OutputFull => {
-                    return (CoderResult::OutputFull, total_read, total_written, had_unmappables);
-                }
-                EncoderResult::Unmappable(unmappable) => {
-                    had_unmappables = true;
-                    debug_assert!(dst.len() - total_written >= NCR_EXTRA + 1);
-                    // There are no UTF-16 encoders and even if there were,
-                    // they'd never have unmappables.
-                    debug_assert!(self.encoding() != UTF_16BE);
-                    debug_assert!(self.encoding() != UTF_16LE);
-                    // Additionally, Iso2022JpEncoder is responsible for
-                    // transitioning to ASCII when returning with Unmappable
-                    // from the jis0208 state. That is, when we encode
-                    // ISO-2022-JP and come here, the encoder is in either the
-                    // ASCII or the Roman state. We are allowed to generate any
-                    // printable ASCII excluding \ and ~.
-                    total_written += write_ncr(unmappable, &mut dst[total_written..]);
-                }
-            }
-        }
+    pub fn max_buffer_length_from_utf8_without_replacement(&self, byte_length: usize) -> usize {
+        self.variant.max_buffer_length_from_utf8_without_replacement(byte_length)
     }
 
     /// Incrementally encode into byte stream from UTF-8 with unmappable
@@ -3715,6 +3583,140 @@ impl Encoder {
             (result, read, replaced)
         }
     }
+
+    /// Incrementally encode into byte stream from UTF-8 _without replacement_.
+    ///
+    /// See the documentation of the struct for documentation for `encode_*`
+    /// methods collectively.
+    ///
+    /// Available via the C wrapper.
+    pub fn encode_from_utf8_without_replacement(&mut self,
+                                                src: &str,
+                                                dst: &mut [u8],
+                                                last: bool)
+                                                -> (EncoderResult, usize, usize) {
+        self.variant.encode_from_utf8_raw(src, dst, last)
+    }
+
+    /// Incrementally encode into byte stream from UTF-8 _without replacement_.
+    ///
+    /// See the documentation of the struct for documentation for `encode_*`
+    /// methods collectively.
+    ///
+    /// Available to Rust only.
+    pub fn encode_from_utf8_to_vec_without_replacement(&mut self,
+                                                       src: &str,
+                                                       dst: &mut Vec<u8>,
+                                                       last: bool)
+                                                       -> (EncoderResult, usize) {
+        unsafe {
+            let old_len = dst.len();
+            let capacity = dst.capacity();
+            dst.set_len(capacity);
+            let (result, read, written) =
+                self.encode_from_utf8_without_replacement(src, &mut dst[old_len..], last);
+            dst.set_len(old_len + written);
+            (result, read)
+        }
+    }
+
+    /// Query the worst-case output size when encoding from UTF-16 with
+    /// replacement.
+    ///
+    /// Returns the size of the output buffer in bytes that will not overflow
+    /// given the current state of the encoder and `u16_length` number of
+    /// additional input code units if there are no unmappable characters in
+    /// the input.
+    ///
+    /// Available via the C wrapper.
+    pub fn max_buffer_length_from_utf16_if_no_unmappables(&self, u16_length: usize) -> usize {
+        self.max_buffer_length_from_utf16_without_replacement(u16_length) +
+        if self.encoding().can_encode_everything() {
+            0
+        } else {
+            NCR_EXTRA
+        }
+    }
+
+    /// Query the worst-case output size when encoding from UTF-16 without
+    /// replacement.
+    ///
+    /// Returns the size of the output buffer in bytes that will not overflow
+    /// given the current state of the encoder and `u16_length` number of
+    /// additional input code units.
+    ///
+    /// Available via the C wrapper.
+    pub fn max_buffer_length_from_utf16_without_replacement(&self, u16_length: usize) -> usize {
+        self.variant.max_buffer_length_from_utf16_without_replacement(u16_length)
+    }
+
+    /// Incrementally encode into byte stream from UTF-16 with unmappable
+    /// characters replaced with HTML (decimal) numeric character references.
+    ///
+    /// See the documentation of the struct for documentation for `encode_*`
+    /// methods collectively.
+    ///
+    /// Available via the C wrapper.
+    pub fn encode_from_utf16(&mut self,
+                             src: &[u16],
+                             dst: &mut [u8],
+                             last: bool)
+                             -> (CoderResult, usize, usize, bool) {
+        let effective_dst_len = dst.len() -
+                                if self.encoding().can_encode_everything() {
+            0
+        } else {
+            NCR_EXTRA
+        };
+        let mut had_unmappables = false;
+        let mut total_read = 0usize;
+        let mut total_written = 0usize;
+        loop {
+            let (result, read, written) = self.encode_from_utf16_without_replacement(&src[total_read..],
+                                   &mut dst[total_written..effective_dst_len],
+                                   last);
+            total_read += read;
+            total_written += written;
+            match result {
+                EncoderResult::InputEmpty => {
+                    return (CoderResult::InputEmpty, total_read, total_written, had_unmappables);
+                }
+                EncoderResult::OutputFull => {
+                    return (CoderResult::OutputFull, total_read, total_written, had_unmappables);
+                }
+                EncoderResult::Unmappable(unmappable) => {
+                    had_unmappables = true;
+                    debug_assert!(dst.len() - total_written >= NCR_EXTRA + 1);
+                    // There are no UTF-16 encoders and even if there were,
+                    // they'd never have unmappables.
+                    debug_assert!(self.encoding() != UTF_16BE);
+                    debug_assert!(self.encoding() != UTF_16LE);
+                    // Additionally, Iso2022JpEncoder is responsible for
+                    // transitioning to ASCII when returning with Unmappable
+                    // from the jis0208 state. That is, when we encode
+                    // ISO-2022-JP and come here, the encoder is in either the
+                    // ASCII or the Roman state. We are allowed to generate any
+                    // printable ASCII excluding \ and ~.
+                    total_written += write_ncr(unmappable, &mut dst[total_written..]);
+                }
+            }
+        }
+    }
+
+    /// Incrementally encode into byte stream from UTF-16 _without replacement_.
+    ///
+    /// See the documentation of the struct for documentation for `encode_*`
+    /// methods collectively.
+    ///
+    /// Available via the C wrapper.
+    pub fn encode_from_utf16_without_replacement(&mut self,
+                                                 src: &[u16],
+                                                 dst: &mut [u8],
+                                                 last: bool)
+                                                 -> (EncoderResult, usize, usize) {
+        self.variant.encode_from_utf16_raw(src, dst, last)
+    }
+
 }
 
 /// Format an unmappable as NCR without heap allocation.
