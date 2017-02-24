@@ -197,12 +197,11 @@
 //!
 //! The C API (header file generated at `target/include/encoding_rs.h` when
 //! building encoding_rs) can, in turn, be wrapped for use from C++. Such a
-//! C++ wrapper could re-create the non-streaming API in C++ for C++ callers.
-//! Currently, the C binding comes with a
-//! [C++ wrapper](https://github.com/hsivonen/encoding_c/blob/master/include/encoding_rs_cpp.h)
-//! that uses STL+[GSL](https://github.com/Microsoft/GSL/) types, but this
-//! wrapper doesn't provide non-streaming convenience methods at this time. A
-//! C++ wrapper with XPCOM/MFBT types is planned but does not exist yet.
+//! C++ wrapper can re-create the non-streaming API in C++ for C++ callers.
+//! The C binding comes with a [C++14 wrapper][2] that uses standard library +
+//! [GSL][3] types and that recreates the non-streaming API in C++ on top of
+//! the streaming API. A C++ wrapper with XPCOM/MFBT types is planned but does
+//! not exist yet.
 //!
 //! The `Encoding` type is common to both the streaming and non-streaming
 //! modes. In the streaming mode, decoding operations are performed with a
@@ -212,6 +211,8 @@
 //! and `Encoder` objects are not used at all.
 //!
 //! [1]: https://github.com/hsivonen/encoding_c
+//! [2]: https://github.com/hsivonen/encoding_c/blob/master/include/encoding_rs_cpp.h
+//! [3]: https://github.com/Microsoft/GSL/
 //!
 //! # Memory management
 //!
@@ -2046,7 +2047,7 @@ static ENCODINGS_IN_LABEL_SORT: [&'static Encoding; 218] = [&WINDOWS_1252_INIT,
 /// # Streaming vs. Non-Streaming
 ///
 /// When you have the entire input in a single buffer, you can use the
-/// convenience methods [`decode()`][1], [`decode_with_bom_removal()`][2],
+/// methods [`decode()`][1], [`decode_with_bom_removal()`][2],
 /// [`decode_without_bom_handling()`][3],
 /// [`decode_without_bom_handling_and_without_replacement()`][4] and
 /// [`encode()`][5]. (These methods are available to Rust callers only and are
@@ -2068,7 +2069,7 @@ static ENCODINGS_IN_LABEL_SORT: [&'static Encoding; 218] = [&WINDOWS_1252_INIT,
 /// encoding defined in the Encoding Standard.
 ///
 /// To obtain a reference to a particular encoding whose identity you know at
-/// compile time, use a `static` that refers to enccoding. There is a `static`
+/// compile time, use a `static` that refers to encoding. There is a `static`
 /// for each encoding. The `static`s are named in all caps with hyphens
 /// replaced with underscores (and in C/C++ have `_ENCODING` appended to the
 /// name). For example, if you know at compile time that you will want to
@@ -2907,7 +2908,7 @@ pub enum DecoderResult {
 /// Therefore, if you wish to decode into an `&mut str`, you should use the
 /// methods that take an `&mut str` argument instead of the ones that take an
 /// `&mut [u8]` argument. The former take care of overwriting the trailing
-/// garbage to ensure the UTF-8 validitiy of the `&mut str` as a whole, but the
+/// garbage to ensure the UTF-8 validity of the `&mut str` as a whole, but the
 /// latter don't.
 ///
 /// In the case of the `*_without_replacement` variants, the status is a
