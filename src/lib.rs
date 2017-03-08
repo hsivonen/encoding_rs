@@ -2624,32 +2624,25 @@ impl Encoding {
         if output_encoding == UTF_8 {
             return (Cow::Borrowed(string.as_bytes()), output_encoding, false);
         }
-        let (mut encoder, mut vec, mut total_read) = if self.is_potentially_borrowable() {
-            let bytes = string.as_bytes();
-            let valid_up_to = if self == ISO_2022_JP {
-                iso_2022_jp_ascii_valid_up_to(bytes)
-            } else {
-                ascii_valid_up_to(bytes)
-            };
-            if valid_up_to == bytes.len() {
-                return (Cow::Borrowed(bytes), output_encoding, false);
-            }
-            let encoder = output_encoding.new_encoder();
-            let mut vec: Vec<u8> = Vec::with_capacity((valid_up_to +
-                                                       encoder.max_buffer_length_from_utf8_if_no_unmappables(string.len() - valid_up_to))
-                                                       .next_power_of_two());
-            unsafe {
-                vec.set_len(valid_up_to);
-                std::ptr::copy_nonoverlapping(bytes.as_ptr(), vec.as_mut_ptr(), valid_up_to);
-            }
-            (encoder, vec, valid_up_to)
+        debug_assert!(output_encoding.is_potentially_borrowable());
+        let bytes = string.as_bytes();
+        let valid_up_to = if output_encoding == ISO_2022_JP {
+            iso_2022_jp_ascii_valid_up_to(bytes)
         } else {
-            let encoder = output_encoding.new_encoder();
-            let vec: Vec<u8> =
-            Vec::with_capacity(encoder.max_buffer_length_from_utf8_if_no_unmappables(string.len())
-                                      .next_power_of_two());
-            (encoder, vec, 0usize)
+            ascii_valid_up_to(bytes)
         };
+        if valid_up_to == bytes.len() {
+            return (Cow::Borrowed(bytes), output_encoding, false);
+        }
+        let mut encoder = output_encoding.new_encoder();
+        let mut vec: Vec<u8> = Vec::with_capacity((valid_up_to +
+                                                   encoder.max_buffer_length_from_utf8_if_no_unmappables(string.len() - valid_up_to))
+                                                   .next_power_of_two());
+        unsafe {
+            vec.set_len(valid_up_to);
+            std::ptr::copy_nonoverlapping(bytes.as_ptr(), vec.as_mut_ptr(), valid_up_to);
+        }
+        let mut total_read = valid_up_to;
         let mut total_had_errors = false;
         loop {
             let (result, read, had_errors) = encoder.encode_from_utf8_to_vec(&string[total_read..],
