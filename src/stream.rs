@@ -200,3 +200,32 @@ impl<Stream: WriteUnicode, Buffer: AsMut<[u8]>> Drop for WriteDecoder<Stream, Bu
         let _ = self.stream.write_str(written);
     }
 }
+
+pub struct WriteEncoder<Stream: WriteBytes, Buffer: AsMut<[u8]>> {
+    encoder: Encoder,
+    stream: Stream,
+    buffer: Buffer,
+}
+
+impl<Stream: WriteBytes, Buffer: AsMut<[u8]>> WriteUnicode for WriteEncoder<Stream, Buffer> {
+    fn write_str(&mut self, mut src: &str) -> fmt::Result {
+        let buffer = self.buffer.as_mut();
+        while !src.is_empty() {
+            let (_, bytes_read, bytes_written, _) = self.encoder.encode_from_utf8(src, buffer, false);
+            src = &src[bytes_read..];
+            let written = &buffer[..bytes_written];
+            self.stream.write_all(written).map_err(|_| fmt::Error)?;
+        }
+        Ok(())
+    }
+}
+
+impl<Stream: WriteBytes, Buffer: AsMut<[u8]>> Drop for WriteEncoder<Stream, Buffer> {
+    fn drop(&mut self) {
+        let buffer = self.buffer.as_mut();
+        let (_, _, bytes_written, _) = self.encoder.encode_from_utf8("", buffer, true);
+        let written = &buffer[..bytes_written];
+        // Ignore errors in Drop:
+        let _ = self.stream.write_all(written);
+    }
+}
