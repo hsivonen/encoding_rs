@@ -7,6 +7,7 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
+use std::fmt;
 use std::io;
 use std::mem;
 use std::ops::Range;
@@ -156,5 +157,46 @@ impl<Stream: ReadUnicode, Buffer: AsMut<str>> ReadBytes for ReadEncoder<Stream, 
         } else {
             Ok(0)
         }
+    }
+}
+
+pub struct WriteDecoder<Stream: WriteUnicode, Buffer: AsMut<[u8]>> {
+    decoder: Decoder,
+    stream: Stream,
+    buffer: Buffer,
+}
+
+impl<Stream: WriteUnicode, Buffer: AsMut<[u8]>> WriteBytes for WriteDecoder<Stream, Buffer> {
+    fn write(&mut self, mut src: &[u8]) -> io::Result<usize> {
+        let buffer = self.buffer.as_mut();
+        let mut written_total = 0;
+        while !src.is_empty() {
+            let (_, bytes_read, bytes_written, _) = self.decoder.decode_to_utf8(src, buffer, false);
+            src = &src[bytes_read..];
+            let written = &buffer[..bytes_written];
+            // Unsafe: Decoder::decode_to_utf8 promises that `written` is well-formed UTF-8.
+            let written = unsafe { str::from_utf8_unchecked(written) };
+            self.stream.write_str(written).map_err(|fmt::Error| {
+                io::Error::new(io::ErrorKind::Other, "std::fmt::Error")
+            })?;
+            written_total += bytes_written
+        }
+        Ok(written_total)
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        Ok(())
+    }
+}
+
+impl<Stream: WriteUnicode, Buffer: AsMut<[u8]>> Drop for WriteDecoder<Stream, Buffer> {
+    fn drop(&mut self) {
+        let buffer = self.buffer.as_mut();
+        let (_, _, bytes_written, _) = self.decoder.decode_to_utf8(b"", buffer, true);
+        let written = &buffer[..bytes_written];
+        // Unsafe: Decoder::decode_to_utf8 promises that `written` is well-formed UTF-8.
+        let written = unsafe { str::from_utf8_unchecked(written) };
+        // Ignore errors in Drop:
+        let _ = self.stream.write_str(written);
     }
 }
