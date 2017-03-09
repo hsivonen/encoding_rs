@@ -11,7 +11,7 @@ use std::io;
 use std::mem;
 use std::ops::Range;
 use std::str;
-use super::Decoder;
+use super::{Decoder, Encoder};
 
 pub use std::io::Write as WriteBytes;
 pub use std::io::Read as ReadBytes;
@@ -110,9 +110,45 @@ impl<Stream: ReadBytes, Buffer: AsMut<[u8]>> ReadBytes for ReadDecoder<Stream, B
             if bytes_in_buffer == 0 {
                 self.reached_stream_eof = true;
                 let (_, _, written, _) = self.decoder.decode_to_utf8(b"", dst, true);
+                // FIXME: deal with CoderResult::OutputFull here
                 Ok(written)
             } else {
                 let (_, bytes_read, bytes_written, _) = self.decoder.decode_to_utf8(
+                    &buffer[..bytes_in_buffer], dst, false);
+                self.unused_buffer_slice = bytes_read..bytes_in_buffer;
+                Ok(bytes_written)
+            }
+        } else {
+            Ok(0)
+        }
+    }
+}
+
+pub struct ReadEncoder<Stream: ReadUnicode, Buffer: AsMut<str>> {
+    encoder: Encoder,
+    stream: Stream,
+    reached_stream_eof: bool,
+    buffer: Buffer,
+    unused_buffer_slice: Range<usize>,
+}
+
+impl<Stream: ReadUnicode, Buffer: AsMut<str>> ReadBytes for ReadEncoder<Stream, Buffer> {
+    fn read(&mut self, dst: &mut [u8]) -> io::Result<usize> {
+        let buffer = self.buffer.as_mut();
+        if self.unused_buffer_slice.end > self.unused_buffer_slice.start {
+            let buffer_slice = &buffer[self.unused_buffer_slice.clone()];
+            let bytes_copied = ReadBytes::read(&mut buffer_slice.as_bytes(), dst)?;
+            self.unused_buffer_slice.start += bytes_copied;
+            Ok(bytes_copied)
+        } else if !self.reached_stream_eof {
+            let bytes_in_buffer = ReadUnicode::read(&mut self.stream, buffer)?;
+            if bytes_in_buffer == 0 {
+                self.reached_stream_eof = true;
+                let (_, _, written, _) = self.encoder.encode_from_utf8("", dst, true);
+                // FIXME: deal with CoderResult::OutputFull here
+                Ok(written)
+            } else {
+                let (_, bytes_read, bytes_written, _) = self.encoder.encode_from_utf8(
                     &buffer[..bytes_in_buffer], dst, false);
                 self.unused_buffer_slice = bytes_read..bytes_in_buffer;
                 Ok(bytes_written)
