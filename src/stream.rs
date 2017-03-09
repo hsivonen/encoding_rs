@@ -40,7 +40,7 @@ impl<'a> ReadUnicode for &'a str {
             }
             i
         };
-        let buf_bytes: &mut [u8] = unsafe { mem::transmute(buf) };
+        let buf_bytes = unsafe { mem::transmute::<&mut str, &mut [u8]>(buf) };
         let (to_copy_from, remaining_self) = self.split_at(bytes_to_copy);
         let (to_copy_into, remaining_buf) = buf_bytes.split_at_mut(bytes_to_copy);
         to_copy_into.copy_from_slice(to_copy_from.as_bytes());
@@ -80,10 +80,22 @@ impl<Stream: ReadBytes, Buffer: AsMut<[u8]>> ReadDecoder<Stream, Buffer> {
 
 impl<Stream: ReadBytes, Buffer: AsMut<[u8]>> ReadUnicode for ReadDecoder<Stream, Buffer> {
     fn read(&mut self, dst: &mut str) -> io::Result<usize> {
+        let dst = unsafe { mem::transmute::<&mut str, &mut [u8]>(dst) };
+        ReadBytes::read(self, dst)
+    }
+}
+
+impl<Stream: ReadBytes, Buffer: AsMut<[u8]>> ReadBytes for ReadDecoder<Stream, Buffer> {
+    fn read(&mut self, dst: &mut [u8]) -> io::Result<usize> {
         let buffer = self.buffer.as_mut();
         if self.unused_buffer_slice.end > self.unused_buffer_slice.start {
             let buffer_slice = &buffer[self.unused_buffer_slice.clone()];
             let mut buffer_slice = unsafe { str::from_utf8_unchecked(buffer_slice) };
+
+            // This transmute is a lie: `dst` might not be UTF-8 at all.
+            // But we know that `<&str as ReadUnicode>::read` doesn’t rely on it being UTF-8.
+            let dst = unsafe { mem::transmute::<&mut [u8], &mut str>(dst) };
+
             let bytes_copied = ReadUnicode::read(&mut buffer_slice, dst)?;
             self.unused_buffer_slice.start += bytes_copied;
             Ok(bytes_copied)
@@ -91,10 +103,10 @@ impl<Stream: ReadBytes, Buffer: AsMut<[u8]>> ReadUnicode for ReadDecoder<Stream,
             let bytes_in_buffer = ReadBytes::read(&mut self.stream, buffer)?;
             if bytes_in_buffer == 0 {
                 self.reached_stream_eof = true;
-                let (_, _, written, _) = self.decoder.decode_to_str(b"", dst, true);
+                let (_, _, written, _) = self.decoder.decode_to_utf8(b"", dst, true);
                 Ok(written)
             } else {
-                let (_, bytes_read, bytes_written, _) = self.decoder.decode_to_str(
+                let (_, bytes_read, bytes_written, _) = self.decoder.decode_to_utf8(
                     &buffer[..bytes_in_buffer], dst, false);
                 self.unused_buffer_slice = bytes_read..bytes_in_buffer;
                 Ok(bytes_written)
