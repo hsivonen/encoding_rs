@@ -22,6 +22,50 @@ pub trait ReadUnicode {
     fn read(&mut self, dst: &mut str) -> io::Result<usize>;
 }
 
+impl Decoder {
+    pub fn wrap_read<S, B>(self, stream: S, buffer: B) -> ReadDecoder<S, B>
+    where S: ReadBytes, B: AsMut<[u8]> {
+        ReadDecoder {
+            decoder: self,
+            stream: stream,
+            reached_stream_eof: false,
+            buffer: buffer,
+            unused_buffer_slice: 0..0,
+        }
+    }
+
+    pub fn wrap_write<S, B>(self, stream: S, buffer: B) -> WriteDecoder<S, B>
+    where S: WriteUnicode, B: AsMut<[u8]> {
+        WriteDecoder {
+            decoder: self,
+            stream: stream,
+            buffer: buffer,
+        }
+    }
+}
+
+impl Encoder {
+    pub fn wrap_read<S, B>(self, stream: S, buffer: B) -> ReadEncoder<S, B>
+    where S: ReadUnicode, B: AsMut<str> {
+        ReadEncoder {
+            encoder: self,
+            stream: stream,
+            reached_stream_eof: false,
+            buffer: buffer,
+            unused_buffer_slice: 0..0,
+        }
+    }
+
+    pub fn wrap_write<S, B>(self, stream: S, buffer: B) -> WriteEncoder<S, B>
+    where S: WriteBytes, B: AsMut<[u8]> {
+        WriteEncoder {
+            encoder: self,
+            stream: stream,
+            buffer: buffer,
+        }
+    }
+}
+
 impl<'a, S: ReadUnicode> ReadUnicode for &'a mut S {
     fn read(&mut self, dst: &mut str) -> io::Result<usize> {
         (**self).read(dst)
@@ -72,18 +116,6 @@ pub struct ReadDecoder<Stream: ReadBytes, Buffer: AsMut<[u8]>> {
     reached_stream_eof: bool,
     buffer: Buffer,
     unused_buffer_slice: Range<usize>,
-}
-
-impl<Stream: ReadBytes, Buffer: AsMut<[u8]>> ReadDecoder<Stream, Buffer> {
-    pub fn new(decoder: Decoder, stream: Stream, buffer: Buffer) -> Self {
-        ReadDecoder {
-            decoder: decoder,
-            stream: stream,
-            reached_stream_eof: false,
-            buffer: buffer,
-            unused_buffer_slice: 0..0,
-        }
-    }
 }
 
 impl<Stream: ReadBytes, Buffer: AsMut<[u8]>> ReadUnicode for ReadDecoder<Stream, Buffer> {
