@@ -2246,7 +2246,7 @@ impl Encoding {
     /// three bytes of the input stream (streaming case).
     ///
     /// Returns `Some((UTF_8, 3))`, `Some((UTF_16LE, 2))` or
-    /// `Some((UTF_16BE, 3))` if the argument starts with the UTF-8, UTF-16LE
+    /// `Some((UTF_16BE, 2))` if the argument starts with the UTF-8, UTF-16LE
     /// or UTF-16BE BOM or `None` otherwise.
     ///
     /// Available via the C wrapper.
@@ -2961,7 +2961,7 @@ pub enum DecoderResult {
 /// pass the unconsumed contents of `src` to `decode_*` again upon the next
 /// call.
 ///
-/// [1]: enum.DecoderResult.html 
+/// [1]: enum.DecoderResult.html
 /// [2]: #method.max_utf8_buffer_length_without_replacement
 /// [3]: #method.max_utf8_buffer_length
 /// [4]: #method.max_utf16_buffer_length
