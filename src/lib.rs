@@ -3308,7 +3308,6 @@ impl Decoder {
                             decode_to_utf16_after_two_potential_bom_bytes,
                             decode_to_utf16_checking_end_with_offset,
                             u16);
-
 }
 
 /// Result of a (potentially partial) encode operation without replacement.
@@ -3710,7 +3709,6 @@ impl Encoder {
                                                  -> (EncoderResult, usize, usize) {
         self.variant.encode_from_utf16_raw(src, dst, last)
     }
-
 }
 
 /// Format an unmappable as NCR without heap allocation.

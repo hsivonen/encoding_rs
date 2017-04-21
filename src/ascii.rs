@@ -135,13 +135,13 @@ macro_rules! basic_latin_alu {
     #[inline(always)]
     pub unsafe fn $name(src: *const $src_unit, dst: *mut $dst_unit, len: usize) -> Option<($src_unit, usize)> {
         let mut offset = 0usize;
-        // This loop is only broken out of as a `goto` forward
+// This loop is only broken out of as a `goto` forward
         loop {
            let mut until_alignment = {
-               // Check if the other unit aligns if we move the narrower unit
-               // to alignment.
+// Check if the other unit aligns if we move the narrower unit
+// to alignment.
                if ::std::mem::size_of::<$src_unit>() == ::std::mem::size_of::<$dst_unit>() {
-                   // ascii_to_ascii
+// ascii_to_ascii
                    let src_alignment = (src as usize) & ALIGNMENT_MASK;
                    let dst_alignment = (dst as usize) & ALIGNMENT_MASK;
                    if src_alignment != dst_alignment {
@@ -149,14 +149,14 @@ macro_rules! basic_latin_alu {
                    }
                    (ALIGNMENT - src_alignment) & ALIGNMENT_MASK
                } else if ::std::mem::size_of::<$src_unit>() < ::std::mem::size_of::<$dst_unit>() {
-                   // ascii_to_basic_latin
+// ascii_to_basic_latin
                    let src_until_alignment = (ALIGNMENT - ((src as usize) & ALIGNMENT_MASK)) & ALIGNMENT_MASK;
                    if (dst.offset(src_until_alignment as isize) as usize) & ALIGNMENT_MASK != 0 {
                        break;
                    }
                    src_until_alignment
                } else {
-                   // basic_latin_to_ascii
+// basic_latin_to_ascii
                    let dst_until_alignment = (ALIGNMENT - ((dst as usize) & ALIGNMENT_MASK)) & ALIGNMENT_MASK;
                    if (src.offset(dst_until_alignment as isize) as usize) & ALIGNMENT_MASK != 0 {
                        break;
@@ -165,14 +165,14 @@ macro_rules! basic_latin_alu {
                }
            };
            if until_alignment + STRIDE_SIZE <= len {
-               // Moving pointers to alignment seems to be a pessimization on
-               // x86_64 for operations that have UTF-16 as the internal
-               // Unicode representation. However, since it seems to be a win
-               // on ARM (tested ARMv7 code running on ARMv8 [rpi3]), except
-               // mixed results when encoding from UTF-16 and since x86 and
-               // x86_64 should be using SSE2 in due course, keeping the move
-               // to alignment here. It would be good to test on more ARM CPUs
-               // and on real MIPS and POWER hardware.
+// Moving pointers to alignment seems to be a pessimization on
+// x86_64 for operations that have UTF-16 as the internal
+// Unicode representation. However, since it seems to be a win
+// on ARM (tested ARMv7 code running on ARMv8 [rpi3]), except
+// mixed results when encoding from UTF-16 and since x86 and
+// x86_64 should be using SSE2 in due course, keeping the move
+// to alignment here. It would be good to test on more ARM CPUs
+// and on real MIPS and POWER hardware.
                while until_alignment != 0 {
                    let code_unit = *(src.offset(offset as isize));
                    if code_unit > 127 {
@@ -519,22 +519,22 @@ cfg_if! {
             if (word & ASCII_MASK) | (second_word & ASCII_MASK) != 0 {
                 return false;
             }
-            let first = ((0x00000000_FF000000usize & word) << 24) |
-                        ((0x00000000_00FF0000usize & word) << 16) |
-                        ((0x00000000_0000FF00usize & word) << 8) |
-                        (0x00000000_000000FFusize & word);
-            let second = ((0xFF000000_00000000usize & word) >> 8) |
+            let first = ((0xFF000000_00000000usize & word) >> 8) |
                          ((0x00FF0000_00000000usize & word) >> 16) |
                          ((0x0000FF00_00000000usize & word) >> 24) |
                          ((0x000000FF_00000000usize & word) >> 32);
-            let third = ((0x00000000_FF000000usize & second_word) << 24) |
-                        ((0x00000000_00FF0000usize & second_word) << 16) |
-                        ((0x00000000_0000FF00usize & second_word) << 8) |
-                        (0x00000000_000000FFusize & second_word);
-            let fourth = ((0xFF000000_00000000usize & second_word) >> 8) |
+            let second = ((0x00000000_FF000000usize & word) << 24) |
+                        ((0x00000000_00FF0000usize & word) << 16) |
+                        ((0x00000000_0000FF00usize & word) << 8) |
+                        (0x00000000_000000FFusize & word);
+            let third = ((0xFF000000_00000000usize & second_word) >> 8) |
                          ((0x00FF0000_00000000usize & second_word) >> 16) |
                          ((0x0000FF00_00000000usize & second_word) >> 24) |
                          ((0x000000FF_00000000usize & second_word) >> 32);
+            let fourth = ((0x00000000_FF000000usize & second_word) << 24) |
+                        ((0x00000000_00FF0000usize & second_word) << 16) |
+                        ((0x00000000_0000FF00usize & second_word) << 8) |
+                        (0x00000000_000000FFusize & second_word);
             *dst = first;
             *(dst.offset(1)) = second;
             *(dst.offset(2)) = third;
@@ -551,22 +551,22 @@ cfg_if! {
             if (first & BASIC_LATIN_MASK) | (second & BASIC_LATIN_MASK) | (third & BASIC_LATIN_MASK) | (fourth & BASIC_LATIN_MASK) != 0 {
                 return false;
             }
-            let word = ((0x00FF0000_00000000usize & second) << 8) |
-                       ((0x000000FF_00000000usize & second) << 16) |
-                       ((0x00000000_00FF0000usize & second) << 24) |
-                       ((0x00000000_000000FFusize & second) << 32) |
-                       ((0x00FF0000_00000000usize & first) >> 24) |
-                       ((0x000000FF_00000000usize & first) >> 16) |
-                       ((0x00000000_00FF0000usize & first) >> 8) |
-                       (0x00000000_000000FFusize & first);
-            let second_word = ((0x00FF0000_00000000usize & fourth) << 8) |
-                              ((0x000000FF_00000000usize & fourth) << 16) |
-                              ((0x00000000_00FF0000usize & fourth) << 24) |
-                              ((0x00000000_000000FFusize & fourth) << 32) |
-                              ((0x00FF0000_00000000usize & third) >> 24) |
-                              ((0x000000FF_00000000usize & third) >> 16) |
-                              ((0x00000000_00FF0000usize & third) >> 8) |
-                              (0x00000000_000000FFusize &  third);
+            let word = ((0x00FF0000_00000000usize & first) << 8) |
+                       ((0x000000FF_00000000usize & first) << 16) |
+                       ((0x00000000_00FF0000usize & first) << 24) |
+                       ((0x00000000_000000FFusize & first) << 32) |
+                       ((0x00FF0000_00000000usize & second) >> 24) |
+                       ((0x000000FF_00000000usize & second) >> 16) |
+                       ((0x00000000_00FF0000usize & second) >> 8) |
+                       (0x00000000_000000FFusize & second);
+            let second_word = ((0x00FF0000_00000000usize & third) << 8) |
+                              ((0x000000FF_00000000usize & third) << 16) |
+                              ((0x00000000_00FF0000usize & third) << 24) |
+                              ((0x00000000_000000FFusize & third) << 32) |
+                              ((0x00FF0000_00000000usize & fourth) >> 24) |
+                              ((0x000000FF_00000000usize & fourth) >> 16) |
+                              ((0x00000000_00FF0000usize & fourth) >> 8) |
+                              (0x00000000_000000FFusize &  fourth);
             *dst = word;
             *(dst.offset(1)) = second_word;
             return true;
@@ -591,14 +591,14 @@ cfg_if! {
             if (word & ASCII_MASK) | (second_word & ASCII_MASK) != 0 {
                 return false;
             }
-            let first = ((0x0000FF00usize & word) << 8) |
-                        (0x000000FFusize & word);
-            let second = ((0xFF000000usize & word) >> 8) |
+            let first = ((0xFF000000usize & word) >> 8) |
                          ((0x00FF0000usize & word) >> 16);
-            let third = ((0x0000FF00usize & second_word) << 8) |
-                        (0x000000FFusize & second_word);
-            let fourth = ((0xFF000000usize & second_word) >> 8) |
+            let second = ((0x0000FF00usize & word) << 8) |
+                        (0x000000FFusize & word);
+            let third = ((0xFF000000usize & second_word) >> 8) |
                          ((0x00FF0000usize & second_word) >> 16);
+            let fourth = ((0x0000FF00usize & second_word) << 8) |
+                        (0x000000FFusize & second_word);
             *dst = first;
             *(dst.offset(1)) = second;
             *(dst.offset(2)) = third;
@@ -615,14 +615,14 @@ cfg_if! {
             if (first & BASIC_LATIN_MASK) | (second & BASIC_LATIN_MASK) | (third & BASIC_LATIN_MASK) | (fourth & BASIC_LATIN_MASK) != 0 {
                 return false;
             }
-            let word = ((0x00FF0000usize & second) << 8) |
-                       ((0x000000FFusize & second) << 16) |
-                       ((0x00FF0000usize & first) >> 8) |
-                       (0x000000FFusize & first);
-            let second_word = ((0x00FF0000usize & fourth) << 8) |
-                              ((0x000000FFusize & fourth) << 16) |
-                              ((0x00FF0000usize & third) >> 8) |
-                              (0x000000FFusize & third);
+            let word = ((0x00FF0000usize & first) << 8) |
+                       ((0x000000FFusize & first) << 16) |
+                       ((0x00FF0000usize & second) >> 8) |
+                       (0x000000FFusize & second);
+            let second_word = ((0x00FF0000usize & third) << 8) |
+                              ((0x000000FFusize & third) << 16) |
+                              ((0x00FF0000usize & second) >> 8) |
+                              (0x000000FFusize & second);
             *dst = word;
             *(dst.offset(1)) = second_word;
             return true;
@@ -634,6 +634,21 @@ cfg_if! {
         ascii_naive!(ascii_to_ascii, u8, u8);
         ascii_naive!(ascii_to_basic_latin, u8, u16);
         ascii_naive!(basic_latin_to_ascii, u16, u8);
+    }
+}
+
+cfg_if! {
+    if #[cfg(all(feature = "simd-accel", target_feature = "sse2"))] {
+    } else if #[cfg(target_endian = "little")] {
+        #[inline(always)]
+        fn count_zeros(word: usize) -> u32 {
+            word.trailing_zeros()
+        }
+    } else {
+        #[inline(always)]
+        fn count_zeros(word: usize) -> u32 {
+            word.leading_zeros()
+        }
     }
 }
 
@@ -722,18 +737,20 @@ cfg_if! {
                 return None;
             }
             if word_masked != 0 {
-                let trailing = word_masked.trailing_zeros();
-// Trailing now contains 7 (for the seven bits of non-ASCII)
+                let zeros = count_zeros(word_masked);
+// `zeros` now contains 7 (for the seven bits of non-ASCII)
 // plus 8 times the number of ASCII in text order before the
-// non-ASCII byte.
-                let num_ascii = (trailing >> 3) as usize;
+// non-ASCII byte in the little-endian case or 8 times the number of ASCII in
+// text order before the non-ASCII byte in the big-endian case.
+                let num_ascii = (zeros >> 3) as usize;
                 return Some(num_ascii);
             }
-            let trailing = second_masked.trailing_zeros();
-// Trailing now contains 7 (for the seven bits of non-ASCII)
+            let zeros = count_zeros(second_masked);
+// `zeros` now contains 7 (for the seven bits of non-ASCII)
 // plus 8 times the number of ASCII in text order before the
-// non-ASCII byte.
-            let num_ascii = (trailing >> 3) as usize;
+// non-ASCII byte in the little-endian case or 8 times the number of ASCII in
+// text order before the non-ASCII byte in the big-endian case.
+            let num_ascii = (zeros >> 3) as usize;
             return Some(ALIGNMENT + num_ascii);
         }
 
