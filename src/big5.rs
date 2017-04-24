@@ -23,23 +23,22 @@ impl Big5Decoder {
         VariantDecoder::Big5(Big5Decoder { lead: None })
     }
 
-    fn plus_one_if_lead(&self, byte_length: usize) -> usize {
-        byte_length +
-        match self.lead {
+    fn plus_one_if_lead(&self, byte_length: usize) -> Option<usize> {
+        byte_length.checked_add(match self.lead {
             None => 0,
             Some(_) => 1,
-        }
+        })
     }
 
-    pub fn max_utf16_buffer_length(&self, byte_length: usize) -> usize {
+    pub fn max_utf16_buffer_length(&self, byte_length: usize) -> Option<usize> {
         // If there is a lead but the next byte isn't a valid trail, an
         // error is generated for the lead (+1). Then another iteration checks
         // space, which needs +1 to account for the possibility of astral
         // output or combining pair.
-        self.plus_one_if_lead(byte_length) + 1
+        checked_add(1, self.plus_one_if_lead(byte_length))
     }
 
-    pub fn max_utf8_buffer_length_without_replacement(&self, byte_length: usize) -> usize {
+    pub fn max_utf8_buffer_length_without_replacement(&self, byte_length: usize) -> Option<usize> {
         // No need to account for REPLACEMENT CHARACTERS.
         // Cases:
         // ASCII: 1 to 1
@@ -55,16 +54,16 @@ impl Big5Decoder {
         // If lead set and the input is a single trail byte, the worst-case
         // output is 4, so we need to add one before multiplying if lead is
         // set.
-        self.plus_one_if_lead(byte_length) * 2
+        checked_mul(2, self.plus_one_if_lead(byte_length))
     }
 
-    pub fn max_utf8_buffer_length(&self, byte_length: usize) -> usize {
+    pub fn max_utf8_buffer_length(&self, byte_length: usize) -> Option<usize> {
         // If there is a lead but the next byte isn't a valid trail, an
         // error is generated for the lead (+(1*3)). Then another iteration
         // checks space, which needs +3 to account for the possibility of astral
         // output or combining pair. In between start and end, the worst case
         // is that every byte is bad: *3.
-        3 * self.plus_one_if_lead(byte_length) + 3
+        checked_add(3, checked_mul(3, self.plus_one_if_lead(byte_length)))
     }
 
     ascii_compatible_two_byte_decoder_functions!({
@@ -164,19 +163,23 @@ impl Big5Encoder {
         Encoder::new(encoding, VariantEncoder::Big5(Big5Encoder))
     }
 
-    pub fn max_buffer_length_from_utf16_without_replacement(&self, u16_length: usize) -> usize {
+    pub fn max_buffer_length_from_utf16_without_replacement(&self,
+                                                            u16_length: usize)
+                                                            -> Option<usize> {
         // Astral: 2 to 2
         // ASCII: 1 to 1
         // Other: 1 to 2
-        2 * u16_length
+        u16_length.checked_mul(2)
     }
 
-    pub fn max_buffer_length_from_utf8_without_replacement(&self, byte_length: usize) -> usize {
+    pub fn max_buffer_length_from_utf8_without_replacement(&self,
+                                                           byte_length: usize)
+                                                           -> Option<usize> {
         // Astral: 4 to 2
         // Upper BMP: 3 to 2
         // Lower BMP: 2 to 2
         // ASCII: 1 to 1
-        byte_length
+        Some(byte_length)
     }
 
     ascii_compatible_encoder_functions!({

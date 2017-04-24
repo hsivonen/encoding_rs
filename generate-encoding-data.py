@@ -1445,11 +1445,11 @@ def write_variant_method(name, mut, arg_list, ret, variants, excludes, kind):
     variant_file.write('''),\n''')
   variant_file.write('''}\n}\n\n''')
 
-write_variant_method("max_utf16_buffer_length", False, [("byte_length", "usize")], "usize", decoder_variants, [], "Decoder")
+write_variant_method("max_utf16_buffer_length", False, [("byte_length", "usize")], "Option<usize>", decoder_variants, [], "Decoder")
 
-write_variant_method("max_utf8_buffer_length_without_replacement", False, [("byte_length", "usize")], "usize", decoder_variants, [], "Decoder")
+write_variant_method("max_utf8_buffer_length_without_replacement", False, [("byte_length", "usize")], "Option<usize>", decoder_variants, [], "Decoder")
 
-write_variant_method("max_utf8_buffer_length", False, [("byte_length", "usize")], "usize", decoder_variants, [], "Decoder")
+write_variant_method("max_utf8_buffer_length", False, [("byte_length", "usize")], "Option<usize>", decoder_variants, [], "Decoder")
 
 write_variant_method("decode_to_utf16_raw", True, [("src", "&[u8]"),
                            ("dst", "&mut [u16]"),
@@ -1473,9 +1473,9 @@ variant_file.write('''}
 impl VariantEncoder {
 ''')
 
-write_variant_method("max_buffer_length_from_utf16_without_replacement", False, [("u16_length", "usize")], "usize", encoder_variants, [], "Encoder")
+write_variant_method("max_buffer_length_from_utf16_without_replacement", False, [("u16_length", "usize")], "Option<usize>", encoder_variants, [], "Encoder")
 
-write_variant_method("max_buffer_length_from_utf8_without_replacement", False, [("byte_length", "usize")], "usize", encoder_variants, [], "Encoder")
+write_variant_method("max_buffer_length_from_utf8_without_replacement", False, [("byte_length", "usize")], "Option<usize>", encoder_variants, [], "Encoder")
 
 write_variant_method("encode_from_utf16_raw", True, [("src", "&[u16]"),
                            ("dst", "&mut [u8]"),

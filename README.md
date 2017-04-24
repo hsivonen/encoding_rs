@@ -98,6 +98,8 @@ encoding_rs is
 
 ### 0.6.0
 
+* Make the methods for computing worst-case buffer size requirements check
+  for integer overflow.
 * Upgrade rayon to 0.7.0.
 
 ### 0.5.1

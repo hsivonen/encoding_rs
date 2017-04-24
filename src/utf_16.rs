@@ -28,16 +28,18 @@ impl Utf16Decoder {
         })
     }
 
-    pub fn max_utf16_buffer_length(&self, byte_length: usize) -> usize {
-        ((byte_length + 1) / 2) + 1
+    pub fn max_utf16_buffer_length(&self, byte_length: usize) -> Option<usize> {
+        checked_add(1, checked_div(byte_length.checked_add(1), 2))
     }
 
-    pub fn max_utf8_buffer_length_without_replacement(&self, byte_length: usize) -> usize {
-        ((byte_length + 1 / 2) * 3) + 1
+    pub fn max_utf8_buffer_length_without_replacement(&self, byte_length: usize) -> Option<usize> {
+        checked_add(1,
+                    checked_mul(3, checked_div(byte_length.checked_add(1), 2)))
     }
 
-    pub fn max_utf8_buffer_length(&self, byte_length: usize) -> usize {
-        ((byte_length + 1 / 2) * 3) + 1
+    pub fn max_utf8_buffer_length(&self, byte_length: usize) -> Option<usize> {
+        checked_add(1,
+                    checked_mul(3, checked_div(byte_length.checked_add(1), 2)))
     }
 
     decoder_functions!({

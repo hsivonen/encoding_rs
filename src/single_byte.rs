@@ -21,16 +21,16 @@ impl SingleByteDecoder {
         VariantDecoder::SingleByte(SingleByteDecoder { table: data })
     }
 
-    pub fn max_utf16_buffer_length(&self, byte_length: usize) -> usize {
-        byte_length
+    pub fn max_utf16_buffer_length(&self, byte_length: usize) -> Option<usize> {
+        Some(byte_length)
     }
 
-    pub fn max_utf8_buffer_length_without_replacement(&self, byte_length: usize) -> usize {
-        byte_length * 3
+    pub fn max_utf8_buffer_length_without_replacement(&self, byte_length: usize) -> Option<usize> {
+        byte_length.checked_mul(3)
     }
 
-    pub fn max_utf8_buffer_length(&self, byte_length: usize) -> usize {
-        byte_length * 3
+    pub fn max_utf8_buffer_length(&self, byte_length: usize) -> Option<usize> {
+        byte_length.checked_mul(3)
     }
 
     pub fn decode_to_utf8_raw(&mut self,
@@ -226,12 +226,16 @@ impl SingleByteEncoder {
                      VariantEncoder::SingleByte(SingleByteEncoder { table: data }))
     }
 
-    pub fn max_buffer_length_from_utf16_without_replacement(&self, u16_length: usize) -> usize {
-        u16_length
+    pub fn max_buffer_length_from_utf16_without_replacement(&self,
+                                                            u16_length: usize)
+                                                            -> Option<usize> {
+        Some(u16_length)
     }
 
-    pub fn max_buffer_length_from_utf8_without_replacement(&self, byte_length: usize) -> usize {
-        byte_length
+    pub fn max_buffer_length_from_utf8_without_replacement(&self,
+                                                           byte_length: usize)
+                                                           -> Option<usize> {
+        Some(byte_length)
     }
 
     fn encode_u16(&self, code_unit: u16) -> Option<u8> {

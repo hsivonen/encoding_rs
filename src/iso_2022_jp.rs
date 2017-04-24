@@ -44,13 +44,12 @@ impl Iso2022JpDecoder {
         })
     }
 
-    fn plus_one_if_lead(&self, byte_length: usize) -> usize {
-        byte_length +
-        if self.lead == 0 || self.pending_prepended {
+    fn plus_one_if_lead(&self, byte_length: usize) -> Option<usize> {
+        byte_length.checked_add(if self.lead == 0 || self.pending_prepended {
             0
         } else {
             1
-        }
+        })
     }
 
     fn one_if_pending_prepended(&self) -> usize {
@@ -61,18 +60,22 @@ impl Iso2022JpDecoder {
         }
     }
 
-    pub fn max_utf16_buffer_length(&self, byte_length: usize) -> usize {
-        self.plus_one_if_lead(byte_length) + self.one_if_pending_prepended()
+    pub fn max_utf16_buffer_length(&self, byte_length: usize) -> Option<usize> {
+        checked_add(self.one_if_pending_prepended(),
+                    self.plus_one_if_lead(byte_length))
     }
 
-    pub fn max_utf8_buffer_length_without_replacement(&self, byte_length: usize) -> usize {
+    pub fn max_utf8_buffer_length_without_replacement(&self, byte_length: usize) -> Option<usize> {
         // worst case: 2 to 3
         let len = self.plus_one_if_lead(byte_length);
-        self.one_if_pending_prepended() * 3 + len + (len + 1) / 2
+        checked_add_opt(checked_add(self.one_if_pending_prepended() * 3, len),
+                        checked_div(checked_add(1, len), 2))
     }
 
-    pub fn max_utf8_buffer_length(&self, byte_length: usize) -> usize {
-        (self.one_if_pending_prepended() + self.plus_one_if_lead(byte_length)) * 3
+    pub fn max_utf8_buffer_length(&self, byte_length: usize) -> Option<usize> {
+        checked_mul(3,
+                    checked_add(self.one_if_pending_prepended(),
+                                self.plus_one_if_lead(byte_length)))
     }
 
     decoder_functions!({
@@ -397,7 +400,9 @@ impl Iso2022JpEncoder {
                      }))
     }
 
-    pub fn max_buffer_length_from_utf16_without_replacement(&self, u16_length: usize) -> usize {
+    pub fn max_buffer_length_from_utf16_without_replacement(&self,
+                                                            u16_length: usize)
+                                                            -> Option<usize> {
         // Worst case: every other character is ASCII/Roman and every other
         // JIS0208.
         // Two UTF-16 input units:
@@ -406,10 +411,13 @@ impl Iso2022JpEncoder {
         // Transition to JIS0208: 3
         // JIS0208: 2
         // End transition: 3
-        (u16_length * 4) + ((u16_length + 1) / 2) + 3
+        checked_add_opt(checked_add(3, u16_length.checked_mul(4)),
+                        checked_div(u16_length.checked_add(1), 2))
     }
 
-    pub fn max_buffer_length_from_utf8_without_replacement(&self, byte_length: usize) -> usize {
+    pub fn max_buffer_length_from_utf8_without_replacement(&self,
+                                                           byte_length: usize)
+                                                           -> Option<usize> {
         // Worst case: every other character is ASCII/Roman and every other
         // JIS0208.
         // Three UTF-8 input units: 1 ASCII, 2 JIS0208
@@ -418,7 +426,7 @@ impl Iso2022JpEncoder {
         // Transition to JIS0208: 3
         // JIS0208: 2
         // End transition: 3
-        (byte_length * 3) + 3
+        checked_add(3, byte_length.checked_mul(3))
     }
 
     encoder_functions!({

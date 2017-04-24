@@ -59,43 +59,43 @@ impl Gb18030Decoder {
         })
     }
 
-    fn extra_from_state(&self, byte_length: usize) -> usize {
-        byte_length + self.pending.count() +
-        match self.first {
+    fn extra_from_state(&self, byte_length: usize) -> Option<usize> {
+        byte_length.checked_add(self.pending.count() +
+                                match self.first {
             None => 0,
             Some(_) => 1,
         } +
-        match self.second {
+                                match self.second {
             None => 0,
             Some(_) => 1,
         } +
-        match self.third {
+                                match self.third {
             None => 0,
             Some(_) => 1,
         } +
-        match self.pending_ascii {
+                                match self.pending_ascii {
             None => 0,
             Some(_) => 1,
-        }
+        })
     }
 
-    pub fn max_utf16_buffer_length(&self, byte_length: usize) -> usize {
+    pub fn max_utf16_buffer_length(&self, byte_length: usize) -> Option<usize> {
         // ASCII: 1 to 1 (worst case)
         // gbk: 2 to 1
         // ranges: 4 to 1 or 4 to 2
-        self.extra_from_state(byte_length) + 1
+        checked_add(1, self.extra_from_state(byte_length))
     }
 
-    pub fn max_utf8_buffer_length_without_replacement(&self, byte_length: usize) -> usize {
+    pub fn max_utf8_buffer_length_without_replacement(&self, byte_length: usize) -> Option<usize> {
         // ASCII: 1 to 1
         // gbk: 2 to 2 or 2 to 3
         // ranges: 4 to 2, 4 to 3 or 4 to 4
         // 0x80: 1 to 3 (worst case)
-        (self.extra_from_state(byte_length) * 3) + 1
+        checked_add(1, checked_mul(3, self.extra_from_state(byte_length)))
     }
 
-    pub fn max_utf8_buffer_length(&self, byte_length: usize) -> usize {
-        (self.extra_from_state(byte_length) * 3) + 1
+    pub fn max_utf8_buffer_length(&self, byte_length: usize) -> Option<usize> {
+        checked_add(1, checked_mul(3, self.extra_from_state(byte_length)))
     }
 
     gb18030_decoder_functions!({
@@ -411,15 +411,19 @@ impl Gb18030Encoder {
                      VariantEncoder::Gb18030(Gb18030Encoder { extended: extended_range }))
     }
 
-    pub fn max_buffer_length_from_utf16_without_replacement(&self, u16_length: usize) -> usize {
+    pub fn max_buffer_length_from_utf16_without_replacement(&self,
+                                                            u16_length: usize)
+                                                            -> Option<usize> {
         if self.extended {
-            u16_length * 4
+            u16_length.checked_mul(4)
         } else {
-            u16_length * 2
+            u16_length.checked_mul(2)
         }
     }
 
-    pub fn max_buffer_length_from_utf8_without_replacement(&self, byte_length: usize) -> usize {
+    pub fn max_buffer_length_from_utf8_without_replacement(&self,
+                                                           byte_length: usize)
+                                                           -> Option<usize> {
         if self.extended {
             // 1 to 1
             // 2 to 2
@@ -427,12 +431,12 @@ impl Gb18030Encoder {
             // 2 to 4 (worst)
             // 3 to 4
             // 4 to 4
-            byte_length * 2
+            byte_length.checked_mul(2)
         } else {
             // 1 to 1
             // 2 to 2
             // 3 to 2
-            byte_length
+            Some(byte_length)
         }
     }
 

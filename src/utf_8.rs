@@ -428,16 +428,16 @@ impl Utf8Decoder {
         })
     }
 
-    pub fn max_utf16_buffer_length(&self, byte_length: usize) -> usize {
-        byte_length + 1
+    pub fn max_utf16_buffer_length(&self, byte_length: usize) -> Option<usize> {
+        byte_length.checked_add(1)
     }
 
-    pub fn max_utf8_buffer_length_without_replacement(&self, byte_length: usize) -> usize {
-        byte_length + 3
+    pub fn max_utf8_buffer_length_without_replacement(&self, byte_length: usize) -> Option<usize> {
+        byte_length.checked_add(3)
     }
 
-    pub fn max_utf8_buffer_length(&self, byte_length: usize) -> usize {
-        byte_length * 3 + 3
+    pub fn max_utf8_buffer_length(&self, byte_length: usize) -> Option<usize> {
+        checked_add(3, byte_length.checked_mul(3))
     }
 
     decoder_functions!({},
@@ -545,12 +545,16 @@ impl Utf8Encoder {
         Encoder::new(encoding, VariantEncoder::Utf8(Utf8Encoder))
     }
 
-    pub fn max_buffer_length_from_utf16_without_replacement(&self, u16_length: usize) -> usize {
-        3 * u16_length
+    pub fn max_buffer_length_from_utf16_without_replacement(&self,
+                                                            u16_length: usize)
+                                                            -> Option<usize> {
+        u16_length.checked_mul(3)
     }
 
-    pub fn max_buffer_length_from_utf8_without_replacement(&self, byte_length: usize) -> usize {
-        byte_length
+    pub fn max_buffer_length_from_utf8_without_replacement(&self,
+                                                           byte_length: usize)
+                                                           -> Option<usize> {
+        Some(byte_length)
     }
 
     pub fn encode_from_utf16_raw(&mut self,

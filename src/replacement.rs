@@ -19,16 +19,16 @@ impl ReplacementDecoder {
         VariantDecoder::Replacement(ReplacementDecoder { emitted: false })
     }
 
-    pub fn max_utf16_buffer_length(&self, _u16_length: usize) -> usize {
-        1
+    pub fn max_utf16_buffer_length(&self, _u16_length: usize) -> Option<usize> {
+        Some(1)
     }
 
-    pub fn max_utf8_buffer_length_without_replacement(&self, _byte_length: usize) -> usize {
-        3
+    pub fn max_utf8_buffer_length_without_replacement(&self, _byte_length: usize) -> Option<usize> {
+        Some(3)
     }
 
-    pub fn max_utf8_buffer_length(&self, _byte_length: usize) -> usize {
-        3
+    pub fn max_utf8_buffer_length(&self, _byte_length: usize) -> Option<usize> {
+        Some(3)
     }
 
     pub fn decode_to_utf16_raw(&mut self,

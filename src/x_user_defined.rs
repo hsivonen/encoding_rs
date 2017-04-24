@@ -18,16 +18,16 @@ impl UserDefinedDecoder {
         VariantDecoder::UserDefined(UserDefinedDecoder)
     }
 
-    pub fn max_utf16_buffer_length(&self, byte_length: usize) -> usize {
-        byte_length
+    pub fn max_utf16_buffer_length(&self, byte_length: usize) -> Option<usize> {
+        Some(byte_length)
     }
 
-    pub fn max_utf8_buffer_length_without_replacement(&self, byte_length: usize) -> usize {
-        byte_length * 3
+    pub fn max_utf8_buffer_length_without_replacement(&self, byte_length: usize) -> Option<usize> {
+        byte_length.checked_mul(3)
     }
 
-    pub fn max_utf8_buffer_length(&self, byte_length: usize) -> usize {
-        byte_length * 3
+    pub fn max_utf8_buffer_length(&self, byte_length: usize) -> Option<usize> {
+        byte_length.checked_mul(3)
     }
 
     decoder_functions!({},
@@ -59,12 +59,16 @@ impl UserDefinedEncoder {
         Encoder::new(encoding, VariantEncoder::UserDefined(UserDefinedEncoder))
     }
 
-    pub fn max_buffer_length_from_utf16_without_replacement(&self, u16_length: usize) -> usize {
-        u16_length
+    pub fn max_buffer_length_from_utf16_without_replacement(&self,
+                                                            u16_length: usize)
+                                                            -> Option<usize> {
+        Some(u16_length)
     }
 
-    pub fn max_buffer_length_from_utf8_without_replacement(&self, byte_length: usize) -> usize {
-        byte_length
+    pub fn max_buffer_length_from_utf8_without_replacement(&self,
+                                                           byte_length: usize)
+                                                           -> Option<usize> {
+        Some(byte_length)
     }
 
     encoder_functions!({},

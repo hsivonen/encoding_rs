@@ -47,7 +47,7 @@ pub enum VariantDecoder {
 }
 
 impl VariantDecoder {
-    pub fn max_utf16_buffer_length(&self, byte_length: usize) -> usize {
+    pub fn max_utf16_buffer_length(&self, byte_length: usize) -> Option<usize> {
         match self {
             &VariantDecoder::SingleByte(ref v) => v.max_utf16_buffer_length(byte_length),
             &VariantDecoder::Utf8(ref v) => v.max_utf16_buffer_length(byte_length),
@@ -63,7 +63,7 @@ impl VariantDecoder {
         }
     }
 
-    pub fn max_utf8_buffer_length_without_replacement(&self, byte_length: usize) -> usize {
+    pub fn max_utf8_buffer_length_without_replacement(&self, byte_length: usize) -> Option<usize> {
         match self {
             &VariantDecoder::SingleByte(ref v) => {
                 v.max_utf8_buffer_length_without_replacement(byte_length)
@@ -101,7 +101,7 @@ impl VariantDecoder {
         }
     }
 
-    pub fn max_utf8_buffer_length(&self, byte_length: usize) -> usize {
+    pub fn max_utf8_buffer_length(&self, byte_length: usize) -> Option<usize> {
         match self {
             &VariantDecoder::SingleByte(ref v) => v.max_utf8_buffer_length(byte_length),
             &VariantDecoder::Utf8(ref v) => v.max_utf8_buffer_length(byte_length),
@@ -171,7 +171,9 @@ pub enum VariantEncoder {
 }
 
 impl VariantEncoder {
-    pub fn max_buffer_length_from_utf16_without_replacement(&self, u16_length: usize) -> usize {
+    pub fn max_buffer_length_from_utf16_without_replacement(&self,
+                                                            u16_length: usize)
+                                                            -> Option<usize> {
         match self {
             &VariantEncoder::SingleByte(ref v) => {
                 v.max_buffer_length_from_utf16_without_replacement(u16_length)
@@ -203,7 +205,9 @@ impl VariantEncoder {
         }
     }
 
-    pub fn max_buffer_length_from_utf8_without_replacement(&self, byte_length: usize) -> usize {
+    pub fn max_buffer_length_from_utf8_without_replacement(&self,
+                                                           byte_length: usize)
+                                                           -> Option<usize> {
         match self {
             &VariantEncoder::SingleByte(ref v) => {
                 v.max_buffer_length_from_utf8_without_replacement(byte_length)

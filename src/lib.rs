@@ -404,11 +404,8 @@
 //! according to documentation with buffer sizes that stay below integer
 //! overflow, in the absence of internal bugs, encoding_rs does not panic.
 //!
-//! Panics aren't documented beyond this on individual methods.
-//!
-//! The FFI code does not deal with unwinding across the FFI boundary.
-//! Therefore, when using FFI, encoding_rs must be compiled with panics aborting
-//! in order to avoid Undefined Behavior.
+//! Panics arising from API misuse aren't documented beyond this on individual
+//! methods.
 //!
 //! # At-Risk Parts of the API
 //!
@@ -2370,6 +2367,11 @@ impl Encoding {
     /// ISO-2022-JP and the input is entirely in the ASCII state without state
     /// transitions.
     ///
+    /// # Panics
+    ///
+    /// If the size calculation for a heap-allocated backing buffer overflows
+    /// `usize`.
+    ///
     /// Available to Rust only.
     pub fn decode<'a>(&'static self, bytes: &'a [u8]) -> (Cow<'a, str>, &'static Encoding, bool) {
         let (encoding, without_bom) = match Encoding::for_bom(bytes) {
@@ -2406,6 +2408,11 @@ impl Encoding {
     /// ASCII-compatible encoding and the input is ASCII-only, or when decoding
     /// ISO-2022-JP and the input is entirely in the ASCII state without state
     /// transitions.
+    ///
+    /// # Panics
+    ///
+    /// If the size calculation for a heap-allocated backing buffer overflows
+    /// `usize`.
     ///
     /// Available to Rust only.
     pub fn decode_with_bom_removal<'a>(&'static self, bytes: &'a [u8]) -> (Cow<'a, str>, bool) {
@@ -2448,6 +2455,11 @@ impl Encoding {
     /// ISO-2022-JP and the input is entirely in the ASCII state without state
     /// transitions.
     ///
+    /// # Panics
+    ///
+    /// If the size calculation for a heap-allocated backing buffer overflows
+    /// `usize`.
+    ///
     /// Available to Rust only.
     pub fn decode_without_bom_handling<'a>(&'static self, bytes: &'a [u8]) -> (Cow<'a, str>, bool) {
         let (mut decoder, mut string, mut total_read) = if self.is_potentially_borrowable() {
@@ -2465,13 +2477,13 @@ impl Encoding {
             let decoder = self.new_decoder_without_bom_handling();
 
             let rounded_without_replacement =
-                valid_up_to +
-                decoder.max_utf8_buffer_length_without_replacement(bytes.len() - valid_up_to)
-                       .next_power_of_two();
-            let with_replacement = valid_up_to +
-                                   decoder.max_utf8_buffer_length(bytes.len() - valid_up_to);
-            let mut string = String::with_capacity(::std::cmp::min(rounded_without_replacement,
-                                                                   with_replacement));
+                checked_next_power_of_two(checked_add(valid_up_to, decoder.max_utf8_buffer_length_without_replacement(bytes.len() - valid_up_to)));
+            let with_replacement = checked_add(valid_up_to,
+                                               decoder.max_utf8_buffer_length(bytes.len() -
+                                                                              valid_up_to));
+            let mut string = String::with_capacity(checked_min(rounded_without_replacement,
+                                                               with_replacement)
+                                                       .unwrap());
             unsafe {
                 let mut vec = string.as_mut_vec();
                 vec.set_len(valid_up_to);
@@ -2481,11 +2493,11 @@ impl Encoding {
         } else {
             let decoder = self.new_decoder_without_bom_handling();
             let rounded_without_replacement =
-                decoder.max_utf8_buffer_length_without_replacement(bytes.len())
-                       .next_power_of_two();
+                checked_next_power_of_two(decoder.max_utf8_buffer_length_without_replacement(bytes.len()));
             let with_replacement = decoder.max_utf8_buffer_length(bytes.len());
-            let string = String::with_capacity(::std::cmp::min(rounded_without_replacement,
-                                                               with_replacement));
+            let string = String::with_capacity(checked_min(rounded_without_replacement,
+                                                           with_replacement)
+                                                   .unwrap());
             (decoder, string, 0)
         };
 
@@ -2507,7 +2519,7 @@ impl Encoding {
                     // Allocate for the worst case. That is, we should come
                     // here at most once per invocation of this method.
                     let needed = decoder.max_utf8_buffer_length(bytes.len() - total_read);
-                    string.reserve(needed);
+                    string.reserve(needed.unwrap());
                 }
             }
         }
@@ -2537,6 +2549,11 @@ impl Encoding {
     /// ISO-2022-JP and the input is entirely in the ASCII state without state
     /// transitions.
     ///
+    /// # Panics
+    ///
+    /// If the size calculation for a heap-allocated backing buffer overflows
+    /// `usize`.
+    ///
     /// Available to Rust only.
     pub fn decode_without_bom_handling_and_without_replacement<'a>(&'static self,
                                                                    bytes: &'a [u8])
@@ -2560,9 +2577,9 @@ impl Encoding {
                 return Some(Cow::Borrowed(str));
             }
             let decoder = self.new_decoder_without_bom_handling();
-            let mut string = String::with_capacity(valid_up_to +
+            let mut string = String::with_capacity(checked_add(valid_up_to,
                                                    decoder.max_utf8_buffer_length_without_replacement(bytes.len() -
-                                                                                                      valid_up_to));
+                                                                                                      valid_up_to)).unwrap());
             unsafe {
                 let mut vec = string.as_mut_vec();
                 vec.set_len(valid_up_to);
@@ -2571,7 +2588,7 @@ impl Encoding {
             (decoder, string, &bytes[valid_up_to..])
         } else {
             let decoder = self.new_decoder_without_bom_handling();
-            let string = String::with_capacity(decoder.max_utf8_buffer_length_without_replacement(bytes.len()));
+            let string = String::with_capacity(decoder.max_utf8_buffer_length_without_replacement(bytes.len()).unwrap());
             (decoder, string, bytes)
         };
         let (result, read) = decoder.decode_to_string_without_replacement(input, &mut string, true);
@@ -2618,6 +2635,11 @@ impl Encoding {
     /// optimal when using a different allocator that doesn't use power-of-two
     /// buckets.
     ///
+    /// # Panics
+    ///
+    /// If the size calculation for a heap-allocated backing buffer overflows
+    /// `usize`.
+    ///
     /// Available to Rust only.
     pub fn encode<'a>(&'static self, string: &'a str) -> (Cow<'a, [u8]>, &'static Encoding, bool) {
         let output_encoding = self.output_encoding();
@@ -2635,8 +2657,8 @@ impl Encoding {
             return (Cow::Borrowed(bytes), output_encoding, false);
         }
         let mut encoder = output_encoding.new_encoder();
-        let mut vec: Vec<u8> = Vec::with_capacity((valid_up_to +
-                                                   encoder.max_buffer_length_from_utf8_if_no_unmappables(string.len() - valid_up_to))
+        let mut vec: Vec<u8> = Vec::with_capacity((checked_add(valid_up_to,
+                                                   encoder.max_buffer_length_from_utf8_if_no_unmappables(string.len() - valid_up_to))).unwrap()
                                                    .next_power_of_two());
         unsafe {
             vec.set_len(valid_up_to);
@@ -2663,7 +2685,9 @@ impl Encoding {
                     let needed =
                         encoder.max_buffer_length_from_utf8_if_no_unmappables(string.len() -
                                                                               total_read);
-                    let rounded = (vec.capacity() + needed).next_power_of_two();
+                    let rounded = (checked_add(vec.capacity(), needed))
+                                      .unwrap()
+                                      .next_power_of_two();
                     let additional = rounded - vec.len();
                     vec.reserve_exact(additional);
                 }
@@ -3010,10 +3034,10 @@ impl Decoder {
     /// that will not overflow given the current state of the decoder and
     /// `byte_length` number of additional input bytes when decoding with
     /// errors handled by outputting a REPLACEMENT CHARACTER for each malformed
-    /// sequence.
+    /// sequence or `None` if `usize` would overflow.
     ///
     /// Available via the C wrapper.
-    pub fn max_utf8_buffer_length(&self, byte_length: usize) -> usize {
+    pub fn max_utf8_buffer_length(&self, byte_length: usize) -> Option<usize> {
         self.variant.max_utf8_buffer_length(byte_length)
     }
 
@@ -3022,13 +3046,13 @@ impl Decoder {
     /// Returns the size of the output buffer in UTF-8 code units (`u8`)
     /// that will not overflow given the current state of the decoder and
     /// `byte_length` number of additional input bytes when decoding without
-    /// replacement error handling.
+    /// replacement error handling or `None` if `usize` would overflow.
     ///
     /// Note that this value may be too small for the `_with_replacement` case.
     /// Use `max_utf8_buffer_length()` for that case.
     ///
     /// Available via the C wrapper.
-    pub fn max_utf8_buffer_length_without_replacement(&self, byte_length: usize) -> usize {
+    pub fn max_utf8_buffer_length_without_replacement(&self, byte_length: usize) -> Option<usize> {
         self.variant.max_utf8_buffer_length_without_replacement(byte_length)
     }
 
@@ -3241,14 +3265,15 @@ impl Decoder {
     ///
     /// Returns the size of the output buffer in UTF-16 code units (`u16`)
     /// that will not overflow given the current state of the decoder and
-    /// `byte_length` number of additional input bytes.
+    /// `byte_length` number of additional input bytes or `None` if `usize`
+    /// would overflow.
     ///
     /// Since the REPLACEMENT CHARACTER fits into one UTF-16 code unit, the
     /// return value of this method applies also in the
     /// `_without_replacement` case.
     ///
     /// Available via the C wrapper.
-    pub fn max_utf16_buffer_length(&self, byte_length: usize) -> usize {
+    pub fn max_utf16_buffer_length(&self, byte_length: usize) -> Option<usize> {
         self.variant.max_utf16_buffer_length(byte_length)
     }
 
@@ -3476,16 +3501,18 @@ impl Encoder {
     /// Returns the size of the output buffer in bytes that will not overflow
     /// given the current state of the encoder and `byte_length` number of
     /// additional input code units if there are no unmappable characters in
-    /// the input.
+    /// the input or `None` if `usize` would overflow.
     ///
     /// Available via the C wrapper.
-    pub fn max_buffer_length_from_utf8_if_no_unmappables(&self, byte_length: usize) -> usize {
-        self.max_buffer_length_from_utf8_without_replacement(byte_length) +
-        if self.encoding().can_encode_everything() {
-            0
-        } else {
-            NCR_EXTRA
-        }
+    pub fn max_buffer_length_from_utf8_if_no_unmappables(&self,
+                                                         byte_length: usize)
+                                                         -> Option<usize> {
+        checked_add(if self.encoding().can_encode_everything() {
+                        0
+                    } else {
+                        NCR_EXTRA
+                    },
+                    self.max_buffer_length_from_utf8_without_replacement(byte_length))
     }
 
     /// Query the worst-case output size when encoding from UTF-8 without
@@ -3493,10 +3520,12 @@ impl Encoder {
     ///
     /// Returns the size of the output buffer in bytes that will not overflow
     /// given the current state of the encoder and `byte_length` number of
-    /// additional input code units.
+    /// additional input code units or `None` if `usize` would overflow.
     ///
     /// Available via the C wrapper.
-    pub fn max_buffer_length_from_utf8_without_replacement(&self, byte_length: usize) -> usize {
+    pub fn max_buffer_length_from_utf8_without_replacement(&self,
+                                                           byte_length: usize)
+                                                           -> Option<usize> {
         self.variant.max_buffer_length_from_utf8_without_replacement(byte_length)
     }
 
@@ -3619,16 +3648,18 @@ impl Encoder {
     /// Returns the size of the output buffer in bytes that will not overflow
     /// given the current state of the encoder and `u16_length` number of
     /// additional input code units if there are no unmappable characters in
-    /// the input.
+    /// the input or `None` if `usize` would overflow.
     ///
     /// Available via the C wrapper.
-    pub fn max_buffer_length_from_utf16_if_no_unmappables(&self, u16_length: usize) -> usize {
-        self.max_buffer_length_from_utf16_without_replacement(u16_length) +
-        if self.encoding().can_encode_everything() {
-            0
-        } else {
-            NCR_EXTRA
-        }
+    pub fn max_buffer_length_from_utf16_if_no_unmappables(&self,
+                                                          u16_length: usize)
+                                                          -> Option<usize> {
+        checked_add(if self.encoding().can_encode_everything() {
+                        0
+                    } else {
+                        NCR_EXTRA
+                    },
+                    self.max_buffer_length_from_utf16_without_replacement(u16_length))
     }
 
     /// Query the worst-case output size when encoding from UTF-16 without
@@ -3636,10 +3667,12 @@ impl Encoder {
     ///
     /// Returns the size of the output buffer in bytes that will not overflow
     /// given the current state of the encoder and `u16_length` number of
-    /// additional input code units.
+    /// additional input code units or `None` if `usize` would overflow.
     ///
     /// Available via the C wrapper.
-    pub fn max_buffer_length_from_utf16_without_replacement(&self, u16_length: usize) -> usize {
+    pub fn max_buffer_length_from_utf16_without_replacement(&self,
+                                                            u16_length: usize)
+                                                            -> Option<usize> {
         self.variant.max_buffer_length_from_utf16_without_replacement(u16_length)
     }
 
@@ -3770,6 +3803,60 @@ fn in_inclusive_range(i: usize, start: usize, end: usize) -> bool {
     i.wrapping_sub(start) <= (end - start)
 }
 
+#[inline(always)]
+fn checked_add(num: usize, opt: Option<usize>) -> Option<usize> {
+    if let Some(n) = opt {
+        n.checked_add(num)
+    } else {
+        None
+    }
+}
+
+#[inline(always)]
+fn checked_add_opt(one: Option<usize>, other: Option<usize>) -> Option<usize> {
+    if let Some(n) = one {
+        checked_add(n, other)
+    } else {
+        None
+    }
+}
+
+#[inline(always)]
+fn checked_mul(num: usize, opt: Option<usize>) -> Option<usize> {
+    if let Some(n) = opt {
+        n.checked_mul(num)
+    } else {
+        None
+    }
+}
+
+#[inline(always)]
+fn checked_div(opt: Option<usize>, num: usize) -> Option<usize> {
+    if let Some(n) = opt {
+        n.checked_div(num)
+    } else {
+        None
+    }
+}
+
+#[inline(always)]
+fn checked_next_power_of_two(opt: Option<usize>) -> Option<usize> {
+    opt.map(|n| n.next_power_of_two())
+}
+
+#[inline(always)]
+fn checked_min(one: Option<usize>, other: Option<usize>) -> Option<usize> {
+    if let Some(a) = one {
+        if let Some(b) = other {
+            Some(::std::cmp::min(a, b))
+        } else {
+            None
+        }
+    } else {
+        other
+    }
+}
+
 // ############## TESTS ###############
 
 #[cfg(test)]
@@ -3787,7 +3874,8 @@ mod tests {
                       breaks: &[usize]) {
         let mut decoder = initial_encoding.new_decoder();
 
-        let mut dest: Vec<u16> = Vec::with_capacity(decoder.max_utf16_buffer_length(bytes.len()));
+        let mut dest: Vec<u16> = Vec::with_capacity(decoder.max_utf16_buffer_length(bytes.len())
+                                                           .unwrap());
         let capacity = dest.capacity();
         dest.resize(capacity, 0u16);
 
