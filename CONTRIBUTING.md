@@ -39,7 +39,7 @@ rustc.
 
 Please install [`rustfmt`](https://github.com/rust-lang-nursery/rustfmt) 0.4.1
 (the latest version has
-[a bug](https://github.com/rust-lang-nursery/rustfmt/issues/1149) that renders
+[a bug](https://github.com/rust-lang-nursery/rustfmt/issues/1468) that renders
 it unsuited  for encoding_rs) and run `cargo fmt` before creating a pull
 request. (It's OK for `cargo fmt` to exit with an error due to too long lines.)
 
