@@ -96,6 +96,10 @@ encoding_rs is
 
 ## Release Notes
 
+### 0.6.0
+
+* Upgrade rayon to 0.7.0.
+
 ### 0.5.1
 
 * Reorder methods for better documentation readability.
