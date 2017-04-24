@@ -56,7 +56,7 @@ macro_rules! ascii_alu {
            let mut until_alignment = {
 // Check if the other unit aligns if we move the narrower unit
 // to alignment.
-               if ::std::mem::size_of::<$src_unit>() == ::std::mem::size_of::<$dst_unit>() {
+//               if ::std::mem::size_of::<$src_unit>() == ::std::mem::size_of::<$dst_unit>() {
 // ascii_to_ascii
                    let src_alignment = (src as usize) & ALIGNMENT_MASK;
                    let dst_alignment = (dst as usize) & ALIGNMENT_MASK;
@@ -64,21 +64,21 @@ macro_rules! ascii_alu {
                        break;
                    }
                    (ALIGNMENT - src_alignment) & ALIGNMENT_MASK
-               } else if ::std::mem::size_of::<$src_unit>() < ::std::mem::size_of::<$dst_unit>() {
+//               } else if ::std::mem::size_of::<$src_unit>() < ::std::mem::size_of::<$dst_unit>() {
 // ascii_to_basic_latin
-                   let src_until_alignment = (ALIGNMENT - ((src as usize) & ALIGNMENT_MASK)) & ALIGNMENT_MASK;
-                   if (dst.offset(src_until_alignment as isize) as usize) & ALIGNMENT_MASK != 0 {
-                       break;
-                   }
-                   src_until_alignment
-               } else {
+//                   let src_until_alignment = (ALIGNMENT - ((src as usize) & ALIGNMENT_MASK)) & ALIGNMENT_MASK;
+//                   if (dst.offset(src_until_alignment as isize) as usize) & ALIGNMENT_MASK != 0 {
+//                       break;
+//                   }
+//                   src_until_alignment
+//               } else {
 // basic_latin_to_ascii
-                   let dst_until_alignment = (ALIGNMENT - ((dst as usize) & ALIGNMENT_MASK)) & ALIGNMENT_MASK;
-                   if (src.offset(dst_until_alignment as isize) as usize) & ALIGNMENT_MASK != 0 {
-                       break;
-                   }
-                   dst_until_alignment
-               }
+//                   let dst_until_alignment = (ALIGNMENT - ((dst as usize) & ALIGNMENT_MASK)) & ALIGNMENT_MASK;
+//                   if (src.offset(dst_until_alignment as isize) as usize) & ALIGNMENT_MASK != 0 {
+//                       break;
+//                   }
+//                   dst_until_alignment
+//               }
            };
            if until_alignment + STRIDE_SIZE <= len {
 // Moving pointers to alignment seems to be a pessimization on
@@ -140,15 +140,16 @@ macro_rules! basic_latin_alu {
            let mut until_alignment = {
 // Check if the other unit aligns if we move the narrower unit
 // to alignment.
-               if ::std::mem::size_of::<$src_unit>() == ::std::mem::size_of::<$dst_unit>() {
+//               if ::std::mem::size_of::<$src_unit>() == ::std::mem::size_of::<$dst_unit>() {
 // ascii_to_ascii
-                   let src_alignment = (src as usize) & ALIGNMENT_MASK;
-                   let dst_alignment = (dst as usize) & ALIGNMENT_MASK;
-                   if src_alignment != dst_alignment {
-                       break;
-                   }
-                   (ALIGNMENT - src_alignment) & ALIGNMENT_MASK
-               } else if ::std::mem::size_of::<$src_unit>() < ::std::mem::size_of::<$dst_unit>() {
+//                   let src_alignment = (src as usize) & ALIGNMENT_MASK;
+//                   let dst_alignment = (dst as usize) & ALIGNMENT_MASK;
+//                   if src_alignment != dst_alignment {
+//                       break;
+//                   }
+//                   (ALIGNMENT - src_alignment) & ALIGNMENT_MASK
+//               } else
+               if ::std::mem::size_of::<$src_unit>() < ::std::mem::size_of::<$dst_unit>() {
 // ascii_to_basic_latin
                    let src_until_alignment = (ALIGNMENT - ((src as usize) & ALIGNMENT_MASK)) & ALIGNMENT_MASK;
                    if (dst.offset(src_until_alignment as isize) as usize) & ALIGNMENT_MASK != 0 {
