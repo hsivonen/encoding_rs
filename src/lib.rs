@@ -3850,7 +3850,7 @@ fn checked_min(one: Option<usize>, other: Option<usize>) -> Option<usize> {
         if let Some(b) = other {
             Some(::std::cmp::min(a, b))
         } else {
-            None
+            Some(a)
         }
     } else {
         other
