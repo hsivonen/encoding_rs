@@ -99,6 +99,8 @@ encoding_rs is
 ### 0.5.1
 
 * Reorder methods for better documentation readability.
+* Add support for big-endian hosts. (Only 64-bit case actually tested.)
+* Optimize the ALU (non-SIMD) case for 32-bit ARM instead of x86_64.
 
 ### 0.5.0
 
