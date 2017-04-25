@@ -357,19 +357,16 @@ macro_rules! gb18030_decoder_function {
         let mut $source = ByteSource::new(src);
         let mut dest = $dest_struct::new(dst);
         {
-            match $slf.pending_ascii {
-                Some(ascii) => {
-                    match dest.check_space_bmp() {
-                        Space::Full(_) => {
-                            return (DecoderResult::OutputFull, 0, 0);
-                        }
-                        Space::Available(pending_ascii_handle) => {
-                            $slf.pending_ascii = None;
-                            pending_ascii_handle.write_ascii(ascii);
-                        }
+            if let Some(ascii) = $slf.pending_ascii {
+                match dest.check_space_bmp() {
+                    Space::Full(_) => {
+                        return (DecoderResult::OutputFull, 0, 0);
+                    }
+                    Space::Available(pending_ascii_handle) => {
+                        $slf.pending_ascii = None;
+                        pending_ascii_handle.write_ascii(ascii);
                     }
                 }
-                None => {}
             }
         }
         while !$slf.pending.is_none() {
@@ -1257,7 +1254,7 @@ macro_rules! public_decode_function{
                 }
                 // The rest is all BOM sniffing!
                 DecoderLifeCycle::AtStart => {
-                    debug_assert!(offset == 0usize);
+                    debug_assert_eq!(offset, 0usize);
                     if src.is_empty() {
                         return (DecoderResult::InputEmpty, 0, 0);
                     }
@@ -1284,7 +1281,7 @@ macro_rules! public_decode_function{
                     }
                 }
                 DecoderLifeCycle::AtUtf8Start => {
-                    debug_assert!(offset == 0usize);
+                    debug_assert_eq!(offset, 0usize);
                     if src.is_empty() {
                         return (DecoderResult::InputEmpty, 0, 0);
                     }
@@ -1301,7 +1298,7 @@ macro_rules! public_decode_function{
                     }
                 }
                 DecoderLifeCycle::AtUtf16BeStart => {
-                    debug_assert!(offset == 0usize);
+                    debug_assert_eq!(offset, 0usize);
                     if src.is_empty() {
                         return (DecoderResult::InputEmpty, 0, 0);
                     }
@@ -1318,7 +1315,7 @@ macro_rules! public_decode_function{
                     }
                 }
                 DecoderLifeCycle::AtUtf16LeStart => {
-                    debug_assert!(offset == 0usize);
+                    debug_assert_eq!(offset, 0usize);
                     if src.is_empty() {
                         return (DecoderResult::InputEmpty, 0, 0);
                     }
@@ -1442,7 +1439,7 @@ macro_rules! public_decode_function{
                                                                             0xFFu8);
                 }
                 DecoderLifeCycle::ConvertingWithPendingBB => {
-                    debug_assert!(offset == 0usize);
+                    debug_assert_eq!(offset, 0usize);
                     return self.$decode_to_utf_after_one_potential_bom_byte(src,
                                                                             dst,
                                                                             last,
@@ -1486,9 +1483,9 @@ macro_rules! public_decode_function{
             }
             return (first_result, out_read, first_written);
         }
-        debug_assert!(offset == 1usize);
+        debug_assert_eq!(offset, 1usize);
         // The first byte is in `src`, so no need to push it separately.
-        return self.$decode_to_utf_checking_end(src, dst, last);
+        self.$decode_to_utf_checking_end(src, dst, last)
     }
 
     fn $decode_to_utf_after_two_potential_bom_bytes(&mut self,
@@ -1536,9 +1533,9 @@ macro_rules! public_decode_function{
                                                                     0xEFu8);
 
         }
-        debug_assert!(offset == 2usize);
+        debug_assert_eq!(offset, 2usize);
         // The first two bytes are in `src`, so no need to push them separately.
-        return self.$decode_to_utf_checking_end(src, dst, last);
+        self.$decode_to_utf_checking_end(src, dst, last)
     }
 
     /// Calls `$decode_to_utf_checking_end` with `offset` bytes omitted from
@@ -1550,9 +1547,9 @@ macro_rules! public_decode_function{
                                                last: bool,
                                                offset: usize)
                                                -> (DecoderResult, usize, usize) {
-        debug_assert!(self.life_cycle == DecoderLifeCycle::Converting);
+        debug_assert_eq!(self.life_cycle, DecoderLifeCycle::Converting);
         let (result, read, written) = self.$decode_to_utf_checking_end(&src[offset..], dst, last);
-        return (result, read + offset, written);
+        (result, read + offset, written)
     }
 
     /// Calls through to the delegate and adjusts life cycle iff `last` is
@@ -1562,17 +1559,14 @@ macro_rules! public_decode_function{
                                    dst: &mut [$code_unit],
                                    last: bool)
                                    -> (DecoderResult, usize, usize) {
-        debug_assert!(self.life_cycle == DecoderLifeCycle::Converting);
+        debug_assert_eq!(self.life_cycle, DecoderLifeCycle::Converting);
         let (result, read, written) = self.variant
                                           .$decode_to_utf_raw(src, dst, last);
         if last {
-            match result {
-                DecoderResult::InputEmpty => {
-                    self.life_cycle = DecoderLifeCycle::Finished;
-                }
-                _ => {}
+            if let DecoderResult::InputEmpty = result {
+                self.life_cycle = DecoderLifeCycle::Finished;
             }
         }
-        return (result, read, written);
+        (result, read, written)
     });
 }

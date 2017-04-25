@@ -335,48 +335,50 @@ impl Iso2022JpDecoder {
                        check_space_bmp);
 }
 
+
+#[cfg_attr(feature = "cargo-clippy", allow(if_let_redundant_pattern_matching, if_same_then_else))]
 fn is_mapped_for_two_byte_encode(bmp: u16) -> bool {
     // The code below uses else after return to
     // keep the same structure as in EUC-JP.
     // Lunde says 60% Hiragana, 30% Kanji, 10% Katakana
     let bmp_minus_hiragana = bmp.wrapping_sub(0x3041);
     if bmp_minus_hiragana < 0x53 {
-        return true;
+        true
     } else if in_inclusive_range16(bmp, 0x4E00, 0x9FA0) {
         if 0x4EDD == bmp {
-            return true;
+            true
         } else if let Some(_) = jis0208_level1_kanji_shift_jis_encode(bmp) {
             // Use the shift_jis variant, because we don't care about the
             // byte values here.
-            return true;
+            true
         } else if let Some(_) = jis0208_level2_and_additional_kanji_encode(bmp) {
-            return true;
+            true
         } else if let Some(_) = position(&IBM_KANJI[..], bmp) {
-            return true;
+            true
         } else {
-            return false;
+            false
         }
     } else {
         let bmp_minus_katakana = bmp.wrapping_sub(0x30A1);
         if bmp_minus_katakana < 0x56 {
-            return true;
+            true
         } else {
             let bmp_minus_space = bmp.wrapping_sub(0x3000);
             if bmp_minus_space < 3 {
                 // fast-track common punctuation
-                return true;
+                true
             } else if bmp == 0x2212 {
-                return true;
+                true
             } else if let Some(_) = jis0208_range_encode(bmp) {
-                return true;
+                true
             } else if in_inclusive_range16(bmp, 0xFA0E, 0xFA2D) || bmp == 0xF929 || bmp == 0xF9DC {
-                return true;
+                true
             } else if let Some(_) = ibm_symbol_encode(bmp) {
-                return true;
+                true
             } else if let Some(_) = jis0208_symbol_encode(bmp) {
-                return true;
+                true
             } else {
-                return false;
+                false
             }
         }
     }

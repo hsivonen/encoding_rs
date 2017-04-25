@@ -7,6 +7,8 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
+#![cfg_attr(feature = "cargo-clippy", allow(doc_markdown, inline_always, new_ret_no_self))]
+
 //! encoding_rs is a Gecko-oriented Free Software / Open Source implementation
 //! of the [Encoding Standard](https://encoding.spec.whatwg.org/) in Rust.
 //! Gecko-oriented means that converting to and from UTF-16 is supported in
@@ -2273,6 +2275,7 @@ impl Encoding {
     /// # Panics
     ///
     /// Panics if the argument is not the name of an encoding.
+    #[cfg_attr(feature = "cargo-clippy", allow(match_wild_err_arm))]
     pub fn for_name(name: &[u8]) -> &'static Encoding {
         // The length of `"UTF-8"` is unique, so it's easy to check the most
         // common case first.
@@ -2418,9 +2421,8 @@ impl Encoding {
     pub fn decode_with_bom_removal<'a>(&'static self, bytes: &'a [u8]) -> (Cow<'a, str>, bool) {
         let without_bom = if self == UTF_8 && bytes.starts_with(b"\xEF\xBB\xBF") {
             &bytes[3..]
-        } else if self == UTF_16LE && bytes.starts_with(b"\xFF\xFE") {
-            &bytes[2..]
-        } else if self == UTF_16BE && bytes.starts_with(b"\xFE\xFF") {
+        } else if (self == UTF_16LE && bytes.starts_with(b"\xFF\xFE")) ||
+                             (self == UTF_16BE && bytes.starts_with(b"\xFE\xFF")) {
             &bytes[2..]
         } else {
             bytes
@@ -2797,7 +2799,7 @@ impl std::fmt::Debug for Encoding {
 }
 
 /// Tracks the life cycle of a decoder from BOM sniffing to conversion to end.
-#[derive(PartialEq)]
+#[derive(PartialEq, Debug)]
 enum DecoderLifeCycle {
     /// The decoder has seen no input yet.
     AtStart,
@@ -3566,8 +3568,8 @@ impl Encoder {
                 EncoderResult::Unmappable(unmappable) => {
                     had_unmappables = true;
                     debug_assert!(dst.len() - total_written >= NCR_EXTRA + 1);
-                    debug_assert!(self.encoding() != UTF_16BE);
-                    debug_assert!(self.encoding() != UTF_16LE);
+                    debug_assert_ne!(self.encoding(), UTF_16BE);
+                    debug_assert_ne!(self.encoding(), UTF_16LE);
                     // Additionally, Iso2022JpEncoder is responsible for
                     // transitioning to ASCII when returning with Unmappable.
                     total_written += write_ncr(unmappable, &mut dst[total_written..]);
@@ -3715,8 +3717,8 @@ impl Encoder {
                     debug_assert!(dst.len() - total_written >= NCR_EXTRA + 1);
                     // There are no UTF-16 encoders and even if there were,
                     // they'd never have unmappables.
-                    debug_assert!(self.encoding() != UTF_16BE);
-                    debug_assert!(self.encoding() != UTF_16LE);
+                    debug_assert_ne!(self.encoding(), UTF_16BE);
+                    debug_assert_ne!(self.encoding(), UTF_16LE);
                     // Additionally, Iso2022JpEncoder is responsible for
                     // transitioning to ASCII when returning with Unmappable
                     // from the jis0208 state. That is, when we encode

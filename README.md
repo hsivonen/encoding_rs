@@ -96,6 +96,12 @@ encoding_rs is
 
 ## Release Notes
 
+### 0.6.1
+
+* Avoid panic near integer overflow in a case that's unlikely to actually
+  happen.
+* Address Clippy lints.
+
 ### 0.6.0
 
 * Make the methods for computing worst-case buffer size requirements check

@@ -356,7 +356,7 @@ impl<'a> Utf16Destination<'a> {
                 }
             }
         };
-        return CopyAsciiResult::GoOn((non_ascii_ret, Utf16BmpHandle::new(self)));
+        CopyAsciiResult::GoOn((non_ascii_ret, Utf16BmpHandle::new(self)))
     }
     #[inline(always)]
     pub fn copy_ascii_from_check_space_astral<'b>
@@ -394,7 +394,7 @@ impl<'a> Utf16Destination<'a> {
                 }
             }
         };
-        return CopyAsciiResult::GoOn((non_ascii_ret, Utf16AstralHandle::new(self)));
+        CopyAsciiResult::GoOn((non_ascii_ret, Utf16AstralHandle::new(self)))
     }
     #[inline(always)]
     pub fn copy_utf8_up_to_invalid_from(&mut self, source: &mut ByteSource) {
@@ -650,7 +650,7 @@ impl<'a> Utf8Destination<'a> {
                 }
             }
         };
-        return CopyAsciiResult::GoOn((non_ascii_ret, Utf8BmpHandle::new(self)));
+        CopyAsciiResult::GoOn((non_ascii_ret, Utf8BmpHandle::new(self)))
     }
     #[inline(always)]
     pub fn copy_ascii_from_check_space_astral<'b>
@@ -688,7 +688,7 @@ impl<'a> Utf8Destination<'a> {
                 }
             }
         };
-        return CopyAsciiResult::GoOn((non_ascii_ret, Utf8AstralHandle::new(self)));
+        CopyAsciiResult::GoOn((non_ascii_ret, Utf8AstralHandle::new(self)))
     }
     #[inline(always)]
     pub fn copy_utf8_up_to_invalid_from(&mut self, source: &mut ByteSource) {
@@ -733,6 +733,7 @@ impl<'a> Utf16Source<'a> {
             Space::Full(self.consumed())
         }
     }
+    #[cfg_attr(feature = "cargo-clippy", allow(collapsible_if))]
     #[inline(always)]
     fn read(&mut self) -> char {
         self.old_pos = self.pos;
@@ -762,8 +763,9 @@ impl<'a> Utf16Source<'a> {
             // Unpaired surrogate at the end of buffer, fall through
         }
         // Unpaired low surrogate
-        return '\u{FFFD}';
+        '\u{FFFD}'
     }
+    #[cfg_attr(feature = "cargo-clippy", allow(collapsible_if))]
     #[inline(always)]
     fn read_enum(&mut self) -> Unicode {
         self.old_pos = self.pos;
@@ -796,7 +798,7 @@ impl<'a> Utf16Source<'a> {
             // Unpaired surrogate at the end of buffer, fall through
         }
         // Unpaired low surrogate
-        return Unicode::NonAscii(NonAscii::BmpExclAscii(0xFFFDu16));
+        Unicode::NonAscii(NonAscii::BmpExclAscii(0xFFFDu16))
     }
     #[inline(always)]
     fn unread(&mut self) -> usize {
@@ -873,7 +875,7 @@ impl<'a> Utf16Source<'a> {
                 }
             }
         };
-        return CopyAsciiResult::GoOn((non_ascii_ret, ByteTwoHandle::new(dest)));
+        CopyAsciiResult::GoOn((non_ascii_ret, ByteTwoHandle::new(dest)))
     }
     #[inline(always)]
     pub fn copy_ascii_to_check_space_four<'b>
@@ -941,7 +943,7 @@ impl<'a> Utf16Source<'a> {
                 }
             }
         };
-        return CopyAsciiResult::GoOn((non_ascii_ret, ByteFourHandle::new(dest)));
+        CopyAsciiResult::GoOn((non_ascii_ret, ByteFourHandle::new(dest)))
     }
 }
 
@@ -1052,7 +1054,7 @@ impl<'a> Utf8Source<'a> {
                     ((self.slice[self.pos + 2] as u32 & 0x3Fu32) << 6) |
                     (self.slice[self.pos + 3] as u32 & 0x3Fu32);
         self.pos += 4;
-        return unsafe { ::std::mem::transmute(point) };
+        unsafe { ::std::mem::transmute(point) }
     }
     #[inline(always)]
     fn read_enum(&mut self) -> Unicode {
@@ -1080,7 +1082,7 @@ impl<'a> Utf8Source<'a> {
                     ((self.slice[self.pos + 2] as u32 & 0x3Fu32) << 6) |
                     (self.slice[self.pos + 3] as u32 & 0x3Fu32);
         self.pos += 4;
-        return Unicode::NonAscii(NonAscii::Astral(unsafe { ::std::mem::transmute(point) }));
+        Unicode::NonAscii(NonAscii::Astral(unsafe { ::std::mem::transmute(point) }))
     }
     #[inline(always)]
     fn unread(&mut self) -> usize {
@@ -1140,7 +1142,7 @@ impl<'a> Utf8Source<'a> {
                 }
             }
         };
-        return CopyAsciiResult::GoOn((non_ascii_ret, ByteOneHandle::new(dest)));
+        CopyAsciiResult::GoOn((non_ascii_ret, ByteOneHandle::new(dest)))
     }
     #[inline(always)]
     pub fn copy_ascii_to_check_space_two<'b>
@@ -1196,7 +1198,7 @@ impl<'a> Utf8Source<'a> {
                 }
             }
         };
-        return CopyAsciiResult::GoOn((non_ascii_ret, ByteTwoHandle::new(dest)));
+        CopyAsciiResult::GoOn((non_ascii_ret, ByteTwoHandle::new(dest)))
     }
     #[inline(always)]
     pub fn copy_ascii_to_check_space_four<'b>
@@ -1252,7 +1254,7 @@ impl<'a> Utf8Source<'a> {
                 }
             }
         };
-        return CopyAsciiResult::GoOn((non_ascii_ret, ByteFourHandle::new(dest)));
+        CopyAsciiResult::GoOn((non_ascii_ret, ByteFourHandle::new(dest)))
     }
 }
 

@@ -24,18 +24,18 @@ enum Gb18030Pending {
 
 impl Gb18030Pending {
     fn is_none(&self) -> bool {
-        match self {
-            &Gb18030Pending::None => true,
+        match *self {
+            Gb18030Pending::None => true,
             _ => false,
         }
     }
 
     fn count(&self) -> usize {
-        match self {
-            &Gb18030Pending::None => 0,
-            &Gb18030Pending::One(_) => 1,
-            &Gb18030Pending::Two(_, _) => 2,
-            &Gb18030Pending::Three(_, _, _) => 3,
+        match *self {
+            Gb18030Pending::None => 0,
+            Gb18030Pending::One(_) => 1,
+            Gb18030Pending::Two(_, _) => 2,
+            Gb18030Pending::Three(_, _, _) => 3,
         }
     }
 }
@@ -343,12 +343,10 @@ fn gbk_encode_non_unified(bmp: u16) -> Option<(usize, usize)> {
     } else if bmp == 0x1E3F {
         // The one Pinyin placed elsewhere on the BMP
         return Some((0xA8, 0x7B - 0x60 + 0xA1));
-    } else {
+    } else if in_range16(bmp, 0xA000, 0xD800) {
         // Since Korean has usage in China, let's spend a branch to fast-track
         // Hangul.
-        if in_range16(bmp, 0xA000, 0xD800) {
-            return None;
-        }
+        return None;
     }
     // GB2312 other (except bottom PUA and PUA between Hanzi levels).
     if let Some(other_pointer) = gb2312_other_encode(bmp) {

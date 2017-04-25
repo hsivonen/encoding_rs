@@ -53,6 +53,7 @@ impl Utf8Error {
     }
 }
 
+#[cfg_attr(feature = "cargo-clippy", allow(eval_order_dependence))]
 #[inline(always)]
 pub fn run_utf8_validation(v: &[u8]) -> Result<(), Utf8Error> {
     let mut offset = 0;

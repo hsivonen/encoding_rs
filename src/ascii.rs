@@ -48,6 +48,7 @@ macro_rules! ascii_alu {
      $src_unit:ty,
      $dst_unit:ty,
      $stride_fn:ident) => (
+    #[cfg_attr(feature = "cargo-clippy", allow(never_loop))]
     #[inline(always)]
     pub unsafe fn $name(src: *const $src_unit, dst: *mut $dst_unit, len: usize) -> Option<($src_unit, usize)> {
         let mut offset = 0usize;
@@ -99,13 +100,10 @@ macro_rules! ascii_alu {
                    until_alignment -= 1;
                }
                loop {
-                   match $stride_fn(src.offset(offset as isize) as *const usize,
+                   if let Some(num_ascii) = $stride_fn(src.offset(offset as isize) as *const usize,
                                   dst.offset(offset as isize) as *mut usize) {
-                       Some(num_ascii) => {
-                           offset += num_ascii;
-                           return Some((*(src.offset(offset as isize)), offset));
-                       }
-                       None => {}
+                       offset += num_ascii;
+                       return Some((*(src.offset(offset as isize)), offset));
                    }
                    offset += STRIDE_SIZE;
                    if offset + STRIDE_SIZE > len {
@@ -123,7 +121,7 @@ macro_rules! ascii_alu {
             *(dst.offset(offset as isize)) = code_unit as $dst_unit;
             offset += 1;
         }
-        return None;
+        None
     });
 }
 
@@ -132,6 +130,7 @@ macro_rules! basic_latin_alu {
      $src_unit:ty,
      $dst_unit:ty,
      $stride_fn:ident) => (
+    #[cfg_attr(feature = "cargo-clippy", allow(never_loop))]
     #[inline(always)]
     pub unsafe fn $name(src: *const $src_unit, dst: *mut $dst_unit, len: usize) -> Option<($src_unit, usize)> {
         let mut offset = 0usize;
@@ -204,7 +203,7 @@ macro_rules! basic_latin_alu {
             *(dst.offset(offset as isize)) = code_unit as $dst_unit;
             offset += 1;
         }
-        return None;
+        None
     });
 }
 
@@ -287,7 +286,7 @@ macro_rules! ascii_simd {
             *(dst.offset(offset as isize)) = code_unit as $dst_unit;
             offset += 1;
         }
-        return None;
+        None
     });
 }
 
@@ -302,7 +301,7 @@ macro_rules! ascii_to_ascii_simd_stride {
             return false;
         }
         $store(dst, simd);
-        return true;
+        true
     });
 }
 
@@ -319,7 +318,7 @@ macro_rules! ascii_to_basic_latin_simd_stride {
         let (first, second) = unpack(simd);
         $store(dst, first);
         $store(dst.offset(8), second);
-        return true;
+        true
     });
 }
 
@@ -412,7 +411,7 @@ cfg_if! {
             *(dst.offset(1)) = second;
             *(dst.offset(2)) = third;
             *(dst.offset(3)) = fourth;
-            return true;
+            true
         }
 
         #[inline(always)]
@@ -442,7 +441,7 @@ cfg_if! {
                               (0x00000000_000000FFusize & third);
             *dst = word;
             *(dst.offset(1)) = second_word;
-            return true;
+            true
         }
 
         basic_latin_alu!(ascii_to_basic_latin, u8, u16, ascii_to_basic_latin_stride_little_64);
@@ -669,13 +668,10 @@ cfg_if! {
                 if ((src as usize) & ALIGNMENT_MASK) == 0 {
                     loop {
                         let simd = unsafe { load16_aligned(src.offset(offset as isize)) };
-                        match check_ascii(simd) {
-                            Some(consumed) => {
-                                offset += consumed;
-                                let non_ascii = unsafe { *src.offset(offset as isize) };
-                                return Some((non_ascii, offset));
-                            }
-                            None => {}
+                        if let Some(consumed) = check_ascii(simd) {
+                            offset += consumed;
+                            let non_ascii = unsafe { *src.offset(offset as isize) };
+                            return Some((non_ascii, offset));
                         }
                         offset += STRIDE_SIZE;
                         if offset + STRIDE_SIZE > len {
@@ -685,13 +681,10 @@ cfg_if! {
                 } else {
                     loop {
                         let simd = unsafe { load16_unaligned(src.offset(offset as isize)) };
-                        match check_ascii(simd) {
-                            Some(consumed) => {
-                                offset += consumed;
-                                let non_ascii = unsafe { *src.offset(offset as isize) };
-                                return Some((non_ascii, offset));
-                            }
-                            None => {}
+                        if let Some(consumed) = check_ascii(simd) {
+                            offset += consumed;
+                            let non_ascii = unsafe { *src.offset(offset as isize) };
+                            return Some((non_ascii, offset));
                         }
                         offset += STRIDE_SIZE;
                         if offset + STRIDE_SIZE > len {
@@ -707,7 +700,7 @@ cfg_if! {
                 }
                 offset += 1;
             }
-            return None;
+            None
         }
     } else {
 // `as` truncates, so works on 32-bit, too.
@@ -752,7 +745,7 @@ cfg_if! {
 // non-ASCII byte in the little-endian case or 8 times the number of ASCII in
 // text order before the non-ASCII byte in the big-endian case.
             let num_ascii = (zeros >> 3) as usize;
-            return Some(ALIGNMENT + num_ascii);
+            Some(ALIGNMENT + num_ascii)
         }
 
         ascii_alu!(ascii_to_ascii, u8, u8, ascii_to_ascii_stride);
@@ -774,12 +767,9 @@ cfg_if! {
                }
                loop {
                    let ptr = unsafe { src.offset(offset as isize) as *const usize };
-                   match unsafe { validate_ascii_stride(ptr) } {
-                       Some(num_ascii) => {
-                           offset += num_ascii;
-                           return Some((unsafe { *(src.offset(offset as isize)) }, offset));
-                       }
-                       None => {}
+                   if let Some(num_ascii) = unsafe { validate_ascii_stride(ptr) } {
+                       offset += num_ascii;
+                       return Some((unsafe { *(src.offset(offset as isize)) }, offset));
                    }
                    offset += STRIDE_SIZE;
                    if offset + STRIDE_SIZE > len {
@@ -794,7 +784,7 @@ cfg_if! {
                }
                offset += 1;
            }
-           return None;
+           None
         }
 
     }

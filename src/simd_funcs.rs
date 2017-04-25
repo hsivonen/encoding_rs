@@ -89,7 +89,7 @@ pub fn check_ascii(s: u8x16) -> Option<usize> {
     // We don't extract the non-ascii byte from the SIMD register, because
     // at least on Haswell, it seems faster to let the caller re-read it from
     // memory.
-    return Some(mask.trailing_zeros() as usize);
+    Some(mask.trailing_zeros() as usize)
 }
 
 /// vzipq_u8 in NEON. _mm_unpacklo_epi8 and
