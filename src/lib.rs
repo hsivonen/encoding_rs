@@ -98,9 +98,7 @@
 //!                                   false);
 //!         total_read_from_current_input += read;
 //!         bytes_in_buffer += written;
-//!         if had_errors {
-//!             total_had_errors = true;
-//!         }
+//!         total_had_errors |= had_errors;
 //!         match result {
 //!             CoderResult::InputEmpty => {
 //!                 // We have consumed the current input buffer. Break out of
@@ -126,9 +124,7 @@
 //!                               &mut buffer[bytes_in_buffer..],
 //!                               true);
 //!     bytes_in_buffer += written;
-//!     if had_errors {
-//!         total_had_errors = true;
-//!     }
+//!     total_had_errors |= had_errors;
 //!     // Write the current buffer out and consider the buffer empty.
 //!     // Need to do this here for both `match` arms, because we exit the
 //!     // loop on `CoderResult::InputEmpty`.
@@ -2509,9 +2505,7 @@ impl Encoding {
                                                                       &mut string,
                                                                       true);
             total_read += read;
-            if had_errors {
-                total_had_errors = true;
-            }
+            total_had_errors |= had_errors;
             match result {
                 CoderResult::InputEmpty => {
                     debug_assert_eq!(total_read, bytes.len());
@@ -2673,9 +2667,7 @@ impl Encoding {
                                                                              &mut vec,
                                                                              true);
             total_read += read;
-            if had_errors {
-                total_had_errors = true;
-            }
+            total_had_errors |= had_errors;
             match result {
                 CoderResult::InputEmpty => {
                     debug_assert_eq!(total_read, string.len());
