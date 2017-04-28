@@ -96,6 +96,13 @@ encoding_rs is
 
 ## Release Notes
 
+### 0.6.2
+
+* Fix a panic from subslicing with bad indices in
+  `Encoder::encode_from_utf16`. (Due to an oversight, it lacked the fix that
+  `Encoder::encode_from_utf8` already had.)
+* Micro-optimize error status accumulation in non-streaming case.
+
 ### 0.6.1
 
 * Avoid panic near integer overflow in a case that's unlikely to actually

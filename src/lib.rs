@@ -3718,6 +3718,12 @@ impl Encoder {
                     // ASCII or the Roman state. We are allowed to generate any
                     // printable ASCII excluding \ and ~.
                     total_written += write_ncr(unmappable, &mut dst[total_written..]);
+                    if total_written >= effective_dst_len {
+                        return (CoderResult::OutputFull,
+                                total_read,
+                                total_written,
+                                had_unmappables);
+                    }
                 }
             }
         }
