@@ -621,8 +621,8 @@ cfg_if! {
                        (0x000000FFusize & second);
             let second_word = ((0x00FF0000usize & third) << 8) |
                               ((0x000000FFusize & third) << 16) |
-                              ((0x00FF0000usize & second) >> 8) |
-                              (0x000000FFusize & second);
+                              ((0x00FF0000usize & fourth) >> 8) |
+                              (0x000000FFusize & fourth);
             *dst = word;
             *(dst.offset(1)) = second_word;
             return true;

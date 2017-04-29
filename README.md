@@ -96,6 +96,10 @@ encoding_rs is
 
 ## Release Notes
 
+### 0.6.3
+
+* Add support for 32-bit big-endian hosts. (For real this time.)
+
 ### 0.6.2
 
 * Fix a panic from subslicing with bad indices in
