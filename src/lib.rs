@@ -2980,9 +2980,10 @@ pub enum DecoderResult {
 /// # Infinite loops
 ///
 /// When converting with a fixed-size output buffer whose size is too small to
-/// accommodate one character of output, an infinite loop ensues. When
-/// converting with a fixed-size output buffer, it generally makes sense to
-/// make the buffer fairly large (e.g. couple of kilobytes).
+/// accommodate one character or (when applicable) one numeric character
+/// reference of output, an infinite loop ensues. When converting with a
+/// fixed-size output buffer, it generally makes sense to make the buffer
+/// fairly large (e.g. couple of kilobytes).
 pub struct Decoder {
     encoding: &'static Encoding,
     variant: VariantDecoder,
@@ -3535,11 +3536,14 @@ impl Encoder {
                             dst: &mut [u8],
                             last: bool)
                             -> (CoderResult, usize, usize, bool) {
-        let effective_dst_len = dst.len() -
-                                if self.encoding().can_encode_everything() {
-            0
+        let dst_len = dst.len();
+        let effective_dst_len = if self.encoding().can_encode_everything() {
+            dst_len
         } else {
-            NCR_EXTRA
+            if dst_len < NCR_EXTRA {
+                return (CoderResult::OutputFull, 0, 0, false);
+            }
+            dst_len - NCR_EXTRA
         };
         let mut had_unmappables = false;
         let mut total_read = 0usize;
@@ -3682,11 +3686,14 @@ impl Encoder {
                              dst: &mut [u8],
                              last: bool)
                              -> (CoderResult, usize, usize, bool) {
-        let effective_dst_len = dst.len() -
-                                if self.encoding().can_encode_everything() {
-            0
+        let dst_len = dst.len();
+        let effective_dst_len = if self.encoding().can_encode_everything() {
+            dst_len
         } else {
-            NCR_EXTRA
+            if dst_len < NCR_EXTRA {
+                return (CoderResult::OutputFull, 0, 0, false);
+            }
+            dst_len - NCR_EXTRA
         };
         let mut had_unmappables = false;
         let mut total_read = 0usize;

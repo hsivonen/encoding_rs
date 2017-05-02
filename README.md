@@ -96,6 +96,11 @@ encoding_rs is
 
 ## Release Notes
 
+### 0.6.4
+
+* Avoid panic when encoding with replacement and the destination buffer is
+  too short to hold one numeric character reference.
+
 ### 0.6.3
 
 * Add support for 32-bit big-endian hosts. (For real this time.)
