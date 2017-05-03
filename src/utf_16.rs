@@ -28,18 +28,37 @@ impl Utf16Decoder {
         })
     }
 
+    pub fn additional_from_state(&self) -> usize() {
+        1 +
+        if self.lead_byte.is_some() {
+            1
+        } else {
+            0
+        } +
+        if self.lead_surrogate == 0 {
+            0
+        } else {
+            2
+        }
+    }
+
     pub fn max_utf16_buffer_length(&self, byte_length: usize) -> Option<usize> {
-        checked_add(1, checked_div(byte_length.checked_add(1), 2))
+        checked_add(1,
+                    checked_div(byte_length.checked_add(self.additional_from_state()), 2))
     }
 
     pub fn max_utf8_buffer_length_without_replacement(&self, byte_length: usize) -> Option<usize> {
         checked_add(1,
-                    checked_mul(3, checked_div(byte_length.checked_add(1), 2)))
+                    checked_mul(3,
+                                checked_div(byte_length.checked_add(self.additional_from_state()),
+                                            2)))
     }
 
     pub fn max_utf8_buffer_length(&self, byte_length: usize) -> Option<usize> {
         checked_add(1,
-                    checked_mul(3, checked_div(byte_length.checked_add(1), 2)))
+                    checked_mul(3,
+                                checked_div(byte_length.checked_add(self.additional_from_state()),
+                                            2)))
     }
 
     decoder_functions!({
@@ -213,6 +232,78 @@ mod tests {
         assert_eq!(UTF_16BE.new_encoder().encoding(), UTF_8);
         encode_utf_16le("\u{1F4A9}\u{2603}", "\u{1F4A9}\u{2603}".as_bytes());
         encode_utf_16be("\u{1F4A9}\u{2603}", "\u{1F4A9}\u{2603}".as_bytes());
+    }
+
+    #[test]
+    fn test_utf_16be_decode_one_by_one() {
+        let input = b"\x00\x61\x00\xE4\x26\x03\xD8\x3D\xDC\xA9";
+        let mut output = [0u16; 20];
+        let mut decoder = UTF_16BE.new_decoder();
+        for b in input.chunks(1) {
+            assert_eq!(b.len(), 1);
+            let needed = decoder.max_utf16_buffer_length(b.len()).unwrap();
+            let (result, read, _, had_errors) = decoder.decode_to_utf16(b,
+                                                                        &mut output[..needed],
+                                                                        false);
+            assert_eq!(result, CoderResult::InputEmpty);
+            assert_eq!(read, 1);
+            assert!(!had_errors);
+        }
+
+    }
+
+    #[test]
+    fn test_utf_16le_decode_one_by_one() {
+        let input = b"\x61\x00\xE4\x00\x03\x26\x3D\xD8\xA9\xDC";
+        let mut output = [0u16; 20];
+        let mut decoder = UTF_16LE.new_decoder();
+        for b in input.chunks(1) {
+            assert_eq!(b.len(), 1);
+            let needed = decoder.max_utf16_buffer_length(b.len()).unwrap();
+            let (result, read, _, had_errors) = decoder.decode_to_utf16(b,
+                                                                        &mut output[..needed],
+                                                                        false);
+            assert_eq!(result, CoderResult::InputEmpty);
+            assert_eq!(read, 1);
+            assert!(!had_errors);
+        }
+
+    }
+
+    #[test]
+    fn test_utf_16be_decode_three_at_a_time() {
+        let input = b"\x00\xE4\x26\x03\xD8\x3D\xDC\xA9\x00\x61\x00\xE4";
+        let mut output = [0u16; 20];
+        let mut decoder = UTF_16BE.new_decoder();
+        for b in input.chunks(3) {
+            assert_eq!(b.len(), 3);
+            let needed = decoder.max_utf16_buffer_length(b.len()).unwrap();
+            let (result, read, _, had_errors) = decoder.decode_to_utf16(b,
+                                                                        &mut output[..needed],
+                                                                        false);
+            assert_eq!(result, CoderResult::InputEmpty);
+            assert_eq!(read, b.len());
+            assert!(!had_errors);
+        }
+
+    }
+
+    #[test]
+    fn test_utf_16le_decode_three_at_a_time() {
+        let input = b"\xE4\x00\x03\x26\x3D\xD8\xA9\xDC\x61\x00\xE4\x00";
+        let mut output = [0u16; 20];
+        let mut decoder = UTF_16LE.new_decoder();
+        for b in input.chunks(3) {
+            assert_eq!(b.len(), 3);
+            let needed = decoder.max_utf16_buffer_length(b.len()).unwrap();
+            let (result, read, _, had_errors) = decoder.decode_to_utf16(b,
+                                                                        &mut output[..needed],
+                                                                        false);
+            assert_eq!(result, CoderResult::InputEmpty);
+            assert_eq!(read, b.len());
+            assert!(!had_errors);
+        }
+
     }
 
 }
