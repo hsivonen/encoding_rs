@@ -2832,7 +2832,7 @@ enum BomHandling {
 /// Result of a (potentially partial) decode or encode operation with
 /// replacement.
 #[must_use]
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum CoderResult {
     /// The input was exhausted.
     ///
@@ -2851,7 +2851,7 @@ pub enum CoderResult {
 
 /// Result of a (potentially partial) decode operation without replacement.
 #[must_use]
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum DecoderResult {
     /// The input was exhausted.
     ///
@@ -3332,7 +3332,7 @@ impl Decoder {
 
 /// Result of a (potentially partial) encode operation without replacement.
 #[must_use]
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum EncoderResult {
     /// The input was exhausted.
     ///

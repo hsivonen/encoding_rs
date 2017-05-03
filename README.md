@@ -96,6 +96,11 @@ encoding_rs is
 
 ## Release Notes
 
+### 0.6.5
+
+* Derive `PartialEq` and `Eq` for the `CoderResult`, `DecoderResult`
+  and `EncoderResult` types.
+
 ### 0.6.4
 
 * Avoid panic when encoding with replacement and the destination buffer is
