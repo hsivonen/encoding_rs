@@ -429,12 +429,12 @@ impl Gb18030Encoder {
             // 2 to 4 (worst)
             // 3 to 4
             // 4 to 4
-            byte_length.checked_mul(2)
+            checked_add(2, byte_length.checked_mul(2))
         } else {
             // 1 to 1
             // 2 to 2
             // 3 to 2
-            Some(byte_length)
+            byte_length.checked_add(3)
         }
     }
 

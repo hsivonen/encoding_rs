@@ -179,7 +179,7 @@ impl Big5Encoder {
         // Upper BMP: 3 to 2
         // Lower BMP: 2 to 2
         // ASCII: 1 to 1
-        Some(byte_length)
+        byte_length.checked_add(1)
     }
 
     ascii_compatible_encoder_functions!({

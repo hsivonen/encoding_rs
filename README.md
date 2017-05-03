@@ -98,6 +98,7 @@ encoding_rs is
 
 ### 0.6.5
 
+* Correct max length calculation in various encoders.
 * Correct max length calculation in the UTF-16 decoder.
 * Derive `PartialEq` and `Eq` for the `CoderResult`, `DecoderResult`
   and `EncoderResult` types.

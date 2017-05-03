@@ -550,7 +550,7 @@ impl Utf8Encoder {
     pub fn max_buffer_length_from_utf16_without_replacement(&self,
                                                             u16_length: usize)
                                                             -> Option<usize> {
-        u16_length.checked_mul(3)
+        checked_add(1, u16_length.checked_mul(3))
     }
 
     pub fn max_buffer_length_from_utf8_without_replacement(&self,

@@ -234,7 +234,7 @@ impl EucKrEncoder {
     pub fn max_buffer_length_from_utf8_without_replacement(&self,
                                                            byte_length: usize)
                                                            -> Option<usize> {
-        Some(byte_length)
+        byte_length.checked_add(1)
     }
 
     ascii_compatible_bmp_encoder_functions!({
