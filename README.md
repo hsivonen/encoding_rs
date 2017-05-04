@@ -96,6 +96,11 @@ encoding_rs is
 
 ## Release Notes
 
+### 0.6.6
+
+* Correct max length calculation when a partial BOM prefix is part of
+  the decoder's state.
+
 ### 0.6.5
 
 * Correct max length calculation in various encoders.

@@ -3013,6 +3013,27 @@ impl Decoder {
         }
     }
 
+    fn additional_from_life_cycle(&self) -> usize {
+        // Add two bytes even when only one byte has been seen,
+        // because the one byte can become a lead byte in multibyte
+        // decoders, but only after the decoder has been queried
+        // for max length, so the decoder's own logic for adding
+        // one for a pending lead cannot work.
+        match self.life_cycle {
+            DecoderLifeCycle::Converting |
+            DecoderLifeCycle::AtStart |
+            DecoderLifeCycle::AtUtf8Start |
+            DecoderLifeCycle::AtUtf16LeStart |
+            DecoderLifeCycle::AtUtf16BeStart => 0,
+            DecoderLifeCycle::SeenUtf8First |
+            DecoderLifeCycle::SeenUtf16LeFirst |
+            DecoderLifeCycle::SeenUtf16BeFirst |
+            DecoderLifeCycle::ConvertingWithPendingBB |
+            DecoderLifeCycle::SeenUtf8Second => 2,
+            DecoderLifeCycle::Finished => panic!("Must not use a decoder that has finished."),
+        }
+    }
+
     /// The `Encoding` this `Decoder` is for.
     ///
     /// BOM sniffing can change the return value of this method during the life
@@ -3033,7 +3054,11 @@ impl Decoder {
     ///
     /// Available via the C wrapper.
     pub fn max_utf8_buffer_length(&self, byte_length: usize) -> Option<usize> {
-        self.variant.max_utf8_buffer_length(byte_length)
+        if let Some(sum) = byte_length.checked_add(self.additional_from_life_cycle()) {
+            self.variant.max_utf8_buffer_length(sum)
+        } else {
+            None
+        }
     }
 
     /// Query the worst-case UTF-8 output size _without replacement_.
@@ -3048,7 +3073,11 @@ impl Decoder {
     ///
     /// Available via the C wrapper.
     pub fn max_utf8_buffer_length_without_replacement(&self, byte_length: usize) -> Option<usize> {
-        self.variant.max_utf8_buffer_length_without_replacement(byte_length)
+        if let Some(sum) = byte_length.checked_add(self.additional_from_life_cycle()) {
+            self.variant.max_utf8_buffer_length_without_replacement(sum)
+        } else {
+            None
+        }
     }
 
     /// Incrementally decode a byte stream into UTF-8 with malformed sequences
@@ -3269,7 +3298,11 @@ impl Decoder {
     ///
     /// Available via the C wrapper.
     pub fn max_utf16_buffer_length(&self, byte_length: usize) -> Option<usize> {
-        self.variant.max_utf16_buffer_length(byte_length)
+        if let Some(sum) = byte_length.checked_add(self.additional_from_life_cycle()) {
+            self.variant.max_utf16_buffer_length(sum)
+        } else {
+            None
+        }
     }
 
     /// Incrementally decode a byte stream into UTF-16 with malformed sequences
@@ -4384,6 +4417,91 @@ mod tests {
         }
         assert_eq!(encoding, WINDOWS_1257);
         assert!(!had_errors);
+    }
+
+    #[test]
+    fn test_utf16_space_with_one_bom_byte() {
+        let mut decoder = UTF_16LE.new_decoder();
+        let mut dst = [0u16; 12];
+        {
+            let needed = decoder.max_utf16_buffer_length(1).unwrap();
+            let (result, _, _, _) = decoder.decode_to_utf16(b"\xFF", &mut dst[..needed], false);
+            assert_eq!(result, CoderResult::InputEmpty);
+        }
+        {
+            let needed = decoder.max_utf16_buffer_length(1).unwrap();
+            let (result, _, _, _) = decoder.decode_to_utf16(b"\xFF", &mut dst[..needed], true);
+            assert_eq!(result, CoderResult::InputEmpty);
+        }
+    }
+
+    #[test]
+    fn test_utf8_space_with_one_bom_byte() {
+        let mut decoder = UTF_8.new_decoder();
+        let mut dst = [0u16; 12];
+        {
+            let needed = decoder.max_utf16_buffer_length(1).unwrap();
+            let (result, _, _, _) = decoder.decode_to_utf16(b"\xFF", &mut dst[..needed], false);
+            assert_eq!(result, CoderResult::InputEmpty);
+        }
+        {
+            let needed = decoder.max_utf16_buffer_length(1).unwrap();
+            let (result, _, _, _) = decoder.decode_to_utf16(b"\xFF", &mut dst[..needed], true);
+            assert_eq!(result, CoderResult::InputEmpty);
+        }
+    }
+
+    #[test]
+    fn test_utf16_space_with_two_bom_bytes() {
+        let mut decoder = UTF_16LE.new_decoder();
+        let mut dst = [0u16; 12];
+        {
+            let needed = decoder.max_utf16_buffer_length(1).unwrap();
+            let (result, _, _, _) = decoder.decode_to_utf16(b"\xEF", &mut dst[..needed], false);
+            assert_eq!(result, CoderResult::InputEmpty);
+        }
+        {
+            let needed = decoder.max_utf16_buffer_length(1).unwrap();
+            let (result, _, _, _) = decoder.decode_to_utf16(b"\xBB", &mut dst[..needed], false);
+            assert_eq!(result, CoderResult::InputEmpty);
+        }
+        {
+            let needed = decoder.max_utf16_buffer_length(1).unwrap();
+            let (result, _, _, _) = decoder.decode_to_utf16(b"\xFF", &mut dst[..needed], true);
+            assert_eq!(result, CoderResult::InputEmpty);
+        }
+    }
+
+    #[test]
+    fn test_utf8_space_with_two_bom_bytes() {
+        let mut decoder = UTF_8.new_decoder();
+        let mut dst = [0u16; 12];
+        {
+            let needed = decoder.max_utf16_buffer_length(1).unwrap();
+            let (result, _, _, _) = decoder.decode_to_utf16(b"\xEF", &mut dst[..needed], false);
+            assert_eq!(result, CoderResult::InputEmpty);
+        }
+        {
+            let needed = decoder.max_utf16_buffer_length(1).unwrap();
+            let (result, _, _, _) = decoder.decode_to_utf16(b"\xBB", &mut dst[..needed], false);
+            assert_eq!(result, CoderResult::InputEmpty);
+        }
+        {
+            let needed = decoder.max_utf16_buffer_length(1).unwrap();
+            let (result, _, _, _) = decoder.decode_to_utf16(b"\xFF", &mut dst[..needed], true);
+            assert_eq!(result, CoderResult::InputEmpty);
+        }
+    }
+
+    #[test]
+    fn test_utf16_space_with_one_bom_byte_and_a_second_byte_in_same_call() {
+        let mut decoder = UTF_16LE.new_decoder();
+        let mut dst = [0u16; 12];
+        {
+            let needed = decoder.max_utf16_buffer_length(2).unwrap();
+            let (result, _, _, _) = decoder.decode_to_utf16(b"\xFF\xFF", &mut dst[..needed], true);
+            assert_eq!(result, CoderResult::InputEmpty);
+        }
     }
 
 }
