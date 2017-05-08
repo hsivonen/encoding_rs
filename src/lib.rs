@@ -532,6 +532,8 @@ use ascii::iso_2022_jp_ascii_valid_up_to;
 
 use std::borrow::Cow;
 use std::cmp::Ordering;
+use std::hash::Hash;
+use std::hash::Hasher;
 
 const NCR_EXTRA: usize = 9; // #1114111;
 
@@ -2785,6 +2787,12 @@ impl PartialEq for Encoding {
 
 impl Eq for Encoding {}
 
+impl Hash for Encoding {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        (self as *const Encoding).hash(state);
+    }
+}
+
 impl std::fmt::Debug for Encoding {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "Encoding {{ {} }}", self.name)
@@ -4657,4 +4665,15 @@ mod tests {
         }
     }
 
+    #[test]
+    fn test_hash() {
+        let mut encodings = ::std::collections::HashSet::new();
+        encodings.insert(UTF_8);
+        encodings.insert(ISO_2022_JP);
+        assert!(encodings.contains(UTF_8));
+        assert!(encodings.contains(ISO_2022_JP));
+        assert!(!encodings.contains(WINDOWS_1252));
+        encodings.remove(ISO_2022_JP);
+        assert!(!encodings.contains(ISO_2022_JP));
+    }
 }
