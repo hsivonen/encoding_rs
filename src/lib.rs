@@ -198,8 +198,8 @@
 //! C++ wrapper can re-create the non-streaming API in C++ for C++ callers.
 //! The C binding comes with a [C++14 wrapper][2] that uses standard library +
 //! [GSL][3] types and that recreates the non-streaming API in C++ on top of
-//! the streaming API. A C++ wrapper with XPCOM/MFBT types is planned but does
-//! not exist yet.
+//! the streaming API. A C++ wrapper with XPCOM/MFBT types is being developed
+//! as part of Mozilla [bug 1261841][4].
 //!
 //! The `Encoding` type is common to both the streaming and non-streaming
 //! modes. In the streaming mode, decoding operations are performed with a
@@ -211,6 +211,7 @@
 //! [1]: https://github.com/hsivonen/encoding_c
 //! [2]: https://github.com/hsivonen/encoding_c/blob/master/include/encoding_rs_cpp.h
 //! [3]: https://github.com/Microsoft/GSL/
+//! [4]: https://bugzilla.mozilla.org/show_bug.cgi?id=encoding_rs
 //!
 //! # Memory management
 //!
