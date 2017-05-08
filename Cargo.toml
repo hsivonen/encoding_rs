@@ -11,6 +11,9 @@ repository = "https://github.com/hsivonen/encoding_rs"
 keywords = ["encoding", "web", "unicode", "charset"]
 categories = ["text-processing", "encoding", "web-programming", "email"]
 
+[badges]
+travis-ci = { repository = "hsivonen/encoding_rs" }
+
 [features]
 simd-accel = ["simd"]
 no-static-ideograph-encoder-tables = []
