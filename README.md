@@ -84,7 +84,7 @@ encoding_rs is
       end of the label/name to the start.
 - [x] Make labels with non-ASCII bytes fail fast.
 - [x] Parallelize UTF-8 validation using [Rayon](https://github.com/nikomatsakis/rayon).
-- [ ] Provide an XPCOM/MFBT-flavored C++ API.
+- [x] Provide an XPCOM/MFBT-flavored C++ API.
 - [ ] Investigate accelerating single-byte encode with a single fast-tracked
       range per encoding.
 - [ ] Replace uconv with encoding_rs in Gecko.
@@ -95,6 +95,10 @@ encoding_rs is
       adapted to Rust in rust-encoding.
 
 ## Release Notes
+
+### 0.6.8
+
+* Implement `Hash` for `Encoding`.
 
 ### 0.6.7
 
