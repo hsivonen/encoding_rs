@@ -14,7 +14,7 @@
 //! of the [Encoding Standard](https://encoding.spec.whatwg.org/) in Rust.
 //! Gecko-oriented means that converting to and from UTF-16 is supported in
 //! addition to converting to and from UTF-8, that the performance and
-//! streamability goals are browser-oriented and that FFI-friendliness is a
+//! streamability goals are browser-oriented, and that FFI-friendliness is a
 //! goal.
 //!
 //! # Availability
