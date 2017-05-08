@@ -367,6 +367,8 @@ fn is_mapped_for_two_byte_encode(bmp: u16) -> bool {
             if bmp_minus_space < 3 {
                 // fast-track common punctuation
                 true
+            } else if in_inclusive_range16(bmp, 0xFF61, 0xFF9F) {
+                true
             } else if bmp == 0x2212 {
                 true
             } else if let Some(_) = jis0208_range_encode(bmp) {
@@ -604,6 +606,23 @@ impl Iso2022JpEncoder {
                                            if bmp_minus_space < 3 {
                                                // fast-track common punctuation
                                                handle.write_two(0x21, 0x21 + bmp_minus_space as u8);
+                                               continue;
+                                           }
+                                           let bmp_minus_half_width = bmp.wrapping_sub(0xFF61);
+                                           if bmp_minus_half_width <= (0xFF9F - 0xFF61) {
+                                               // We have half-width katakana. The lead is either
+                                               // row 1 or 5 of JIS X 0208, so the lookup table
+                                               // only stores the trail.
+                                               let lead = if bmp != 0xFF70 &&
+                                                             in_inclusive_range16(bmp,
+                                                                                  0xFF66,
+                                                                                  0xFF9D) {
+                                                   0x25u8
+                                               } else {
+                                                   0x21u8
+                                               };
+                                               let trail = ISO_2022_JP_HALF_WIDTH_TRAIL[bmp_minus_half_width as usize];
+                                               handle.write_two(lead, trail);
                                                continue;
                                            } else if bmp == 0x2212 {
                                                handle.write_two(0x21, 0x5D);
@@ -850,7 +869,13 @@ mod tests {
         encode_iso_2022_jp("\u{00A5}\u{58FA}", b"\x1B(J\x5C\x1B$B\x54\x64\x1B(B");
 
         // Half-width Katakana
-        encode_iso_2022_jp("\u{FF61}", b"&#65377;");
+        encode_iso_2022_jp("\u{FF61}", b"\x1B$B\x21\x23\x1B(B");
+        encode_iso_2022_jp("\u{FF65}", b"\x1B$B\x21\x26\x1B(B");
+        encode_iso_2022_jp("\u{FF66}", b"\x1B$B\x25\x72\x1B(B");
+        encode_iso_2022_jp("\u{FF70}", b"\x1B$B\x21\x3C\x1B(B");
+        encode_iso_2022_jp("\u{FF9D}", b"\x1B$B\x25\x73\x1B(B");
+        encode_iso_2022_jp("\u{FF9E}", b"\x1B$B\x21\x2B\x1B(B");
+        encode_iso_2022_jp("\u{FF9F}", b"\x1B$B\x21\x2C\x1B(B");
 
         // 0208
         encode_iso_2022_jp("\u{58FA}", b"\x1B$B\x54\x64\x1B(B");

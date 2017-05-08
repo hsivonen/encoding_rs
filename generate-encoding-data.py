@@ -497,6 +497,24 @@ level1_kanji_pairs.sort(key=lambda x: x[0])
 static_u16_table_from_indexable("JIS0208_LEVEL1_KANJI_CODE_POINTS", level1_kanji_pairs, 0)
 static_u8_pair_table_from_indexable("JIS0208_LEVEL1_KANJI_SHIFT_JIS_BYTES", level1_kanji_pairs, 1)
 
+# ISO-2022-JP half-width katakana
+
+# index is still jis0208
+half_width_index = indexes["iso-2022-jp-katakana"]
+
+data_file.write('''pub static ISO_2022_JP_HALF_WIDTH_TRAIL: [u8; %d] = [
+''' % len(half_width_index))
+
+for i in xrange(len(half_width_index)):
+  code_point = half_width_index[i]
+  pointer = index.index(code_point)
+  trail = pointer % 94 + 0x21
+  data_file.write('0x%02X,\n' % trail)
+
+data_file.write('''];
+
+''')
+
 # EUC-KR
 
 index = indexes["euc-kr"]
@@ -1820,6 +1838,15 @@ for pointer in range(0, 94 * 94):
     trail += 0x21
     iso_2022_jp_out_ref_file.write("\x1B$B%s%s\x1B(B\n" % (chr(lead), chr(trail)))
     iso_2022_jp_out_file.write((u"%s\n" % unichr(code_point)).encode("utf-8"))
+for i in xrange(len(half_width_index)):
+  code_point = i + 0xFF61
+  normalized_code_point = half_width_index[i]
+  pointer = index.index(normalized_code_point)
+  (lead, trail) = divmod(pointer, 94)
+  lead += 0x21
+  trail += 0x21
+  iso_2022_jp_out_ref_file.write("\x1B$B%s%s\x1B(B\n" % (chr(lead), chr(trail)))
+  iso_2022_jp_out_file.write((u"%s\n" % unichr(code_point)).encode("utf-8"))
 iso_2022_jp_out_file.close()
 iso_2022_jp_out_ref_file.close()
 

@@ -98,6 +98,8 @@ encoding_rs is
 
 ### 0.6.7
 
+* [Map half-width katakana to full-width katana in ISO-2022-JP
+  encoder](https://github.com/whatwg/encoding/issues/105). (Spec change.)
 * Give `InputEmpty` correct precedence over `OutputFull` when encoding
   with replacement and the output buffer passed in is too short or the
   remaining space in the output buffer is too small after a replacement.
