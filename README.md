@@ -96,6 +96,12 @@ encoding_rs is
 
 ## Release Notes
 
+### 0.6.7
+
+* Give `InputEmpty` correct precedence over `OutputFull` when encoding
+  with replacement and the output buffer passed in is too short or the
+  remaining space in the output buffer is too small after a replacement.
+
 ### 0.6.6
 
 * Correct max length calculation when a partial BOM prefix is part of

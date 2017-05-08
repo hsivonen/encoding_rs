@@ -3523,6 +3523,15 @@ impl Encoder {
         self.encoding
     }
 
+    /// Returns `true` if this is an ISO-2022-JP encoder that's not in the
+    /// ASCII state and `false` otherwise.
+    ///
+    /// XXX make this public to allow other libs to implement custom replacement
+    /// strategies and still get the `InputEmpty` semantics right.
+    fn has_pending_state(&self) -> bool {
+        self.variant.has_pending_state()
+    }
+
     /// Query the worst-case output size when encoding from UTF-8 with
     /// replacement.
     ///
@@ -3574,6 +3583,9 @@ impl Encoder {
             dst_len
         } else {
             if dst_len < NCR_EXTRA {
+                if src.is_empty() && !(last && self.has_pending_state()) {
+                    return (CoderResult::InputEmpty, 0, 0, false);
+                }
                 return (CoderResult::OutputFull, 0, 0, false);
             }
             dst_len - NCR_EXTRA
@@ -3603,6 +3615,12 @@ impl Encoder {
                     // transitioning to ASCII when returning with Unmappable.
                     total_written += write_ncr(unmappable, &mut dst[total_written..]);
                     if total_written >= effective_dst_len {
+                        if total_read == src.len() && !(last && self.has_pending_state()) {
+                            return (CoderResult::InputEmpty,
+                                    total_read,
+                                    total_written,
+                                    had_unmappables);
+                        }
                         return (CoderResult::OutputFull,
                                 total_read,
                                 total_written,
@@ -3724,6 +3742,9 @@ impl Encoder {
             dst_len
         } else {
             if dst_len < NCR_EXTRA {
+                if src.is_empty() && !(last && self.has_pending_state()) {
+                    return (CoderResult::InputEmpty, 0, 0, false);
+                }
                 return (CoderResult::OutputFull, 0, 0, false);
             }
             dst_len - NCR_EXTRA
@@ -3759,6 +3780,12 @@ impl Encoder {
                     // printable ASCII excluding \ and ~.
                     total_written += write_ncr(unmappable, &mut dst[total_written..]);
                     if total_written >= effective_dst_len {
+                        if total_read == src.len() && !(last && self.has_pending_state()) {
+                            return (CoderResult::InputEmpty,
+                                    total_read,
+                                    total_written,
+                                    had_unmappables);
+                        }
                         return (CoderResult::OutputFull,
                                 total_read,
                                 total_written,
@@ -4500,6 +4527,131 @@ mod tests {
         {
             let needed = decoder.max_utf16_buffer_length(2).unwrap();
             let (result, _, _, _) = decoder.decode_to_utf16(b"\xFF\xFF", &mut dst[..needed], true);
+            assert_eq!(result, CoderResult::InputEmpty);
+        }
+    }
+
+    #[test]
+    fn test_too_short_buffer_with_iso_2022_jp_ascii_from_utf8() {
+        let mut dst = [0u8; 8];
+        let mut encoder = ISO_2022_JP.new_encoder();
+        {
+            let (result, _, _, _) = encoder.encode_from_utf8("", &mut dst[..], false);
+            assert_eq!(result, CoderResult::InputEmpty);
+        }
+        {
+            let (result, _, _, _) = encoder.encode_from_utf8("", &mut dst[..], true);
+            assert_eq!(result, CoderResult::InputEmpty);
+        }
+    }
+
+    #[test]
+    fn test_too_short_buffer_with_iso_2022_jp_roman_from_utf8() {
+        let mut dst = [0u8; 15];
+        let mut encoder = ISO_2022_JP.new_encoder();
+        {
+            let (result, _, _, _) = encoder.encode_from_utf8("\u{A5}", &mut dst[..], false);
+            assert_eq!(result, CoderResult::InputEmpty);
+        }
+        {
+            let (result, _, _, _) = encoder.encode_from_utf8("", &mut dst[..8], false);
+            assert_eq!(result, CoderResult::InputEmpty);
+        }
+        {
+            let (result, _, _, _) = encoder.encode_from_utf8("", &mut dst[..8], true);
+            assert_eq!(result, CoderResult::OutputFull);
+        }
+    }
+
+    #[test]
+    fn test_buffer_end_iso_2022_jp_from_utf8() {
+        let mut dst = [0u8; 17];
+        {
+            let mut encoder = ISO_2022_JP.new_encoder();
+            let (result, _, _, _) = encoder.encode_from_utf8("\u{A5}\u{1F4A9}",
+                                                             &mut dst[..],
+                                                             false);
+            assert_eq!(result, CoderResult::InputEmpty);
+        }
+        {
+            let mut encoder = ISO_2022_JP.new_encoder();
+            let (result, _, _, _) = encoder.encode_from_utf8("\u{A5}\u{1F4A9}", &mut dst[..], true);
+            assert_eq!(result, CoderResult::OutputFull);
+        }
+        {
+            let mut encoder = ISO_2022_JP.new_encoder();
+            let (result, _, _, _) = encoder.encode_from_utf8("\u{1F4A9}", &mut dst[..12], false);
+            assert_eq!(result, CoderResult::InputEmpty);
+        }
+        {
+            let mut encoder = ISO_2022_JP.new_encoder();
+            let (result, _, _, _) = encoder.encode_from_utf8("\u{1F4A9}", &mut dst[..12], true);
+            assert_eq!(result, CoderResult::InputEmpty);
+        }
+    }
+
+
+    #[test]
+    fn test_too_short_buffer_with_iso_2022_jp_ascii_from_utf16() {
+        let mut dst = [0u8; 8];
+        let mut encoder = ISO_2022_JP.new_encoder();
+        {
+            let (result, _, _, _) = encoder.encode_from_utf16(&[0u16; 0], &mut dst[..], false);
+            assert_eq!(result, CoderResult::InputEmpty);
+        }
+        {
+            let (result, _, _, _) = encoder.encode_from_utf16(&[0u16; 0], &mut dst[..], true);
+            assert_eq!(result, CoderResult::InputEmpty);
+        }
+    }
+
+    #[test]
+    fn test_too_short_buffer_with_iso_2022_jp_roman_from_utf16() {
+        let mut dst = [0u8; 15];
+        let mut encoder = ISO_2022_JP.new_encoder();
+        {
+            let (result, _, _, _) = encoder.encode_from_utf16(&[0xA5u16], &mut dst[..], false);
+            assert_eq!(result, CoderResult::InputEmpty);
+        }
+        {
+            let (result, _, _, _) = encoder.encode_from_utf16(&[0u16; 0], &mut dst[..8], false);
+            assert_eq!(result, CoderResult::InputEmpty);
+        }
+        {
+            let (result, _, _, _) = encoder.encode_from_utf16(&[0u16; 0], &mut dst[..8], true);
+            assert_eq!(result, CoderResult::OutputFull);
+        }
+    }
+
+    #[test]
+    fn test_buffer_end_iso_2022_jp_from_utf16() {
+        let mut dst = [0u8; 17];
+        {
+            let mut encoder = ISO_2022_JP.new_encoder();
+            let (result, _, _, _) = encoder.encode_from_utf16(&[0xA5u16, 0xD83Du16, 0xDCA9u16],
+                                                              &mut dst[..],
+                                                              false);
+            assert_eq!(result, CoderResult::InputEmpty);
+        }
+        {
+            let mut encoder = ISO_2022_JP.new_encoder();
+            let (result, _, _, _) = encoder.encode_from_utf16(&[0xA5u16, 0xD83Du16, 0xDCA9u16],
+                                                              &mut dst[..],
+                                                              true);
+            assert_eq!(result, CoderResult::OutputFull);
+        }
+        {
+            let mut encoder = ISO_2022_JP.new_encoder();
+            let (result, _, _, _) = encoder.encode_from_utf16(&[0xD83Du16, 0xDCA9u16],
+                                                              &mut dst[..12],
+                                                              false);
+            assert_eq!(result, CoderResult::InputEmpty);
+        }
+        {
+            let mut encoder = ISO_2022_JP.new_encoder();
+            let (result, _, _, _) = encoder.encode_from_utf16(&[0xD83Du16, 0xDCA9u16],
+                                                              &mut dst[..12],
+                                                              true);
             assert_eq!(result, CoderResult::InputEmpty);
         }
     }

@@ -402,6 +402,14 @@ impl Iso2022JpEncoder {
                      }))
     }
 
+    pub fn has_pending_state(&self) -> bool {
+        match self.state {
+            Iso2022JpEncoderState::Ascii => false,
+            _ => true,
+        }
+    }
+
+
     pub fn max_buffer_length_from_utf16_without_replacement(&self,
                                                             u16_length: usize)
                                                             -> Option<usize> {

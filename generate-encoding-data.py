@@ -1468,6 +1468,14 @@ for variant in encoder_variants:
 variant_file.write('''}
 
 impl VariantEncoder {
+    pub fn has_pending_state(&self) -> bool {
+        match *self {
+            VariantEncoder::Iso2022Jp(ref v) => {
+                v.has_pending_state()
+            }
+            _ => false,
+        }
+    }
 ''')
 
 write_variant_method("max_buffer_length_from_utf16_without_replacement", False, [("u16_length", "usize")], "Option<usize>", encoder_variants, [], "Encoder")
