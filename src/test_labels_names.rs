@@ -219,8 +219,10 @@ fn test_all_labels() {
     assert_eq!(Encoding::for_label(b"iso_8859-8:1988"), Some(ISO_8859_8));
     assert_eq!(Encoding::for_label(b"iso_8859-9:1989"), Some(WINDOWS_1254));
     assert_eq!(Encoding::for_label(b"csisolatingreek"), Some(ISO_8859_7));
-    assert_eq!(Encoding::for_label(b"x-mac-ukrainian"),
-               Some(X_MAC_CYRILLIC));
+    assert_eq!(
+        Encoding::for_label(b"x-mac-ukrainian"),
+        Some(X_MAC_CYRILLIC)
+    );
     assert_eq!(Encoding::for_label(b"iso-2022-cn-ext"), Some(REPLACEMENT));
     assert_eq!(Encoding::for_label(b"csisolatinarabic"), Some(ISO_8859_6));
     assert_eq!(Encoding::for_label(b"csisolatinhebrew"), Some(ISO_8859_8));

@@ -31,29 +31,21 @@ const UTF8_FOUR_BYTE_SPECIAL_UPPER_BOUND_TRAIL: u8 = 1 << 7;
 // Instead, please regenerate using generate-encoding-data.py
 
 /// Bit is 1 if the trail is invalid.
-static UTF8_TRAIL_INVALID: [u8; 256] = [248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248,
-                                        248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248,
-                                        248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248,
-                                        248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248,
-                                        248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248,
-                                        248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248,
-                                        248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248,
-                                        248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248,
-                                        248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248,
-                                        248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248,
-                                        248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248,
-                                        248, 248, 248, 248, 248, 248, 248, 80, 80, 80, 80, 80, 80,
-                                        80, 80, 80, 80, 80, 80, 80, 80, 80, 80, 144, 144, 144,
-                                        144, 144, 144, 144, 144, 144, 144, 144, 144, 144, 144,
-                                        144, 144, 160, 160, 160, 160, 160, 160, 160, 160, 160,
-                                        160, 160, 160, 160, 160, 160, 160, 160, 160, 160, 160,
-                                        160, 160, 160, 160, 160, 160, 160, 160, 160, 160, 160,
-                                        160, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248,
-                                        248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248,
-                                        248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248,
-                                        248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248,
-                                        248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248,
-                                        248, 248, 248, 248, 248, 248, 248, 248, 248, 248];
+static UTF8_TRAIL_INVALID: [u8; 256] =
+    [248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248,
+     248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248,
+     248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248,
+     248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248,
+     248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248,
+     248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248,
+     248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248,
+     248, 248, 80, 80, 80, 80, 80, 80, 80, 80, 80, 80, 80, 80, 80, 80, 80, 80, 144, 144, 144, 144,
+     144, 144, 144, 144, 144, 144, 144, 144, 144, 144, 144, 144, 160, 160, 160, 160, 160, 160,
+     160, 160, 160, 160, 160, 160, 160, 160, 160, 160, 160, 160, 160, 160, 160, 160, 160, 160,
+     160, 160, 160, 160, 160, 160, 160, 160, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248,
+     248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248,
+     248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248,
+     248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248];
 // END GENERATED CODE
 
 #[cfg(feature = "parallel-utf8")]
@@ -71,9 +63,9 @@ pub fn utf8_valid_up_to(bytes: &[u8]) -> usize {
         // which we are trying to optimize here.
         if len < 290000 {
             return match run_utf8_validation(&bytes[..len]) {
-                Ok(()) => bytes.len(),
-                Err(e) => e.valid_up_to(),
-            };
+                       Ok(()) => bytes.len(),
+                       Err(e) => e.valid_up_to(),
+                   };
         }
         let mid = len >> 1;
         let mut adjusted = mid;
@@ -93,8 +85,8 @@ pub fn utf8_valid_up_to(bytes: &[u8]) -> usize {
             i += 1;
         }
         let (head, tail) = bytes[..len].split_at(adjusted);
-        let (head_valid_up_to, tail_valid_up_to) = rayon::join(|| utf8_valid_up_to(head),
-                                                               || utf8_valid_up_to(tail));
+        let (head_valid_up_to, tail_valid_up_to) =
+            rayon::join(|| utf8_valid_up_to(head), || utf8_valid_up_to(tail));
         if head_valid_up_to == adjusted {
             return adjusted + tail_valid_up_to;
         }
@@ -123,8 +115,12 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
             let dst_remaining = &mut dst[written..];
             let length = ::std::cmp::min(src_remaining.len(), dst_remaining.len());
             match unsafe {
-                ascii_to_basic_latin(src_remaining.as_ptr(), dst_remaining.as_mut_ptr(), length)
-            } {
+                      ascii_to_basic_latin(
+                    src_remaining.as_ptr(),
+                    dst_remaining.as_mut_ptr(),
+                    length,
+                )
+                  } {
                 None => {
                     read += length;
                     written += length;
@@ -421,13 +417,15 @@ pub struct Utf8Decoder {
 
 impl Utf8Decoder {
     pub fn new() -> VariantDecoder {
-        VariantDecoder::Utf8(Utf8Decoder {
-            code_point: 0,
-            bytes_seen: 0,
-            bytes_needed: 0,
-            lower_boundary: 0x80u8,
-            upper_boundary: 0xBFu8,
-        })
+        VariantDecoder::Utf8(
+            Utf8Decoder {
+                code_point: 0,
+                bytes_seen: 0,
+                bytes_needed: 0,
+                lower_boundary: 0x80u8,
+                upper_boundary: 0xBFu8,
+            }
+        )
     }
 
     pub fn max_utf16_buffer_length(&self, byte_length: usize) -> Option<usize> {
@@ -442,102 +440,102 @@ impl Utf8Decoder {
         checked_add(3, byte_length.checked_mul(3))
     }
 
-    decoder_functions!({},
-                       {
-                           // This is the fast path. The rest runs only at the
-                           // start and end for partial sequences.
-                           if self.bytes_needed == 0 {
-                               dest.copy_utf8_up_to_invalid_from(&mut source);
-                           }
-                       },
-                       {
-                           if self.bytes_needed != 0 {
-                               let bad_bytes = (self.bytes_seen + 1) as u8;
-                               self.code_point = 0;
-                               self.bytes_needed = 0;
-                               self.bytes_seen = 0;
-                               return (DecoderResult::Malformed(bad_bytes, 0),
-                                       src_consumed,
-                                       dest.written());
-                           }
-                       },
-                       {
-                           if self.bytes_needed == 0 {
-                               if b < 0x80u8 {
-                                   destination_handle.write_ascii(b);
-                                   continue;
-                               }
-                               if b < 0xC2u8 {
-                                   return (DecoderResult::Malformed(1, 0),
-                                           unread_handle.consumed(),
-                                           destination_handle.written());
-                               }
-                               if b < 0xE0u8 {
-                                   self.bytes_needed = 1;
-                                   self.code_point = b as u32 & 0x1F;
-                                   continue;
-                               }
-                               if b < 0xF0u8 {
-                                   if b == 0xE0u8 {
-                                       self.lower_boundary = 0xA0u8;
-                                   } else if b == 0xEDu8 {
-                                       self.upper_boundary = 0x9Fu8;
-                                   }
-                                   self.bytes_needed = 2;
-                                   self.code_point = b as u32 & 0xF;
-                                   continue;
-                               }
-                               if b < 0xF5u8 {
-                                   if b == 0xF0u8 {
-                                       self.lower_boundary = 0x90u8;
-                                   } else if b == 0xF4u8 {
-                                       self.upper_boundary = 0x8Fu8;
-                                   }
-                                   self.bytes_needed = 3;
-                                   self.code_point = b as u32 & 0x7;
-                                   continue;
-                               }
-                               return (DecoderResult::Malformed(1, 0),
-                                       unread_handle.consumed(),
-                                       destination_handle.written());
-                           }
-                           // self.bytes_needed != 0
-                           if !(b >= self.lower_boundary && b <= self.upper_boundary) {
-                               let bad_bytes = (self.bytes_seen + 1) as u8;
-                               self.code_point = 0;
-                               self.bytes_needed = 0;
-                               self.bytes_seen = 0;
-                               self.lower_boundary = 0x80u8;
-                               self.upper_boundary = 0xBFu8;
-                               return (DecoderResult::Malformed(bad_bytes, 0),
-                                       unread_handle.unread(),
-                                       destination_handle.written());
-                           }
-                           self.lower_boundary = 0x80u8;
-                           self.upper_boundary = 0xBFu8;
-                           self.code_point = (self.code_point << 6) | (b as u32 & 0x3F);
-                           self.bytes_seen += 1;
-                           if self.bytes_seen != self.bytes_needed {
-                               continue;
-                           }
-                           if self.bytes_needed == 3 {
-                               destination_handle.write_astral(self.code_point);
-                           } else {
-                               destination_handle.write_bmp_excl_ascii(self.code_point as u16);
-                           }
-                           self.code_point = 0;
-                           self.bytes_needed = 0;
-                           self.bytes_seen = 0;
-                           continue;
-                       },
-                       self,
-                       src_consumed,
-                       dest,
-                       source,
-                       b,
-                       destination_handle,
-                       unread_handle,
-                       check_space_astral);
+    decoder_functions!(
+        {},
+        {
+            // This is the fast path. The rest runs only at the
+            // start and end for partial sequences.
+            if self.bytes_needed == 0 {
+                dest.copy_utf8_up_to_invalid_from(&mut source);
+            }
+        },
+        {
+            if self.bytes_needed != 0 {
+                let bad_bytes = (self.bytes_seen + 1) as u8;
+                self.code_point = 0;
+                self.bytes_needed = 0;
+                self.bytes_seen = 0;
+                return (DecoderResult::Malformed(bad_bytes, 0), src_consumed, dest.written());
+            }
+        },
+        {
+            if self.bytes_needed == 0 {
+                if b < 0x80u8 {
+                    destination_handle.write_ascii(b);
+                    continue;
+                }
+                if b < 0xC2u8 {
+                    return (DecoderResult::Malformed(1, 0),
+                            unread_handle.consumed(),
+                            destination_handle.written());
+                }
+                if b < 0xE0u8 {
+                    self.bytes_needed = 1;
+                    self.code_point = b as u32 & 0x1F;
+                    continue;
+                }
+                if b < 0xF0u8 {
+                    if b == 0xE0u8 {
+                        self.lower_boundary = 0xA0u8;
+                    } else if b == 0xEDu8 {
+                        self.upper_boundary = 0x9Fu8;
+                    }
+                    self.bytes_needed = 2;
+                    self.code_point = b as u32 & 0xF;
+                    continue;
+                }
+                if b < 0xF5u8 {
+                    if b == 0xF0u8 {
+                        self.lower_boundary = 0x90u8;
+                    } else if b == 0xF4u8 {
+                        self.upper_boundary = 0x8Fu8;
+                    }
+                    self.bytes_needed = 3;
+                    self.code_point = b as u32 & 0x7;
+                    continue;
+                }
+                return (DecoderResult::Malformed(1, 0),
+                        unread_handle.consumed(),
+                        destination_handle.written());
+            }
+            // self.bytes_needed != 0
+            if !(b >= self.lower_boundary && b <= self.upper_boundary) {
+                let bad_bytes = (self.bytes_seen + 1) as u8;
+                self.code_point = 0;
+                self.bytes_needed = 0;
+                self.bytes_seen = 0;
+                self.lower_boundary = 0x80u8;
+                self.upper_boundary = 0xBFu8;
+                return (DecoderResult::Malformed(bad_bytes, 0),
+                        unread_handle.unread(),
+                        destination_handle.written());
+            }
+            self.lower_boundary = 0x80u8;
+            self.upper_boundary = 0xBFu8;
+            self.code_point = (self.code_point << 6) | (b as u32 & 0x3F);
+            self.bytes_seen += 1;
+            if self.bytes_seen != self.bytes_needed {
+                continue;
+            }
+            if self.bytes_needed == 3 {
+                destination_handle.write_astral(self.code_point);
+            } else {
+                destination_handle.write_bmp_excl_ascii(self.code_point as u16);
+            }
+            self.code_point = 0;
+            self.bytes_needed = 0;
+            self.bytes_seen = 0;
+            continue;
+        },
+        self,
+        src_consumed,
+        dest,
+        source,
+        b,
+        destination_handle,
+        unread_handle,
+        check_space_astral
+    );
 }
 
 pub struct Utf8Encoder;
@@ -577,8 +575,12 @@ impl Utf8Encoder {
                     (EncoderResult::InputEmpty, src_remaining.len())
                 };
                 match unsafe {
-                    basic_latin_to_ascii(src_remaining.as_ptr(), dst_remaining.as_mut_ptr(), length)
-                } {
+                          basic_latin_to_ascii(
+                        src_remaining.as_ptr(),
+                        dst_remaining.as_mut_ptr(),
+                        length,
+                    )
+                      } {
                     None => {
                         read += length;
                         written += length;
@@ -915,13 +917,16 @@ mod tests {
         encode_utf8_from_utf16(&[0xDBFF, 0xDFFF], "\u{10FFFF}".as_bytes());
     }
 
-        #[test]
+    #[test]
     fn test_utf8_max_length_from_utf16() {
         let mut encoder = UTF_8.new_encoder();
         let mut output = [0u8; 13];
         let input = &[0x2C9Fu16, 0x2CA9u16, 0x2CA3u16, 0x2C9Fu16];
-        let needed = encoder.max_buffer_length_from_utf16_without_replacement(input.len()).unwrap();
-        let (result, _, _) = encoder.encode_from_utf16_without_replacement(input, &mut output[..needed], true);
+        let needed = encoder
+            .max_buffer_length_from_utf16_without_replacement(input.len())
+            .unwrap();
+        let (result, _, _) =
+            encoder.encode_from_utf16_without_replacement(input, &mut output[..needed], true);
         assert_eq!(result, EncoderResult::InputEmpty);
     }
 

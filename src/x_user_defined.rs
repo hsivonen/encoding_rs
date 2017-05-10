@@ -30,26 +30,28 @@ impl UserDefinedDecoder {
         byte_length.checked_mul(3)
     }
 
-    decoder_functions!({},
-                       {},
-                       {},
-                       {
-                           if b < 0x80 {
-                               // XXX optimize ASCII
-                               destination_handle.write_ascii(b);
-                               continue;
-                           }
-                           destination_handle.write_upper_bmp((b as usize + 0xF700usize) as u16);
-                           continue;
-                       },
-                       self,
-                       src_consumed,
-                       dest,
-                       source,
-                       b,
-                       destination_handle,
-                       _unread_handle,
-                       check_space_bmp);
+    decoder_functions!(
+        {},
+        {},
+        {},
+        {
+            if b < 0x80 {
+                // XXX optimize ASCII
+                destination_handle.write_ascii(b);
+                continue;
+            }
+            destination_handle.write_upper_bmp((b as usize + 0xF700usize) as u16);
+            continue;
+        },
+        self,
+        src_consumed,
+        dest,
+        source,
+        b,
+        destination_handle,
+        _unread_handle,
+        check_space_bmp
+    );
 }
 
 pub struct UserDefinedEncoder;
@@ -71,29 +73,31 @@ impl UserDefinedEncoder {
         Some(byte_length)
     }
 
-    encoder_functions!({},
-                       {
-                           if c <= '\u{7F}' {
-                               // TODO optimize ASCII run
-                               destination_handle.write_one(c as u8);
-                               continue;
-                           }
-                           if c < '\u{F780}' || c > '\u{F7FF}' {
-                               return (EncoderResult::Unmappable(c),
-                                       unread_handle.consumed(),
-                                       destination_handle.written());
-                           }
-                           destination_handle.write_one((c as usize - 0xF700usize) as u8);
-                           continue;
-                       },
-                       self,
-                       src_consumed,
-                       source,
-                       dest,
-                       c,
-                       destination_handle,
-                       unread_handle,
-                       check_space_one);
+    encoder_functions!(
+        {},
+        {
+            if c <= '\u{7F}' {
+                // TODO optimize ASCII run
+                destination_handle.write_one(c as u8);
+                continue;
+            }
+            if c < '\u{F780}' || c > '\u{F7FF}' {
+                return (EncoderResult::Unmappable(c),
+                        unread_handle.consumed(),
+                        destination_handle.written());
+            }
+            destination_handle.write_one((c as usize - 0xF700usize) as u8);
+            continue;
+        },
+        self,
+        src_consumed,
+        source,
+        dest,
+        c,
+        destination_handle,
+        unread_handle,
+        check_space_one
+    );
 }
 
 // Any copyright to the test code below this comment is dedicated to the

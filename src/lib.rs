@@ -2201,16 +2201,18 @@ impl Encoding {
 
         }
         let candidate = &trimmed[..trimmed_pos];
-        match LABELS_SORTED.binary_search_by(|probe| {
-            let bytes = probe.as_bytes();
-            let c = bytes.len().cmp(&candidate.len());
-            if c != Ordering::Equal {
-                return c;
+        match LABELS_SORTED.binary_search_by(
+            |probe| {
+                let bytes = probe.as_bytes();
+                let c = bytes.len().cmp(&candidate.len());
+                if c != Ordering::Equal {
+                    return c;
+                }
+                let probe_iter = bytes.iter().rev();
+                let candidate_iter = candidate.iter().rev();
+                probe_iter.cmp(candidate_iter)
             }
-            let probe_iter = bytes.iter().rev();
-            let candidate_iter = candidate.iter().rev();
-            probe_iter.cmp(candidate_iter)
-        }) {
+        ) {
             Ok(i) => Some(ENCODINGS_IN_LABEL_SORT[i]),
             Err(_) => None,
         }
@@ -2283,16 +2285,18 @@ impl Encoding {
             assert_eq!(name, b"UTF-8", "Bogus encoding name");
             return UTF_8;
         }
-        match ENCODINGS_SORTED_BY_NAME.binary_search_by(|probe| {
-            let bytes = probe.name().as_bytes();
-            let c = bytes.len().cmp(&name.len());
-            if c != Ordering::Equal {
-                return c;
+        match ENCODINGS_SORTED_BY_NAME.binary_search_by(
+            |probe| {
+                let bytes = probe.name().as_bytes();
+                let c = bytes.len().cmp(&name.len());
+                if c != Ordering::Equal {
+                    return c;
+                }
+                let probe_iter = bytes.iter().rev();
+                let candidate_iter = name.iter().rev();
+                probe_iter.cmp(candidate_iter)
             }
-            let probe_iter = bytes.iter().rev();
-            let candidate_iter = name.iter().rev();
-            probe_iter.cmp(candidate_iter)
-        }) {
+        ) {
             Ok(i) => ENCODINGS_SORTED_BY_NAME[i],
             Err(_) => panic!("Bogus encoding name"),
         }
@@ -2422,7 +2426,7 @@ impl Encoding {
         let without_bom = if self == UTF_8 && bytes.starts_with(b"\xEF\xBB\xBF") {
             &bytes[3..]
         } else if (self == UTF_16LE && bytes.starts_with(b"\xFF\xFE")) ||
-                             (self == UTF_16BE && bytes.starts_with(b"\xFE\xFF")) {
+                  (self == UTF_16BE && bytes.starts_with(b"\xFE\xFF")) {
             &bytes[2..]
         } else {
             bytes
@@ -2479,13 +2483,21 @@ impl Encoding {
             let decoder = self.new_decoder_without_bom_handling();
 
             let rounded_without_replacement =
-                checked_next_power_of_two(checked_add(valid_up_to, decoder.max_utf8_buffer_length_without_replacement(bytes.len() - valid_up_to)));
-            let with_replacement = checked_add(valid_up_to,
-                                               decoder.max_utf8_buffer_length(bytes.len() -
-                                                                              valid_up_to));
-            let mut string = String::with_capacity(checked_min(rounded_without_replacement,
-                                                               with_replacement)
-                                                       .unwrap());
+                checked_next_power_of_two(
+                    checked_add(
+                        valid_up_to,
+                        decoder
+                            .max_utf8_buffer_length_without_replacement(bytes.len() - valid_up_to),
+                    )
+                );
+            let with_replacement = checked_add(
+                valid_up_to,
+                decoder.max_utf8_buffer_length(bytes.len() - valid_up_to),
+            );
+            let mut string = String::with_capacity(
+                checked_min(rounded_without_replacement, with_replacement)
+                    .unwrap()
+            );
             unsafe {
                 let mut vec = string.as_mut_vec();
                 vec.set_len(valid_up_to);
@@ -2495,19 +2507,20 @@ impl Encoding {
         } else {
             let decoder = self.new_decoder_without_bom_handling();
             let rounded_without_replacement =
-                checked_next_power_of_two(decoder.max_utf8_buffer_length_without_replacement(bytes.len()));
+                checked_next_power_of_two(
+                    decoder.max_utf8_buffer_length_without_replacement(bytes.len()),
+                );
             let with_replacement = decoder.max_utf8_buffer_length(bytes.len());
-            let string = String::with_capacity(checked_min(rounded_without_replacement,
-                                                           with_replacement)
-                                                   .unwrap());
+            let string = String::with_capacity(
+                checked_min(rounded_without_replacement, with_replacement).unwrap(),
+            );
             (decoder, string, 0)
         };
 
         let mut total_had_errors = false;
         loop {
-            let (result, read, had_errors) = decoder.decode_to_string(&bytes[total_read..],
-                                                                      &mut string,
-                                                                      true);
+            let (result, read, had_errors) =
+                decoder.decode_to_string(&bytes[total_read..], &mut string, true);
             total_read += read;
             total_had_errors |= had_errors;
             match result {
@@ -2577,9 +2590,15 @@ impl Encoding {
                 return Some(Cow::Borrowed(str));
             }
             let decoder = self.new_decoder_without_bom_handling();
-            let mut string = String::with_capacity(checked_add(valid_up_to,
-                                                   decoder.max_utf8_buffer_length_without_replacement(bytes.len() -
-                                                                                                      valid_up_to)).unwrap());
+            let mut string = String::with_capacity(
+                checked_add(
+                    valid_up_to,
+                    decoder.max_utf8_buffer_length_without_replacement(
+                        bytes.len() - valid_up_to,
+                    ),
+                )
+                        .unwrap()
+            );
             unsafe {
                 let mut vec = string.as_mut_vec();
                 vec.set_len(valid_up_to);
@@ -2588,7 +2607,11 @@ impl Encoding {
             (decoder, string, &bytes[valid_up_to..])
         } else {
             let decoder = self.new_decoder_without_bom_handling();
-            let string = String::with_capacity(decoder.max_utf8_buffer_length_without_replacement(bytes.len()).unwrap());
+            let string = String::with_capacity(
+                decoder
+                    .max_utf8_buffer_length_without_replacement(bytes.len())
+                    .unwrap()
+            );
             (decoder, string, bytes)
         };
         let (result, read) = decoder.decode_to_string_without_replacement(input, &mut string, true);
@@ -2657,9 +2680,16 @@ impl Encoding {
             return (Cow::Borrowed(bytes), output_encoding, false);
         }
         let mut encoder = output_encoding.new_encoder();
-        let mut vec: Vec<u8> = Vec::with_capacity((checked_add(valid_up_to,
-                                                   encoder.max_buffer_length_from_utf8_if_no_unmappables(string.len() - valid_up_to))).unwrap()
-                                                   .next_power_of_two());
+        let mut vec: Vec<u8> = Vec::with_capacity(
+            (checked_add(
+                valid_up_to,
+                encoder.max_buffer_length_from_utf8_if_no_unmappables(
+                    string.len() - valid_up_to,
+                ),
+            ))
+                    .unwrap()
+                    .next_power_of_two()
+        );
         unsafe {
             vec.set_len(valid_up_to);
             std::ptr::copy_nonoverlapping(bytes.as_ptr(), vec.as_mut_ptr(), valid_up_to);
@@ -2667,9 +2697,8 @@ impl Encoding {
         let mut total_read = valid_up_to;
         let mut total_had_errors = false;
         loop {
-            let (result, read, had_errors) = encoder.encode_from_utf8_to_vec(&string[total_read..],
-                                                                             &mut vec,
-                                                                             true);
+            let (result, read, had_errors) =
+                encoder.encode_from_utf8_to_vec(&string[total_read..], &mut vec, true);
             total_read += read;
             total_had_errors |= had_errors;
             match result {
@@ -2681,11 +2710,12 @@ impl Encoding {
                     // reserve_exact wants to know how much more on top of current
                     // length--not current capacity.
                     let needed =
-                        encoder.max_buffer_length_from_utf8_if_no_unmappables(string.len() -
-                                                                              total_read);
+                        encoder.max_buffer_length_from_utf8_if_no_unmappables(
+                            string.len() - total_read,
+                        );
                     let rounded = (checked_add(vec.capacity(), needed))
-                                      .unwrap()
-                                      .next_power_of_two();
+                        .unwrap()
+                        .next_power_of_two();
                     let additional = rounded - vec.len();
                     vec.reserve_exact(additional);
                 }
@@ -3106,10 +3136,11 @@ impl Decoder {
         let mut total_read = 0usize;
         let mut total_written = 0usize;
         loop {
-            let (result, read, written) =
-                self.decode_to_utf8_without_replacement(&src[total_read..],
-                                                        &mut dst[total_written..],
-                                                        last);
+            let (result, read, written) = self.decode_to_utf8_without_replacement(
+                &src[total_read..],
+                &mut dst[total_written..],
+                last,
+            );
             total_read += read;
             total_written += written;
             match result {
@@ -3201,9 +3232,8 @@ impl Decoder {
             let old_len = vec.len();
             let capacity = vec.capacity();
             vec.set_len(capacity);
-            let (result, read, written, replaced) = self.decode_to_utf8(src,
-                                                                        &mut vec[old_len..],
-                                                                        last);
+            let (result, read, written, replaced) =
+                self.decode_to_utf8(src, &mut vec[old_len..], last);
             vec.set_len(old_len + written);
             (result, read, replaced)
         }
@@ -3331,10 +3361,11 @@ impl Decoder {
         let mut total_read = 0usize;
         let mut total_written = 0usize;
         loop {
-            let (result, read, written) =
-                self.decode_to_utf16_without_replacement(&src[total_read..],
-                                                         &mut dst[total_written..],
-                                                         last);
+            let (result, read, written) = self.decode_to_utf16_without_replacement(
+                &src[total_read..],
+                &mut dst[total_written..],
+                last,
+            );
             total_read += read;
             total_written += written;
             match result {
@@ -3554,12 +3585,14 @@ impl Encoder {
     pub fn max_buffer_length_from_utf8_if_no_unmappables(&self,
                                                          byte_length: usize)
                                                          -> Option<usize> {
-        checked_add(if self.encoding().can_encode_everything() {
-                        0
-                    } else {
-                        NCR_EXTRA
-                    },
-                    self.max_buffer_length_from_utf8_without_replacement(byte_length))
+        checked_add(
+            if self.encoding().can_encode_everything() {
+                0
+            } else {
+                NCR_EXTRA
+            },
+            self.max_buffer_length_from_utf8_without_replacement(byte_length),
+        )
     }
 
     /// Query the worst-case output size when encoding from UTF-8 without
@@ -3573,7 +3606,8 @@ impl Encoder {
     pub fn max_buffer_length_from_utf8_without_replacement(&self,
                                                            byte_length: usize)
                                                            -> Option<usize> {
-        self.variant.max_buffer_length_from_utf8_without_replacement(byte_length)
+        self.variant
+            .max_buffer_length_from_utf8_without_replacement(byte_length)
     }
 
     /// Incrementally encode into byte stream from UTF-8 with unmappable
@@ -3604,9 +3638,11 @@ impl Encoder {
         let mut total_read = 0usize;
         let mut total_written = 0usize;
         loop {
-            let (result, read, written) = self.encode_from_utf8_without_replacement(&src[total_read..],
-                                  &mut dst[total_written..effective_dst_len],
-                                  last);
+            let (result, read, written) = self.encode_from_utf8_without_replacement(
+                &src[total_read..],
+                &mut dst[total_written..effective_dst_len],
+                last,
+            );
             total_read += read;
             total_written += written;
             match result {
@@ -3657,9 +3693,8 @@ impl Encoder {
             let old_len = dst.len();
             let capacity = dst.capacity();
             dst.set_len(capacity);
-            let (result, read, written, replaced) = self.encode_from_utf8(src,
-                                                                          &mut dst[old_len..],
-                                                                          last);
+            let (result, read, written, replaced) =
+                self.encode_from_utf8(src, &mut dst[old_len..], last);
             dst.set_len(old_len + written);
             (result, read, replaced)
         }
@@ -3713,12 +3748,14 @@ impl Encoder {
     pub fn max_buffer_length_from_utf16_if_no_unmappables(&self,
                                                           u16_length: usize)
                                                           -> Option<usize> {
-        checked_add(if self.encoding().can_encode_everything() {
-                        0
-                    } else {
-                        NCR_EXTRA
-                    },
-                    self.max_buffer_length_from_utf16_without_replacement(u16_length))
+        checked_add(
+            if self.encoding().can_encode_everything() {
+                0
+            } else {
+                NCR_EXTRA
+            },
+            self.max_buffer_length_from_utf16_without_replacement(u16_length),
+        )
     }
 
     /// Query the worst-case output size when encoding from UTF-16 without
@@ -3732,7 +3769,8 @@ impl Encoder {
     pub fn max_buffer_length_from_utf16_without_replacement(&self,
                                                             u16_length: usize)
                                                             -> Option<usize> {
-        self.variant.max_buffer_length_from_utf16_without_replacement(u16_length)
+        self.variant
+            .max_buffer_length_from_utf16_without_replacement(u16_length)
     }
 
     /// Incrementally encode into byte stream from UTF-16 with unmappable
@@ -3763,9 +3801,11 @@ impl Encoder {
         let mut total_read = 0usize;
         let mut total_written = 0usize;
         loop {
-            let (result, read, written) = self.encode_from_utf16_without_replacement(&src[total_read..],
-                                   &mut dst[total_written..effective_dst_len],
-                                   last);
+            let (result, read, written) = self.encode_from_utf16_without_replacement(
+                &src[total_read..],
+                &mut dst[total_written..effective_dst_len],
+                last,
+            );
             total_read += read;
             total_written += written;
             match result {
@@ -3951,17 +3991,16 @@ mod tests {
                       breaks: &[usize]) {
         let mut decoder = initial_encoding.new_decoder();
 
-        let mut dest: Vec<u16> = Vec::with_capacity(decoder.max_utf16_buffer_length(bytes.len())
-                                                           .unwrap());
+        let mut dest: Vec<u16> =
+            Vec::with_capacity(decoder.max_utf16_buffer_length(bytes.len()).unwrap());
         let capacity = dest.capacity();
         dest.resize(capacity, 0u16);
 
         let mut total_written = 0usize;
         let mut start = 0usize;
         for br in breaks {
-            let (result, read, written, _) = decoder.decode_to_utf16(&bytes[start..*br],
-                                                                     &mut dest[total_written..],
-                                                                     false);
+            let (result, read, written, _) =
+                decoder.decode_to_utf16(&bytes[start..*br], &mut dest[total_written..], false);
             total_written += written;
             assert_eq!(read, *br - start);
             match result {
@@ -3972,9 +4011,8 @@ mod tests {
             }
             start = *br;
         }
-        let (result, read, written, _) = decoder.decode_to_utf16(&bytes[start..],
-                                                                 &mut dest[total_written..],
-                                                                 true);
+        let (result, read, written, _) =
+            decoder.decode_to_utf16(&bytes[start..], &mut dest[total_written..], true);
         total_written += written;
         match result {
             CoderResult::InputEmpty => {}
@@ -3994,112 +4032,152 @@ mod tests {
     #[test]
     fn test_bom_sniffing() {
         // ASCII
-        sniff_to_utf16(WINDOWS_1252,
-                       WINDOWS_1252,
-                       b"\x61\x62",
-                       &[0x0061u16, 0x0062u16],
-                       &[]);
+        sniff_to_utf16(
+            WINDOWS_1252,
+            WINDOWS_1252,
+            b"\x61\x62",
+            &[0x0061u16, 0x0062u16],
+            &[],
+        );
         // UTF-8
-        sniff_to_utf16(WINDOWS_1252,
-                       UTF_8,
-                       b"\xEF\xBB\xBF\x61\x62",
-                       &[0x0061u16, 0x0062u16],
-                       &[]);
-        sniff_to_utf16(WINDOWS_1252,
-                       UTF_8,
-                       b"\xEF\xBB\xBF\x61\x62",
-                       &[0x0061u16, 0x0062u16],
-                       &[1]);
-        sniff_to_utf16(WINDOWS_1252,
-                       UTF_8,
-                       b"\xEF\xBB\xBF\x61\x62",
-                       &[0x0061u16, 0x0062u16],
-                       &[2]);
-        sniff_to_utf16(WINDOWS_1252,
-                       UTF_8,
-                       b"\xEF\xBB\xBF\x61\x62",
-                       &[0x0061u16, 0x0062u16],
-                       &[3]);
-        sniff_to_utf16(WINDOWS_1252,
-                       UTF_8,
-                       b"\xEF\xBB\xBF\x61\x62",
-                       &[0x0061u16, 0x0062u16],
-                       &[4]);
-        sniff_to_utf16(WINDOWS_1252,
-                       UTF_8,
-                       b"\xEF\xBB\xBF\x61\x62",
-                       &[0x0061u16, 0x0062u16],
-                       &[2, 3]);
-        sniff_to_utf16(WINDOWS_1252,
-                       UTF_8,
-                       b"\xEF\xBB\xBF\x61\x62",
-                       &[0x0061u16, 0x0062u16],
-                       &[1, 2]);
-        sniff_to_utf16(WINDOWS_1252,
-                       UTF_8,
-                       b"\xEF\xBB\xBF\x61\x62",
-                       &[0x0061u16, 0x0062u16],
-                       &[1, 3]);
-        sniff_to_utf16(WINDOWS_1252,
-                       UTF_8,
-                       b"\xEF\xBB\xBF\x61\x62",
-                       &[0x0061u16, 0x0062u16],
-                       &[1, 2, 3, 4]);
+        sniff_to_utf16(
+            WINDOWS_1252,
+            UTF_8,
+            b"\xEF\xBB\xBF\x61\x62",
+            &[0x0061u16, 0x0062u16],
+            &[],
+        );
+        sniff_to_utf16(
+            WINDOWS_1252,
+            UTF_8,
+            b"\xEF\xBB\xBF\x61\x62",
+            &[0x0061u16, 0x0062u16],
+            &[1],
+        );
+        sniff_to_utf16(
+            WINDOWS_1252,
+            UTF_8,
+            b"\xEF\xBB\xBF\x61\x62",
+            &[0x0061u16, 0x0062u16],
+            &[2],
+        );
+        sniff_to_utf16(
+            WINDOWS_1252,
+            UTF_8,
+            b"\xEF\xBB\xBF\x61\x62",
+            &[0x0061u16, 0x0062u16],
+            &[3],
+        );
+        sniff_to_utf16(
+            WINDOWS_1252,
+            UTF_8,
+            b"\xEF\xBB\xBF\x61\x62",
+            &[0x0061u16, 0x0062u16],
+            &[4],
+        );
+        sniff_to_utf16(
+            WINDOWS_1252,
+            UTF_8,
+            b"\xEF\xBB\xBF\x61\x62",
+            &[0x0061u16, 0x0062u16],
+            &[2, 3],
+        );
+        sniff_to_utf16(
+            WINDOWS_1252,
+            UTF_8,
+            b"\xEF\xBB\xBF\x61\x62",
+            &[0x0061u16, 0x0062u16],
+            &[1, 2],
+        );
+        sniff_to_utf16(
+            WINDOWS_1252,
+            UTF_8,
+            b"\xEF\xBB\xBF\x61\x62",
+            &[0x0061u16, 0x0062u16],
+            &[1, 3],
+        );
+        sniff_to_utf16(
+            WINDOWS_1252,
+            UTF_8,
+            b"\xEF\xBB\xBF\x61\x62",
+            &[0x0061u16, 0x0062u16],
+            &[1, 2, 3, 4],
+        );
         sniff_to_utf16(WINDOWS_1252, UTF_8, b"\xEF\xBB\xBF", &[], &[]);
         // Not UTF-8
-        sniff_to_utf16(WINDOWS_1252,
-                       WINDOWS_1252,
-                       b"\xEF\xBB\x61\x62",
-                       &[0x00EFu16, 0x00BBu16, 0x0061u16, 0x0062u16],
-                       &[]);
-        sniff_to_utf16(WINDOWS_1252,
-                       WINDOWS_1252,
-                       b"\xEF\xBB\x61\x62",
-                       &[0x00EFu16, 0x00BBu16, 0x0061u16, 0x0062u16],
-                       &[1]);
-        sniff_to_utf16(WINDOWS_1252,
-                       WINDOWS_1252,
-                       b"\xEF\x61\x62",
-                       &[0x00EFu16, 0x0061u16, 0x0062u16],
-                       &[]);
-        sniff_to_utf16(WINDOWS_1252,
-                       WINDOWS_1252,
-                       b"\xEF\x61\x62",
-                       &[0x00EFu16, 0x0061u16, 0x0062u16],
-                       &[1]);
-        sniff_to_utf16(WINDOWS_1252,
-                       WINDOWS_1252,
-                       b"\xEF\xBB",
-                       &[0x00EFu16, 0x00BBu16],
-                       &[]);
-        sniff_to_utf16(WINDOWS_1252,
-                       WINDOWS_1252,
-                       b"\xEF\xBB",
-                       &[0x00EFu16, 0x00BBu16],
-                       &[1]);
+        sniff_to_utf16(
+            WINDOWS_1252,
+            WINDOWS_1252,
+            b"\xEF\xBB\x61\x62",
+            &[0x00EFu16, 0x00BBu16, 0x0061u16, 0x0062u16],
+            &[],
+        );
+        sniff_to_utf16(
+            WINDOWS_1252,
+            WINDOWS_1252,
+            b"\xEF\xBB\x61\x62",
+            &[0x00EFu16, 0x00BBu16, 0x0061u16, 0x0062u16],
+            &[1],
+        );
+        sniff_to_utf16(
+            WINDOWS_1252,
+            WINDOWS_1252,
+            b"\xEF\x61\x62",
+            &[0x00EFu16, 0x0061u16, 0x0062u16],
+            &[],
+        );
+        sniff_to_utf16(
+            WINDOWS_1252,
+            WINDOWS_1252,
+            b"\xEF\x61\x62",
+            &[0x00EFu16, 0x0061u16, 0x0062u16],
+            &[1],
+        );
+        sniff_to_utf16(
+            WINDOWS_1252,
+            WINDOWS_1252,
+            b"\xEF\xBB",
+            &[0x00EFu16, 0x00BBu16],
+            &[],
+        );
+        sniff_to_utf16(
+            WINDOWS_1252,
+            WINDOWS_1252,
+            b"\xEF\xBB",
+            &[0x00EFu16, 0x00BBu16],
+            &[1],
+        );
         sniff_to_utf16(WINDOWS_1252, WINDOWS_1252, b"\xEF", &[0x00EFu16], &[]);
         // Not UTF-16
-        sniff_to_utf16(WINDOWS_1252,
-                       WINDOWS_1252,
-                       b"\xFE\x61\x62",
-                       &[0x00FEu16, 0x0061u16, 0x0062u16],
-                       &[]);
-        sniff_to_utf16(WINDOWS_1252,
-                       WINDOWS_1252,
-                       b"\xFE\x61\x62",
-                       &[0x00FEu16, 0x0061u16, 0x0062u16],
-                       &[1]);
+        sniff_to_utf16(
+            WINDOWS_1252,
+            WINDOWS_1252,
+            b"\xFE\x61\x62",
+            &[0x00FEu16, 0x0061u16, 0x0062u16],
+            &[],
+        );
+        sniff_to_utf16(
+            WINDOWS_1252,
+            WINDOWS_1252,
+            b"\xFE\x61\x62",
+            &[0x00FEu16, 0x0061u16, 0x0062u16],
+            &[1],
+        );
         sniff_to_utf16(WINDOWS_1252, WINDOWS_1252, b"\xFE", &[0x00FEu16], &[]);
-        sniff_to_utf16(WINDOWS_1252,
-                       WINDOWS_1252,
-                       b"\xFF\x61\x62",
-                       &[0x00FFu16, 0x0061u16, 0x0062u16],
-                       &[]);
-        sniff_to_utf16(WINDOWS_1252,
-                       WINDOWS_1252,
-                       b"\xFF\x61\x62",
-                       &[0x00FFu16, 0x0061u16, 0x0062u16],
-                       &[1]);
+        sniff_to_utf16(
+            WINDOWS_1252,
+            WINDOWS_1252,
+            b"\xFF\x61\x62",
+            &[0x00FFu16, 0x0061u16, 0x0062u16],
+            &[],
+        );
+        sniff_to_utf16(
+            WINDOWS_1252,
+            WINDOWS_1252,
+            b"\xFF\x61\x62",
+            &[0x00FFu16, 0x0061u16, 0x0062u16],
+            &[1],
+        );
         sniff_to_utf16(WINDOWS_1252, WINDOWS_1252, b"\xFF", &[0x00FFu16], &[]);
         // UTF-16
         sniff_to_utf16(WINDOWS_1252, UTF_16BE, b"\xFE\xFF", &[], &[]);
@@ -4126,8 +4204,10 @@ mod tests {
     fn test_label_resolution() {
         assert_eq!(Encoding::for_label(b"utf-8"), Some(UTF_8));
         assert_eq!(Encoding::for_label(b"UTF-8"), Some(UTF_8));
-        assert_eq!(Encoding::for_label(b" \t \n \x0C \n utf-8 \r \n \t \x0C "),
-                   Some(UTF_8));
+        assert_eq!(
+            Encoding::for_label(b" \t \n \x0C \n utf-8 \r \n \t \x0C "),
+            Some(UTF_8)
+        );
         assert_eq!(Encoding::for_label(b"utf-8 _"), None);
         assert_eq!(Encoding::for_label(b"bogus"), None);
         assert_eq!(Encoding::for_label(b"bogusbogusbogusbogus"), None);
@@ -4263,13 +4343,15 @@ mod tests {
 
     #[test]
     fn test_decode_bomful_valid_utf8_as_windows_1257_to_cow_with_bom_removal() {
-        let (cow, had_errors) =
-            WINDOWS_1257.decode_with_bom_removal(b"\xEF\xBB\xBF\xE2\x82\xAC\xC3\xA4");
+        let (cow, had_errors) = WINDOWS_1257
+            .decode_with_bom_removal(b"\xEF\xBB\xBF\xE2\x82\xAC\xC3\xA4");
         match cow {
             Cow::Borrowed(_) => unreachable!(),
             Cow::Owned(s) => {
-                assert_eq!(s,
-                           "\u{013C}\u{00BB}\u{00E6}\u{0101}\u{201A}\u{00AC}\u{0106}\u{00A4}");
+                assert_eq!(
+                    s,
+                    "\u{013C}\u{00BB}\u{00E6}\u{0101}\u{201A}\u{00AC}\u{0106}\u{00A4}"
+                );
             }
         }
         assert!(!had_errors);
@@ -4376,22 +4458,30 @@ mod tests {
 
     #[test]
     fn test_decode_bomful_valid_utf8_to_cow_without_bom_handling_and_without_replacement() {
-        match UTF_8.decode_without_bom_handling_and_without_replacement(b"\xEF\xBB\xBF\xE2\x82\xAC\xC3\xA4") {
+        match UTF_8.decode_without_bom_handling_and_without_replacement(
+            b"\xEF\xBB\xBF\xE2\x82\xAC\xC3\xA4",
+        ) {
             Some(cow) => {
-               match cow {
-                   Cow::Borrowed(s) => {
-                       assert_eq!(s, "\u{FEFF}\u{20AC}\u{00E4}");
-                   },
-                   Cow::Owned(_) => unreachable!(),
-               }
-            },
+                match cow {
+                    Cow::Borrowed(s) => {
+                        assert_eq!(s, "\u{FEFF}\u{20AC}\u{00E4}");
+                    }
+                    Cow::Owned(_) => unreachable!(),
+                }
+            }
             None => unreachable!(),
         }
     }
 
     #[test]
     fn test_decode_bomful_invalid_utf8_to_cow_without_bom_handling_and_without_replacement() {
-        assert!(UTF_8.decode_without_bom_handling_and_without_replacement(b"\xEF\xBB\xBF\xE2\x82\xAC\x80\xC3\xA4").is_none());
+        assert!(
+            UTF_8
+                .decode_without_bom_handling_and_without_replacement(
+                    b"\xEF\xBB\xBF\xE2\x82\xAC\x80\xC3\xA4",
+                )
+                .is_none()
+        );
     }
 
     #[test]
@@ -4411,8 +4501,11 @@ mod tests {
 
     #[test]
     fn test_decode_invalid_windows_1257_to_cow_without_bom_handling_and_without_replacement() {
-        assert!(WINDOWS_1257.decode_without_bom_handling_and_without_replacement(b"abc\x80\xA1\xE4")
-                            .is_none());
+        assert!(
+            WINDOWS_1257
+                .decode_without_bom_handling_and_without_replacement(b"abc\x80\xA1\xE4")
+                .is_none()
+        );
     }
 
     #[test]
@@ -4578,9 +4671,8 @@ mod tests {
         let mut dst = [0u8; 17];
         {
             let mut encoder = ISO_2022_JP.new_encoder();
-            let (result, _, _, _) = encoder.encode_from_utf8("\u{A5}\u{1F4A9}",
-                                                             &mut dst[..],
-                                                             false);
+            let (result, _, _, _) = encoder
+                .encode_from_utf8("\u{A5}\u{1F4A9}", &mut dst[..], false);
             assert_eq!(result, CoderResult::InputEmpty);
         }
         {
@@ -4638,30 +4730,26 @@ mod tests {
         let mut dst = [0u8; 17];
         {
             let mut encoder = ISO_2022_JP.new_encoder();
-            let (result, _, _, _) = encoder.encode_from_utf16(&[0xA5u16, 0xD83Du16, 0xDCA9u16],
-                                                              &mut dst[..],
-                                                              false);
+            let (result, _, _, _) =
+                encoder.encode_from_utf16(&[0xA5u16, 0xD83Du16, 0xDCA9u16], &mut dst[..], false);
             assert_eq!(result, CoderResult::InputEmpty);
         }
         {
             let mut encoder = ISO_2022_JP.new_encoder();
-            let (result, _, _, _) = encoder.encode_from_utf16(&[0xA5u16, 0xD83Du16, 0xDCA9u16],
-                                                              &mut dst[..],
-                                                              true);
+            let (result, _, _, _) =
+                encoder.encode_from_utf16(&[0xA5u16, 0xD83Du16, 0xDCA9u16], &mut dst[..], true);
             assert_eq!(result, CoderResult::OutputFull);
         }
         {
             let mut encoder = ISO_2022_JP.new_encoder();
-            let (result, _, _, _) = encoder.encode_from_utf16(&[0xD83Du16, 0xDCA9u16],
-                                                              &mut dst[..12],
-                                                              false);
+            let (result, _, _, _) =
+                encoder.encode_from_utf16(&[0xD83Du16, 0xDCA9u16], &mut dst[..12], false);
             assert_eq!(result, CoderResult::InputEmpty);
         }
         {
             let mut encoder = ISO_2022_JP.new_encoder();
-            let (result, _, _, _) = encoder.encode_from_utf16(&[0xD83Du16, 0xDCA9u16],
-                                                              &mut dst[..12],
-                                                              true);
+            let (result, _, _, _) =
+                encoder.encode_from_utf16(&[0xD83Du16, 0xDCA9u16], &mut dst[..12], true);
             assert_eq!(result, CoderResult::InputEmpty);
         }
     }

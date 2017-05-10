@@ -98,13 +98,16 @@ pub fn check_ascii(s: u8x16) -> Option<usize> {
 #[inline(always)]
 pub fn unpack(s: u8x16) -> (u16x8, u16x8) {
     unsafe {
-        let first: u8x16 = simd_shuffle16(s,
-                                          u8x16::splat(0),
-                                          [0, 16, 1, 17, 2, 18, 3, 19, 4, 20, 5, 21, 6, 22, 7, 23]);
-        let second: u8x16 = simd_shuffle16(s,
-                                           u8x16::splat(0),
-                                           [8, 24, 9, 25, 10, 26, 11, 27, 12, 28, 13, 29, 14, 30,
-                                            15, 31]);
+        let first: u8x16 = simd_shuffle16(
+            s,
+            u8x16::splat(0),
+            [0, 16, 1, 17, 2, 18, 3, 19, 4, 20, 5, 21, 6, 22, 7, 23],
+        );
+        let second: u8x16 = simd_shuffle16(
+            s,
+            u8x16::splat(0),
+            [8, 24, 9, 25, 10, 26, 11, 27, 12, 28, 13, 29, 14, 30, 15, 31],
+        );
         (::std::mem::transmute_copy(&first), ::std::mem::transmute_copy(&second))
     }
 }

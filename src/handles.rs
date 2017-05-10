@@ -52,10 +52,7 @@ pub struct ByteSource<'a> {
 impl<'a> ByteSource<'a> {
     #[inline(always)]
     pub fn new(src: &[u8]) -> ByteSource {
-        ByteSource {
-            slice: src,
-            pos: 0,
-        }
+        ByteSource { slice: src, pos: 0 }
     }
     #[inline(always)]
     pub fn check_available<'b>(&'b mut self) -> Space<ByteReadHandle<'b, 'a>> {
@@ -253,10 +250,7 @@ pub struct Utf16Destination<'a> {
 impl<'a> Utf16Destination<'a> {
     #[inline(always)]
     pub fn new(dst: &mut [u16]) -> Utf16Destination {
-        Utf16Destination {
-            slice: dst,
-            pos: 0,
-        }
+        Utf16Destination { slice: dst, pos: 0 }
     }
     #[inline(always)]
     pub fn check_space_bmp<'b>(&'b mut self) -> Space<Utf16BmpHandle<'b, 'a>> {
@@ -341,8 +335,12 @@ impl<'a> Utf16Destination<'a> {
                 (DecoderResult::InputEmpty, src_remaining.len())
             };
             match unsafe {
-                ascii_to_basic_latin(src_remaining.as_ptr(), dst_remaining.as_mut_ptr(), length)
-            } {
+                      ascii_to_basic_latin(
+                    src_remaining.as_ptr(),
+                    dst_remaining.as_mut_ptr(),
+                    length,
+                )
+                  } {
                 None => {
                     source.pos += length;
                     self.pos += length;
@@ -373,8 +371,12 @@ impl<'a> Utf16Destination<'a> {
                 (DecoderResult::InputEmpty, src_remaining.len())
             };
             match unsafe {
-                ascii_to_basic_latin(src_remaining.as_ptr(), dst_remaining.as_mut_ptr(), length)
-            } {
+                      ascii_to_basic_latin(
+                    src_remaining.as_ptr(),
+                    dst_remaining.as_mut_ptr(),
+                    length,
+                )
+                  } {
                 None => {
                     source.pos += length;
                     self.pos += length;
@@ -387,9 +389,9 @@ impl<'a> Utf16Destination<'a> {
                         source.pos += 1; // +1 for non_ascii
                         non_ascii
                     } else {
-                        return CopyAsciiResult::Stop((DecoderResult::OutputFull,
-                                                      source.pos,
-                                                      self.pos));
+                        return CopyAsciiResult::Stop(
+                            (DecoderResult::OutputFull, source.pos, self.pos),
+                        );
                     }
                 }
             }
@@ -525,10 +527,7 @@ pub struct Utf8Destination<'a> {
 impl<'a> Utf8Destination<'a> {
     #[inline(always)]
     pub fn new(dst: &mut [u8]) -> Utf8Destination {
-        Utf8Destination {
-            slice: dst,
-            pos: 0,
-        }
+        Utf8Destination { slice: dst, pos: 0 }
     }
     #[inline(always)]
     pub fn check_space_bmp<'b>(&'b mut self) -> Space<Utf8BmpHandle<'b, 'a>> {
@@ -606,8 +605,10 @@ impl<'a> Utf8Destination<'a> {
     }
     #[inline(always)]
     pub fn write_surrogate_pair(&mut self, high: u16, low: u16) {
-        self.write_astral(((high as u32) << 10) + (low as u32) -
-                          (((0xD800u32 << 10) - 0x10000u32) + 0xDC00u32));
+        self.write_astral(
+            ((high as u32) << 10) + (low as u32) -
+            (((0xD800u32 << 10) - 0x10000u32) + 0xDC00u32)
+        );
     }
     #[inline(always)]
     fn write_big5_combination(&mut self, combined: u16, combining: u16) {
@@ -629,8 +630,8 @@ impl<'a> Utf8Destination<'a> {
                 (DecoderResult::InputEmpty, src_remaining.len())
             };
             match unsafe {
-                ascii_to_ascii(src_remaining.as_ptr(), dst_remaining.as_mut_ptr(), length)
-            } {
+                      ascii_to_ascii(src_remaining.as_ptr(), dst_remaining.as_mut_ptr(), length)
+                  } {
                 None => {
                     source.pos += length;
                     self.pos += length;
@@ -643,9 +644,9 @@ impl<'a> Utf8Destination<'a> {
                         source.pos += 1; // +1 for non_ascii
                         non_ascii
                     } else {
-                        return CopyAsciiResult::Stop((DecoderResult::OutputFull,
-                                                      source.pos,
-                                                      self.pos));
+                        return CopyAsciiResult::Stop(
+                            (DecoderResult::OutputFull, source.pos, self.pos),
+                        );
                     }
                 }
             }
@@ -667,8 +668,8 @@ impl<'a> Utf8Destination<'a> {
                 (DecoderResult::InputEmpty, src_remaining.len())
             };
             match unsafe {
-                ascii_to_ascii(src_remaining.as_ptr(), dst_remaining.as_mut_ptr(), length)
-            } {
+                      ascii_to_ascii(src_remaining.as_ptr(), dst_remaining.as_mut_ptr(), length)
+                  } {
                 None => {
                     source.pos += length;
                     self.pos += length;
@@ -681,9 +682,9 @@ impl<'a> Utf8Destination<'a> {
                         source.pos += 1; // +1 for non_ascii
                         non_ascii
                     } else {
-                        return CopyAsciiResult::Stop((DecoderResult::OutputFull,
-                                                      source.pos,
-                                                      self.pos));
+                        return CopyAsciiResult::Stop(
+                            (DecoderResult::OutputFull, source.pos, self.pos),
+                        );
                     }
                 }
             }
@@ -699,9 +700,11 @@ impl<'a> Utf8Destination<'a> {
         // non-ASCII. (And potentially do something better than SSE2 for ASCII.)
         let valid_len = utf8_valid_up_to(&src_remaining[..min_len]);
         unsafe {
-            ::std::ptr::copy_nonoverlapping(src_remaining.as_ptr(),
-                                            dst_remaining.as_mut_ptr(),
-                                            valid_len);
+            ::std::ptr::copy_nonoverlapping(
+                src_remaining.as_ptr(),
+                dst_remaining.as_mut_ptr(),
+                valid_len,
+            );
         }
         source.pos += valid_len;
         self.pos += valid_len;
@@ -752,9 +755,11 @@ impl<'a> Utf16Source<'a> {
                     // The next code unit is a low surrogate. Advance position.
                     self.pos += 1;
                     return unsafe {
-                        ::std::mem::transmute((unit << 10) + second -
-                                              (((0xD800u32 << 10) - 0x10000u32) + 0xDC00u32))
-                    };
+                               ::std::mem::transmute(
+                            (unit << 10) + second -
+                            (((0xD800u32 << 10) - 0x10000u32) + 0xDC00u32)
+                        )
+                           };
                 }
                 // The next code unit is not a low surrogate. Don't advance
                 // position and treat the high surrogate as unpaired.
@@ -786,10 +791,16 @@ impl<'a> Utf16Source<'a> {
                 if second_minus_low_surrogate_start <= (0xDFFF - 0xDC00) {
                     // The next code unit is a low surrogate. Advance position.
                     self.pos += 1;
-                    return Unicode::NonAscii(NonAscii::Astral(unsafe {
-                        ::std::mem::transmute(((unit as u32) << 10) + (second as u32) -
-                                              (((0xD800u32 << 10) - 0x10000u32) + 0xDC00u32))
-                    }));
+                    return Unicode::NonAscii(
+                        NonAscii::Astral(
+                            unsafe {
+                                ::std::mem::transmute(
+                                    ((unit as u32) << 10) + (second as u32) -
+                                    (((0xD800u32 << 10) - 0x10000u32) + 0xDC00u32)
+                                )
+                            }
+                        )
+                    );
                 }
                 // The next code unit is not a low surrogate. Don't advance
                 // position and treat the high surrogate as unpaired.
@@ -824,8 +835,12 @@ impl<'a> Utf16Source<'a> {
                 (EncoderResult::InputEmpty, src_remaining.len())
             };
             match unsafe {
-                basic_latin_to_ascii(src_remaining.as_ptr(), dst_remaining.as_mut_ptr(), length)
-            } {
+                      basic_latin_to_ascii(
+                    src_remaining.as_ptr(),
+                    dst_remaining.as_mut_ptr(),
+                    length,
+                )
+                  } {
                 None => {
                     self.pos += length;
                     dest.pos += length;
@@ -848,12 +863,14 @@ impl<'a> Utf16Source<'a> {
                                 if second_minus_low_surrogate_start <= (0xDFFF - 0xDC00) {
                                     // The next code unit is a low surrogate. Advance position.
                                     self.pos += 1;
-                                    NonAscii::Astral(unsafe {
-                                        ::std::mem::transmute(((unit as u32) << 10) +
-                                                              (second as u32) -
-                                                              (((0xD800u32 << 10) - 0x10000u32) +
-                                                               0xDC00u32))
-                                    })
+                                    NonAscii::Astral(
+                                        unsafe {
+                                            ::std::mem::transmute(
+                                                ((unit as u32) << 10) + (second as u32) -
+                                                (((0xD800u32 << 10) - 0x10000u32) + 0xDC00u32)
+                                            )
+                                        }
+                                    )
                                 } else {
                                     // The next code unit is not a low surrogate. Don't advance
                                     // position and treat the high surrogate as unpaired.
@@ -868,9 +885,9 @@ impl<'a> Utf16Source<'a> {
                             NonAscii::BmpExclAscii(0xFFFDu16)
                         }
                     } else {
-                        return CopyAsciiResult::Stop((EncoderResult::OutputFull,
-                                                      self.pos,
-                                                      dest.pos));
+                        return CopyAsciiResult::Stop(
+                            (EncoderResult::OutputFull, self.pos, dest.pos),
+                        );
                     }
                 }
             }
@@ -892,8 +909,12 @@ impl<'a> Utf16Source<'a> {
                 (EncoderResult::InputEmpty, src_remaining.len())
             };
             match unsafe {
-                basic_latin_to_ascii(src_remaining.as_ptr(), dst_remaining.as_mut_ptr(), length)
-            } {
+                      basic_latin_to_ascii(
+                    src_remaining.as_ptr(),
+                    dst_remaining.as_mut_ptr(),
+                    length,
+                )
+                  } {
                 None => {
                     self.pos += length;
                     dest.pos += length;
@@ -919,12 +940,14 @@ impl<'a> Utf16Source<'a> {
                                 if second_minus_low_surrogate_start <= (0xDFFF - 0xDC00) {
                                     // The next code unit is a low surrogate. Advance position.
                                     self.pos += 1;
-                                    NonAscii::Astral(unsafe {
-                                        ::std::mem::transmute(((unit as u32) << 10) +
-                                                              (second as u32) -
-                                                              (((0xD800u32 << 10) - 0x10000u32) +
-                                                               0xDC00u32))
-                                    })
+                                    NonAscii::Astral(
+                                        unsafe {
+                                            ::std::mem::transmute(
+                                                ((unit as u32) << 10) + (second as u32) -
+                                                (((0xD800u32 << 10) - 0x10000u32) + 0xDC00u32)
+                                            )
+                                        }
+                                    )
                                 } else {
                                     // The next code unit is not a low surrogate. Don't advance
                                     // position and treat the high surrogate as unpaired.
@@ -936,9 +959,9 @@ impl<'a> Utf16Source<'a> {
                             NonAscii::BmpExclAscii(0xFFFDu16)
                         }
                     } else {
-                        return CopyAsciiResult::Stop((EncoderResult::OutputFull,
-                                                      self.pos,
-                                                      dest.pos));
+                        return CopyAsciiResult::Stop(
+                            (EncoderResult::OutputFull, self.pos, dest.pos),
+                        );
                     }
                 }
             }
@@ -1107,8 +1130,8 @@ impl<'a> Utf8Source<'a> {
                 (EncoderResult::InputEmpty, src_remaining.len())
             };
             match unsafe {
-                ascii_to_ascii(src_remaining.as_ptr(), dst_remaining.as_mut_ptr(), length)
-            } {
+                      ascii_to_ascii(src_remaining.as_ptr(), dst_remaining.as_mut_ptr(), length)
+                  } {
                 None => {
                     self.pos += length;
                     dest.pos += length;
@@ -1159,8 +1182,8 @@ impl<'a> Utf8Source<'a> {
                 (EncoderResult::InputEmpty, src_remaining.len())
             };
             match unsafe {
-                ascii_to_ascii(src_remaining.as_ptr(), dst_remaining.as_mut_ptr(), length)
-            } {
+                      ascii_to_ascii(src_remaining.as_ptr(), dst_remaining.as_mut_ptr(), length)
+                  } {
                 None => {
                     self.pos += length;
                     dest.pos += length;
@@ -1191,9 +1214,9 @@ impl<'a> Utf8Source<'a> {
                             NonAscii::Astral(unsafe { ::std::mem::transmute(point) })
                         }
                     } else {
-                        return CopyAsciiResult::Stop((EncoderResult::OutputFull,
-                                                      self.pos,
-                                                      dest.pos));
+                        return CopyAsciiResult::Stop(
+                            (EncoderResult::OutputFull, self.pos, dest.pos),
+                        );
                     }
                 }
             }
@@ -1215,8 +1238,8 @@ impl<'a> Utf8Source<'a> {
                 (EncoderResult::InputEmpty, src_remaining.len())
             };
             match unsafe {
-                ascii_to_ascii(src_remaining.as_ptr(), dst_remaining.as_mut_ptr(), length)
-            } {
+                      ascii_to_ascii(src_remaining.as_ptr(), dst_remaining.as_mut_ptr(), length)
+                  } {
                 None => {
                     self.pos += length;
                     dest.pos += length;
@@ -1247,9 +1270,9 @@ impl<'a> Utf8Source<'a> {
                             NonAscii::Astral(unsafe { ::std::mem::transmute(point) })
                         }
                     } else {
-                        return CopyAsciiResult::Stop((EncoderResult::OutputFull,
-                                                      self.pos,
-                                                      dest.pos));
+                        return CopyAsciiResult::Stop(
+                            (EncoderResult::OutputFull, self.pos, dest.pos),
+                        );
                     }
                 }
             }
@@ -1457,10 +1480,7 @@ pub struct ByteDestination<'a> {
 impl<'a> ByteDestination<'a> {
     #[inline(always)]
     pub fn new(dst: &mut [u8]) -> ByteDestination {
-        ByteDestination {
-            slice: dst,
-            pos: 0,
-        }
+        ByteDestination { slice: dst, pos: 0 }
     }
     #[inline(always)]
     pub fn check_space_one<'b>(&'b mut self) -> Space<ByteOneHandle<'b, 'a>> {

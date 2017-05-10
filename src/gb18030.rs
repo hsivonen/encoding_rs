@@ -50,33 +50,37 @@ pub struct Gb18030Decoder {
 
 impl Gb18030Decoder {
     pub fn new() -> VariantDecoder {
-        VariantDecoder::Gb18030(Gb18030Decoder {
-            first: None,
-            second: None,
-            third: None,
-            pending: Gb18030Pending::None,
-            pending_ascii: None,
-        })
+        VariantDecoder::Gb18030(
+            Gb18030Decoder {
+                first: None,
+                second: None,
+                third: None,
+                pending: Gb18030Pending::None,
+                pending_ascii: None,
+            }
+        )
     }
 
     fn extra_from_state(&self, byte_length: usize) -> Option<usize> {
-        byte_length.checked_add(self.pending.count() +
-                                match self.first {
-            None => 0,
-            Some(_) => 1,
-        } +
-                                match self.second {
-            None => 0,
-            Some(_) => 1,
-        } +
-                                match self.third {
-            None => 0,
-            Some(_) => 1,
-        } +
-                                match self.pending_ascii {
-            None => 0,
-            Some(_) => 1,
-        })
+        byte_length.checked_add(
+            self.pending.count() +
+            match self.first {
+                None => 0,
+                Some(_) => 1,
+            } +
+            match self.second {
+                None => 0,
+                Some(_) => 1,
+            } +
+            match self.third {
+                None => 0,
+                Some(_) => 1,
+            } +
+            match self.pending_ascii {
+                None => 0,
+                Some(_) => 1,
+            }
+        )
     }
 
     pub fn max_utf16_buffer_length(&self, byte_length: usize) -> Option<usize> {
@@ -98,192 +102,193 @@ impl Gb18030Decoder {
         checked_add(1, checked_mul(3, self.extra_from_state(byte_length)))
     }
 
-    gb18030_decoder_functions!({
-    // If first is between 0x81 and 0xFE, inclusive,
-    // subtract offset 0x81.
-                                   let non_ascii_minus_offset = non_ascii.wrapping_sub(0x81);
-                                   if non_ascii_minus_offset > (0xFE - 0x81) {
-                                       if non_ascii == 0x80 {
-                                           handle.write_upper_bmp(0x20ACu16);
-                                           continue 'outermost;
-                                       }
-                                       return (DecoderResult::Malformed(1, 0),
-                                               source.consumed(),
-                                               handle.written());
-                                   }
-                                   non_ascii_minus_offset
-                               },
-                               {
-                                   // Two-byte (or error)
-                                   if first_minus_offset >= 0x20 {
-                                       // Not the gbk ideograph range above GB2312
-                                       let trail_minus_offset = second.wrapping_sub(0xA1);
-                                       if trail_minus_offset <= (0xFE - 0xA1) {
-                                           // GB2312
-                                           let hanzi_lead = first_minus_offset.wrapping_sub(0x2F);
-                                           if hanzi_lead < (0x77 - 0x2F) {
-                                               // Level 1 Hanzi, Level 2 Hanzi
-                                               // or one of the 5 PUA code
-                                               // points in between.
-                                               let hanzi_pointer = mul_94(hanzi_lead) + trail_minus_offset as usize;
-                                               let upper_bmp = GB2312_HANZI[hanzi_pointer];
-                                               handle.write_upper_bmp(upper_bmp)
-                                           } else if first_minus_offset == 0x20 {
-                                               // Symbols (starting with ideographic space)
-                                               let bmp = GB2312_SYMBOLS[trail_minus_offset as usize];
-                                               handle.write_bmp_excl_ascii(bmp)
-                                           } else if first_minus_offset == 0x25 && ((trail_minus_offset.wrapping_sub(63) as usize) < GB2312_SYMBOLS_AFTER_GREEK.len()) {
-                                               handle.write_bmp_excl_ascii(GB2312_SYMBOLS_AFTER_GREEK[trail_minus_offset.wrapping_sub(63) as usize])
-                                           } else if first_minus_offset == 0x27 && (trail_minus_offset as usize) < GB2312_PINYIN.len() {
-                                               handle.write_bmp_excl_ascii(GB2312_PINYIN[trail_minus_offset as usize])
-                                           } else if first_minus_offset > 0x76 {
-                                               // Bottom PUA
-                                               let pua = (0xE234 + mul_94(first_minus_offset - 0x77) + trail_minus_offset as usize) as u16;
-                                               handle.write_upper_bmp(pua)
-                                           } else {
-                                               let bmp = gb2312_other_decode((mul_94(first_minus_offset - 0x21) + (trail_minus_offset as usize)) as u16);
-                                               handle.write_bmp_excl_ascii(bmp)
-                                           }
-                                       } else {
-                                           // gbk range on the left
-                                           let mut trail_minus_offset = second.wrapping_sub(0x40);
-                                           if trail_minus_offset > (0x7E - 0x40) {
-                                               let trail_minus_range_start = second.wrapping_sub(0x80);
-                                               if trail_minus_range_start > (0xA0 - 0x80) {
-                                                   if second < 0x80 {
-                                                       return (DecoderResult::Malformed(1, 0),
-                                                               unread_handle_second.unread(),
-                                                               handle.written());
-                                                   }
-                                                   return (DecoderResult::Malformed(2, 0),
-                                                           unread_handle_second.consumed(),
-                                                           handle.written());
-                                               }
-                                               trail_minus_offset = second - 0x41;
-                                           }
-                                           // Zero-base lead
-                                           let left_lead = first_minus_offset - 0x20;
-                                           let left_pointer = left_lead as usize * (190 - 94) +
-                                                              trail_minus_offset as usize;
-                                           let gbk_left_ideograph_pointer = left_pointer.wrapping_sub((0x29 - 0x20) * (190 - 94));
-                                           if gbk_left_ideograph_pointer < (((0x7D - 0x29) * (190 - 94)) - 5) {
-                                               let upper_bmp = gbk_left_ideograph_decode(gbk_left_ideograph_pointer as u16);
-                                               handle.write_upper_bmp(upper_bmp)
-                                           } else if left_pointer < ((0x29 - 0x20) * (190 - 94)) {
-                                               let bmp = gbk_other_decode(left_pointer as u16);
-                                               handle.write_bmp_excl_ascii(bmp)
-                                           } else {
-                                               let bottom_pointer = left_pointer - (((0x7D - 0x20) * (190 - 94)) - 5);
-                                               let upper_bmp = GBK_BOTTOM[bottom_pointer];
-                                               handle.write_upper_bmp(upper_bmp)
-                                           }
-                                       }
-                                   } else {
-                                       // gbk ideograph range above GB2312
-                                       let mut trail_minus_offset = second.wrapping_sub(0x40);
-                                       if trail_minus_offset > (0x7E - 0x40) {
-                                           let trail_minus_range_start = second.wrapping_sub(0x80);
-                                           if trail_minus_range_start > (0xFE - 0x80) {
-                                               if second < 0x80 {
-                                                   return (DecoderResult::Malformed(1, 0),
-                                                           unread_handle_second.unread(),
-                                                           handle.written());
-                                               }
-                                               return (DecoderResult::Malformed(2, 0),
-                                                       unread_handle_second.consumed(),
-                                                       handle.written());
-                                           }
-                                           trail_minus_offset = second - 0x41;
-                                       }
-                                       let pointer = first_minus_offset as usize * 190usize +
-                                                     trail_minus_offset as usize;
-                                       let upper_bmp = gbk_top_ideograph_decode(pointer as u16);
-                                       handle.write_upper_bmp(upper_bmp)
-                                   }
-                               },
-                               {
-                                   // If third is between 0x81 and 0xFE, inclusive,
-                                   // subtract offset 0x81.
-                                   let third_minus_offset = third.wrapping_sub(0x81);
-                                   if third_minus_offset > (0xFE - 0x81) {
-                                       // We have an error. Let's inline what's going
-                                       // to happen when `second` is
-                                       // reprocessed. (`third` gets unread.)
-                                       // `second` is guaranteed ASCII, so let's
-    // put it in `pending_ascii`. Recompute
-    // `second` from `second_minus_offset`.
-                                       self.pending_ascii = Some(second_minus_offset + 0x30);
-    // Now unread `third` and designate the previous
-    // `first` as being in error.
-                                       return (DecoderResult::Malformed(1, 1),
-                                               unread_handle_third.unread(),
-                                               handle.written());
-                                   }
-                                   third_minus_offset
-                               },
-                               {
-    // If fourth is between 0x30 and 0x39, inclusive,
-    // subtract offset 0x30.
-    //
-    // If we have an error, we'll inline what's going
-    // to happen when `second` and `third` are
-    // reprocessed. (`fourth` gets unread.)
-    // `second` is guaranteed ASCII, so let's
-    // put it in `pending_ascii`. Recompute
-    // `second` from `second_minus_offset` to
-    // make this block reusable when `second`
-    // is not in scope.
-    //
-    // `third` is guaranteed to be in the range
-    // that makes it become the new `self.first`.
-    //
-    // `fourth` gets unread and the previous
-    // `first` gets designates as being in error.
-                                   let fourth_minus_offset = fourth.wrapping_sub(0x30);
-                                   if fourth_minus_offset > (0x39 - 0x30) {
-                                       self.pending_ascii = Some(second_minus_offset + 0x30);
-                                       self.pending = Gb18030Pending::One(third_minus_offset);
-                                       return (DecoderResult::Malformed(1, 2),
-                                               unread_handle_fourth.unread(),
-                                               handle.written());
-                                   }
-                                   let pointer = (first_minus_offset as usize * (10 * 126 * 10)) +
-                                                 (second_minus_offset as usize * (10 * 126)) +
-                                                 (third_minus_offset as usize * 10) +
-                                                 fourth_minus_offset as usize;
-                                   if pointer <= 39419 {
-    // BMP
-                                       if pointer == 7457 {
-                                           handle.write_upper_bmp(0xE7C7)
-                                       } else {
-                                           handle.write_bmp_excl_ascii(gb18030_range_decode(pointer as u16))
-                                       }
-                                   } else if pointer >= 189000 && pointer <= 1237575 {
-    // Astral
-                                       handle.write_astral((pointer - (189000usize - 0x10000usize)) as u32)
-                                   } else {
-                                       self.pending_ascii = Some(second_minus_offset + 0x30);
-                                       self.pending = Gb18030Pending::One(third_minus_offset);
-                                       return (DecoderResult::Malformed(1, 2),
-                                               unread_handle_fourth.unread(),
-                                               handle.written());
-                                   }
-                               },
-                               self,
-                               non_ascii,
-                               first_minus_offset,
-                               second,
-                               second_minus_offset,
-                               unread_handle_second,
-                               third,
-                               third_minus_offset,
-                               unread_handle_third,
-                               fourth,
-                               fourth_minus_offset,
-                               unread_handle_fourth,
-                               source,
-                               handle,
-                               'outermost);
+    gb18030_decoder_functions!(
+        {
+            // If first is between 0x81 and 0xFE, inclusive,
+            // subtract offset 0x81.
+            let non_ascii_minus_offset = non_ascii.wrapping_sub(0x81);
+            if non_ascii_minus_offset > (0xFE - 0x81) {
+                if non_ascii == 0x80 {
+                    handle.write_upper_bmp(0x20ACu16);
+                    continue 'outermost;
+                }
+                return (DecoderResult::Malformed(1, 0),
+                        source.consumed(),
+                        handle.written());
+            }
+            non_ascii_minus_offset
+        },
+        {
+            // Two-byte (or error)
+            if first_minus_offset >= 0x20 {
+                // Not the gbk ideograph range above GB2312
+                let trail_minus_offset = second.wrapping_sub(0xA1);
+                if trail_minus_offset <= (0xFE - 0xA1) {
+                    // GB2312
+                    let hanzi_lead = first_minus_offset.wrapping_sub(0x2F);
+                    if hanzi_lead < (0x77 - 0x2F) {
+                        // Level 1 Hanzi, Level 2 Hanzi
+                        // or one of the 5 PUA code
+                        // points in between.
+                        let hanzi_pointer = mul_94(hanzi_lead) + trail_minus_offset as usize;
+                        let upper_bmp = GB2312_HANZI[hanzi_pointer];
+                        handle.write_upper_bmp(upper_bmp)
+                    } else if first_minus_offset == 0x20 {
+                        // Symbols (starting with ideographic space)
+                        let bmp = GB2312_SYMBOLS[trail_minus_offset as usize];
+                        handle.write_bmp_excl_ascii(bmp)
+                    } else if first_minus_offset == 0x25 && ((trail_minus_offset.wrapping_sub(63) as usize) < GB2312_SYMBOLS_AFTER_GREEK.len()) {
+                        handle.write_bmp_excl_ascii(GB2312_SYMBOLS_AFTER_GREEK[trail_minus_offset.wrapping_sub(63) as usize])
+                    } else if first_minus_offset == 0x27 && (trail_minus_offset as usize) < GB2312_PINYIN.len() {
+                        handle.write_bmp_excl_ascii(GB2312_PINYIN[trail_minus_offset as usize])
+                    } else if first_minus_offset > 0x76 {
+                        // Bottom PUA
+                        let pua = (0xE234 + mul_94(first_minus_offset - 0x77) + trail_minus_offset as usize) as u16;
+                        handle.write_upper_bmp(pua)
+                    } else {
+                        let bmp = gb2312_other_decode((mul_94(first_minus_offset - 0x21) + (trail_minus_offset as usize)) as u16);
+                        handle.write_bmp_excl_ascii(bmp)
+                    }
+                } else {
+                    // gbk range on the left
+                    let mut trail_minus_offset = second.wrapping_sub(0x40);
+                    if trail_minus_offset > (0x7E - 0x40) {
+                        let trail_minus_range_start = second.wrapping_sub(0x80);
+                        if trail_minus_range_start > (0xA0 - 0x80) {
+                            if second < 0x80 {
+                                return (DecoderResult::Malformed(1, 0),
+                                        unread_handle_second.unread(),
+                                        handle.written());
+                            }
+                            return (DecoderResult::Malformed(2, 0),
+                                    unread_handle_second.consumed(),
+                                    handle.written());
+                        }
+                        trail_minus_offset = second - 0x41;
+                    }
+                    // Zero-base lead
+                    let left_lead = first_minus_offset - 0x20;
+                    let left_pointer = left_lead as usize * (190 - 94) +
+                                       trail_minus_offset as usize;
+                    let gbk_left_ideograph_pointer = left_pointer.wrapping_sub((0x29 - 0x20) * (190 - 94));
+                    if gbk_left_ideograph_pointer < (((0x7D - 0x29) * (190 - 94)) - 5) {
+                        let upper_bmp = gbk_left_ideograph_decode(gbk_left_ideograph_pointer as u16);
+                        handle.write_upper_bmp(upper_bmp)
+                    } else if left_pointer < ((0x29 - 0x20) * (190 - 94)) {
+                        let bmp = gbk_other_decode(left_pointer as u16);
+                        handle.write_bmp_excl_ascii(bmp)
+                    } else {
+                        let bottom_pointer = left_pointer - (((0x7D - 0x20) * (190 - 94)) - 5);
+                        let upper_bmp = GBK_BOTTOM[bottom_pointer];
+                        handle.write_upper_bmp(upper_bmp)
+                    }
+                }
+            } else {
+                // gbk ideograph range above GB2312
+                let mut trail_minus_offset = second.wrapping_sub(0x40);
+                if trail_minus_offset > (0x7E - 0x40) {
+                    let trail_minus_range_start = second.wrapping_sub(0x80);
+                    if trail_minus_range_start > (0xFE - 0x80) {
+                        if second < 0x80 {
+                            return (DecoderResult::Malformed(1, 0),
+                                    unread_handle_second.unread(),
+                                    handle.written());
+                        }
+                        return (DecoderResult::Malformed(2, 0),
+                                unread_handle_second.consumed(),
+                                handle.written());
+                    }
+                    trail_minus_offset = second - 0x41;
+                }
+                let pointer = first_minus_offset as usize * 190usize +
+                              trail_minus_offset as usize;
+                let upper_bmp = gbk_top_ideograph_decode(pointer as u16);
+                handle.write_upper_bmp(upper_bmp)
+            }
+        },
+        {
+            // If third is between 0x81 and 0xFE, inclusive,
+            // subtract offset 0x81.
+            let third_minus_offset = third.wrapping_sub(0x81);
+            if third_minus_offset > (0xFE - 0x81) {
+                // We have an error. Let's inline what's going
+                // to happen when `second` is
+                // reprocessed. (`third` gets unread.)
+                // `second` is guaranteed ASCII, so let's
+                // put it in `pending_ascii`. Recompute
+                // `second` from `second_minus_offset`.
+                self.pending_ascii = Some(second_minus_offset + 0x30);
+                // Now unread `third` and designate the previous
+                // `first` as being in error.
+                return (DecoderResult::Malformed(1, 1),
+                        unread_handle_third.unread(),
+                        handle.written());
+            }
+            third_minus_offset
+        },
+        {
+            // If fourth is between 0x30 and 0x39, inclusive,
+            // subtract offset 0x30.
+            //
+            // If we have an error, we'll inline what's going
+            // to happen when `second` and `third` are
+            // reprocessed. (`fourth` gets unread.)
+            // `second` is guaranteed ASCII, so let's
+            // put it in `pending_ascii`. Recompute
+            // `second` from `second_minus_offset` to
+            // make this block reusable when `second`
+            // is not in scope.
+            //
+            // `third` is guaranteed to be in the range
+            // that makes it become the new `self.first`.
+            //
+            // `fourth` gets unread and the previous
+            // `first` gets designates as being in error.
+            let fourth_minus_offset = fourth.wrapping_sub(0x30);
+            if fourth_minus_offset > (0x39 - 0x30) {
+                self.pending_ascii = Some(second_minus_offset + 0x30);
+                self.pending = Gb18030Pending::One(third_minus_offset);
+                return (DecoderResult::Malformed(1, 2),
+                        unread_handle_fourth.unread(),
+                        handle.written());
+            }
+            let pointer = (first_minus_offset as usize * (10 * 126 * 10)) +
+                          (second_minus_offset as usize * (10 * 126)) +
+                          (third_minus_offset as usize * 10) +
+                          fourth_minus_offset as usize;
+            if pointer <= 39419 {
+                // BMP
+                if pointer == 7457 {
+                    handle.write_upper_bmp(0xE7C7)
+                } else {
+                    handle.write_bmp_excl_ascii(gb18030_range_decode(pointer as u16))
+                }
+            } else if pointer >= 189000 && pointer <= 1237575 {
+                // Astral
+                handle.write_astral((pointer - (189000usize - 0x10000usize)) as u32)
+            } else {
+                self.pending_ascii = Some(second_minus_offset + 0x30);
+                self.pending = Gb18030Pending::One(third_minus_offset);
+                return (DecoderResult::Malformed(1, 2),
+                        unread_handle_fourth.unread(),
+                        handle.written());
+            }
+        },
+        self,
+        non_ascii,
+        first_minus_offset,
+        second,
+        second_minus_offset,
+        unread_handle_second,
+        third,
+        third_minus_offset,
+        unread_handle_third,
+        fourth,
+        fourth_minus_offset,
+        unread_handle_fourth,
+        source,
+        handle,
+        'outermost);
 }
 
 // XXX Experiment with inline directives
@@ -298,27 +303,31 @@ fn gbk_encode_non_unified(bmp: u16) -> Option<(usize, usize)> {
     }
     // Ext A
     if in_range16(bmp, 0x3400, 0x4E00) {
-        return position(&GBK_BOTTOM[21..100], bmp).map(|pos| {
-            (0xFE,
-             pos +
-             if pos < (0x3F - 16) {
-                0x40 + 16
-            } else {
-                0x41 + 16
-            })
-        });
+        return position(&GBK_BOTTOM[21..100], bmp).map(
+            |pos| {
+                (0xFE,
+                 pos +
+                 if pos < (0x3F - 16) {
+                     0x40 + 16
+                 } else {
+                     0x41 + 16
+                 })
+            }
+        );
     }
     // Compatibility ideographs
     if in_range16(bmp, 0xF900, 0xFB00) {
-        return position(&GBK_BOTTOM[0..21], bmp).map(|pos| {
-            if pos < 5 {
-                // end of second to last row
-                (0xFD, pos + (190 - 94 - 5 + 0x41))
-            } else {
-                // last row
-                (0xFE, pos + (0x40 - 5))
+        return position(&GBK_BOTTOM[0..21], bmp).map(
+            |pos| {
+                if pos < 5 {
+                    // end of second to last row
+                    (0xFD, pos + (190 - 94 - 5 + 0x41))
+                } else {
+                    // last row
+                    (0xFE, pos + (0x40 - 5))
+                }
             }
-        });
+        );
     }
     // Handle everything below U+02CA, which is in GBK_OTHER.
     if bmp < 0x02CA {
@@ -327,7 +336,8 @@ fn gbk_encode_non_unified(bmp: u16) -> Option<(usize, usize)> {
             if let Some(pos) = position(&GB2312_PINYIN[..], bmp) {
                 return Some((0xA8, pos + 0xA1));
             }
-        } else if in_inclusive_range16(bmp, 0x00A4, 0x00F7) || in_inclusive_range16(bmp, 0x02C7, 0x02C9) {
+        } else if in_inclusive_range16(bmp, 0x00A4, 0x00F7) ||
+                  in_inclusive_range16(bmp, 0x02C7, 0x02C9) {
             // Diacritics and Latin 1 symbols
             if let Some(pos) = position(&GB2312_SYMBOLS[3..(0xAC - 0x60)], bmp) {
                 return Some((0xA1, pos + 0xA1 + 3));
@@ -365,22 +375,14 @@ fn gbk_encode_non_unified(bmp: u16) -> Option<(usize, usize)> {
     if let Some(other_pointer) = gbk_other_encode(bmp) {
         let other_lead = other_pointer as usize / (190 - 94);
         let other_trail = other_pointer as usize % (190 - 94);
-        let offset = if other_trail < 0x3F {
-            0x40
-        } else {
-            0x41
-        };
+        let offset = if other_trail < 0x3F { 0x40 } else { 0x41 };
         return Some((other_lead + (0x81 + 0x20), other_trail + offset));
     }
     // CJK Radicals Supplement or PUA in GBK_BOTTOM
     if in_inclusive_range16(bmp, 0x2E81, 0x2ECA) || in_inclusive_range16(bmp, 0xE816, 0xE864) {
         if let Some(pos) = position(&GBK_BOTTOM[21..], bmp) {
             let trail = pos + 16;
-            let offset = if trail < 0x3F {
-                0x40
-            } else {
-                0x41
-            };
+            let offset = if trail < 0x3F { 0x40 } else { 0x41 };
             return Some((0xFE, trail + offset));
         }
     }
@@ -405,8 +407,10 @@ pub struct Gb18030Encoder {
 
 impl Gb18030Encoder {
     pub fn new(encoding: &'static Encoding, extended_range: bool) -> Encoder {
-        Encoder::new(encoding,
-                     VariantEncoder::Gb18030(Gb18030Encoder { extended: extended_range }))
+        Encoder::new(
+            encoding,
+            VariantEncoder::Gb18030(Gb18030Encoder { extended: extended_range }),
+        )
     }
 
     pub fn max_buffer_length_from_utf16_without_replacement(&self,
@@ -438,117 +442,103 @@ impl Gb18030Encoder {
         }
     }
 
-    ascii_compatible_encoder_functions!({
-                                            let bmp_minus_unified_start = bmp.wrapping_sub(0x4E00);
-                                            if bmp_minus_unified_start < (0x9FA6 - 0x4E00) {
-                                                // CJK Unified Ideographs
-                                                // Can't fail now, since all are
-                                                // mapped.
-                                                // XXX Can we do something smarter
-                                                // than linear search for GB2312
-                                                // Level 2 Hanzi, which are almost
-                                                // Unicode-ordered?
-                                                if let Some((lead, trail)) =
-                                                       gb2312_level1_hanzi_encode(bmp) {
-                                                    handle.write_two(lead, trail)
-                                                } else if let Some(hanzi_pointer) =
-                                                       gb2312_level2_hanzi_encode(bmp) {
-                                                    let hanzi_lead = (hanzi_pointer / 94) + (0xD8);
-                                                    let hanzi_trail = (hanzi_pointer % 94) + 0xA1;
-                                                    handle.write_two(hanzi_lead as u8,
-                                                                     hanzi_trail as u8)
-                                                } else {
-                                                    let (lead, gbk_trail) = if bmp < 0x72DC {
-                                                        // Above GB2312
-                                                        let pointer =
-                                                            gbk_top_ideograph_encode(bmp) as usize;
-                                                        let lead = (pointer / 190) + 0x81;
-                                                        let gbk_trail = pointer % 190;
-                                                        (lead, gbk_trail)
-                                                    } else {
-                                                        // To the left of GB2312
-                                                        let gbk_left_ideograph_pointer =
-                                                            gbk_left_ideograph_encode(bmp) as usize;
-                                                        let lead = (gbk_left_ideograph_pointer /
-                                                                    (190 - 94)) +
-                                                                   (0x81 + 0x29);
-                                                        let gbk_trail = gbk_left_ideograph_pointer %
-                                                                        (190 - 94);
-                                                        (lead, gbk_trail)
-                                                    };
-                                                    let offset = if gbk_trail < 0x3F {
-                                                        0x40
-                                                    } else {
-                                                        0x41
-                                                    };
-                                                    handle.write_two(lead as u8,
-                                                                     (gbk_trail + offset) as u8)
-                                                }
-                                            } else if bmp == 0xE5E5 {
-                                                // It's not optimal to check for the unmappable
-                                                // and for euro at this stage, but getting
-                                                // the out of the way makes the rest of the
-                                                // code less messy.
-                                                return (EncoderResult::unmappable_from_bmp(bmp),
-                                                        source.consumed(),
-                                                        handle.written());
-                                            } else if bmp == 0x20AC && !self.extended {
-                                                handle.write_one(0x80u8)
-                                            } else {
-                                                match gbk_encode_non_unified(bmp) {
-                                                    Some((lead, trail)) => {
-                                                        handle.write_two(lead as u8, trail as u8)
-                                                    }
-                                                    None => {
-                                                        if !self.extended {
-                                                            return (EncoderResult::unmappable_from_bmp(bmp),
-                                                                source.consumed(),
-                                                                handle.written());
-                                                        }
-                                                        let range_pointer =
-                                                            gb18030_range_encode(bmp);
-                                                        let first = range_pointer / (10 * 126 * 10);
-                                                        let rem_first = range_pointer %
-                                                                        (10 * 126 * 10);
-                                                        let second = rem_first / (10 * 126);
-                                                        let rem_second = rem_first % (10 * 126);
-                                                        let third = rem_second / 10;
-                                                        let fourth = rem_second % 10;
-                                                        handle.write_four((first + 0x81) as u8,
-                                                                          (second + 0x30) as u8,
-                                                                          (third + 0x81) as u8,
-                                                                          (fourth + 0x30) as u8)
-                                                    }
-                                                }
-                                            }
-                                        },
-                                        {
-                                            if !self.extended {
-                                                return (EncoderResult::Unmappable(astral),
-                                                        source.consumed(),
-                                                        handle.written());
-                                            }
-                                            let range_pointer = astral as usize +
-                                                                (189000usize - 0x10000usize);
-                                            let first = range_pointer / (10 * 126 * 10);
-                                            let rem_first = range_pointer % (10 * 126 * 10);
-                                            let second = rem_first / (10 * 126);
-                                            let rem_second = rem_first % (10 * 126);
-                                            let third = rem_second / 10;
-                                            let fourth = rem_second % 10;
-                                            handle.write_four((first + 0x81) as u8,
-                                                              (second + 0x30) as u8,
-                                                              (third + 0x81) as u8,
-                                                              (fourth + 0x30) as u8)
-                                        },
-                                        bmp,
-                                        astral,
-                                        self,
-                                        source,
-                                        handle,
-                                        copy_ascii_to_check_space_four,
-                                        check_space_four,
-                                        false);
+    ascii_compatible_encoder_functions!(
+        {
+            let bmp_minus_unified_start = bmp.wrapping_sub(0x4E00);
+            if bmp_minus_unified_start < (0x9FA6 - 0x4E00) {
+                // CJK Unified Ideographs
+                // Can't fail now, since all are
+                // mapped.
+                // XXX Can we do something smarter
+                // than linear search for GB2312
+                // Level 2 Hanzi, which are almost
+                // Unicode-ordered?
+                if let Some((lead, trail)) = gb2312_level1_hanzi_encode(bmp) {
+                    handle.write_two(lead, trail)
+                } else if let Some(hanzi_pointer) = gb2312_level2_hanzi_encode(bmp) {
+                    let hanzi_lead = (hanzi_pointer / 94) + (0xD8);
+                    let hanzi_trail = (hanzi_pointer % 94) + 0xA1;
+                    handle.write_two(hanzi_lead as u8, hanzi_trail as u8)
+                } else {
+                    let (lead, gbk_trail) = if bmp < 0x72DC {
+                        // Above GB2312
+                        let pointer = gbk_top_ideograph_encode(bmp) as usize;
+                        let lead = (pointer / 190) + 0x81;
+                        let gbk_trail = pointer % 190;
+                        (lead, gbk_trail)
+                    } else {
+                        // To the left of GB2312
+                        let gbk_left_ideograph_pointer = gbk_left_ideograph_encode(bmp) as usize;
+                        let lead = (gbk_left_ideograph_pointer / (190 - 94)) + (0x81 + 0x29);
+                        let gbk_trail = gbk_left_ideograph_pointer % (190 - 94);
+                        (lead, gbk_trail)
+                    };
+                    let offset = if gbk_trail < 0x3F { 0x40 } else { 0x41 };
+                    handle.write_two(lead as u8, (gbk_trail + offset) as u8)
+                }
+            } else if bmp == 0xE5E5 {
+                // It's not optimal to check for the unmappable
+                // and for euro at this stage, but getting
+                // the out of the way makes the rest of the
+                // code less messy.
+                return (EncoderResult::unmappable_from_bmp(bmp),
+                        source.consumed(),
+                        handle.written());
+            } else if bmp == 0x20AC && !self.extended {
+                handle.write_one(0x80u8)
+            } else {
+                match gbk_encode_non_unified(bmp) {
+                    Some((lead, trail)) => handle.write_two(lead as u8, trail as u8),
+                    None => {
+                        if !self.extended {
+                            return (EncoderResult::unmappable_from_bmp(bmp),
+                                    source.consumed(),
+                                    handle.written());
+                        }
+                        let range_pointer = gb18030_range_encode(bmp);
+                        let first = range_pointer / (10 * 126 * 10);
+                        let rem_first = range_pointer % (10 * 126 * 10);
+                        let second = rem_first / (10 * 126);
+                        let rem_second = rem_first % (10 * 126);
+                        let third = rem_second / 10;
+                        let fourth = rem_second % 10;
+                        handle.write_four(
+                            (first + 0x81) as u8,
+                            (second + 0x30) as u8,
+                            (third + 0x81) as u8,
+                            (fourth + 0x30) as u8,
+                        )
+                    }
+                }
+            }
+        },
+        {
+            if !self.extended {
+                return (EncoderResult::Unmappable(astral), source.consumed(), handle.written());
+            }
+            let range_pointer = astral as usize + (189000usize - 0x10000usize);
+            let first = range_pointer / (10 * 126 * 10);
+            let rem_first = range_pointer % (10 * 126 * 10);
+            let second = rem_first / (10 * 126);
+            let rem_second = rem_first % (10 * 126);
+            let third = rem_second / 10;
+            let fourth = rem_second % 10;
+            handle.write_four(
+                (first + 0x81) as u8,
+                (second + 0x30) as u8,
+                (third + 0x81) as u8,
+                (fourth + 0x30) as u8,
+            )
+        },
+        bmp,
+        astral,
+        self,
+        source,
+        handle,
+        copy_ascii_to_check_space_four,
+        check_space_four,
+        false
+    );
 }
 
 // Any copyright to the test code below this comment is dedicated to the
@@ -609,8 +599,10 @@ mod tests {
         decode_gb18030(b"\x94\x39\xDA\x33", "\u{1F4A9}");
         decode_gb18030(b"\xE3\x32\x9A\x35", "\u{10FFFF}");
         decode_gb18030(b"\xE3\x32\x9A\x36\x81\x30", "\u{FFFD}\u{0032}\u{309B8}");
-        decode_gb18030(b"\xE3\x32\x9A\x36\x81\x40",
-                       "\u{FFFD}\u{0032}\u{FFFD}\u{0036}\u{4E02}");
+        decode_gb18030(
+            b"\xE3\x32\x9A\x36\x81\x40",
+            "\u{FFFD}\u{0032}\u{FFFD}\u{0036}\u{4E02}",
+        );
         decode_gb18030(b"\xE3\x32\x9A", "\u{FFFD}"); // not \u{FFFD}\u{0032}\u{FFFD} !
 
     }

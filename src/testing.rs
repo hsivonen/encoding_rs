@@ -57,8 +57,8 @@ pub fn encode_without_padding(encoding: &'static Encoding, string: &str, expect:
 
 pub fn decode_to_utf16(encoding: &'static Encoding, bytes: &[u8], expect: &[u16]) {
     let mut decoder = encoding.new_decoder();
-    let mut dest: Vec<u16> = Vec::with_capacity(decoder.max_utf16_buffer_length(bytes.len())
-                                                       .unwrap());
+    let mut dest: Vec<u16> =
+        Vec::with_capacity(decoder.max_utf16_buffer_length(bytes.len()).unwrap());
     let capacity = dest.capacity();
     dest.resize(capacity, 0u16);
     let (complete, read, written, _) = decoder.decode_to_utf16(bytes, &mut dest, true);
@@ -76,8 +76,8 @@ pub fn decode_to_utf16(encoding: &'static Encoding, bytes: &[u8], expect: &[u16]
 
 pub fn decode_to_utf8(encoding: &'static Encoding, bytes: &[u8], expect: &str) {
     let mut decoder = encoding.new_decoder();
-    let mut dest: Vec<u8> = Vec::with_capacity(decoder.max_utf8_buffer_length(bytes.len())
-                                                      .unwrap());
+    let mut dest: Vec<u8> =
+        Vec::with_capacity(decoder.max_utf8_buffer_length(bytes.len()).unwrap());
     let capacity = dest.capacity();
     dest.resize(capacity, 0u8);
     let (complete, read, written, _) = decoder.decode_to_utf8(bytes, &mut dest, true);
@@ -145,9 +145,8 @@ pub fn utf16_from_utf8(string: &str) -> Vec<u16> {
     let capacity = vec.capacity();
     vec.resize(capacity, 0);
 
-    let (result, read, written) = decoder.decode_to_utf16_without_replacement(string.as_bytes(),
-                                                                              &mut vec[..],
-                                                                              true);
+    let (result, read, written) =
+        decoder.decode_to_utf16_without_replacement(string.as_bytes(), &mut vec[..], true);
     match result {
         DecoderResult::InputEmpty => {
             debug_assert_eq!(read, string.len());
