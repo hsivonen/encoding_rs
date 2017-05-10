@@ -147,7 +147,7 @@ impl Iso2022JpDecoder {
                         continue;
                     }
                     self.output_flag = false;
-                    if b > 0x7Eu8 || b == 0x0Eu8 || b == 0x0Fu8 {
+                    if b > 0x7Fu8 || b == 0x0Eu8 || b == 0x0Fu8 {
                         return (DecoderResult::Malformed(1, 0),
                                 unread_handle.consumed(),
                                 destination_handle.written());
@@ -169,7 +169,7 @@ impl Iso2022JpDecoder {
                         destination_handle.write_upper_bmp(0x203Eu16);
                         continue;
                     }
-                    if b > 0x7Eu8 || b == 0x0Eu8 || b == 0x0Fu8 {
+                    if b > 0x7Fu8 || b == 0x0Eu8 || b == 0x0Fu8 {
                         return (DecoderResult::Malformed(1, 0),
                                 unread_handle.consumed(),
                                 destination_handle.written());
@@ -699,6 +699,7 @@ mod tests {
 
         // ASCII
         decode_iso_2022_jp(b"\x61\x62", "\u{0061}\u{0062}");
+        decode_iso_2022_jp(b"\x7F\x0E\x0F", "\u{007F}\u{FFFD}\u{FFFD}");
 
         // Partial escapes
         decode_iso_2022_jp(b"\x1B", "\u{FFFD}");

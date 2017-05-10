@@ -98,6 +98,7 @@ encoding_rs is
 
 ### 0.6.8
 
+* Decode byte `7F` correctly in ISO-2022-JP.
 * Make UTF-16 to UTF-8 encode write closer to the end of the buffer.
 * Implement `Hash` for `Encoding`.
 
