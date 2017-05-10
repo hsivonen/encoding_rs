@@ -98,6 +98,8 @@ encoding_rs is
 
 ### 0.6.8
 
+* Correcly handle the case where the first buffer contains potentially
+  partial BOM and the next buffer is the last buffer.
 * Decode byte `7F` correctly in ISO-2022-JP.
 * Make UTF-16 to UTF-8 encode write closer to the end of the buffer.
 * Implement `Hash` for `Encoding`.

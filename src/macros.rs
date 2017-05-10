@@ -1465,7 +1465,7 @@ macro_rules! public_decode_function{
             let mut out_read = 0usize;
             let (mut first_result, _, mut first_written) =
                 self.variant
-                    .$decode_to_utf_raw(&first[..], dst, last);
+                    .$decode_to_utf_raw(&first[..], dst, false);
             match first_result {
                 DecoderResult::InputEmpty => {
                     let (result, read, written) =
@@ -1500,7 +1500,7 @@ macro_rules! public_decode_function{
             let ef_bb = [0xEFu8, 0xBBu8];
             let (mut first_result, mut first_read, mut first_written) =
                 self.variant
-                    .$decode_to_utf_raw(&ef_bb[..], dst, last);
+                    .$decode_to_utf_raw(&ef_bb[..], dst, false);
             match first_result {
                 DecoderResult::InputEmpty => {
                     let (result, read, written) =

@@ -930,4 +930,73 @@ mod tests {
         assert_eq!(result, EncoderResult::InputEmpty);
     }
 
+    #[test]
+    fn test_decode_bom_prefixed_split_byte_triple() {
+        let mut output = [0u16; 20];
+        let mut decoder = UTF_8.new_decoder();
+        {
+            let needed = decoder.max_utf16_buffer_length(1).unwrap();
+            let (result, read, written, had_errors) = decoder.decode_to_utf16(b"\xEF", &mut output[..needed], false);
+            assert_eq!(result, CoderResult::InputEmpty);
+            assert_eq!(read, 1);
+            assert_eq!(written, 0);
+            assert!(!had_errors);
+        }
+        {
+            let needed = decoder.max_utf16_buffer_length(1).unwrap();
+            let (result, read, written, had_errors) = decoder.decode_to_utf16(b"\xBF", &mut output[..needed], false);
+            assert_eq!(result, CoderResult::InputEmpty);
+            assert_eq!(read, 1);
+            assert_eq!(written, 0);
+            assert!(!had_errors);
+        }
+        {
+            let needed = decoder.max_utf16_buffer_length(1).unwrap();
+            let (result, read, written, had_errors) = decoder.decode_to_utf16(b"\xBE", &mut output[..needed], true);
+            assert_eq!(result, CoderResult::InputEmpty);
+            assert_eq!(read, 1);
+            assert_eq!(written, 1);
+            assert!(!had_errors);
+            assert_eq!(output[0], 0xFFFE);
+        }
+    }
+
+    #[test]
+    fn test_decode_bom_prefixed_split_byte_pair() {
+        let mut output = [0u16; 20];
+        let mut decoder = UTF_8.new_decoder();
+        {
+            let needed = decoder.max_utf16_buffer_length(1).unwrap();
+            let (result, read, written, had_errors) = decoder.decode_to_utf16(b"\xEF", &mut output[..needed], false);
+            assert_eq!(result, CoderResult::InputEmpty);
+            assert_eq!(read, 1);
+            assert_eq!(written, 0);
+            assert!(!had_errors);
+        }
+        {
+            let needed = decoder.max_utf16_buffer_length(1).unwrap();
+            let (result, read, written, had_errors) = decoder.decode_to_utf16(b"\xBC", &mut output[..needed], true);
+            assert_eq!(result, CoderResult::InputEmpty);
+            assert_eq!(read, 1);
+            assert_eq!(written, 1);
+            assert!(had_errors);
+            assert_eq!(output[0], 0xFFFD);
+        }
+    }
+
+    #[test]
+    fn test_decode_bom_prefix() {
+        let mut output = [0u16; 20];
+        let mut decoder = UTF_8.new_decoder();
+        {
+            let needed = decoder.max_utf16_buffer_length(1).unwrap();
+            let (result, read, written, had_errors) = decoder.decode_to_utf16(b"\xEF", &mut output[..needed], true);
+            assert_eq!(result, CoderResult::InputEmpty);
+            assert_eq!(read, 1);
+            assert_eq!(written, 1);
+            assert!(had_errors);
+            assert_eq!(output[0], 0xFFFD);
+        }
+    }
+
 }
