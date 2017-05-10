@@ -594,7 +594,7 @@ impl Utf8Encoder {
             'inner: loop {
                 // The following loop is only broken out of as a goto forward.
                 loop {
-                    if written + 4 >= dst.len() {
+                    if written + 4 > dst.len() {
                         return (EncoderResult::OutputFull, read, written);
                     }
                     read += 1;
@@ -914,4 +914,15 @@ mod tests {
         encode_utf8_from_utf16(&[0xD800, 0xDC00], "\u{10000}".as_bytes());
         encode_utf8_from_utf16(&[0xDBFF, 0xDFFF], "\u{10FFFF}".as_bytes());
     }
+
+        #[test]
+    fn test_utf8_max_length_from_utf16() {
+        let mut encoder = UTF_8.new_encoder();
+        let mut output = [0u8; 13];
+        let input = &[0x2C9Fu16, 0x2CA9u16, 0x2CA3u16, 0x2C9Fu16];
+        let needed = encoder.max_buffer_length_from_utf16_without_replacement(input.len()).unwrap();
+        let (result, _, _) = encoder.encode_from_utf16_without_replacement(input, &mut output[..needed], true);
+        assert_eq!(result, EncoderResult::InputEmpty);
+    }
+
 }
