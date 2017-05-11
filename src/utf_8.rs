@@ -936,7 +936,8 @@ mod tests {
         let mut decoder = UTF_8.new_decoder();
         {
             let needed = decoder.max_utf16_buffer_length(1).unwrap();
-            let (result, read, written, had_errors) = decoder.decode_to_utf16(b"\xEF", &mut output[..needed], false);
+            let (result, read, written, had_errors) =
+                decoder.decode_to_utf16(b"\xEF", &mut output[..needed], false);
             assert_eq!(result, CoderResult::InputEmpty);
             assert_eq!(read, 1);
             assert_eq!(written, 0);
@@ -944,7 +945,8 @@ mod tests {
         }
         {
             let needed = decoder.max_utf16_buffer_length(1).unwrap();
-            let (result, read, written, had_errors) = decoder.decode_to_utf16(b"\xBF", &mut output[..needed], false);
+            let (result, read, written, had_errors) =
+                decoder.decode_to_utf16(b"\xBF", &mut output[..needed], false);
             assert_eq!(result, CoderResult::InputEmpty);
             assert_eq!(read, 1);
             assert_eq!(written, 0);
@@ -952,7 +954,8 @@ mod tests {
         }
         {
             let needed = decoder.max_utf16_buffer_length(1).unwrap();
-            let (result, read, written, had_errors) = decoder.decode_to_utf16(b"\xBE", &mut output[..needed], true);
+            let (result, read, written, had_errors) =
+                decoder.decode_to_utf16(b"\xBE", &mut output[..needed], true);
             assert_eq!(result, CoderResult::InputEmpty);
             assert_eq!(read, 1);
             assert_eq!(written, 1);
@@ -967,7 +970,8 @@ mod tests {
         let mut decoder = UTF_8.new_decoder();
         {
             let needed = decoder.max_utf16_buffer_length(1).unwrap();
-            let (result, read, written, had_errors) = decoder.decode_to_utf16(b"\xEF", &mut output[..needed], false);
+            let (result, read, written, had_errors) =
+                decoder.decode_to_utf16(b"\xEF", &mut output[..needed], false);
             assert_eq!(result, CoderResult::InputEmpty);
             assert_eq!(read, 1);
             assert_eq!(written, 0);
@@ -975,7 +979,8 @@ mod tests {
         }
         {
             let needed = decoder.max_utf16_buffer_length(1).unwrap();
-            let (result, read, written, had_errors) = decoder.decode_to_utf16(b"\xBC", &mut output[..needed], true);
+            let (result, read, written, had_errors) =
+                decoder.decode_to_utf16(b"\xBC", &mut output[..needed], true);
             assert_eq!(result, CoderResult::InputEmpty);
             assert_eq!(read, 1);
             assert_eq!(written, 1);
@@ -990,7 +995,8 @@ mod tests {
         let mut decoder = UTF_8.new_decoder();
         {
             let needed = decoder.max_utf16_buffer_length(1).unwrap();
-            let (result, read, written, had_errors) = decoder.decode_to_utf16(b"\xEF", &mut output[..needed], true);
+            let (result, read, written, had_errors) =
+                decoder.decode_to_utf16(b"\xEF", &mut output[..needed], true);
             assert_eq!(result, CoderResult::InputEmpty);
             assert_eq!(read, 1);
             assert_eq!(written, 1);
