@@ -96,6 +96,11 @@ encoding_rs is
 
 ## Release Notes
 
+### 0.6.9
+
+* [Don't prepend anything when gb18030 range decode
+  fails](https://github.com/whatwg/encoding/issues/110). (Spec change.)
+
 ### 0.6.8
 
 * Correcly handle the case where the first buffer contains potentially

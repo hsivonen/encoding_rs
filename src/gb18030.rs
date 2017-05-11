@@ -267,10 +267,8 @@ impl Gb18030Decoder {
                 // Astral
                 handle.write_astral((pointer - (189000usize - 0x10000usize)) as u32)
             } else {
-                self.pending_ascii = Some(second_minus_offset + 0x30);
-                self.pending = Gb18030Pending::One(third_minus_offset);
-                return (DecoderResult::Malformed(1, 2),
-                        unread_handle_fourth.unread(),
+                return (DecoderResult::Malformed(4, 0),
+                        unread_handle_fourth.consumed(),
                         handle.written());
             }
         },
@@ -598,11 +596,8 @@ mod tests {
         decode_gb18030(b"\x81\x37\xA3\x30", "\u{2603}");
         decode_gb18030(b"\x94\x39\xDA\x33", "\u{1F4A9}");
         decode_gb18030(b"\xE3\x32\x9A\x35", "\u{10FFFF}");
-        decode_gb18030(b"\xE3\x32\x9A\x36\x81\x30", "\u{FFFD}\u{0032}\u{309B8}");
-        decode_gb18030(
-            b"\xE3\x32\x9A\x36\x81\x40",
-            "\u{FFFD}\u{0032}\u{FFFD}\u{0036}\u{4E02}",
-        );
+        decode_gb18030(b"\xE3\x32\x9A\x36\x81\x30", "\u{FFFD}\u{FFFD}");
+        decode_gb18030(b"\xE3\x32\x9A\x36\x81\x40", "\u{FFFD}\u{4E02}");
         decode_gb18030(b"\xE3\x32\x9A", "\u{FFFD}"); // not \u{FFFD}\u{0032}\u{FFFD} !
 
     }

@@ -2920,10 +2920,9 @@ pub enum DecoderResult {
     /// the malformed sequence. Note that the malformed bytes may have been part
     /// of an earlier input buffer.
     ///
-    /// The first wrapped integer can have values 1, 2 or 3. The second
-    /// wrapped integer can have values 0, 1, 2 or 3. This makes the
-    /// worst-case sum of the two 6, and the worst case actually happens with
-    /// ISO-2022-JP.
+    /// The first wrapped integer can have values 1, 2, 3 or 4. The second
+    /// wrapped integer can have values 0, 1, 2 or 3. The worst-case sum
+    /// of the two is 6, which happens with ISO-2022-JP.
     Malformed(u8, u8), // u8 instead of usize to avoid useless bloat
 }
 
