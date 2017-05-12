@@ -417,7 +417,9 @@ impl Gb18030Encoder {
         if self.extended {
             u16_length.checked_mul(4)
         } else {
-            u16_length.checked_mul(2)
+            // Need to add, because space check is done with the four-byte
+            // assumption.
+            checked_add(2, u16_length.checked_mul(2))
         }
     }
 
@@ -436,6 +438,8 @@ impl Gb18030Encoder {
             // 1 to 1
             // 2 to 2
             // 3 to 2
+            // Need to add, because space check is done with the four-byte
+            // assumption.
             byte_length.checked_add(3)
         }
     }
@@ -691,5 +695,25 @@ mod tests {
         assert!(!had_errors, "Should not have had errors.");
         assert_eq!(encoding, GB18030);
         assert_eq!(&cow[..], &expectation[..]);
+    }
+
+    #[test]
+    fn test_gb18030_encode_from_utf16_max_length() {
+        let mut output = [0u8; 20];
+        let mut encoder = GB18030.new_encoder();
+        {
+            let needed = encoder
+                .max_buffer_length_from_utf16_without_replacement(1)
+                .unwrap();
+            let (result, read, written) =
+                encoder
+                    .encode_from_utf16_without_replacement(&[0x3000], &mut output[..needed], true);
+            assert_eq!(result, EncoderResult::InputEmpty);
+            assert_eq!(read, 1);
+            assert_eq!(written, 2);
+            assert_eq!(output[0], 0xA1);
+            assert_eq!(output[1], 0xA1);
+        }
+
     }
 }

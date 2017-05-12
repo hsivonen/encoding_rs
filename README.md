@@ -96,6 +96,10 @@ encoding_rs is
 
 ## Release Notes
 
+### 0.6.10
+
+* Correctly calculate max length when encoding from UTF-16 to GBK.
+
 ### 0.6.9
 
 * [Don't prepend anything when gb18030 range decode
