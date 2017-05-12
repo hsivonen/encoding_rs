@@ -4,3 +4,7 @@ Cargo.lock
 .settings
 *~
 *.bk
+fuzz/target
+fuzz/Cargo.lock
+fuzz/artifacts
+fuzz/corpus
