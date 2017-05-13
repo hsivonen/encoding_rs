@@ -40,7 +40,7 @@ impl EucKrDecoder {
     pub fn max_utf8_buffer_length_without_replacement(&self, byte_length: usize) -> Option<usize> {
         // worst case: 2 to 3
         let len = self.plus_one_if_lead(byte_length);
-        checked_add_opt(len, checked_div(checked_add(1, len), 2))
+        checked_add(2, checked_add_opt(len, checked_div(checked_add(1, len), 2)))
     }
 
     pub fn max_utf8_buffer_length(&self, byte_length: usize) -> Option<usize> {

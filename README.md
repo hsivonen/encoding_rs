@@ -98,6 +98,7 @@ encoding_rs is
 
 ### 0.6.10
 
+* Correct max length calculations for multibyte decoders.
 * Correctly calculate max length when encoding from UTF-16 to GBK.
 
 ### 0.6.9

@@ -46,7 +46,7 @@ impl Iso2022JpDecoder {
         )
     }
 
-    fn plus_one_if_lead(&self, byte_length: usize) -> Option<usize> {
+    fn extra_to_input_from_state(&self, byte_length: usize) -> Option<usize> {
         byte_length.checked_add(
             if self.lead == 0 || self.pending_prepended {
                 0
@@ -56,27 +56,30 @@ impl Iso2022JpDecoder {
         )
     }
 
-    fn one_if_pending_prepended(&self) -> usize {
+    fn extra_to_output_from_state(&self) -> usize {
         if self.lead != 0 && self.pending_prepended {
-            1
+            1 + self.output_flag as usize
         } else {
-            0
+            self.output_flag as usize
         }
     }
 
     pub fn max_utf16_buffer_length(&self, byte_length: usize) -> Option<usize> {
         checked_add(
-            self.one_if_pending_prepended(),
-            self.plus_one_if_lead(byte_length),
+            self.extra_to_output_from_state(),
+            self.extra_to_input_from_state(byte_length),
         )
     }
 
     pub fn max_utf8_buffer_length_without_replacement(&self, byte_length: usize) -> Option<usize> {
         // worst case: 2 to 3
-        let len = self.plus_one_if_lead(byte_length);
-        checked_add_opt(
-            checked_add(self.one_if_pending_prepended() * 3, len),
-            checked_div(checked_add(1, len), 2),
+        let len = self.extra_to_input_from_state(byte_length);
+        checked_add(
+            2,
+            checked_add_opt(
+                checked_add(self.extra_to_output_from_state() * 3, len),
+                checked_div(checked_add(1, len), 2),
+            ),
         )
     }
 
@@ -84,8 +87,8 @@ impl Iso2022JpDecoder {
         checked_mul(
             3,
             checked_add(
-                self.one_if_pending_prepended(),
-                self.plus_one_if_lead(byte_length),
+                self.extra_to_output_from_state(),
+                self.extra_to_input_from_state(byte_length),
             ),
         )
     }

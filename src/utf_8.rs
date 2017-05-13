@@ -428,16 +428,27 @@ impl Utf8Decoder {
         )
     }
 
+    fn extra_from_state(&self) -> usize {
+        if self.bytes_needed == 0 {
+            0
+        } else {
+            self.bytes_seen + 1
+        }
+    }
+
     pub fn max_utf16_buffer_length(&self, byte_length: usize) -> Option<usize> {
-        byte_length.checked_add(1)
+        byte_length.checked_add(1 + self.extra_from_state())
     }
 
     pub fn max_utf8_buffer_length_without_replacement(&self, byte_length: usize) -> Option<usize> {
-        byte_length.checked_add(3)
+        byte_length.checked_add(3 + self.extra_from_state())
     }
 
     pub fn max_utf8_buffer_length(&self, byte_length: usize) -> Option<usize> {
-        checked_add(3, byte_length.checked_mul(3))
+        checked_add(
+            3,
+            checked_mul(3, byte_length.checked_add(self.extra_from_state())),
+        )
     }
 
     decoder_functions!(

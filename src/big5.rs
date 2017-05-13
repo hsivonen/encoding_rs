@@ -56,7 +56,10 @@ impl Big5Decoder {
         // If lead set and the input is a single trail byte, the worst-case
         // output is 4, so we need to add one before multiplying if lead is
         // set.
-        checked_mul(2, self.plus_one_if_lead(byte_length))
+        //
+        // Finally, add two so that if input is non-zero, the output is at
+        // least 4.
+        checked_add(2, checked_mul(2, self.plus_one_if_lead(byte_length)))
     }
 
     pub fn max_utf8_buffer_length(&self, byte_length: usize) -> Option<usize> {
