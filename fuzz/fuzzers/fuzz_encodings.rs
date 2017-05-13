@@ -1,3 +1,12 @@
+// Copyright 2015-2016 Mozilla Foundation. See the COPYRIGHT
+// file at the top-level directory of this distribution.
+//
+// Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
+// https://www.apache.org/licenses/LICENSE-2.0> or the MIT license
+// <LICENSE-MIT or https://opensource.org/licenses/MIT>, at your
+// option. This file may not be copied, modified, or distributed
+// except according to those terms.
+
 #![no_main]
 #[macro_use]
 extern crate libfuzzer_sys;
@@ -46,6 +55,29 @@ static ENCODINGS: [&'static Encoding; 39] = [&UTF_8_INIT,
                                              &ISO_8859_8_I_INIT,
                                              &X_MAC_CYRILLIC_INIT];
 
+fn check_utf8(data: &[u8]) {
+    if let Err(_) = ::std::str::from_utf8(data) {
+        panic!("Bogus UTF-8.");
+    }
+}
+
+fn check_utf16(data: &[u16]) {
+    let mut prev_was_high_surrogate = false;
+    for unit in data {
+        if *unit >= 0xD800 && *unit <= 0xDBFF {
+            assert!(!prev_was_high_surrogate);
+            prev_was_high_surrogate = true;
+        } else if *unit >= 0xDC00 && *unit <= 0xDFFF {
+            assert!(prev_was_high_surrogate);
+            prev_was_high_surrogate = false;
+        } else {
+            assert!(!prev_was_high_surrogate);
+            prev_was_high_surrogate = false;
+        }
+    }
+    assert!(!prev_was_high_surrogate);
+}
+
 fn as_u16_slice(data: &[u8]) -> &[u16] {
     unsafe {
         let ptr = data.as_ptr();
@@ -63,19 +95,24 @@ fn as_u16_slice(data: &[u8]) -> &[u16] {
 }
 
 fn decode(encoding: &'static Encoding, data: &[u8]) {
-    let (_, _, _) = encoding.decode(data);
+    let (cow, _, _) = encoding.decode(data);
+    check_utf8(cow.as_bytes());
 }
 
 fn decode_with_bom_removal(encoding: &'static Encoding, data: &[u8]) {
-    let (_, _) = encoding.decode_with_bom_removal(data);
+    let (cow, _) = encoding.decode_with_bom_removal(data);
+    check_utf8(cow.as_bytes());
 }
 
 fn decode_without_bom_handling(encoding: &'static Encoding, data: &[u8]) {
-    let (_, _) = encoding.decode_without_bom_handling(data);
+    let (cow, _) = encoding.decode_without_bom_handling(data);
+    check_utf8(cow.as_bytes());
 }
 
 fn decode_without_bom_handling_and_without_replacement(encoding: &'static Encoding, data: &[u8]) {
-    let _ = encoding.decode_without_bom_handling_and_without_replacement(data);
+    if let Some(cow) = encoding.decode_without_bom_handling_and_without_replacement(data) {
+        check_utf8(cow.as_bytes());
+    }
 }
 
 fn encode(encoding: &'static Encoding, data: &[u8]) {
@@ -90,7 +127,7 @@ fn encode_from_utf8(encoding: &'static Encoding, data: &[u8]) {
     }
     let first = data[0] as usize;
     let second = data[1] as usize;
-    if first == 0 || second == 0 {
+    if first == 0 || second == 0 || first >= data.len() - 2 || second >= data.len() - 2 {
         return;
     }
     if let Ok(s) = ::std::str::from_utf8(&data[2..]) {
@@ -151,7 +188,7 @@ fn encode_from_utf8_without_replacement(encoding: &'static Encoding, data: &[u8]
     }
     let first = data[0] as usize;
     let second = data[1] as usize;
-    if first == 0 || second == 0 {
+    if first == 0 || second == 0 || first >= data.len() - 2 || second >= data.len() - 2 {
         return;
     }
     if let Ok(s) = ::std::str::from_utf8(&data[2..]) {
@@ -184,9 +221,9 @@ fn encode_from_utf8_without_replacement(encoding: &'static Encoding, data: &[u8]
                 let (result, _, _) =
                     encoder.encode_from_utf8_without_replacement(&string, &mut dst, false);
                 match result {
-                	EncoderResult::InputEmpty => {},
-                	EncoderResult::OutputFull => unreachable!("Bogus max size math"),
-                	EncoderResult::Unmappable(_) => return,
+                    EncoderResult::InputEmpty => {}
+                    EncoderResult::OutputFull => unreachable!("Bogus max size math"),
+                    EncoderResult::Unmappable(_) => return,
                 }
             } else {
                 return;
@@ -201,7 +238,7 @@ fn encode_from_utf16(encoding: &'static Encoding, data: &[u8]) {
     }
     let first = data[0] as usize;
     let second = data[1] as usize;
-    if first == 0 || second == 0 {
+    if first == 0 || second == 0 || first >= data.len() - 2 || second >= data.len() - 2 {
         return;
     }
     let s = as_u16_slice(&data[2..]);
@@ -229,9 +266,9 @@ fn encode_from_utf16(encoding: &'static Encoding, data: &[u8]) {
                     encoder.encode_from_utf16(&chunk[total_read..], &mut dst, last);
                 total_read += read;
                 if result == CoderResult::InputEmpty {
-                	if last {
-                		return;
-                	}
+                    if last {
+                        return;
+                    }
                     break;
                 }
             }
@@ -245,7 +282,7 @@ fn encode_from_utf16_without_replacement(encoding: &'static Encoding, data: &[u8
     }
     let first = data[0] as usize;
     let second = data[1] as usize;
-    if first == 0 || second == 0 {
+    if first == 0 || second == 0 || first >= data.len() - 2 || second >= data.len() - 2 {
         return;
     }
     let s = as_u16_slice(&data[2..]);
@@ -264,19 +301,19 @@ fn encode_from_utf16_without_replacement(encoding: &'static Encoding, data: &[u8
         let new_offset = offset + chunk_size;
         let chunk = &s[offset..new_offset];
         offset = new_offset;
-        if let Some(needed) =
-            encoder.max_buffer_length_from_utf16_without_replacement(chunk.len()) {
+        if let Some(needed) = encoder
+               .max_buffer_length_from_utf16_without_replacement(chunk.len()) {
             dst.resize(needed, 0);
-            let (result, _, _) =
-                encoder.encode_from_utf16_without_replacement(&chunk, &mut dst, last);
+            let (result, _, _) = encoder
+                .encode_from_utf16_without_replacement(&chunk, &mut dst, last);
             match result {
-            	EncoderResult::InputEmpty => {
-            		if last {
-            			return;
-            		}
-            	},
-            	EncoderResult::OutputFull => unreachable!("Bogus max size math"),
-            	EncoderResult::Unmappable(_) => return,
+                EncoderResult::InputEmpty => {
+                    if last {
+                        return;
+                    }
+                }
+                EncoderResult::OutputFull => unreachable!("Bogus max size math"),
+                EncoderResult::Unmappable(_) => return,
             }
         }
     }
@@ -288,13 +325,14 @@ fn decode_to_utf16(encoding: &'static Encoding, data: &[u8]) {
     }
     let first = data[0] as usize;
     let second = data[1] as usize;
-    if first == 0 || second == 0 {
+    if first == 0 || second == 0 || first >= data.len() - 3 || second >= data.len() - 3 {
         return;
     }
-    let mut decoder = match data[2] % 3 {
-    	0 => encoding.new_decoder(),
-    	1 => encoding.new_decoder_with_bom_removal(),
-    	_ => encoding.new_decoder_without_bom_handling(),
+    let mut decoder = match data[2] {
+        0 => encoding.new_decoder(),
+        1 => encoding.new_decoder_with_bom_removal(),
+        2 => encoding.new_decoder_without_bom_handling(),
+        _ => return,
     };
     let s = &data[3..];
     let mut offset = 0;
@@ -311,14 +349,14 @@ fn decode_to_utf16(encoding: &'static Encoding, data: &[u8]) {
         let new_offset = offset + chunk_size;
         let chunk = &s[offset..new_offset];
         offset = new_offset;
-        if let Some(needed) =
-            decoder.max_utf16_buffer_length(chunk.len()) {
+        if let Some(needed) = decoder.max_utf16_buffer_length(chunk.len()) {
             dst.resize(needed, 0);
-            let (result, _, _, _) =
-                decoder.decode_to_utf16(&chunk, &mut dst, last);
+            let (result, read, written, _) = decoder.decode_to_utf16(&chunk, &mut dst, last);
+            assert!(read <= chunk.len());
+            check_utf16(&dst[..written]);
             assert_ne!(result, CoderResult::OutputFull);
             if last {
-            	return;
+                return;
             }
         }
     }
@@ -330,13 +368,14 @@ fn decode_to_utf16_without_replacement(encoding: &'static Encoding, data: &[u8])
     }
     let first = data[0] as usize;
     let second = data[1] as usize;
-    if first == 0 || second == 0 {
+    if first == 0 || second == 0 || first >= data.len() - 3 || second >= data.len() - 3 {
         return;
     }
-    let mut decoder = match data[2] % 3 {
-    	0 => encoding.new_decoder(),
-    	1 => encoding.new_decoder_with_bom_removal(),
-    	_ => encoding.new_decoder_without_bom_handling(),
+    let mut decoder = match data[2] {
+        0 => encoding.new_decoder(),
+        1 => encoding.new_decoder_with_bom_removal(),
+        2 => encoding.new_decoder_without_bom_handling(),
+        _ => return,
     };
     let s = &data[3..];
     let mut offset = 0;
@@ -353,19 +392,20 @@ fn decode_to_utf16_without_replacement(encoding: &'static Encoding, data: &[u8])
         let new_offset = offset + chunk_size;
         let chunk = &s[offset..new_offset];
         offset = new_offset;
-        if let Some(needed) =
-            decoder.max_utf16_buffer_length(chunk.len()) {
+        if let Some(needed) = decoder.max_utf16_buffer_length(chunk.len()) {
             dst.resize(needed, 0);
-            let (result, _, _) =
+            let (result, read, written) =
                 decoder.decode_to_utf16_without_replacement(&chunk, &mut dst, last);
+            assert!(read <= chunk.len());
+            check_utf16(&dst[..written]);
             match result {
-            	DecoderResult::InputEmpty => {
-            		if last {
-            			return;
-            		}
-            	},
-            	DecoderResult::OutputFull => unreachable!("Bogus max size math"),
-            	DecoderResult::Malformed(_, _) => return,
+                DecoderResult::InputEmpty => {
+                    if last {
+                        return;
+                    }
+                }
+                DecoderResult::OutputFull => unreachable!("Bogus max size math"),
+                DecoderResult::Malformed(_, _) => return,
             }
         }
     }
@@ -377,13 +417,14 @@ fn decode_to_utf8(encoding: &'static Encoding, data: &[u8]) {
     }
     let first = data[0] as usize;
     let second = data[1] as usize;
-    if first == 0 || second == 0 {
+    if first == 0 || second == 0 || first >= data.len() - 3 || second >= data.len() - 3 {
         return;
     }
-    let mut decoder = match data[2] % 3 {
-    	0 => encoding.new_decoder(),
-    	1 => encoding.new_decoder_with_bom_removal(),
-    	_ => encoding.new_decoder_without_bom_handling(),
+    let mut decoder = match data[2] {
+        0 => encoding.new_decoder(),
+        1 => encoding.new_decoder_with_bom_removal(),
+        2 => encoding.new_decoder_without_bom_handling(),
+        _ => return,
     };
     let s = &data[3..];
     let mut offset = 0;
@@ -400,14 +441,14 @@ fn decode_to_utf8(encoding: &'static Encoding, data: &[u8]) {
         let new_offset = offset + chunk_size;
         let chunk = &s[offset..new_offset];
         offset = new_offset;
-        if let Some(needed) =
-            decoder.max_utf8_buffer_length(chunk.len()) {
+        if let Some(needed) = decoder.max_utf8_buffer_length(chunk.len()) {
             dst.resize(needed, 0);
-            let (result, _, _, _) =
-                decoder.decode_to_utf8(&chunk, &mut dst, last);
+            let (result, read, written, _) = decoder.decode_to_utf8(&chunk, &mut dst, last);
+            assert!(read <= chunk.len());
+            check_utf8(&dst[..written]);
             assert_ne!(result, CoderResult::OutputFull);
             if last {
-            	return;
+                return;
             }
         }
     }
@@ -419,13 +460,14 @@ fn decode_to_utf8_without_replacement(encoding: &'static Encoding, data: &[u8]) 
     }
     let first = data[0] as usize;
     let second = data[1] as usize;
-    if first == 0 || second == 0 {
+    if first == 0 || second == 0 || first >= data.len() - 3 || second >= data.len() - 3 {
         return;
     }
-    let mut decoder = match data[2] % 3 {
-    	0 => encoding.new_decoder(),
-    	1 => encoding.new_decoder_with_bom_removal(),
-    	_ => encoding.new_decoder_without_bom_handling(),
+    let mut decoder = match data[2] {
+        0 => encoding.new_decoder(),
+        1 => encoding.new_decoder_with_bom_removal(),
+        2 => encoding.new_decoder_without_bom_handling(),
+        _ => return,
     };
     let s = &data[3..];
     let mut offset = 0;
@@ -442,19 +484,20 @@ fn decode_to_utf8_without_replacement(encoding: &'static Encoding, data: &[u8]) 
         let new_offset = offset + chunk_size;
         let chunk = &s[offset..new_offset];
         offset = new_offset;
-        if let Some(needed) =
-            decoder.max_utf8_buffer_length_without_replacement(chunk.len()) {
+        if let Some(needed) = decoder.max_utf8_buffer_length_without_replacement(chunk.len()) {
             dst.resize(needed, 0);
-            let (result, _, _) =
+            let (result, read, written) =
                 decoder.decode_to_utf8_without_replacement(&chunk, &mut dst, last);
+            assert!(read <= chunk.len());
+            check_utf8(&dst[..written]);
             match result {
-            	DecoderResult::InputEmpty => {
-            		if last {
-            			return;
-            		}
-            	},
-            	DecoderResult::OutputFull => unreachable!("Bogus max size math"),
-            	DecoderResult::Malformed(_, _) => return,
+                DecoderResult::InputEmpty => {
+                    if last {
+                        return;
+                    }
+                }
+                DecoderResult::OutputFull => unreachable!("Bogus max size math"),
+                DecoderResult::Malformed(_, _) => return,
             }
         }
     }
@@ -462,7 +505,7 @@ fn decode_to_utf8_without_replacement(encoding: &'static Encoding, data: &[u8]) 
 
 fn dispatch_test(encoding: &'static Encoding, data: &[u8]) {
     if let Some(first) = data.first() {
-        match *first % 13 {
+        match *first {
             0 => decode(encoding, &data[1..]),
             1 => decode_with_bom_removal(encoding, &data[1..]),
             2 => decode_without_bom_handling(encoding, &data[1..]),
@@ -476,19 +519,18 @@ fn dispatch_test(encoding: &'static Encoding, data: &[u8]) {
             10 => decode_to_utf16_without_replacement(encoding, &data[1..]),
             11 => decode_to_utf8(encoding, &data[1..]),
             12 => decode_to_utf8_without_replacement(encoding, &data[1..]),
-            _ => unreachable!("wrong divisor"),
+            _ => return,
         }
     }
 }
 
 fuzz_target!(
-    |data: &[u8]| {
-        if let Some(first) = data.first() {
-            let encoding = ENCODINGS[*first as usize % ENCODINGS.len()];
-            dispatch_test(encoding, &data[1..]);
-        }
-        if data.is_empty() {
+    |data: &[u8]| if let Some(first) = data.first() {
+        let index = *first as usize;
+        if index >= ENCODINGS.len() {
             return;
         }
+        let encoding = ENCODINGS[index];
+        dispatch_test(encoding, &data[1..]);
     }
 );
