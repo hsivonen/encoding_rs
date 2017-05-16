@@ -394,7 +394,9 @@ fn gbk_encode_non_unified(bmp: u16) -> Option<(usize, usize)> {
     // PUA between Hanzi Levels
     let bmp_minus_pua_between_hanzi = bmp.wrapping_sub(0xE810);
     if bmp_minus_pua_between_hanzi < 5 {
-        return Some((0x81 + 0x56, 0xFF - 5 + bmp_minus_pua_between_hanzi as usize));
+        return Some(
+            (0x81 + 0x56, 0xFF - 5 + bmp_minus_pua_between_hanzi as usize),
+        );
     }
     None
 }

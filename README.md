@@ -98,6 +98,7 @@ encoding_rs is
 
 ### 0.6.10
 
+* Reserve enough space for NCRs when encoding to ISO-2022-JP.
 * Correct max length calculations for multibyte decoders.
 * Correctly calculate max length when encoding from UTF-16 to GBK.
 

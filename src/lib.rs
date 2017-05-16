@@ -536,7 +536,12 @@ use std::cmp::Ordering;
 use std::hash::Hash;
 use std::hash::Hasher;
 
-const NCR_EXTRA: usize = 9; // #1114111;
+/// This has to be the max length of an NCR instead of max
+/// minus one, because we can't rely on getting the minus
+/// one from the space reserved for the current unmappable,
+/// because the ISO-2022-JP encoder can fill up that space
+/// with a state transition escape.
+const NCR_EXTRA: usize = 10; // &#1114111;
 
 // BEGIN GENERATED CODE. PLEASE DO NOT EDIT.
 // Instead, please regenerate using generate-encoding-data.py
@@ -3653,7 +3658,7 @@ impl Encoder {
                 }
                 EncoderResult::Unmappable(unmappable) => {
                     had_unmappables = true;
-                    debug_assert!(dst.len() - total_written >= NCR_EXTRA + 1);
+                    debug_assert!(dst.len() - total_written >= NCR_EXTRA);
                     debug_assert_ne!(self.encoding(), UTF_16BE);
                     debug_assert_ne!(self.encoding(), UTF_16LE);
                     // Additionally, Iso2022JpEncoder is responsible for
@@ -3816,7 +3821,7 @@ impl Encoder {
                 }
                 EncoderResult::Unmappable(unmappable) => {
                     had_unmappables = true;
-                    debug_assert!(dst.len() - total_written >= NCR_EXTRA + 1);
+                    debug_assert!(dst.len() - total_written >= NCR_EXTRA);
                     // There are no UTF-16 encoders and even if there were,
                     // they'd never have unmappables.
                     debug_assert_ne!(self.encoding(), UTF_16BE);
@@ -4649,7 +4654,7 @@ mod tests {
 
     #[test]
     fn test_too_short_buffer_with_iso_2022_jp_roman_from_utf8() {
-        let mut dst = [0u8; 15];
+        let mut dst = [0u8; 16];
         let mut encoder = ISO_2022_JP.new_encoder();
         {
             let (result, _, _, _) = encoder.encode_from_utf8("\u{A5}", &mut dst[..], false);
@@ -4667,7 +4672,7 @@ mod tests {
 
     #[test]
     fn test_buffer_end_iso_2022_jp_from_utf8() {
-        let mut dst = [0u8; 17];
+        let mut dst = [0u8; 18];
         {
             let mut encoder = ISO_2022_JP.new_encoder();
             let (result, _, _, _) = encoder
@@ -4681,12 +4686,12 @@ mod tests {
         }
         {
             let mut encoder = ISO_2022_JP.new_encoder();
-            let (result, _, _, _) = encoder.encode_from_utf8("\u{1F4A9}", &mut dst[..12], false);
+            let (result, _, _, _) = encoder.encode_from_utf8("\u{1F4A9}", &mut dst[..13], false);
             assert_eq!(result, CoderResult::InputEmpty);
         }
         {
             let mut encoder = ISO_2022_JP.new_encoder();
-            let (result, _, _, _) = encoder.encode_from_utf8("\u{1F4A9}", &mut dst[..12], true);
+            let (result, _, _, _) = encoder.encode_from_utf8("\u{1F4A9}", &mut dst[..13], true);
             assert_eq!(result, CoderResult::InputEmpty);
         }
     }
@@ -4708,7 +4713,7 @@ mod tests {
 
     #[test]
     fn test_too_short_buffer_with_iso_2022_jp_roman_from_utf16() {
-        let mut dst = [0u8; 15];
+        let mut dst = [0u8; 16];
         let mut encoder = ISO_2022_JP.new_encoder();
         {
             let (result, _, _, _) = encoder.encode_from_utf16(&[0xA5u16], &mut dst[..], false);
@@ -4726,7 +4731,7 @@ mod tests {
 
     #[test]
     fn test_buffer_end_iso_2022_jp_from_utf16() {
-        let mut dst = [0u8; 17];
+        let mut dst = [0u8; 18];
         {
             let mut encoder = ISO_2022_JP.new_encoder();
             let (result, _, _, _) =
@@ -4742,13 +4747,13 @@ mod tests {
         {
             let mut encoder = ISO_2022_JP.new_encoder();
             let (result, _, _, _) =
-                encoder.encode_from_utf16(&[0xD83Du16, 0xDCA9u16], &mut dst[..12], false);
+                encoder.encode_from_utf16(&[0xD83Du16, 0xDCA9u16], &mut dst[..13], false);
             assert_eq!(result, CoderResult::InputEmpty);
         }
         {
             let mut encoder = ISO_2022_JP.new_encoder();
             let (result, _, _, _) =
-                encoder.encode_from_utf16(&[0xD83Du16, 0xDCA9u16], &mut dst[..12], true);
+                encoder.encode_from_utf16(&[0xD83Du16, 0xDCA9u16], &mut dst[..13], true);
             assert_eq!(result, CoderResult::InputEmpty);
         }
     }
@@ -4763,5 +4768,27 @@ mod tests {
         assert!(!encodings.contains(WINDOWS_1252));
         encodings.remove(ISO_2022_JP);
         assert!(!encodings.contains(ISO_2022_JP));
+    }
+
+    #[test]
+    fn test_iso_2022_jp_ncr_extra_from_utf16() {
+        let mut dst = [0u8; 17];
+        {
+            let mut encoder = ISO_2022_JP.new_encoder();
+            let (result, _, _, _) =
+                encoder.encode_from_utf16(&[0x3041u16, 0xFFFFu16], &mut dst[..], true);
+            assert_eq!(result, CoderResult::OutputFull);
+        }
+    }
+
+    #[test]
+    fn test_iso_2022_jp_ncr_extra_from_utf8() {
+        let mut dst = [0u8; 17];
+        {
+            let mut encoder = ISO_2022_JP.new_encoder();
+            let (result, _, _, _) = encoder
+                .encode_from_utf8("\u{3041}\u{FFFF}", &mut dst[..], true);
+            assert_eq!(result, CoderResult::OutputFull);
+        }
     }
 }
