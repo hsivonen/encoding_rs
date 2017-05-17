@@ -52,6 +52,11 @@ impl Iso2022JpDecoder {
                 0
             } else {
                 1
+            } +
+            match self.decoder_state {
+                Iso2022JpDecoderState::Escape |
+                Iso2022JpDecoderState::EscapeStart => 1,
+                _ => 0,
             }
         )
     }
@@ -932,4 +937,30 @@ mod tests {
             assert_eq!(output[2], 0xA1);
         }
     }
+
+    #[test]
+    fn test_iso_2022_jp_length_after_escape() {
+        let mut output = [0u16; 20];
+        let mut decoder = ISO_2022_JP.new_decoder();
+        {
+            let (result, read, written, had_errors) =
+                decoder.decode_to_utf16(b"\x1B", &mut output, false);
+            assert_eq!(result, CoderResult::InputEmpty);
+            assert_eq!(read, 1);
+            assert_eq!(written, 0);
+            assert!(!had_errors);
+        }
+        {
+            let needed = decoder.max_utf16_buffer_length(1).unwrap();
+            let (result, read, written, had_errors) =
+                decoder.decode_to_utf16(b"A", &mut output[..needed], true);
+            assert_eq!(result, CoderResult::InputEmpty);
+            assert_eq!(read, 1);
+            assert_eq!(written, 2);
+            assert!(had_errors);
+            assert_eq!(output[0], 0xFFFD);
+            assert_eq!(output[1], 0x0041);
+        }
+    }
+
 }
