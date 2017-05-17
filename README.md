@@ -100,6 +100,8 @@ encoding_rs is
 
 * Reserve enough space for NCRs when encoding to ISO-2022-JP.
 * Correct max length calculations for multibyte decoders.
+* Correct max length calculations before BOM sniffing has been
+  performed.
 * Correctly calculate max length when encoding from UTF-16 to GBK.
 
 ### 0.6.9
