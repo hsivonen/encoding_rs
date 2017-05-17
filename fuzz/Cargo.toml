@@ -20,3 +20,7 @@ members = ["."]
 [[bin]]
 name = "fuzz_encodings"
 path = "fuzzers/fuzz_encodings.rs"
+
+[[bin]]
+name = "fuzz_labels"
+path = "fuzzers/fuzz_labels.rs"
