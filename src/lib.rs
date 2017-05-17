@@ -3057,27 +3057,6 @@ impl Decoder {
         }
     }
 
-    fn additional_from_life_cycle(&self) -> usize {
-        // Add two bytes even when only one byte has been seen,
-        // because the one byte can become a lead byte in multibyte
-        // decoders, but only after the decoder has been queried
-        // for max length, so the decoder's own logic for adding
-        // one for a pending lead cannot work.
-        match self.life_cycle {
-            DecoderLifeCycle::Converting |
-            DecoderLifeCycle::AtStart |
-            DecoderLifeCycle::AtUtf8Start |
-            DecoderLifeCycle::AtUtf16LeStart |
-            DecoderLifeCycle::AtUtf16BeStart => 0,
-            DecoderLifeCycle::SeenUtf8First |
-            DecoderLifeCycle::SeenUtf16LeFirst |
-            DecoderLifeCycle::SeenUtf16BeFirst |
-            DecoderLifeCycle::ConvertingWithPendingBB |
-            DecoderLifeCycle::SeenUtf8Second => 2,
-            DecoderLifeCycle::Finished => panic!("Must not use a decoder that has finished."),
-        }
-    }
-
     /// The `Encoding` this `Decoder` is for.
     ///
     /// BOM sniffing can change the return value of this method during the life
@@ -3098,11 +3077,80 @@ impl Decoder {
     ///
     /// Available via the C wrapper.
     pub fn max_utf8_buffer_length(&self, byte_length: usize) -> Option<usize> {
-        if let Some(sum) = byte_length.checked_add(self.additional_from_life_cycle()) {
-            self.variant.max_utf8_buffer_length(sum)
-        } else {
-            None
+        // Need to consider a) the decoder morphing due to the BOM and b) a partial
+        // BOM getting pushed to the underlying decoder.
+        match self.life_cycle {
+            DecoderLifeCycle::Converting |
+            DecoderLifeCycle::AtUtf8Start |
+            DecoderLifeCycle::AtUtf16LeStart |
+            DecoderLifeCycle::AtUtf16BeStart => {
+                return self.variant.max_utf8_buffer_length(byte_length)
+            }
+            DecoderLifeCycle::AtStart => {
+                if let Some(utf8_bom) = checked_add(3, byte_length.checked_mul(3)) {
+                    if let Some(utf16_bom) = checked_add(1, 3usize.checked_mul(byte_length / 2)) {
+                        let utf_bom = std::cmp::max(utf8_bom, utf16_bom);
+                        let encoding = self.encoding();
+                        if encoding == UTF_8 || encoding == UTF_16LE || encoding == UTF_16BE {
+                            // No need to consider the internal state of the underlying decoder,
+                            // because it is at start, because no data has reached it yet.
+                            return Some(utf_bom);
+                        } else if let Some(non_bom) = self.variant.max_utf8_buffer_length(
+                            byte_length,
+                        ) {
+                            return Some(std::cmp::max(utf_bom, non_bom));
+                        }
+                    }
+                }
+            }
+            DecoderLifeCycle::SeenUtf8First |
+            DecoderLifeCycle::SeenUtf8Second => {
+                // Add two bytes even when only one byte has been seen,
+                // because the one byte can become a lead byte in multibyte
+                // decoders, but only after the decoder has been queried
+                // for max length, so the decoder's own logic for adding
+                // one for a pending lead cannot work.
+                if let Some(sum) = byte_length.checked_add(2) {
+                    if let Some(utf8_bom) = checked_add(3, sum.checked_mul(3)) {
+                        if self.encoding() == UTF_8 {
+                            // No need to consider the internal state of the underlying decoder,
+                            // because it is at start, because no data has reached it yet.
+                            return Some(utf8_bom);
+                        } else if let Some(non_bom) = self.variant.max_utf8_buffer_length(sum) {
+                            return Some(std::cmp::max(utf8_bom, non_bom));
+
+                        }
+                    }
+                }
+            }
+            DecoderLifeCycle::ConvertingWithPendingBB => {
+                if let Some(sum) = byte_length.checked_add(2) {
+                    return self.variant.max_utf8_buffer_length(sum);
+                }
+            }
+            DecoderLifeCycle::SeenUtf16LeFirst |
+            DecoderLifeCycle::SeenUtf16BeFirst => {
+                // Add two bytes even when only one byte has been seen,
+                // because the one byte can become a lead byte in multibyte
+                // decoders, but only after the decoder has been queried
+                // for max length, so the decoder's own logic for adding
+                // one for a pending lead cannot work.
+                if let Some(sum) = byte_length.checked_add(2) {
+                    if let Some(utf16_bom) = checked_add(1, 3usize.checked_mul(sum / 2)) {
+                        let encoding = self.encoding();
+                        if encoding == UTF_16LE || encoding == UTF_16BE {
+                            // No need to consider the internal state of the underlying decoder,
+                            // because it is at start, because no data has reached it yet.
+                            return Some(utf16_bom);
+                        } else if let Some(non_bom) = self.variant.max_utf8_buffer_length(sum) {
+                            return Some(std::cmp::max(utf16_bom, non_bom));
+                        }
+                    }
+                }
+            }
+            DecoderLifeCycle::Finished => panic!("Must not use a decoder that has finished."),
         }
+        None
     }
 
     /// Query the worst-case UTF-8 output size _without replacement_.
@@ -3117,11 +3165,82 @@ impl Decoder {
     ///
     /// Available via the C wrapper.
     pub fn max_utf8_buffer_length_without_replacement(&self, byte_length: usize) -> Option<usize> {
-        if let Some(sum) = byte_length.checked_add(self.additional_from_life_cycle()) {
-            self.variant.max_utf8_buffer_length_without_replacement(sum)
-        } else {
-            None
+        // Need to consider a) the decoder morphing due to the BOM and b) a partial
+        // BOM getting pushed to the underlying decoder.
+        match self.life_cycle {
+            DecoderLifeCycle::Converting |
+            DecoderLifeCycle::AtUtf8Start |
+            DecoderLifeCycle::AtUtf16LeStart |
+            DecoderLifeCycle::AtUtf16BeStart => {
+                return self.variant
+                           .max_utf8_buffer_length_without_replacement(byte_length)
+            }
+            DecoderLifeCycle::AtStart => {
+                if let Some(utf8_bom) = byte_length.checked_add(3) {
+                    if let Some(utf16_bom) = checked_add(1, 3usize.checked_mul(byte_length / 2)) {
+                        let utf_bom = std::cmp::max(utf8_bom, utf16_bom);
+                        let encoding = self.encoding();
+                        if encoding == UTF_8 || encoding == UTF_16LE || encoding == UTF_16BE {
+                            // No need to consider the internal state of the underlying decoder,
+                            // because it is at start, because no data has reached it yet.
+                            return Some(utf_bom);
+                        } else if let Some(non_bom) =
+                            self.variant
+                                .max_utf8_buffer_length_without_replacement(byte_length) {
+                            return Some(std::cmp::max(utf_bom, non_bom));
+                        }
+                    }
+                }
+            }
+            DecoderLifeCycle::SeenUtf8First |
+            DecoderLifeCycle::SeenUtf8Second => {
+                // Add two bytes even when only one byte has been seen,
+                // because the one byte can become a lead byte in multibyte
+                // decoders, but only after the decoder has been queried
+                // for max length, so the decoder's own logic for adding
+                // one for a pending lead cannot work.
+                if let Some(sum) = byte_length.checked_add(2) {
+                    if let Some(utf8_bom) = sum.checked_add(3) {
+                        if self.encoding() == UTF_8 {
+                            // No need to consider the internal state of the underlying decoder,
+                            // because it is at start, because no data has reached it yet.
+                            return Some(utf8_bom);
+                        } else if let Some(non_bom) =
+                            self.variant.max_utf8_buffer_length_without_replacement(sum) {
+                            return Some(std::cmp::max(utf8_bom, non_bom));
+                        }
+                    }
+                }
+            }
+            DecoderLifeCycle::ConvertingWithPendingBB => {
+                if let Some(sum) = byte_length.checked_add(2) {
+                    return self.variant.max_utf8_buffer_length_without_replacement(sum);
+                }
+            }
+            DecoderLifeCycle::SeenUtf16LeFirst |
+            DecoderLifeCycle::SeenUtf16BeFirst => {
+                // Add two bytes even when only one byte has been seen,
+                // because the one byte can become a lead byte in multibyte
+                // decoders, but only after the decoder has been queried
+                // for max length, so the decoder's own logic for adding
+                // one for a pending lead cannot work.
+                if let Some(sum) = byte_length.checked_add(2) {
+                    if let Some(utf16_bom) = checked_add(1, 3usize.checked_mul(sum / 2)) {
+                        let encoding = self.encoding();
+                        if encoding == UTF_16LE || encoding == UTF_16BE {
+                            // No need to consider the internal state of the underlying decoder,
+                            // because it is at start, because no data has reached it yet.
+                            return Some(utf16_bom);
+                        } else if let Some(non_bom) =
+                            self.variant.max_utf8_buffer_length_without_replacement(sum) {
+                            return Some(std::cmp::max(utf16_bom, non_bom));
+                        }
+                    }
+                }
+            }
+            DecoderLifeCycle::Finished => panic!("Must not use a decoder that has finished."),
         }
+        None
     }
 
     /// Incrementally decode a byte stream into UTF-8 with malformed sequences
@@ -3342,11 +3461,77 @@ impl Decoder {
     ///
     /// Available via the C wrapper.
     pub fn max_utf16_buffer_length(&self, byte_length: usize) -> Option<usize> {
-        if let Some(sum) = byte_length.checked_add(self.additional_from_life_cycle()) {
-            self.variant.max_utf16_buffer_length(sum)
-        } else {
-            None
+        // Need to consider a) the decoder morphing due to the BOM and b) a partial
+        // BOM getting pushed to the underlying decoder.
+        match self.life_cycle {
+            DecoderLifeCycle::Converting |
+            DecoderLifeCycle::AtUtf8Start |
+            DecoderLifeCycle::AtUtf16LeStart |
+            DecoderLifeCycle::AtUtf16BeStart => {
+                return self.variant.max_utf16_buffer_length(byte_length)
+            }
+            DecoderLifeCycle::AtStart => {
+                if let Some(utf8_bom) = byte_length.checked_add(1) {
+                    let utf16_bom = 1 + (byte_length / 2);
+                    let utf_bom = std::cmp::max(utf8_bom, utf16_bom);
+                    let encoding = self.encoding();
+                    if encoding == UTF_8 || encoding == UTF_16LE || encoding == UTF_16BE {
+                        // No need to consider the internal state of the underlying decoder,
+                        // because it is at start, because no data has reached it yet.
+                        return Some(utf_bom);
+                    } else if let Some(non_bom) = self.variant.max_utf16_buffer_length(
+                        byte_length,
+                    ) {
+                        return Some(std::cmp::max(utf_bom, non_bom));
+                    }
+                }
+            }
+            DecoderLifeCycle::SeenUtf8First |
+            DecoderLifeCycle::SeenUtf8Second => {
+                // Add two bytes even when only one byte has been seen,
+                // because the one byte can become a lead byte in multibyte
+                // decoders, but only after the decoder has been queried
+                // for max length, so the decoder's own logic for adding
+                // one for a pending lead cannot work.
+                if let Some(sum) = byte_length.checked_add(2) {
+                    if let Some(utf8_bom) = sum.checked_add(1) {
+                        if self.encoding() == UTF_8 {
+                            // No need to consider the internal state of the underlying decoder,
+                            // because it is at start, because no data has reached it yet.
+                            return Some(utf8_bom);
+                        } else if let Some(non_bom) = self.variant.max_utf16_buffer_length(sum) {
+                            return Some(std::cmp::max(utf8_bom, non_bom));
+                        }
+                    }
+                }
+            }
+            DecoderLifeCycle::ConvertingWithPendingBB => {
+                if let Some(sum) = byte_length.checked_add(2) {
+                    return self.variant.max_utf16_buffer_length(sum);
+                }
+            }
+            DecoderLifeCycle::SeenUtf16LeFirst |
+            DecoderLifeCycle::SeenUtf16BeFirst => {
+                // Add two bytes even when only one byte has been seen,
+                // because the one byte can become a lead byte in multibyte
+                // decoders, but only after the decoder has been queried
+                // for max length, so the decoder's own logic for adding
+                // one for a pending lead cannot work.
+                if let Some(sum) = byte_length.checked_add(2) {
+                    let utf16_bom = 1 + (sum / 2);
+                    let encoding = self.encoding();
+                    if encoding == UTF_16LE || encoding == UTF_16BE {
+                        // No need to consider the internal state of the underlying decoder,
+                        // because it is at start, because no data has reached it yet.
+                        return Some(utf16_bom);
+                    } else if let Some(non_bom) = self.variant.max_utf16_buffer_length(sum) {
+                        return Some(std::cmp::max(utf16_bom, non_bom));
+                    }
+                }
+            }
+            DecoderLifeCycle::Finished => panic!("Must not use a decoder that has finished."),
         }
+        None
     }
 
     /// Incrementally decode a byte stream into UTF-16 with malformed sequences
@@ -4789,6 +4974,24 @@ mod tests {
             let (result, _, _, _) = encoder
                 .encode_from_utf8("\u{3041}\u{FFFF}", &mut dst[..], true);
             assert_eq!(result, CoderResult::OutputFull);
+        }
+    }
+
+    #[test]
+    fn test_max_length_with_bom_to_utf8() {
+        let mut output = [0u8; 20];
+        let mut decoder = REPLACEMENT.new_decoder();
+        let input = b"\xEF\xBB\xBFA";
+        {
+            let needed = decoder
+                .max_utf8_buffer_length_without_replacement(input.len())
+                .unwrap();
+            let (result, read, written) =
+                decoder.decode_to_utf8_without_replacement(input, &mut output[..needed], true);
+            assert_eq!(result, DecoderResult::InputEmpty);
+            assert_eq!(read, input.len());
+            assert_eq!(written, 1);
+            assert_eq!(output[0], 0x41);
         }
     }
 }
