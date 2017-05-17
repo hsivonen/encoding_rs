@@ -72,15 +72,8 @@ impl Iso2022JpDecoder {
     }
 
     pub fn max_utf8_buffer_length_without_replacement(&self, byte_length: usize) -> Option<usize> {
-        // worst case: 2 to 3
-        let len = self.extra_to_input_from_state(byte_length);
-        checked_add(
-            2,
-            checked_add_opt(
-                checked_add(self.extra_to_output_from_state() * 3, len),
-                checked_div(checked_add(1, len), 2),
-            ),
-        )
+        // worst case: 1 to 3 (half-width katakana)
+        self.max_utf8_buffer_length(byte_length)
     }
 
     pub fn max_utf8_buffer_length(&self, byte_length: usize) -> Option<usize> {
@@ -912,5 +905,31 @@ mod tests {
         assert!(!had_errors, "Should not have had errors.");
         assert_eq!(encoding, ISO_2022_JP);
         assert_eq!(&cow[..], &expectation[..]);
+    }
+
+    #[test]
+    fn test_iso_2022_jp_half_width_katakana_length() {
+        let mut output = [0u8; 20];
+        let mut decoder = ISO_2022_JP.new_decoder();
+        {
+            let (result, read, written) =
+                decoder.decode_to_utf8_without_replacement(b"\x1B\x28\x49", &mut output, false);
+            assert_eq!(result, DecoderResult::InputEmpty);
+            assert_eq!(read, 3);
+            assert_eq!(written, 0);
+        }
+        {
+            let needed = decoder
+                .max_utf8_buffer_length_without_replacement(1)
+                .unwrap();
+            let (result, read, written) =
+                decoder.decode_to_utf8_without_replacement(b"\x21", &mut output[..needed], true);
+            assert_eq!(result, DecoderResult::InputEmpty);
+            assert_eq!(read, 1);
+            assert_eq!(written, 3);
+            assert_eq!(output[0], 0xEF);
+            assert_eq!(output[1], 0xBD);
+            assert_eq!(output[2], 0xA1);
+        }
     }
 }

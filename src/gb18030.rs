@@ -95,7 +95,7 @@ impl Gb18030Decoder {
         // gbk: 2 to 2 or 2 to 3
         // ranges: 4 to 2, 4 to 3 or 4 to 4
         // 0x80: 1 to 3 (worst case)
-        checked_add(1, checked_mul(3, self.extra_from_state(byte_length)))
+        self.max_utf8_buffer_length(byte_length)
     }
 
     pub fn max_utf8_buffer_length(&self, byte_length: usize) -> Option<usize> {
