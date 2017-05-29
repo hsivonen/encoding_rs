@@ -1672,7 +1672,7 @@ typedef struct Decoder_ Decoder;
 
 for name in preferred:
   static_file.write('''/// The %s encoding.
-extern const Encoding* const %s_ENCODING;
+extern const ENCODING_RS_ENCODING* const %s_ENCODING;
 
 ''' % (to_dom_name(name), to_constant_name(name)))
 
