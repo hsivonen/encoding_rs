@@ -1640,16 +1640,25 @@ static_file.write("""// Copyright 2016 Mozilla Foundation. See the COPYRIGHT
 #ifndef encoding_rs_statics_h_
 #define encoding_rs_statics_h_
 
-#include <uchar.h>
-
-#ifdef __cplusplus
-class Encoding;
-class Decoder;
-class Encoder;
-#else
+#ifndef ENCODING_RS_ENCODING
+#define ENCODING_RS_ENCODING Encoding
+#ifndef __cplusplus
 typedef struct Encoding_ Encoding;
-typedef struct Decoder_ Decoder;
+#endif
+#endif
+
+#ifndef ENCODING_RS_ENCODER
+#define ENCODING_RS_ENCODER Encoder
+#ifndef __cplusplus
 typedef struct Encoder_ Encoder;
+#endif
+#endif
+
+#ifndef ENCODING_RS_DECODER
+#define ENCODING_RS_DECODER Decoder
+#ifndef __cplusplus
+typedef struct Decoder_ Decoder;
+#endif
 #endif
 
 #define INPUT_EMPTY 0
