@@ -2106,6 +2106,12 @@ impl Encoding {
     /// Standard, `Some(&'static Encoding)` representing the corresponding
     /// encoding is returned. If there is no match, `None` is returned.
     ///
+    /// This is the right method to use if the action upon the method returning
+    /// `None` is to use a fallback encoding (e.g. `WINDOWS_1252`) instead.
+    /// When the action upon the method returning `None` is not to proceed with
+    /// a fallback but refuse processing, `for_label_no_replacement` is more
+    /// appropriate.
+    ///
     /// The argument is of type `&[u8]` instead of `&str` to save callers
     /// that are extracting the label from a non-UTF-8 protocol the trouble
     /// of conversion to UTF-8. (If you have a `&str`, just call `.as_bytes()`
@@ -2230,6 +2236,11 @@ impl Encoding {
     /// upon invalid label, because in those cases the caller typically wishes
     /// to treat the labels that map to the replacement encoding as fatal
     /// errors, too.
+    ///
+    /// It is not OK to use this method when the action upon the method returning
+    /// `None` is to use a fallback encoding (e.g. `WINDOWS_1252`). In such a
+    /// case, the `for_label` method should be used instead in order to avoid
+    /// unsafe fallback for labels that `for_label` maps to `Some(REPLACEMENT)`.
     ///
     /// Available via the C wrapper.
     pub fn for_label_no_replacement(label: &[u8]) -> Option<&'static Encoding> {
