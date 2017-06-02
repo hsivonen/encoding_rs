@@ -99,6 +99,7 @@ encoding_rs is
 ### 0.6.11
 
 * Make `Encoder::has_pending_state()` public.
+* Update the `simd` crate dependency to 0.2.0.
 
 ### 0.6.10
 
