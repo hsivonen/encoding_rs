@@ -2109,7 +2109,7 @@ impl Encoding {
     /// This is the right method to use if the action upon the method returning
     /// `None` is to use a fallback encoding (e.g. `WINDOWS_1252`) instead.
     /// When the action upon the method returning `None` is not to proceed with
-    /// a fallback but refuse processing, `for_label_no_replacement` is more
+    /// a fallback but to refuse processing, `for_label_no_replacement()` is more
     /// appropriate.
     ///
     /// The argument is of type `&[u8]` instead of `&str` to save callers
@@ -2239,8 +2239,8 @@ impl Encoding {
     ///
     /// It is not OK to use this method when the action upon the method returning
     /// `None` is to use a fallback encoding (e.g. `WINDOWS_1252`). In such a
-    /// case, the `for_label` method should be used instead in order to avoid
-    /// unsafe fallback for labels that `for_label` maps to `Some(REPLACEMENT)`.
+    /// case, the `for_label()` method should be used instead in order to avoid
+    /// unsafe fallback for labels that `for_label()` maps to `Some(REPLACEMENT)`.
     ///
     /// Available via the C wrapper.
     pub fn for_label_no_replacement(label: &[u8]) -> Option<&'static Encoding> {
