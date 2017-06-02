@@ -96,6 +96,10 @@ encoding_rs is
 
 ## Release Notes
 
+### 0.6.11
+
+* Make `Encoder::has_pending_state()` public.
+
 ### 0.6.10
 
 * Reserve enough space for NCRs when encoding to ISO-2022-JP.
