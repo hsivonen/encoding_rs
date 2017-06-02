@@ -3795,10 +3795,7 @@ impl Encoder {
 
     /// Returns `true` if this is an ISO-2022-JP encoder that's not in the
     /// ASCII state and `false` otherwise.
-    ///
-    /// XXX make this public to allow other libs to implement custom replacement
-    /// strategies and still get the `InputEmpty` semantics right.
-    fn has_pending_state(&self) -> bool {
+    pub fn has_pending_state(&self) -> bool {
         self.variant.has_pending_state()
     }
 
