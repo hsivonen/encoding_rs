@@ -341,7 +341,7 @@ macro_rules! basic_latin_to_ascii_simd_stride {
 }
 
 cfg_if! {
-    if #[cfg(all(feature = "simd-accel", target_feature = "sse2"))] {
+    if #[cfg(feature = "simd-accel")] {
         // SIMD
 
         pub const STRIDE_SIZE: usize = 16;
@@ -630,7 +630,7 @@ cfg_if! {
 }
 
 cfg_if! {
-    if #[cfg(all(feature = "simd-accel", target_feature = "sse2"))] {
+    if #[cfg(all(feature = "simd-accel"))] {
     } else if #[cfg(target_endian = "little")] {
         #[inline(always)]
         fn count_zeros(word: usize) -> u32 {
@@ -677,6 +677,48 @@ cfg_if! {
                             offset += consumed;
                             let non_ascii = unsafe { *src.offset(offset as isize) };
                             return Some((non_ascii, offset));
+                        }
+                        offset += STRIDE_SIZE;
+                        if offset + STRIDE_SIZE > len {
+                            break;
+                        }
+                    }
+                }
+            }
+            while offset < len {
+                let code_unit = slice[offset];
+                if code_unit > 127 {
+                    return Some((code_unit, offset));
+                }
+                offset += 1;
+            }
+            None
+        }
+    } else if #[cfg(feature = "simd-accel")] {
+        #[inline(always)]
+        pub fn validate_ascii(slice: &[u8]) -> Option<(u8, usize)> {
+            let src = slice.as_ptr();
+            let len = slice.len();
+            let mut offset = 0usize;
+            if STRIDE_SIZE <= len {
+                // XXX Should we first process one stride unconditionally as unaligned to
+                // avoid the cost of the branchiness below if the first stride fails anyway?
+                if ((src as usize) & ALIGNMENT_MASK) == 0 {
+                    loop {
+                        let simd = unsafe { load16_aligned(src.offset(offset as isize)) };
+                        if !is_ascii(simd) {
+                            break;
+                        }
+                        offset += STRIDE_SIZE;
+                        if offset + STRIDE_SIZE > len {
+                            break;
+                        }
+                    }
+                } else {
+                    loop {
+                        let simd = unsafe { load16_unaligned(src.offset(offset as isize)) };
+                        if !is_ascii(simd) {
+                            break;
                         }
                         offset += STRIDE_SIZE;
                         if offset + STRIDE_SIZE > len {

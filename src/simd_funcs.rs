@@ -8,16 +8,8 @@
 // except according to those terms.
 
 use simd::u8x16;
-use simd::i8x16;
 use simd::u16x8;
-use simd::i16x8;
 use simd::Simd;
-
-extern "platform-intrinsic" {
-    fn simd_shuffle16<T: Simd, U: Simd<Elem = T::Elem>>(x: T, y: T, idx: [u32; 16]) -> U;
-    fn x86_mm_packus_epi16(x: i16x8, y: i16x8) -> u8x16;
-    fn x86_mm_movemask_epi8(x: i8x16) -> i32;
-}
 
 // TODO: Migrate unaligned access to stdlib code if/when the RFC
 // https://github.com/rust-lang/rfcs/pull/1725 is implemented.
@@ -66,30 +58,92 @@ pub unsafe fn store8_aligned(ptr: *mut u16, s: u16x8) {
     *(ptr as *mut u16x8) = s;
 }
 
-/// _mm_movemask_epi8 in SSE2. vec_all_lt in AltiVec.
-#[inline(always)]
-pub fn is_ascii(s: u8x16) -> bool {
-    unsafe {
-        let signed: i8x16 = ::std::mem::transmute_copy(&s);
-        x86_mm_movemask_epi8(signed) == 0
-    }
+extern "platform-intrinsic" {
+    fn simd_shuffle16<T: Simd, U: Simd<Elem = T::Elem>>(x: T, y: T, idx: [u32; 16]) -> U;
 }
 
+cfg_if! {
+    if #[cfg(target_feature = "sse2")] {
 
-/// _mm_movemask_epi8 in SSE2.
-#[inline(always)]
-pub fn check_ascii(s: u8x16) -> Option<usize> {
-    let mask = unsafe {
-        let signed: i8x16 = ::std::mem::transmute_copy(&s);
-        x86_mm_movemask_epi8(signed)
-    };
-    if mask == 0 {
-        return None;
+        use simd::i16x8;
+        use simd::i8x16;
+        extern "platform-intrinsic" {
+            fn x86_mm_packus_epi16(x: i16x8, y: i16x8) -> u8x16;
+            fn x86_mm_movemask_epi8(x: i8x16) -> i32;
+        }
+
+        /// _mm_movemask_epi8 in SSE2. vec_all_lt in AltiVec.
+        #[inline(always)]
+        pub fn is_ascii(s: u8x16) -> bool {
+            unsafe {
+                let signed: i8x16 = ::std::mem::transmute_copy(&s);
+                x86_mm_movemask_epi8(signed) == 0
+            }
+        }
+
+        /// _mm_movemask_epi8 in SSE2.
+        #[inline(always)]
+        pub fn check_ascii(s: u8x16) -> Option<usize> {
+            let mask = unsafe {
+                let signed: i8x16 = ::std::mem::transmute_copy(&s);
+                x86_mm_movemask_epi8(signed)
+            };
+            if mask == 0 {
+                return None;
+            }
+            // We don't extract the non-ascii byte from the SIMD register, because
+            // at least on Haswell, it seems faster to let the caller re-read it from
+            // memory.
+            Some(mask.trailing_zeros() as usize)
+        }
+
+        /// vuzpq_u8 in NEON. _mm_packus_epi16 in SSE2. vec_packsu *followed* by ASCII
+        /// check in AltiVec.
+        #[inline(always)]
+        pub unsafe fn pack_basic_latin(a: u16x8, b: u16x8) -> Option<u8x16> {
+            // If the 16-bit lane is out of range positive, the 8-bit lane becomes 0xFF
+            // when packing, which would allow us to pack later and then check for
+            // ASCII, but if the 16-bit lane is negative, the 8-bit lane becomes 0x00.
+            // Sigh. Hence, check first.
+            let above_ascii = u16x8::splat(0x80);
+            if a.lt(above_ascii).all() && b.lt(above_ascii).all() {
+                let first: i16x8 = ::std::mem::transmute_copy(&a);
+                let second: i16x8 = ::std::mem::transmute_copy(&b);
+                Some(x86_mm_packus_epi16(first, second))
+            } else {
+                None
+            }
+        }
+
+    } else {
+
+        /// _mm_movemask_epi8 in SSE2. vec_all_lt in AltiVec.
+        #[inline(always)]
+        pub fn is_ascii(s: u8x16) -> bool {
+            let above_ascii = u8x16::splat(0x80);
+            s.lt(above_ascii).all()
+        }
+
+        /// vuzpq_u8 in NEON. _mm_packus_epi16 in SSE2. vec_packsu *followed* by ASCII
+        /// check in AltiVec.
+        #[inline(always)]
+        pub unsafe fn pack_basic_latin(a: u16x8, b: u16x8) -> Option<u8x16> {
+            let above_ascii = u16x8::splat(0x80);
+            if a.lt(above_ascii).all() && b.lt(above_ascii).all() {
+                let first: u8x16 = ::std::mem::transmute_copy(&a);
+                let second: u8x16 = ::std::mem::transmute_copy(&b);
+                let lower: u8x16 = simd_shuffle16(
+                    first,
+                    second,
+                    [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30],
+                );
+                Some(lower)
+            } else {
+                None
+            }
+        }
+
     }
-    // We don't extract the non-ascii byte from the SIMD register, because
-    // at least on Haswell, it seems faster to let the caller re-read it from
-    // memory.
-    Some(mask.trailing_zeros() as usize)
 }
 
 /// vzipq_u8 in NEON. _mm_unpacklo_epi8 and
@@ -112,23 +166,6 @@ pub fn unpack(s: u8x16) -> (u16x8, u16x8) {
     }
 }
 
-/// vuzpq_u8 in NEON. _mm_packus_epi16 in SSE2. vec_packsu *followed* by ASCII
-/// check in AltiVec.
-#[inline(always)]
-pub unsafe fn pack_basic_latin(a: u16x8, b: u16x8) -> Option<u8x16> {
-    // If the 16-bit lane is out of range positive, the 8-bit lane becomes 0xFF
-    // when packing, which would allow us to pack later and then check for
-    // ASCII, but if the 16-bit lane is negative, the 8-bit lane becomes 0x00.
-    // Sigh. Hence, check first.
-    let above_ascii = u16x8::splat(0x80);
-    if a.lt(above_ascii).all() && b.lt(above_ascii).all() {
-        let first: i16x8 = ::std::mem::transmute_copy(&a);
-        let second: i16x8 = ::std::mem::transmute_copy(&b);
-        Some(x86_mm_packus_epi16(first, second))
-    } else {
-        None
-    }
-}
 
 #[cfg(test)]
 mod tests {
@@ -219,6 +256,7 @@ mod tests {
         assert!(!is_ascii(simd));
     }
 
+    #[cfg(target_feature = "sse2")]
     #[test]
     fn test_check_ascii() {
         let input: [u8; 16] = [0x61, 0x62, 0x63, 0x64, 0x81, 0x66, 0x67, 0x68, 0x69, 0x70, 0x71,
