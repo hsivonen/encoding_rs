@@ -102,16 +102,17 @@ cfg_if! {
         #[inline(always)]
         pub unsafe fn pack_basic_latin(a: u16x8, b: u16x8) -> Option<u8x16> {
             // If the 16-bit lane is out of range positive, the 8-bit lane becomes 0xFF
-            // when packing, which would allow us to pack later and then check for
+            // when packing, which would allow us to pack first and then check for
             // ASCII, but if the 16-bit lane is negative, the 8-bit lane becomes 0x00.
             // Sigh. Hence, check first.
-            let above_ascii = u16x8::splat(0x80);
-            if a.lt(above_ascii).all() && b.lt(above_ascii).all() {
+            let highest_ascii = u16x8::splat(0x7F);
+            let combined = a | b;
+            if combined.gt(highest_ascii).any() {
+                None
+            } else {
                 let first: i16x8 = ::std::mem::transmute_copy(&a);
                 let second: i16x8 = ::std::mem::transmute_copy(&b);
                 Some(x86_mm_packus_epi16(first, second))
-            } else {
-                None
             }
         }
 
@@ -120,16 +121,19 @@ cfg_if! {
         /// _mm_movemask_epi8 in SSE2. vec_all_lt in AltiVec.
         #[inline(always)]
         pub fn is_ascii(s: u8x16) -> bool {
-            let above_ascii = u8x16::splat(0x80);
-            s.lt(above_ascii).all()
+            let highest_ascii = u8x16::splat(0x7F);
+            !s.gt(highest_ascii).any()
         }
 
         /// vuzpq_u8 in NEON. _mm_packus_epi16 in SSE2. vec_packsu *followed* by ASCII
         /// check in AltiVec.
         #[inline(always)]
         pub unsafe fn pack_basic_latin(a: u16x8, b: u16x8) -> Option<u8x16> {
-            let above_ascii = u16x8::splat(0x80);
-            if a.lt(above_ascii).all() && b.lt(above_ascii).all() {
+            let highest_ascii = u16x8::splat(0x7F);
+            let combined = a | b;
+            if combined.gt(highest_ascii).any() {
+                None
+            } else {
                 let first: u8x16 = ::std::mem::transmute_copy(&a);
                 let second: u8x16 = ::std::mem::transmute_copy(&b);
                 let lower: u8x16 = simd_shuffle16(
@@ -138,8 +142,6 @@ cfg_if! {
                     [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30],
                 );
                 Some(lower)
-            } else {
-                None
             }
         }
 
