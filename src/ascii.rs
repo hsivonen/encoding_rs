@@ -24,6 +24,7 @@
 #[cfg(feature = "simd-accel")]
 use simd_funcs::*;
 
+#[allow(unused_macros)]
 macro_rules! ascii_naive {
     ($name:ident,
      $src_unit:ty,
@@ -43,6 +44,7 @@ macro_rules! ascii_naive {
     });
 }
 
+#[allow(unused_macros)]
 macro_rules! ascii_alu {
     ($name:ident,
      $src_unit:ty,
@@ -125,6 +127,7 @@ macro_rules! ascii_alu {
     });
 }
 
+#[allow(unused_macros)]
 macro_rules! basic_latin_alu {
     ($name:ident,
      $src_unit:ty,
@@ -207,6 +210,7 @@ macro_rules! basic_latin_alu {
     });
 }
 
+#[allow(unused_macros)]
 macro_rules! ascii_simd {
     ($name:ident,
      $src_unit:ty,
@@ -290,6 +294,7 @@ macro_rules! ascii_simd {
     });
 }
 
+#[allow(unused_macros)]
 macro_rules! ascii_to_ascii_simd_stride {
     ($name:ident,
      $load:ident,
@@ -305,6 +310,7 @@ macro_rules! ascii_to_ascii_simd_stride {
     });
 }
 
+#[allow(unused_macros)]
 macro_rules! ascii_to_basic_latin_simd_stride {
     ($name:ident,
      $load:ident,
@@ -322,6 +328,7 @@ macro_rules! ascii_to_basic_latin_simd_stride {
     });
 }
 
+#[allow(unused_macros)]
 macro_rules! basic_latin_to_ascii_simd_stride {
     ($name:ident,
      $load:ident,
