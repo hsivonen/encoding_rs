@@ -338,11 +338,11 @@ macro_rules! basic_latin_to_ascii_simd_stride {
         let first = $load(src);
         let second = $load(src.offset(8));
         match pack_basic_latin(first, second) {
-            Some(packed) => {
+            PackedBasicLatin::Ascii(packed) => {
                 $store(dst, packed);
                 true
             },
-            None => false,
+            PackedBasicLatin::Combined(_) => false,
         }
     });
 }

@@ -62,6 +62,11 @@ extern "platform-intrinsic" {
     fn simd_shuffle16<T: Simd, U: Simd<Elem = T::Elem>>(x: T, y: T, idx: [u32; 16]) -> U;
 }
 
+pub enum PackedBasicLatin {
+    Ascii(u8x16),
+    Combined(u16x8),
+}
+
 cfg_if! {
     if #[cfg(target_feature = "sse2")] {
 
@@ -100,7 +105,7 @@ cfg_if! {
         /// vuzpq_u8 in NEON. _mm_packus_epi16 in SSE2. vec_packsu *followed* by ASCII
         /// check in AltiVec.
         #[inline(always)]
-        pub unsafe fn pack_basic_latin(a: u16x8, b: u16x8) -> Option<u8x16> {
+        pub fn pack_basic_latin(a: u16x8, b: u16x8) -> PackedBasicLatin {
             // If the 16-bit lane is out of range positive, the 8-bit lane becomes 0xFF
             // when packing, which would allow us to pack first and then check for
             // ASCII, but if the 16-bit lane is negative, the 8-bit lane becomes 0x00.
@@ -108,11 +113,13 @@ cfg_if! {
             let highest_ascii = u16x8::splat(0x7F);
             let combined = a | b;
             if combined.gt(highest_ascii).any() {
-                None
+                PackedBasicLatin::Combined(combined)
             } else {
-                let first: i16x8 = ::std::mem::transmute_copy(&a);
-                let second: i16x8 = ::std::mem::transmute_copy(&b);
-                Some(x86_mm_packus_epi16(first, second))
+                unsafe {
+                    let first: i16x8 = ::std::mem::transmute_copy(&a);
+                    let second: i16x8 = ::std::mem::transmute_copy(&b);
+                    PackedBasicLatin::Ascii(x86_mm_packus_epi16(first, second))
+                }
             }
         }
 
@@ -128,20 +135,22 @@ cfg_if! {
         /// vuzpq_u8 in NEON. _mm_packus_epi16 in SSE2. vec_packsu *followed* by ASCII
         /// check in AltiVec.
         #[inline(always)]
-        pub unsafe fn pack_basic_latin(a: u16x8, b: u16x8) -> Option<u8x16> {
+        pub fn pack_basic_latin(a: u16x8, b: u16x8) -> PackedBasicLatin {
             let highest_ascii = u16x8::splat(0x7F);
             let combined = a | b;
             if combined.gt(highest_ascii).any() {
-                None
+                PackedBasicLatin::Combined(combined)
             } else {
-                let first: u8x16 = ::std::mem::transmute_copy(&a);
-                let second: u8x16 = ::std::mem::transmute_copy(&b);
-                let lower: u8x16 = simd_shuffle16(
-                    first,
-                    second,
-                    [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30],
-                );
-                Some(lower)
+                unsafe {
+                    let first: u8x16 = ::std::mem::transmute_copy(&a);
+                    let second: u8x16 = ::std::mem::transmute_copy(&b);
+                    let lower: u8x16 = simd_shuffle16(
+                        first,
+                        second,
+                        [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30],
+                    );
+                    PackedBasicLatin::Ascii(lower)
+                }
             }
         }
 
@@ -202,9 +211,12 @@ mod tests {
         let mut vec = Vec::with_capacity(16);
         vec.resize(16, 0u8);
         let ptr = vec.as_mut_ptr();
-        unsafe {
-            let packed = pack_basic_latin(first, second).unwrap();
-            store16_unaligned(ptr, packed);
+        if let PackedBasicLatin::Ascii(packed) = pack_basic_latin(first, second) {
+            unsafe {
+                store16_unaligned(ptr, packed);
+            }
+        } else {
+            panic!("Wasn't packed!");
         }
         assert_eq!(&vec[..], &ascii[..]);
     }
@@ -215,8 +227,8 @@ mod tests {
                                 0x72, 0x73, 0x74, 0x75, 0x76];
         let first = unsafe { load8_unaligned(input.as_ptr()) };
         let second = unsafe { load8_unaligned(input.as_ptr().offset(8)) };
-        unsafe {
-            assert!(pack_basic_latin(first, second).is_none());
+        if let PackedBasicLatin::Ascii(_) = pack_basic_latin(first, second) {
+            panic!("Should not have gotten ASCII!");
         }
     }
 
@@ -226,8 +238,8 @@ mod tests {
                                 0x71, 0x72, 0x73, 0x74, 0x75, 0x76];
         let first = unsafe { load8_unaligned(input.as_ptr()) };
         let second = unsafe { load8_unaligned(input.as_ptr().offset(8)) };
-        unsafe {
-            assert!(pack_basic_latin(first, second).is_none());
+        if let PackedBasicLatin::Ascii(_) = pack_basic_latin(first, second) {
+            panic!("Should not have gotten ASCII!");
         }
     }
 
@@ -237,8 +249,8 @@ mod tests {
                                 0x71, 0x72, 0x73, 0x74, 0x75, 0x76];
         let first = unsafe { load8_unaligned(input.as_ptr()) };
         let second = unsafe { load8_unaligned(input.as_ptr().offset(8)) };
-        unsafe {
-            assert!(pack_basic_latin(first, second).is_none());
+        if let PackedBasicLatin::Ascii(_) = pack_basic_latin(first, second) {
+            panic!("Should not have gotten ASCII!");
         }
     }
 
