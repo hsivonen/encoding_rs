@@ -177,6 +177,12 @@ pub fn unpack(s: u8x16) -> (u16x8, u16x8) {
     }
 }
 
+#[inline(always)]
+pub fn contain_surrogates(first: u16x8, second: u16x8) -> bool {
+    let mask = u16x8::splat(0xFC00);
+    let surrogate_bits = u16x8::splat(0xD800);
+    ((first & mask).eq(surrogate_bits) | (second & mask).eq(surrogate_bits)).any()
+}
 
 #[cfg(test)]
 mod tests {
