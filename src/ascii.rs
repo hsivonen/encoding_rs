@@ -21,7 +21,7 @@
 // on Raspberry Pi 3 measurements. The UTF-16 and UTF-8 ALU cases take
 // different approaches based on benchmarking on Raspberry Pi 3.
 
-#[cfg(feature = "simd-accel")]
+#[cfg(all(feature = "simd-accel", any(target_feature = "sse2", all(target_endian = "little", target_arch = "aarch64"))))]
 use simd_funcs::*;
 
 #[allow(unused_macros)]
@@ -348,7 +348,7 @@ macro_rules! basic_latin_to_ascii_simd_stride {
 }
 
 cfg_if! {
-    if #[cfg(feature = "simd-accel")] {
+    if #[cfg(all(feature = "simd-accel", any(target_feature = "sse2", all(target_endian = "little", target_arch = "aarch64"))))] {
         // SIMD
 
         pub const STRIDE_SIZE: usize = 16;
@@ -637,7 +637,7 @@ cfg_if! {
 }
 
 cfg_if! {
-    if #[cfg(all(feature = "simd-accel"))] {
+    if #[cfg(all(feature = "simd-accel", any(target_feature = "sse2", all(target_endian = "little", target_arch = "aarch64"))))] {
     } else if #[cfg(target_endian = "little")] {
         #[inline(always)]
         fn count_zeros(word: usize) -> u32 {
@@ -701,7 +701,7 @@ cfg_if! {
             }
             None
         }
-    } else if #[cfg(feature = "simd-accel")] {
+    } else if #[cfg(all(feature = "simd-accel", all(target_endian = "little", target_arch = "aarch64")))] {
         #[inline(always)]
         pub fn validate_ascii(slice: &[u8]) -> Option<(u8, usize)> {
             let src = slice.as_ptr();

@@ -496,13 +496,13 @@
 #[macro_use]
 extern crate cfg_if;
 
-#[cfg(feature = "simd-accel")]
+#[cfg(all(feature = "simd-accel", any(target_feature = "sse2", all(target_endian = "little", target_arch = "aarch64"))))]
 extern crate simd;
 
 #[macro_use]
 mod macros;
 
-#[cfg(feature = "simd-accel")]
+#[cfg(all(feature = "simd-accel", any(target_feature = "sse2", all(target_endian = "little", target_arch = "aarch64"))))]
 mod simd_funcs;
 
 #[cfg(test)]
