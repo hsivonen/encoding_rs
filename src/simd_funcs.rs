@@ -72,7 +72,6 @@ cfg_if! {
             fn x86_mm_movemask_epi8(x: i8x16) -> i32;
         }
 
-        /// _mm_movemask_epi8 in SSE2. vec_all_lt in AltiVec.
         #[inline(always)]
         pub fn is_ascii(s: u8x16) -> bool {
             unsafe {
@@ -81,7 +80,6 @@ cfg_if! {
             }
         }
 
-        /// _mm_movemask_epi8 in SSE2.
         #[inline(always)]
         pub fn check_ascii(s: u8x16) -> Option<usize> {
             let mask = unsafe {
@@ -97,8 +95,6 @@ cfg_if! {
             Some(mask.trailing_zeros() as usize)
         }
 
-        /// vuzpq_u8 in NEON. _mm_packus_epi16 in SSE2. vec_packsu *followed* by ASCII
-        /// check in AltiVec.
         #[inline(always)]
         pub unsafe fn pack_basic_latin(a: u16x8, b: u16x8) -> Option<u8x16> {
             // If the 16-bit lane is out of range positive, the 8-bit lane becomes 0xFF
@@ -115,18 +111,46 @@ cfg_if! {
                 Some(x86_mm_packus_epi16(first, second))
             }
         }
+    } else if #[cfg(target_arch = "aarch64")]{
+
+        extern "platform-intrinsic" {
+            fn aarch64_vmaxvq_u8(x: u8x16) -> u8;
+            fn aarch64_vmaxvq_u16(x: u16x8) -> u16;
+        }
+
+        #[inline(always)]
+        pub fn is_ascii(s: u8x16) -> bool {
+            unsafe {
+                aarch64_vmaxvq_u8(s) < 0x80
+            }
+        }
+
+        #[inline(always)]
+        pub unsafe fn pack_basic_latin(a: u16x8, b: u16x8) -> Option<u8x16> {
+            let combined = a | b;
+            if aarch64_vmaxvq_u16(combined) < 0x80 {
+                let first: u8x16 = ::std::mem::transmute_copy(&a);
+                let second: u8x16 = ::std::mem::transmute_copy(&b);
+                let lower: u8x16 = simd_shuffle16(
+                    first,
+                    second,
+                    [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30],
+                );
+                Some(lower)
+            } else {
+                None
+            }
+        }
+
 
     } else {
 
-        /// _mm_movemask_epi8 in SSE2. vec_all_lt in AltiVec.
         #[inline(always)]
         pub fn is_ascii(s: u8x16) -> bool {
             let highest_ascii = u8x16::splat(0x7F);
             !s.gt(highest_ascii).any()
         }
 
-        /// vuzpq_u8 in NEON. _mm_packus_epi16 in SSE2. vec_packsu *followed* by ASCII
-        /// check in AltiVec.
         #[inline(always)]
         pub unsafe fn pack_basic_latin(a: u16x8, b: u16x8) -> Option<u8x16> {
             let highest_ascii = u16x8::splat(0x7F);
@@ -148,9 +172,6 @@ cfg_if! {
     }
 }
 
-/// vzipq_u8 in NEON. _mm_unpacklo_epi8 and
-/// _mm_unpackhi_epi8 in SSE2. vec_mergeh and vec_mergel or vec_unpackh and
-/// vec_unpackl in AltiVec.
 #[inline(always)]
 pub fn unpack(s: u8x16) -> (u16x8, u16x8) {
     unsafe {
@@ -167,7 +188,6 @@ pub fn unpack(s: u8x16) -> (u16x8, u16x8) {
         (::std::mem::transmute_copy(&first), ::std::mem::transmute_copy(&second))
     }
 }
-
 
 #[cfg(test)]
 mod tests {
