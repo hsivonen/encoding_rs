@@ -1647,8 +1647,8 @@ typedef struct Encoding_ Encoding;
 #endif
 #endif
 
-#ifndef ENCODING_RS_NON_NULL_CONST_ENCODING_PTR
-#define ENCODING_RS_NON_NULL_CONST_ENCODING_PTR const ENCODING_RS_ENCODING*
+#ifndef ENCODING_RS_NOT_NULL_CONST_ENCODING_PTR
+#define ENCODING_RS_NOT_NULL_CONST_ENCODING_PTR const ENCODING_RS_ENCODING*
 #endif
 
 #ifndef ENCODING_RS_ENCODER
@@ -1676,7 +1676,7 @@ typedef struct Decoder_ Decoder;
 
 for name in preferred:
   static_file.write('''/// The %s encoding.
-extern ENCODING_RS_NON_NULL_CONST_ENCODING_PTR const %s_ENCODING;
+extern ENCODING_RS_NOT_NULL_CONST_ENCODING_PTR const %s_ENCODING;
 
 ''' % (to_dom_name(name), to_constant_name(name)))
 
