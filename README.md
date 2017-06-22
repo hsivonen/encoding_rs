@@ -98,6 +98,19 @@ A framework for measuring performance is [available separately][1].
 
 [1]: https://github.com/hsivonen/encoding_bench/
 
+## Rust Version Compatibility
+
+It is a goal to support the latest stable Rust, the latest nightly Rust and
+the version of Rust that's used for Firefox Nightly (currently 1.17.0).
+These are tested on Travis.
+
+Additionally, beta and the oldest known to work Rust version (currently
+1.15.0) are tested on Travis. The oldest Rust known to work is tested as
+a canary so that when the oldest known to work no longer works, the change
+can be documented here. At this time, there is no firm commitment to support
+a version older than what's required by Firefox, but there isn't an active
+plan to make changes that would make 1.15.0 no longer work, either.
+
 ## Compatibility with rust-encoding
 
 A compatibility layer that implements the rust-encoding API on top of
