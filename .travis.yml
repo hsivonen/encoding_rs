@@ -5,6 +5,12 @@ rust:
   - stable
   - beta
   - nightly
+env:
+  - RUST_BACKTRACE=1
+  - RUST_BACKTRACE=1 RUSTC_BOOTSTRAP=1
+script:
+  - if [[ $RUSTC_BOOTSTRAP ]]; then cargo test --verbose --features 'simd-accel no-static-ideograph-encoder-tables'; fi
+  - if [[ -z $RUSTC_BOOTSTRAP ]]; then cargo test --verbose; fi
 #matrix:
 #  allow_failures:
 #    - rust: nightly
