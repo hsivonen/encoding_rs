@@ -5,13 +5,39 @@
 [![docs.rs](https://docs.rs/encoding_rs/badge.svg)](https://docs.rs/encoding_rs/)
 [![Apache 2 / MIT dual-licensed](https://img.shields.io/badge/license-Apache%202%20%2F%20MIT-blue.svg)](https://github.com/hsivonen/encoding_rs/blob/master/COPYRIGHT)
 
-encoding_rs an implementation of the [Encoding Standard](https://encoding.spec.whatwg.org/)
-written in Rust and used in Gecko (starting with Firefox 56).
+encoding_rs an implementation of the (non-JavaScript parts of) the
+[Encoding Standard](https://encoding.spec.whatwg.org/) written in Rust and
+used in Gecko (starting with Firefox 56).
+
+## Functionality
 
 Due to the Gecko use case, encoding_rs supports decoding to and encoding from
 UTF-16 in addition to supporting the usual Rust use case of decoding to and
 encoding from UTF-8. Additionally, the API has been designed to be FFI-friendly
 to accommodate the C++ side of Gecko.
+
+Specifically, encoding_rs does the following:
+
+* Decodes a stream of bytes in an Encoding Standard-defined character encoding
+  into valid in-RAM UTF-16 (units of `u16` / `char16_t`).
+* Encodes a stream of potentially-invalid in-RAM UTF-16 (units of `u16`
+  / `char16_t`) into a sequence of bytes in an Encoding Standard-defined
+  character encoding as if the lone surrogates had been replaced with the
+  REPLACEMENT CHARACTER before performing the encode. (Gecko's UTF-16 is
+  potentially invalid.)
+* Decodes a stream of bytes in an Encoding Standard-defined character
+  encoding into valid UTF-8.
+* Encodes a stream of valid UTF-8 into a sequence of bytes in an Encoding
+  Standard-defined character encoding. (Rust's UTF-8 is guaranteed-valid.)
+* Does the above in streaming (input and output split across multiple
+  buffers) and non-streaming (whole input in a single buffer and whole
+  output in a single buffer) variants.
+* Resolves textual labels that identify character encodings in
+  protocol text into type-safe objects representing the those encodings
+  conceptually.
+* Maps the type-safe encoding objects onto strings suitable for
+  returning from document.characterSet.
+* Validates UTF-8 and ASCII.
 
 ## Licensing
 
