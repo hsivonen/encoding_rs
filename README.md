@@ -36,7 +36,7 @@ Specifically, encoding_rs does the following:
   protocol text into type-safe objects representing the those encodings
   conceptually.
 * Maps the type-safe encoding objects onto strings suitable for
-  returning from document.characterSet.
+  returning from `document.characterSet`.
 * Validates UTF-8 and ASCII.
 
 ## Licensing
