@@ -1588,7 +1588,7 @@ static ENCODINGS_SORTED_BY_NAME: [&'static Encoding; 39] = [&GBK_INIT,
                                                             &X_MAC_CYRILLIC_INIT,
                                                             &X_USER_DEFINED_INIT];
 
-static LABELS_SORTED: [&'static str; 218] = ["l1",
+static LABELS_SORTED: [&'static str; 219] = ["l1",
                                              "l2",
                                              "l3",
                                              "l4",
@@ -1768,6 +1768,7 @@ static LABELS_SORTED: [&'static str; 218] = ["l1",
                                              "csiso2022jp",
                                              "iso-2022-kr",
                                              "csiso2022kr",
+                                             "replacement",
                                              "windows-1250",
                                              "windows-1251",
                                              "windows-1252",
@@ -1807,7 +1808,7 @@ static LABELS_SORTED: [&'static str; 218] = ["l1",
                                              "csisolatincyrillic",
                                              "cseucpkdfmtjapanese"];
 
-static ENCODINGS_IN_LABEL_SORT: [&'static Encoding; 218] = [&WINDOWS_1252_INIT,
+static ENCODINGS_IN_LABEL_SORT: [&'static Encoding; 219] = [&WINDOWS_1252_INIT,
                                                             &ISO_8859_2_INIT,
                                                             &ISO_8859_3_INIT,
                                                             &ISO_8859_4_INIT,
@@ -1987,6 +1988,7 @@ static ENCODINGS_IN_LABEL_SORT: [&'static Encoding; 218] = [&WINDOWS_1252_INIT,
                                                             &ISO_2022_JP_INIT,
                                                             &REPLACEMENT_INIT,
                                                             &REPLACEMENT_INIT,
+                                                            &REPLACEMENT_INIT,
                                                             &WINDOWS_1250_INIT,
                                                             &WINDOWS_1251_INIT,
                                                             &WINDOWS_1252_INIT,
@@ -2037,8 +2039,7 @@ static ENCODINGS_IN_LABEL_SORT: [&'static Encoding; 218] = [&WINDOWS_1252_INIT,
 /// _Labels_ are ASCII-case-insensitive strings that are used to identify an
 /// encoding in formats and protocols. The _name_ of the encoding is the
 /// preferred label in the case appropriate for returning from the
-/// [`characterSet`][2] property of the `Document` DOM interface, except for
-/// the replacement encoding whose name is not one of its labels.
+/// [`characterSet`][2] property of the `Document` DOM interface.
 ///
 /// The _output encoding_ is the encoding used for form submission and URL
 /// parsing on Web pages in the encoding. This is UTF-8 for the replacement,

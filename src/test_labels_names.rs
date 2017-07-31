@@ -188,6 +188,7 @@ fn test_all_labels() {
     assert_eq!(Encoding::for_label(b"csiso2022jp"), Some(ISO_2022_JP));
     assert_eq!(Encoding::for_label(b"iso-2022-kr"), Some(REPLACEMENT));
     assert_eq!(Encoding::for_label(b"csiso2022kr"), Some(REPLACEMENT));
+    assert_eq!(Encoding::for_label(b"replacement"), Some(REPLACEMENT));
     assert_eq!(Encoding::for_label(b"windows-1250"), Some(WINDOWS_1250));
     assert_eq!(Encoding::for_label(b"windows-1251"), Some(WINDOWS_1251));
     assert_eq!(Encoding::for_label(b"windows-1252"), Some(WINDOWS_1252));

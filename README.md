@@ -180,6 +180,11 @@ used in Firefox.
 
 ## Release Notes
 
+### 0.6.12
+
+* [Make `replacement` a label of the replacement
+  encoding.](https://github.com/whatwg/encoding/issues/70) (Spec change.)
+
 ### 0.6.11
 
 * Make `Encoder::has_pending_state()` public.
