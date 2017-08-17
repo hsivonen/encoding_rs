@@ -659,6 +659,7 @@ cfg_if! {
             let len = slice.len();
             let mut offset = 0usize;
             if STRIDE_SIZE <= len {
+                let len_minus_stride = len - STRIDE_SIZE;
                 // XXX Should we first process one stride unconditionally as unaligned to
                 // avoid the cost of the branchiness below if the first stride fails anyway?
                 // XXX Should we just use unaligned SSE2 access unconditionally? It seems that
@@ -667,26 +668,28 @@ cfg_if! {
                 if ((src as usize) & ALIGNMENT_MASK) == 0 {
                     loop {
                         let simd = unsafe { load16_aligned(src.offset(offset as isize)) };
-                        if let Some(consumed) = check_ascii(simd) {
-                            offset += consumed;
+                        let mask = mask_ascii(simd);
+                        if mask != 0 {
+                            offset += mask.trailing_zeros() as usize;
                             let non_ascii = unsafe { *src.offset(offset as isize) };
                             return Some((non_ascii, offset));
                         }
                         offset += STRIDE_SIZE;
-                        if offset + STRIDE_SIZE > len {
+                        if offset > len_minus_stride {
                             break;
                         }
                     }
                 } else {
                     loop {
                         let simd = unsafe { load16_unaligned(src.offset(offset as isize)) };
-                        if let Some(consumed) = check_ascii(simd) {
-                            offset += consumed;
+                        let mask = mask_ascii(simd);
+                        if mask != 0 {
+                            offset += mask.trailing_zeros() as usize;
                             let non_ascii = unsafe { *src.offset(offset as isize) };
                             return Some((non_ascii, offset));
                         }
                         offset += STRIDE_SIZE;
-                        if offset + STRIDE_SIZE > len {
+                        if offset > len_minus_stride {
                             break;
                         }
                     }

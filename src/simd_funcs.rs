@@ -80,19 +80,14 @@ cfg_if! {
             }
         }
 
+        // Expose low-level mask instead of higher-level conclusion,
+        // because the non-ASCII case would perform less well otherwise.
         #[inline(always)]
-        pub fn check_ascii(s: u8x16) -> Option<usize> {
-            let mask = unsafe {
+        pub fn mask_ascii(s: u8x16) -> i32 {
+            unsafe {
                 let signed: i8x16 = ::std::mem::transmute_copy(&s);
                 x86_mm_movemask_epi8(signed)
-            };
-            if mask == 0 {
-                return None;
             }
-            // We don't extract the non-ascii byte from the SIMD register, because
-            // at least on Haswell, it seems faster to let the caller re-read it from
-            // memory.
-            Some(mask.trailing_zeros() as usize)
         }
 
         #[inline(always)]
