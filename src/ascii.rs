@@ -101,6 +101,7 @@ macro_rules! ascii_alu {
                     offset += 1;
                     until_alignment -= 1;
                 }
+                let len_minus_stride = len - STRIDE_SIZE;
                 loop {
                     if let Some(num_ascii) = $stride_fn(src.offset(offset as isize) as *const usize,
                                    dst.offset(offset as isize) as *mut usize) {
@@ -108,7 +109,7 @@ macro_rules! ascii_alu {
                         return Some((*(src.offset(offset as isize)), offset));
                     }
                     offset += STRIDE_SIZE;
-                    if offset + STRIDE_SIZE > len {
+                    if offset > len_minus_stride {
                         break;
                     }
                 }
@@ -185,13 +186,14 @@ macro_rules! basic_latin_alu {
                     offset += 1;
                     until_alignment -= 1;
                 }
+                let len_minus_stride = len - STRIDE_SIZE;
                 loop {
                     if !$stride_fn(src.offset(offset as isize) as *const usize,
                                    dst.offset(offset as isize) as *mut usize) {
                         break;
                     }
                     offset += STRIDE_SIZE;
-                    if offset + STRIDE_SIZE > len {
+                    if offset > len_minus_stride {
                         break;
                     }
                 }
@@ -226,6 +228,7 @@ macro_rules! ascii_simd {
         // alignment if they aren't aligned but could align after
         // processing a few code units?
         if STRIDE_SIZE <= len {
+            let len_minus_stride = len - STRIDE_SIZE;
             // XXX Should we first process one stride unconditinoally as unaligned to
             // avoid the cost of the branchiness below if the first stride fails anyway?
             // XXX Should we just use unaligned SSE2 access unconditionally? It seems that
@@ -240,7 +243,7 @@ macro_rules! ascii_simd {
                             break;
                         }
                         offset += STRIDE_SIZE;
-                        if offset + STRIDE_SIZE > len {
+                        if offset > len_minus_stride {
                             break;
                         }
                     }
@@ -251,7 +254,7 @@ macro_rules! ascii_simd {
                             break;
                         }
                         offset += STRIDE_SIZE;
-                        if offset + STRIDE_SIZE > len {
+                        if offset > len_minus_stride {
                             break;
                         }
                     }
@@ -264,7 +267,7 @@ macro_rules! ascii_simd {
                             break;
                         }
                         offset += STRIDE_SIZE;
-                        if offset + STRIDE_SIZE > len {
+                        if offset > len_minus_stride {
                             break;
                         }
                     }
@@ -275,7 +278,7 @@ macro_rules! ascii_simd {
                             break;
                         }
                         offset += STRIDE_SIZE;
-                        if offset + STRIDE_SIZE > len {
+                        if offset > len_minus_stride {
                             break;
                         }
                     }
@@ -711,6 +714,7 @@ cfg_if! {
             let len = slice.len();
             let mut offset = 0usize;
             if STRIDE_SIZE <= len {
+                let len_minus_stride = len - STRIDE_SIZE;
                 // XXX Should we first process one stride unconditionally as unaligned to
                 // avoid the cost of the branchiness below if the first stride fails anyway?
                 if ((src as usize) & ALIGNMENT_MASK) == 0 {
@@ -720,7 +724,7 @@ cfg_if! {
                             break;
                         }
                         offset += STRIDE_SIZE;
-                        if offset + STRIDE_SIZE > len {
+                        if offset > len_minus_stride {
                             break;
                         }
                     }
@@ -731,7 +735,7 @@ cfg_if! {
                             break;
                         }
                         offset += STRIDE_SIZE;
-                        if offset + STRIDE_SIZE > len {
+                        if offset > len_minus_stride {
                             break;
                         }
                     }
@@ -809,6 +813,7 @@ cfg_if! {
                     offset += 1;
                     until_alignment -= 1;
                 }
+                let len_minus_stride = len - STRIDE_SIZE;
                 loop {
                     let ptr = unsafe { src.offset(offset as isize) as *const usize };
                     if let Some(num_ascii) = unsafe { validate_ascii_stride(ptr) } {
@@ -816,7 +821,7 @@ cfg_if! {
                         return Some((unsafe { *(src.offset(offset as isize)) }, offset));
                     }
                     offset += STRIDE_SIZE;
-                    if offset + STRIDE_SIZE > len {
+                    if offset > len_minus_stride {
                         break;
                     }
                 }
