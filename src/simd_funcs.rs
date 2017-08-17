@@ -279,12 +279,9 @@ mod tests {
         let input: [u8; 16] = [0x61, 0x62, 0x63, 0x64, 0x81, 0x66, 0x67, 0x68, 0x69, 0x70, 0x71,
                                0x72, 0x73, 0x74, 0x75, 0x76];
         let simd = unsafe { load16_unaligned(input.as_ptr()) };
-        match check_ascii(simd) {
-            None => unreachable!(),
-            Some(consumed) => {
-                assert_eq!(consumed, 4);
-            }
-        }
+        let mask = mask_ascii(simd);
+        assert_ne!(mask, 0);
+        assert_eq!(mask.trailing_zeros(), 4);
     }
 
     #[test]
