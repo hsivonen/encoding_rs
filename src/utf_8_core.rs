@@ -113,16 +113,18 @@ pub fn run_utf8_validation(v: &[u8]) -> Result<(), Utf8Error> {
             // UTF8-4      = %xF0 %x90-BF 2( UTF8-tail ) / %xF1-F3 3( UTF8-tail ) /
             //               %xF4 %x80-8F 2( UTF8-tail )
             match w {
-                2 => if next!() & !CONT_MASK != TAG_CONT_U8 {
-                    err!(Some(1))
-                },
+                2 => {
+                    if next!() & !CONT_MASK != TAG_CONT_U8 {
+                        err!(Some(1))
+                    }
+                }
                 3 => {
                     match (first, next!()) {
-                        (0xE0         , 0xA0 ... 0xBF) |
-                        (0xE1 ... 0xEC, 0x80 ... 0xBF) |
-                        (0xED         , 0x80 ... 0x9F) |
-                        (0xEE ... 0xEF, 0x80 ... 0xBF) => {}
-                        _ => err!(Some(1))
+                        (0xE0, 0xA0...0xBF) |
+                        (0xE1...0xEC, 0x80...0xBF) |
+                        (0xED, 0x80...0x9F) |
+                        (0xEE...0xEF, 0x80...0xBF) => {}
+                        _ => err!(Some(1)),
                     }
                     if next!() & !CONT_MASK != TAG_CONT_U8 {
                         err!(Some(2))
@@ -130,10 +132,10 @@ pub fn run_utf8_validation(v: &[u8]) -> Result<(), Utf8Error> {
                 }
                 4 => {
                     match (first, next!()) {
-                        (0xF0         , 0x90 ... 0xBF) |
-                        (0xF1 ... 0xF3, 0x80 ... 0xBF) |
-                        (0xF4         , 0x80 ... 0x8F) => {}
-                        _ => err!(Some(1))
+                        (0xF0, 0x90...0xBF) |
+                        (0xF1...0xF3, 0x80...0xBF) |
+                        (0xF4, 0x80...0x8F) => {}
+                        _ => err!(Some(1)),
                     }
                     if next!() & !CONT_MASK != TAG_CONT_U8 {
                         err!(Some(2))
@@ -142,7 +144,7 @@ pub fn run_utf8_validation(v: &[u8]) -> Result<(), Utf8Error> {
                         err!(Some(3))
                     }
                 }
-                _ => err!(Some(1))
+                _ => err!(Some(1)),
             }
             index += 1;
             if index == len {
