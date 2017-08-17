@@ -796,37 +796,37 @@ cfg_if! {
 
         #[inline(always)]
         pub fn validate_ascii(slice: &[u8]) -> Option<(u8, usize)> {
-           let src = slice.as_ptr();
-           let len = slice.len();
-           let mut offset = 0usize;
-           let mut until_alignment = (ALIGNMENT - ((src as usize) & ALIGNMENT_MASK)) & ALIGNMENT_MASK;
-           if until_alignment + STRIDE_SIZE <= len {
-               while until_alignment != 0 {
-                   let code_unit = slice[offset];
-                   if code_unit > 127 {
-                       return Some((code_unit, offset));
-                   }
-                   offset += 1;
-                   until_alignment -= 1;
-               }
-               loop {
-                   let ptr = unsafe { src.offset(offset as isize) as *const usize };
-                   if let Some(num_ascii) = unsafe { validate_ascii_stride(ptr) } {
-                       offset += num_ascii;
-                       return Some((unsafe { *(src.offset(offset as isize)) }, offset));
-                   }
-                   offset += STRIDE_SIZE;
-                   if offset + STRIDE_SIZE > len {
-                       break;
-                   }
-               }
-           }
-           while offset < len {
-               let code_unit = slice[offset];
-               if code_unit > 127 {
-                   return Some((code_unit, offset));
-               }
-               offset += 1;
+            let src = slice.as_ptr();
+            let len = slice.len();
+            let mut offset = 0usize;
+            let mut until_alignment = (ALIGNMENT - ((src as usize) & ALIGNMENT_MASK)) & ALIGNMENT_MASK;
+            if until_alignment + STRIDE_SIZE <= len {
+                while until_alignment != 0 {
+                    let code_unit = slice[offset];
+                    if code_unit > 127 {
+                        return Some((code_unit, offset));
+                    }
+                    offset += 1;
+                    until_alignment -= 1;
+                }
+                loop {
+                    let ptr = unsafe { src.offset(offset as isize) as *const usize };
+                    if let Some(num_ascii) = unsafe { validate_ascii_stride(ptr) } {
+                        offset += num_ascii;
+                        return Some((unsafe { *(src.offset(offset as isize)) }, offset));
+                    }
+                    offset += STRIDE_SIZE;
+                    if offset + STRIDE_SIZE > len {
+                        break;
+                    }
+                }
+            }
+            while offset < len {
+                let code_unit = slice[offset];
+                if code_unit > 127 {
+                    return Some((code_unit, offset));
+                }
+                offset += 1;
            }
            None
         }
