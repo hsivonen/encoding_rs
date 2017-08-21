@@ -715,29 +715,15 @@ cfg_if! {
             let mut offset = 0usize;
             if STRIDE_SIZE <= len {
                 let len_minus_stride = len - STRIDE_SIZE;
-                // XXX Should we first process one stride unconditionally as unaligned to
-                // avoid the cost of the branchiness below if the first stride fails anyway?
-                if ((src as usize) & ALIGNMENT_MASK) == 0 {
-                    loop {
-                        let simd = unsafe { load16_aligned(src.offset(offset as isize)) };
-                        if !is_ascii(simd) {
-                            break;
-                        }
-                        offset += STRIDE_SIZE;
-                        if offset > len_minus_stride {
-                            break;
-                        }
+                // No benefit from alignment check on Raspberry Pi 3
+                loop {
+                    let simd = unsafe { load16_unaligned(src.offset(offset as isize)) };
+                    if !is_ascii(simd) {
+                        break;
                     }
-                } else {
-                    loop {
-                        let simd = unsafe { load16_unaligned(src.offset(offset as isize)) };
-                        if !is_ascii(simd) {
-                            break;
-                        }
-                        offset += STRIDE_SIZE;
-                        if offset > len_minus_stride {
-                            break;
-                        }
+                    offset += STRIDE_SIZE;
+                    if offset > len_minus_stride {
+                        break;
                     }
                 }
             }
