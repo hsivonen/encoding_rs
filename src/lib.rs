@@ -499,6 +499,17 @@ extern crate cfg_if;
 #[cfg(all(feature = "simd-accel", any(target_feature = "sse2", all(target_endian = "little", target_arch = "aarch64"))))]
 extern crate simd;
 
+#[cfg(feature = "serde")]
+extern crate serde;
+
+#[cfg(all(test,feature = "serde"))]
+extern crate serde_json;
+#[cfg(all(test,feature = "serde"))]
+extern crate bincode;
+#[cfg(all(test,feature = "serde"))]
+#[macro_use]
+extern crate serde_derive;
+
 #[macro_use]
 mod macros;
 
@@ -537,6 +548,11 @@ use std::borrow::Cow;
 use std::cmp::Ordering;
 use std::hash::Hash;
 use std::hash::Hasher;
+
+#[cfg(feature = "serde")]
+use serde::{Serialize, Serializer, Deserialize, Deserializer};
+#[cfg(feature = "serde")]
+use serde::de::Visitor;
 
 /// This has to be the max length of an NCR instead of max
 /// minus one, because we can't rely on getting the minus
@@ -2849,6 +2865,46 @@ impl std::fmt::Debug for Encoding {
     }
 }
 
+#[cfg(feature = "serde")]
+impl Serialize for Encoding {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+        where S: Serializer
+    {
+        serializer.serialize_str(self.name)
+    }
+}
+
+#[cfg(feature = "serde")]
+struct EncodingVisitor;
+
+#[cfg(feature = "serde")]
+impl<'de> Visitor<'de> for EncodingVisitor {
+    type Value = &'static Encoding;
+
+    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+        formatter.write_str("a valid encoding label")
+    }
+
+    fn visit_str<E>(self, value: &str) -> Result<&'static Encoding, E>
+        where E: serde::de::Error
+    {
+        if let Some(enc) = Encoding::for_label(value.as_bytes()) {
+            Ok(enc)
+        } else {
+            Err(E::custom(format!("invalid encoding label: {}", value)))
+        }
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<'de> Deserialize<'de> for &'static Encoding {
+    fn deserialize<D>(deserializer: D) -> Result<&'static Encoding, D::Error>
+        where D: Deserializer<'de>
+    {
+        deserializer.deserialize_str(EncodingVisitor)
+    }
+}
+
 /// Tracks the life cycle of a decoder from BOM sniffing to conversion to end.
 #[derive(PartialEq, Debug)]
 enum DecoderLifeCycle {
@@ -4205,6 +4261,14 @@ fn checked_min(one: Option<usize>, other: Option<usize>) -> Option<usize> {
 
 // ############## TESTS ###############
 
+#[cfg(all(test, feature = "serde"))]
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
+struct Demo {
+    num: u32,
+    name: String,
+    enc: &'static Encoding,
+}
+
 #[cfg(test)]
 mod test_labels_names;
 
@@ -5034,4 +5098,20 @@ mod tests {
             assert_eq!(output[0], 0x41);
         }
     }
+
+    #[cfg(feature = "serde")]
+    #[test]
+    fn test_serde() {
+        let demo = Demo {num: 42, name: "foo".into(), enc: UTF_8 };
+
+        let serialized = serde_json::to_string(&demo).unwrap();
+
+        let deserialized: Demo = serde_json::from_str(&serialized).unwrap();
+        assert_eq!(deserialized, demo);
+
+        let bincoded = bincode::serialize(&demo, bincode::Infinite).unwrap();
+        let debincoded: Demo = bincode::deserialize(&bincoded[..]).unwrap();
+        assert_eq!(debincoded, demo);
+    }
+
 }
