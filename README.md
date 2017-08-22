@@ -177,6 +177,9 @@ used in Firefox.
 * [Make `replacement` a label of the replacement
   encoding.](https://github.com/whatwg/encoding/issues/70) (Spec change.)
 * Remove the `parallel-utf8` cargo feature.
+* Performance tweaks for ASCII handling.
+* Performance tweaks for UTF-8 validation.
+* SIMD support on aarch64.
 
 ### 0.6.11
 
