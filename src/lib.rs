@@ -505,12 +505,14 @@ mod macros;
 #[cfg(all(feature = "simd-accel", any(target_feature = "sse2", all(target_endian = "little", target_arch = "aarch64"))))]
 mod simd_funcs;
 
+#[cfg(any(all(feature = "simd-accel", target_feature = "sse2"), all(target_endian = "little", target_arch = "aarch64"), all(target_endian = "little", target_arch = "arm")))]
+mod utf_8_core;
+
 #[cfg(test)]
 mod testing;
 
 mod single_byte;
 mod utf_8;
-mod utf_8_core;
 mod gb18030;
 mod big5;
 mod euc_jp;

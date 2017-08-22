@@ -387,6 +387,8 @@ cfg_if! {
 
         pub const STRIDE_SIZE: usize = 16;
 
+        const ALIGNMENT: usize = 8;
+
         ascii_to_ascii_simd_stride!(ascii_to_ascii_stride_neither_aligned, load16_unaligned, store16_unaligned);
 
         ascii_to_basic_latin_simd_stride!(ascii_to_basic_latin_stride_neither_aligned, load16_unaligned, store8_unaligned);
@@ -689,13 +691,14 @@ cfg_if! {
 }
 
 cfg_if! {
-    if #[cfg(all(feature = "simd-accel", any(target_feature = "sse2", all(target_endian = "little", target_arch = "aarch64"))))] {
-    } else if #[cfg(target_endian = "little")] {
+    if #[cfg(target_endian = "little")] {
+        #[allow(dead_code)]
         #[inline(always)]
         fn count_zeros(word: usize) -> u32 {
             word.trailing_zeros()
         }
     } else {
+        #[allow(dead_code)]
         #[inline(always)]
         fn count_zeros(word: usize) -> u32 {
             word.leading_zeros()
@@ -830,6 +833,7 @@ cfg_if! {
             Some(ALIGNMENT + num_ascii)
         }
 
+        #[cfg(not(all(feature = "simd-accel", target_endian = "little", target_arch = "aarch64")))]
         ascii_alu!(ascii_to_ascii, u8, u8, ascii_to_ascii_stride);
 
         #[inline(always)]
