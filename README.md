@@ -61,7 +61,7 @@ For the Gecko context, there's a
 
 ## Optional features
 
-There are currently three optional cargo features:
+There are currently two optional cargo features:
 
 ### `simd-accel`
 
@@ -82,14 +82,6 @@ Chinese and Japanese legacy encodings. (Does _not_ affect decode speed.)
 
 The speed resulting from enabling this feature is believed to be acceptable
 for Web-exposed encoder use cases.
-
-### `parallel-utf8`
-
-Enables multi-threaded UTF-8 validation using [`rayon`](https://github.com/nikomatsakis/rayon).
-This is an experimental feature that may be removed in the future if it doesn't
-provide enough benefit. At present, the task splitting threshold has not been
-calibrated on a wide variety of CPUs, so enabling this feature might be a
-pessimiation on some hardware.
 
 ## Performance goals
 
@@ -167,7 +159,7 @@ used in Firefox.
 - [x] Make lookups by label or name use binary search that searches from the
       end of the label/name to the start.
 - [x] Make labels with non-ASCII bytes fail fast.
-- [x] Parallelize UTF-8 validation using [Rayon](https://github.com/nikomatsakis/rayon).
+- [ ] Parallelize UTF-8 validation using [Rayon](https://github.com/nikomatsakis/rayon).
 - [x] Provide an XPCOM/MFBT-flavored C++ API.
 - [ ] Investigate accelerating single-byte encode with a single fast-tracked
       range per encoding.
@@ -184,6 +176,7 @@ used in Firefox.
 
 * [Make `replacement` a label of the replacement
   encoding.](https://github.com/whatwg/encoding/issues/70) (Spec change.)
+* Remove the `parallel-utf8` cargo feature.
 
 ### 0.6.11
 
