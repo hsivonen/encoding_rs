@@ -213,7 +213,7 @@ macro_rules! basic_latin_alu {
 }
 
 #[allow(unused_macros)]
-macro_rules! ascii_simd {
+macro_rules! ascii_simd_check_align {
     ($name:ident,
      $src_unit:ty,
      $dst_unit:ty,
@@ -224,9 +224,6 @@ macro_rules! ascii_simd {
     #[inline(always)]
     pub unsafe fn $name(src: *const $src_unit, dst: *mut $dst_unit, len: usize) -> Option<($src_unit, usize)> {
         let mut offset = 0usize;
-        // XXX should we have more branchy code to move the pointers to
-        // alignment if they aren't aligned but could align after
-        // processing a few code units?
         if STRIDE_SIZE <= len {
             let len_minus_stride = len - STRIDE_SIZE;
             // XXX Should we first process one stride unconditinoally as unaligned to
@@ -298,6 +295,40 @@ macro_rules! ascii_simd {
 }
 
 #[allow(unused_macros)]
+macro_rules! ascii_simd_unalign {
+    ($name:ident,
+     $src_unit:ty,
+     $dst_unit:ty,
+     $stride_neither_aligned:ident) => (
+    #[inline(always)]
+    pub unsafe fn $name(src: *const $src_unit, dst: *mut $dst_unit, len: usize) -> Option<($src_unit, usize)> {
+        let mut offset = 0usize;
+        if STRIDE_SIZE <= len {
+            let len_minus_stride = len - STRIDE_SIZE;
+            loop {
+                if !$stride_neither_aligned(src.offset(offset as isize),
+                                            dst.offset(offset as isize)) {
+                    break;
+                }
+                offset += STRIDE_SIZE;
+                if offset > len_minus_stride {
+                    break;
+                }
+            }
+        }
+        while offset < len {
+            let code_unit = *(src.offset(offset as isize));
+            if code_unit > 127 {
+                return Some((code_unit, offset));
+            }
+            *(dst.offset(offset as isize)) = code_unit as $dst_unit;
+            offset += 1;
+        }
+        None
+    });
+}
+
+#[allow(unused_macros)]
 macro_rules! ascii_to_ascii_simd_stride {
     ($name:ident,
      $load:ident,
@@ -351,8 +382,26 @@ macro_rules! basic_latin_to_ascii_simd_stride {
 }
 
 cfg_if! {
-    if #[cfg(all(feature = "simd-accel", any(target_feature = "sse2", all(target_endian = "little", target_arch = "aarch64"))))] {
-        // SIMD
+    if #[cfg(all(feature = "simd-accel", target_endian = "little", target_arch = "aarch64"))] {
+        // SIMD with the same instructions for aligned and unaligned loads and stores
+
+        pub const STRIDE_SIZE: usize = 16;
+
+        ascii_to_ascii_simd_stride!(ascii_to_ascii_stride_neither_aligned, load16_unaligned, store16_unaligned);
+
+        ascii_to_basic_latin_simd_stride!(ascii_to_basic_latin_stride_neither_aligned, load16_unaligned, store8_unaligned);
+
+        basic_latin_to_ascii_simd_stride!(basic_latin_to_ascii_stride_neither_aligned, load8_unaligned, store16_unaligned);
+
+        ascii_simd_unalign!(ascii_to_ascii, u8, u8, ascii_to_ascii_stride_neither_aligned);
+        ascii_simd_unalign!(ascii_to_basic_latin, u8, u16, ascii_to_basic_latin_stride_neither_aligned);
+        ascii_simd_unalign!(basic_latin_to_ascii, u16, u8, basic_latin_to_ascii_stride_neither_aligned);
+    } else if #[cfg(all(feature = "simd-accel", target_feature = "sse2"))] {
+        // SIMD with different instructions for aligned and unaligned loads and stores.
+        //
+        // Newer microarchitectures are not supposed to have a performance difference between
+        // aligned and unaligned SSE2 loads and stores when the address is actually aligned,
+        // but the benchmark results I see don't agree.
 
         pub const STRIDE_SIZE: usize = 16;
 
@@ -373,9 +422,9 @@ cfg_if! {
         basic_latin_to_ascii_simd_stride!(basic_latin_to_ascii_stride_dst_aligned, load8_unaligned, store16_aligned);
         basic_latin_to_ascii_simd_stride!(basic_latin_to_ascii_stride_neither_aligned, load8_unaligned, store16_unaligned);
 
-        ascii_simd!(ascii_to_ascii, u8, u8, ascii_to_ascii_stride_both_aligned, ascii_to_ascii_stride_src_aligned, ascii_to_ascii_stride_dst_aligned, ascii_to_ascii_stride_neither_aligned);
-        ascii_simd!(ascii_to_basic_latin, u8, u16, ascii_to_basic_latin_stride_both_aligned, ascii_to_basic_latin_stride_src_aligned, ascii_to_basic_latin_stride_dst_aligned, ascii_to_basic_latin_stride_neither_aligned);
-        ascii_simd!(basic_latin_to_ascii, u16, u8, basic_latin_to_ascii_stride_both_aligned, basic_latin_to_ascii_stride_src_aligned, basic_latin_to_ascii_stride_dst_aligned, basic_latin_to_ascii_stride_neither_aligned);
+        ascii_simd_check_align!(ascii_to_ascii, u8, u8, ascii_to_ascii_stride_both_aligned, ascii_to_ascii_stride_src_aligned, ascii_to_ascii_stride_dst_aligned, ascii_to_ascii_stride_neither_aligned);
+        ascii_simd_check_align!(ascii_to_basic_latin, u8, u16, ascii_to_basic_latin_stride_both_aligned, ascii_to_basic_latin_stride_src_aligned, ascii_to_basic_latin_stride_dst_aligned, ascii_to_basic_latin_stride_neither_aligned);
+        ascii_simd_check_align!(basic_latin_to_ascii, u16, u8, basic_latin_to_ascii_stride_both_aligned, basic_latin_to_ascii_stride_src_aligned, basic_latin_to_ascii_stride_dst_aligned, basic_latin_to_ascii_stride_neither_aligned);
     } else if #[cfg(all(target_endian = "little", target_pointer_width = "64"))] {
         // Aligned ALU word, little-endian, 64-bit
 
@@ -655,7 +704,35 @@ cfg_if! {
 }
 
 cfg_if! {
-    if #[cfg(all(feature = "simd-accel", target_feature = "sse2"))] {
+    if #[cfg(all(feature = "simd-accel", target_endian = "little", target_arch = "aarch64"))] {
+        #[inline(always)]
+        pub fn validate_ascii(slice: &[u8]) -> Option<(u8, usize)> {
+            let src = slice.as_ptr();
+            let len = slice.len();
+            let mut offset = 0usize;
+            if STRIDE_SIZE <= len {
+                let len_minus_stride = len - STRIDE_SIZE;
+                loop {
+                    let simd = unsafe { load16_unaligned(src.offset(offset as isize)) };
+                    if !is_ascii(simd) {
+                        break;
+                    }
+                    offset += STRIDE_SIZE;
+                    if offset > len_minus_stride {
+                        break;
+                    }
+                }
+            }
+            while offset < len {
+                let code_unit = slice[offset];
+                if code_unit > 127 {
+                    return Some((code_unit, offset));
+                }
+                offset += 1;
+            }
+            None
+        }
+    } else if #[cfg(all(feature = "simd-accel", target_feature = "sse2"))] {
         #[inline(always)]
         pub fn validate_ascii(slice: &[u8]) -> Option<(u8, usize)> {
             let src = slice.as_ptr();
@@ -695,35 +772,6 @@ cfg_if! {
                         if offset > len_minus_stride {
                             break;
                         }
-                    }
-                }
-            }
-            while offset < len {
-                let code_unit = slice[offset];
-                if code_unit > 127 {
-                    return Some((code_unit, offset));
-                }
-                offset += 1;
-            }
-            None
-        }
-    } else if #[cfg(all(feature = "simd-accel", all(target_endian = "little", target_arch = "aarch64")))] {
-        #[inline(always)]
-        pub fn validate_ascii(slice: &[u8]) -> Option<(u8, usize)> {
-            let src = slice.as_ptr();
-            let len = slice.len();
-            let mut offset = 0usize;
-            if STRIDE_SIZE <= len {
-                let len_minus_stride = len - STRIDE_SIZE;
-                // No benefit from alignment check on Raspberry Pi 3
-                loop {
-                    let simd = unsafe { load16_unaligned(src.offset(offset as isize)) };
-                    if !is_ascii(simd) {
-                        break;
-                    }
-                    offset += STRIDE_SIZE;
-                    if offset > len_minus_stride {
-                        break;
                     }
                 }
             }
