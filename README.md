@@ -65,19 +65,20 @@ For the Gecko context, there's a
 
 ## Optional features
 
-There are currently two optional cargo features:
+There are currently three optional cargo features:
 
 ### `simd-accel`
 
-Enables SSE2 acceleration on x86 and x86_64. (Aarch64 support is in development.)
-Requires nightly Rust. Enabling this cargo feature is recommended when
-building for x86 or x86_64 on nightly Rust. The intention is for the
-functionality enabled by this feature to become the normal on-by-default
-behavior once explicit SIMD becames available on all Rust release channels.
+Enables SSE2 acceleration on x86, x86_64 and Aarch64. Requires nightly Rust.
+_Enabling this cargo feature is recommended when building for x86, x86_64 or
+Aarch64 on nightly Rust._ The intention is for the functionality enabled by
+this feature to become the normal on-by-default behavior once explicit SIMD
+becames available on all Rust release channels.
 
 Enabling this feature breaks the build unless the target is x86 with SSE2
-(Rust's default 32-bit x86 target has SSE2 but Linux distros may have an x86
-target without SSE2), x86_64 or Aarch64.
+(Rust's default 32-bit x86 target, `i686`, has SSE2, but Linux distros may
+use an x86 target without SSE2, i.e. `i586` in `rustup` terms), x86_64 or
+Aarch64.
 
 ### `no-static-ideograph-encoder-tables`
 
