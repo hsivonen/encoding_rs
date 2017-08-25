@@ -1,7 +1,7 @@
 [package]
 name = "encoding_rs"
 description = "A Gecko-oriented implementation of the Encoding Standard"
-version = "0.6.11" # Remember to keep html_root_url in lib.rs in sync!
+version = "0.7.0" # Remember to keep html_root_url in lib.rs in sync!
 authors = ["Henri Sivonen <hsivonen@hsivonen.fi>"]
 license = "MIT/Apache-2.0"
 readme = "README.md"
