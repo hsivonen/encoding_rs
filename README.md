@@ -19,12 +19,12 @@ to accommodate the C++ side of Gecko.
 Specifically, encoding_rs does the following:
 
 * Decodes a stream of bytes in an Encoding Standard-defined character encoding
-  into valid in-RAM UTF-16 (units of `u16` / `char16_t`).
-* Encodes a stream of potentially-invalid in-RAM UTF-16 (units of `u16`
-  / `char16_t`) into a sequence of bytes in an Encoding Standard-defined
-  character encoding as if the lone surrogates had been replaced with the
-  REPLACEMENT CHARACTER before performing the encode. (Gecko's UTF-16 is
-  potentially invalid.)
+  into valid aligned native-endian in-RAM UTF-16 (units of `u16` / `char16_t`).
+* Encodes a stream of potentially-invalid aligned native-endian in-RAM UTF-16
+  (units of `u16` / `char16_t`) into a sequence of bytes in an Encoding
+  Standard-defined character encoding as if the lone surrogates had been
+  replaced with the REPLACEMENT CHARACTER before performing the encode.
+  (Gecko's UTF-16 is potentially invalid.)
 * Decodes a stream of bytes in an Encoding Standard-defined character
   encoding into valid UTF-8.
 * Encodes a stream of valid UTF-8 into a sequence of bytes in an Encoding
@@ -32,12 +32,16 @@ Specifically, encoding_rs does the following:
 * Does the above in streaming (input and output split across multiple
   buffers) and non-streaming (whole input in a single buffer and whole
   output in a single buffer) variants.
+* Avoids copying (borrows) when possible in the non-streaming cases when
+  decoding to or encoding from UTF-8.
 * Resolves textual labels that identify character encodings in
   protocol text into type-safe objects representing the those encodings
   conceptually.
 * Maps the type-safe encoding objects onto strings suitable for
   returning from `document.characterSet`.
-* Validates UTF-8 and ASCII.
+* Validates UTF-8 (in common instruction set scenarios a bit faster for Web
+  workloads than the standard library; hopefully will get upstreamed some
+  day) and ASCII.
 
 ## Licensing
 
