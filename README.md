@@ -86,7 +86,10 @@ Makes the binary size smaller at the expense of ideograph _encode_ speed for
 Chinese and Japanese legacy encodings. (Does _not_ affect decode speed.)
 
 The speed resulting from enabling this feature is believed to be acceptable
-for Web-exposed encoder use cases.
+for Web browser-exposed encoder use cases. However, the result is likely
+unacceptable for other applications that need to produce output in Chinese or
+Japanese legacy encodings. (But applications really should always be using
+UTF-8 for output.)
 
 ## Performance goals
 
