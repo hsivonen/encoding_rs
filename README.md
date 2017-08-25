@@ -180,7 +180,7 @@ used in Firefox.
       range per encoding.
 - [x] Replace uconv with encoding_rs in Gecko.
 - [x] Implement the rust-encoding API in terms of encoding_rs.
-- [ ] Add SIMD acceleration for Aarch64.
+- [x] Add SIMD acceleration for Aarch64.
 - [ ] Investigate the use of NEON on 32-bit ARM.
 - [ ] Investigate Björn Höhrmann's lookup table acceleration for UTF-8 as
       adapted to Rust in rust-encoding.
