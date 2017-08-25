@@ -187,10 +187,12 @@ used in Firefox.
 
 ## Release Notes
 
-### 0.6.12
+### 0.7.0
 
 * [Make `replacement` a label of the replacement
   encoding.](https://github.com/whatwg/encoding/issues/70) (Spec change.)
+* Remove `Encoding::for_name()`. (`Encoding::for_label(foo).unwrap()` is
+  now close enough after the above label change.)
 * Remove the `parallel-utf8` cargo feature.
 * Add optional Serde support for `&'static Encoding`.
 * Performance tweaks for ASCII handling.
