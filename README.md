@@ -134,7 +134,7 @@ A framework for measuring performance is [available separately][1].
 ## Rust Version Compatibility
 
 It is a goal to support the latest stable Rust, the latest nightly Rust and
-the version of Rust that's used for Firefox Nightly (currently 1.17.0).
+the version of Rust that's used for Firefox Nightly (currently 1.19.0).
 These are tested on Travis.
 
 Additionally, beta and the oldest known to work Rust version (currently

@@ -1,7 +1,7 @@
 language: rust
 rust:
   - 1.15.0 # Earliest that's known to work
-  - 1.17.0 # Firefox requirement
+  - 1.19.0 # Firefox requirement
   - stable
   - beta
   - nightly
