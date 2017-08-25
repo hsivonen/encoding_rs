@@ -80,6 +80,13 @@ Enabling this feature breaks the build unless the target is x86 with SSE2
 use an x86 target without SSE2, i.e. `i586` in `rustup` terms), x86_64 or
 Aarch64.
 
+### `serde`
+
+Enables support for serializing and deserializing `&'static Encoding`-typed
+struct fields using [Serde][1].
+
+[1]: https://serde.rs/
+
 ### `no-static-ideograph-encoder-tables`
 
 Makes the binary size smaller at the expense of ideograph _encode_ speed for
@@ -185,6 +192,7 @@ used in Firefox.
 * [Make `replacement` a label of the replacement
   encoding.](https://github.com/whatwg/encoding/issues/70) (Spec change.)
 * Remove the `parallel-utf8` cargo feature.
+* Add optional Serde support for `&'static Encoding`.
 * Performance tweaks for ASCII handling.
 * Performance tweaks for UTF-8 validation.
 * SIMD support on aarch64.
