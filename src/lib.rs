@@ -4999,7 +4999,11 @@ mod tests {
     #[cfg(feature = "serde")]
     #[test]
     fn test_serde() {
-        let demo = Demo {num: 42, name: "foo".into(), enc: UTF_8 };
+        let demo = Demo {
+            num: 42,
+            name: "foo".into(),
+            enc: UTF_8,
+        };
 
         let serialized = serde_json::to_string(&demo).unwrap();
 

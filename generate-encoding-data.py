@@ -204,16 +204,7 @@ pub static %s: &'static Encoding = &%s_INIT;
 
 ''' % (to_dom_name(name), to_constant_name(name), to_dom_name(name), variant, to_dom_name(name), to_constant_name(name), to_constant_name(name)))
 
-label_file.write("""static ENCODINGS_SORTED_BY_NAME: [&'static Encoding; %d] = [
-""" % (len(dom) - 1))
-
-for dom_name in dom:
-  if dom_name != "UTF-8":
-    label_file.write("&%s_INIT,\n" % to_constant_name(dom_name))
-
-label_file.write("""];
-
-static LABELS_SORTED: [&'static str; %d] = [
+label_file.write("""static LABELS_SORTED: [&'static str; %d] = [
 """ % len(labels))
 
 for label in labels:
@@ -248,15 +239,6 @@ fn test_all_labels() {
 
 for label in labels:
   label_test_file.write('''assert_eq!(Encoding::for_label(b"%s"), Some(%s));\n''' % (label.label, to_constant_name(label.preferred)))
-
-label_test_file.write('''}
-
-#[test]
-fn test_all_names() {
-''')
-
-for dom_name in dom:
-  label_test_file.write('''assert_eq!(Encoding::for_name(b"%s"), %s);\n''' % (dom_name, to_constant_name(dom_name)))
 
 label_test_file.write('''}
 ''')
