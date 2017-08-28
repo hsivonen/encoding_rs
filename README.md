@@ -63,6 +63,12 @@ using the C++ standard library and [GSL](https://github.com/Microsoft/GSL/) type
 For the Gecko context, there's a
 [C++ wrapper using the MFBT/XPCOM types](https://searchfox.org/mozilla-central/source/intl/Encoding.h#100).
 
+## Sample programs
+
+* [Rust](https://github.com/hsivonen/recode_rs)
+* [C](https://github.com/hsivonen/recode_c)
+* [C++](https://github.com/hsivonen/recode_cpp)
+
 ## Optional features
 
 There are currently three optional cargo features:
