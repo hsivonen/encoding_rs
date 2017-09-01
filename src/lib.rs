@@ -539,6 +539,8 @@ mod handles;
 mod data;
 mod variant;
 
+pub mod mem;
+
 use variant::*;
 use utf_8::utf8_valid_up_to;
 use ascii::ascii_valid_up_to;
