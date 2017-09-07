@@ -2455,7 +2455,7 @@ impl Encoding {
                     .unwrap()
             );
             unsafe {
-                let mut vec = string.as_mut_vec();
+                let vec = string.as_mut_vec();
                 vec.set_len(valid_up_to);
                 std::ptr::copy_nonoverlapping(bytes.as_ptr(), vec.as_mut_ptr(), valid_up_to);
             }
@@ -2556,7 +2556,7 @@ impl Encoding {
                         .unwrap()
             );
             unsafe {
-                let mut vec = string.as_mut_vec();
+                let vec = string.as_mut_vec();
                 vec.set_len(valid_up_to);
                 std::ptr::copy_nonoverlapping(bytes.as_ptr(), vec.as_mut_ptr(), valid_up_to);
             }
