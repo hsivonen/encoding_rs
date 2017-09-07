@@ -433,16 +433,18 @@ pub struct Utf8Decoder {
 }
 
 impl Utf8Decoder {
+    pub fn new_inner() -> Utf8Decoder {
+        Utf8Decoder {
+            code_point: 0,
+            bytes_seen: 0,
+            bytes_needed: 0,
+            lower_boundary: 0x80u8,
+            upper_boundary: 0xBFu8,
+        }
+    }
+
     pub fn new() -> VariantDecoder {
-        VariantDecoder::Utf8(
-            Utf8Decoder {
-                code_point: 0,
-                bytes_seen: 0,
-                bytes_needed: 0,
-                lower_boundary: 0x80u8,
-                upper_boundary: 0xBFu8,
-            }
-        )
+        VariantDecoder::Utf8(Utf8Decoder::new_inner())
     }
 
     fn extra_from_state(&self) -> usize {
