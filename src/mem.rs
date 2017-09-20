@@ -8,6 +8,7 @@
 // except according to those terms.
 
 use ascii::*;
+use ascii;
 use super::in_inclusive_range8;
 use super::DecoderResult;
 use super::EncoderResult;
@@ -18,40 +19,139 @@ const SIMD_ALIGNMENT: usize = 16;
 
 const SIMD_ALIGNMENT_MASK: usize = 15;
 
-const LINE_ALIGNMENT: usize = 64;
+const ALU_ALIGNMENT: usize = 8;
 
-const LINE_ALIGNMENT_MASK: usize = 63;
+const ALU_ALIGNMENT_MASK: usize = 7;
 
-pub fn is_ascii(buffer: &[u8]) -> bool {
+const ALU_STRIDE_SIZE: usize = 8;
+
+// `as` truncates, so works on 32-bit, too.
+const LATIN1_MASK: usize = 0xFF00FF00_FF00FF00u64 as usize;
+
+#[inline(always)]
+fn is_ascii_alu(buffer: &[u8]) -> bool {
     let src = buffer.as_ptr();
     let len = buffer.len();
-    if len == 0 {
-        return true;
-    }
     let mut offset = 0usize;
-    let mut until_simd_alignment = (SIMD_ALIGNMENT - ((src as usize) & SIMD_ALIGNMENT_MASK)) & SIMD_ALIGNMENT_MASK;
-    let mut alu_accu = 0usize;
-    if until_simd_alignment + SIMD_ALIGNMENT <= len {
-        while until_simd_alignment != 0 {
-            alu_accu |= buffer[offset] as usize;
+    let mut until_alignment = (ALU_ALIGNMENT - ((src as usize) & ALU_ALIGNMENT_MASK)) & ALU_ALIGNMENT_MASK;
+    let mut accu = 0usize;
+    if until_alignment + ALU_STRIDE_SIZE <= len {
+        while until_alignment != 0 {
+            accu |= buffer[offset] as usize;
             offset += 1;
-            until_simd_alignment -= 1;
+            until_alignment -= 1;
         }
-        if alu_accu >= 0x80 {
-            return false;
+        let len_minus_stride = len - ALU_STRIDE_SIZE;
+        loop {
+            accu |= unsafe { *(src.offset(offset as isize) as *const usize) };
+            offset += ALU_STRIDE_SIZE;
+            if offset > len_minus_stride {
+                break;
+            }
         }
-        let mut simd_accu = 0;
-
-
     }
     while offset < len {
-        alu_accu |= buffer[offset] as usize;
+        accu |= buffer[offset] as usize;
     }
-    alu_accu < 0x80
+    accu & ascii::ASCII_MASK == 0
+}
+
+#[inline(always)]
+fn is_basic_latin_alu(buffer: &[u16]) -> bool {
+    let src = buffer.as_ptr();
+    let len = buffer.len();
+    let mut offset = 0usize;
+    let mut until_alignment = ((ALU_ALIGNMENT - ((src as usize) & ALU_ALIGNMENT_MASK)) & ALU_ALIGNMENT_MASK) / 2;
+    let mut accu = 0usize;
+    if until_alignment + ALU_STRIDE_SIZE / 2 <= len {
+        while until_alignment != 0 {
+            accu |= buffer[offset] as usize;
+            offset += 1;
+            until_alignment -= 1;
+        }
+        let len_minus_stride = len - ALU_STRIDE_SIZE / 2;
+        loop {
+            accu |= unsafe { *(src.offset(offset as isize) as *const usize) };
+            offset += ALU_STRIDE_SIZE / 2;
+            if offset > len_minus_stride {
+                break;
+            }
+        }
+    }
+    while offset < len {
+        accu |= buffer[offset] as usize;
+    }
+    accu & ascii::BASIC_LATIN_MASK == 0
+}
+
+#[inline(always)]
+fn is_utf16_latin1_alu(buffer: &[u16]) -> bool {
+    let src = buffer.as_ptr();
+    let len = buffer.len();
+    let mut offset = 0usize;
+    let mut until_alignment = ((ALU_ALIGNMENT - ((src as usize) & ALU_ALIGNMENT_MASK)) & ALU_ALIGNMENT_MASK) / 2;
+    let mut accu = 0usize;
+    if until_alignment + ALU_STRIDE_SIZE / 2 <= len {
+        while until_alignment != 0 {
+            accu |= buffer[offset] as usize;
+            offset += 1;
+            until_alignment -= 1;
+        }
+        let len_minus_stride = len - ALU_STRIDE_SIZE / 2;
+        loop {
+            accu |= unsafe { *(src.offset(offset as isize) as *const usize) };
+            offset += ALU_STRIDE_SIZE / 2;
+            if offset > len_minus_stride {
+                break;
+            }
+        }
+    }
+    while offset < len {
+        accu |= buffer[offset] as usize;
+    }
+    accu & LATIN1_MASK == 0
+}
+
+#[inline(always)]
+fn utf16_valid_up_to_alu(buffer: &[u16]) -> usize {
+    let len = buffer.len();
+    let mut offset = 0usize;
+    while offset < len {
+        let unit = buffer[offset];
+        let next = offset + 1;
+        let unit_minus_surrogate_start = unit.wrapping_sub(0xD800);
+        if unit_minus_surrogate_start > (0xDFFF - 0xD800) {
+            // Not a surrogate
+            offset = next;
+            continue;
+        }
+        if unit_minus_surrogate_start <= (0xDFFF - 0xDBFF) {
+            // high surrogate
+            if next < len {
+                let second = buffer[next];
+                let second_minus_low_surrogate_start = second.wrapping_sub(0xDC00);
+                if second_minus_low_surrogate_start <= (0xDFFF - 0xDC00) {
+                    // The next code unit is a low surrogate. Advance position.
+                    offset = next + 1;
+                    continue;
+                }
+                // The next code unit is not a low surrogate. Don't advance
+                // position and treat the high surrogate as unpaired.
+                // fall through
+            }
+            // Unpaired surrogate
+            return offset;
+        }
+    }
+    len
+}
+
+pub fn is_ascii(buffer: &[u8]) -> bool {
+    is_ascii_alu(buffer)
 }
 
 pub fn is_basic_latin(buffer: &[u16]) -> bool {
-    true
+    is_basic_latin_alu(buffer)
 }
 
 pub fn is_utf8_latin1(buffer: &[u8]) -> bool {
@@ -91,7 +191,7 @@ pub fn is_str_latin1(buffer: &str) -> bool {
 }
 
 pub fn is_utf16_latin1(buffer: &[u16]) -> bool {
-    true
+    is_utf16_latin1_alu(buffer)
 }
 
 pub fn convert_utf8_to_utf16(src: &[u8], dst: &mut [u16]) -> usize {
@@ -302,12 +402,8 @@ pub fn convert_utf16_to_latin1_lossy(src: &[u16], dst: &mut [u8]) {
     }
 }
 
-fn utf16_valid_up_to_alu(buffer: &[u16]) -> usize {
-    0
-}
-
 pub fn utf16_valid_up_to(buffer: &[u16]) -> usize {
-    0
+    utf16_valid_up_to_alu(buffer)
 }
 
 pub fn ensure_utf16_validity(buffer: &mut [u16]) {
@@ -367,5 +463,157 @@ pub fn copy_basic_latin_to_ascii(src: &[u16], dst: &mut [u8]) -> usize {
         consumed
     } else {
         src.len()
+    }
+}
+
+// Any copyright to the test code below this comment is dedicated to the
+// Public Domain. http://creativecommons.org/publicdomain/zero/1.0/
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_is_ascii_success() {
+        let mut src: Vec<u8> = Vec::with_capacity(128);
+        for i in 0..src.len() {
+            src[i] = i as u8;
+        }
+        for i in 0..src.len() {
+            assert!(is_ascii(&src[i..]));
+        }
+    }
+
+    #[test]
+    fn test_is_ascii_fail() {
+        let mut src: Vec<u8> = Vec::with_capacity(128);
+        for i in 0..src.len() {
+            src[i] = i as u8;
+        }
+        for i in 0..src.len() {
+            let tail = &mut src[i..];
+            for j in 0..tail.len() {
+                tail[j] = 0xA0;
+                assert!(!is_ascii(tail));
+            }
+        }
+    }
+
+    #[test]
+    fn test_is_basic_latin_success() {
+        let mut src: Vec<u16> = Vec::with_capacity(128);
+        for i in 0..src.len() {
+            src[i] = i as u16;
+        }
+        for i in 0..src.len() {
+            assert!(is_basic_latin(&src[i..]));
+        }
+    }
+
+    #[test]
+    fn test_is_basic_latin_fail() {
+        let mut src: Vec<u16> = Vec::with_capacity(128);
+        for i in 0..src.len() {
+            src[i] = i as u16;
+        }
+        for i in 0..src.len() {
+            let tail = &mut src[i..];
+            for j in 0..tail.len() {
+                tail[j] = 0xA0;
+                assert!(!is_basic_latin(tail));
+            }
+        }
+    }
+
+    #[test]
+    fn test_is_utf16_latin1_success() {
+        let mut src: Vec<u16> = Vec::with_capacity(256);
+        for i in 0..src.len() {
+            src[i] = i as u16;
+        }
+        for i in 0..src.len() {
+            assert!(is_utf16_latin1(&src[i..]));
+        }
+    }
+
+    #[test]
+    fn test_is_utf16_latin1_fail() {
+        let mut src: Vec<u16> = Vec::with_capacity(256);
+        for i in 0..src.len() {
+            src[i] = i as u16;
+        }
+        for i in 0..src.len() {
+            let tail = &mut src[i..];
+            for j in 0..tail.len() {
+                tail[j] = 0x100 + j as u16;
+                assert!(!is_utf16_latin1(tail));
+            }
+        }
+    }
+
+    #[test]
+    fn test_is_str_latin1_success() {
+        let mut src: Vec<u16> = Vec::with_capacity(256);
+        for i in 0..src.len() {
+            src[i] = i as u16;
+        }
+        for i in 0..src.len() {
+            let s = String::from_utf16(&src[i..]).unwrap();
+            assert!(is_str_latin1(&s[..]));
+        }
+    }
+
+    #[test]
+    fn test_is_str_latin1_fail() {
+        let mut src: Vec<u16> = Vec::with_capacity(256);
+        for i in 0..src.len() {
+            src[i] = i as u16;
+        }
+        for i in 0..src.len() {
+            let tail = &mut src[i..];
+            for j in 0..tail.len() {
+                tail[j] = 0x100 + j as u16;
+                let s = String::from_utf16(tail).unwrap();
+                assert!(!is_str_latin1(&s[..]));
+            }
+        }
+    }
+
+    #[test]
+    fn test_is_utf8_latin1_success() {
+        let mut src: Vec<u16> = Vec::with_capacity(256);
+        for i in 0..src.len() {
+            src[i] = i as u16;
+        }
+        for i in 0..src.len() {
+            let s = String::from_utf16(&src[i..]).unwrap();
+            assert!(is_utf8_latin1(s.as_bytes()));
+        }
+    }
+
+    #[test]
+    fn test_is_utf8_latin1_fail() {
+        let mut src: Vec<u16> = Vec::with_capacity(256);
+        for i in 0..src.len() {
+            src[i] = i as u16;
+        }
+        for i in 0..src.len() {
+            let tail = &mut src[i..];
+            for j in 0..tail.len() {
+                tail[j] = 0x100 + j as u16;
+                let s = String::from_utf16(tail).unwrap();
+                assert!(!is_utf8_latin1(s.as_bytes()));
+            }
+        }
+    }
+
+    #[test]
+    fn test_is_utf8_latin1_invalid() {
+        assert!(!is_utf8_latin1(b"\xC3"));
+        assert!(!is_utf8_latin1(b"a\xC3"));
+        assert!(!is_utf8_latin1(b"\xFF"));
+        assert!(!is_utf8_latin1(b"a\xFF"));
+        assert!(!is_utf8_latin1(b"\xC3\xFF"));
+        assert!(!is_utf8_latin1(b"a\xC3\xFF"));
     }
 }
