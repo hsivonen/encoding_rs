@@ -33,7 +33,8 @@ fn is_ascii_alu(buffer: &[u8]) -> bool {
     let src = buffer.as_ptr();
     let len = buffer.len();
     let mut offset = 0usize;
-    let mut until_alignment = (ALU_ALIGNMENT - ((src as usize) & ALU_ALIGNMENT_MASK)) & ALU_ALIGNMENT_MASK;
+    let mut until_alignment = (ALU_ALIGNMENT - ((src as usize) & ALU_ALIGNMENT_MASK)) &
+                              ALU_ALIGNMENT_MASK;
     let mut accu = 0usize;
     if until_alignment + ALU_STRIDE_SIZE <= len {
         while until_alignment != 0 {
@@ -62,7 +63,8 @@ fn is_basic_latin_alu(buffer: &[u16]) -> bool {
     let src = buffer.as_ptr();
     let len = buffer.len();
     let mut offset = 0usize;
-    let mut until_alignment = ((ALU_ALIGNMENT - ((src as usize) & ALU_ALIGNMENT_MASK)) & ALU_ALIGNMENT_MASK) / 2;
+    let mut until_alignment = ((ALU_ALIGNMENT - ((src as usize) & ALU_ALIGNMENT_MASK)) &
+                               ALU_ALIGNMENT_MASK) / 2;
     let mut accu = 0usize;
     if until_alignment + ALU_STRIDE_SIZE / 2 <= len {
         while until_alignment != 0 {
@@ -91,7 +93,8 @@ fn is_utf16_latin1_alu(buffer: &[u16]) -> bool {
     let src = buffer.as_ptr();
     let len = buffer.len();
     let mut offset = 0usize;
-    let mut until_alignment = ((ALU_ALIGNMENT - ((src as usize) & ALU_ALIGNMENT_MASK)) & ALU_ALIGNMENT_MASK) / 2;
+    let mut until_alignment = ((ALU_ALIGNMENT - ((src as usize) & ALU_ALIGNMENT_MASK)) &
+                               ALU_ALIGNMENT_MASK) / 2;
     let mut accu = 0usize;
     if until_alignment + ALU_STRIDE_SIZE / 2 <= len {
         while until_alignment != 0 {
@@ -142,9 +145,10 @@ fn utf16_valid_up_to_alu(buffer: &[u16]) -> usize {
                 // position and treat the high surrogate as unpaired.
                 // fall through
             }
-            // Unpaired surrogate
-            return offset;
+            // Unpaired, fall through
         }
+        // Unpaired surrogate
+        return offset;
     }
     len
 }
@@ -226,7 +230,10 @@ pub fn convert_utf8_to_utf16(src: &[u8], dst: &mut [u16]) -> usize {
 }
 
 pub fn convert_str_to_utf16(src: &str, dst: &mut [u16]) -> usize {
-    assert!(dst.len() >= src.len(), "Destination must not be shorter than the source.");
+    assert!(
+        dst.len() >= src.len(),
+        "Destination must not be shorter than the source."
+    );
     let bytes = src.as_bytes();
     let src_len = src.len();
     let src_ptr = src.as_ptr();
@@ -304,14 +311,20 @@ pub fn convert_utf16_to_str(src: &[u16], dst: &mut str) -> usize {
 }
 
 pub fn convert_latin1_to_utf16(src: &[u8], dst: &mut [u16]) {
-    assert!(dst.len() >= src.len(), "Destination must not be shorter than the source.");
+    assert!(
+        dst.len() >= src.len(),
+        "Destination must not be shorter than the source."
+    );
     unsafe {
         unpack_latin1(src.as_ptr(), dst.as_mut_ptr(), src.len());
     }
 }
 
 pub fn convert_latin1_to_utf8(src: &[u8], dst: &mut [u8]) -> usize {
-    assert!(dst.len() >= src.len() * 2, "Destination must not be shorter than the source times two.");
+    assert!(
+        dst.len() >= src.len() * 2,
+        "Destination must not be shorter than the source times two."
+    );
     let src_len = src.len();
     let src_ptr = src.as_ptr();
     let dst_ptr = dst.as_mut_ptr();
@@ -360,7 +373,10 @@ pub fn convert_latin1_to_str(src: &[u8], dst: &mut str) -> usize {
 }
 
 pub fn convert_utf8_to_latin1_lossy(src: &[u8], dst: &mut [u8]) -> usize {
-    assert!(dst.len() >= src.len(), "Destination must not be shorter than the source.");
+    assert!(
+        dst.len() >= src.len(),
+        "Destination must not be shorter than the source."
+    );
     let src_len = src.len();
     let src_ptr = src.as_ptr();
     let dst_ptr = dst.as_mut_ptr();
@@ -387,7 +403,8 @@ pub fn convert_utf8_to_latin1_lossy(src: &[u8], dst: &mut [u8]) -> usize {
             let trail = src[total_read];
             total_read += 1;
 
-            dst[total_written] = (((non_ascii as u32 & 0x1Fu32) << 6) | (trail as u32 & 0x3Fu32)) as u8;
+            dst[total_written] = (((non_ascii as u32 & 0x1Fu32) << 6) |
+                                  (trail as u32 & 0x3Fu32)) as u8;
             total_written += 1;
             continue;
         }
@@ -396,7 +413,10 @@ pub fn convert_utf8_to_latin1_lossy(src: &[u8], dst: &mut [u8]) -> usize {
 }
 
 pub fn convert_utf16_to_latin1_lossy(src: &[u16], dst: &mut [u8]) {
-    assert!(dst.len() >= src.len(), "Destination must not be shorter than the source.");
+    assert!(
+        dst.len() >= src.len(),
+        "Destination must not be shorter than the source."
+    );
     unsafe {
         pack_latin1(src.as_ptr(), dst.as_mut_ptr(), src.len());
     }
@@ -419,15 +439,12 @@ pub fn ensure_utf16_validity(buffer: &mut [u16]) {
 }
 
 pub fn copy_ascii_to_ascii(src: &[u8], dst: &mut [u8]) -> usize {
-    assert!(dst.len() >= src.len(), "Destination must not be shorter than the source.");
+    assert!(
+        dst.len() >= src.len(),
+        "Destination must not be shorter than the source."
+    );
     if let Some((_, consumed)) =
-            unsafe {
-                ascii_to_ascii(
-                    src.as_ptr(),
-                    dst.as_mut_ptr(),
-                    src.len(),
-                )
-            } {
+        unsafe { ascii_to_ascii(src.as_ptr(), dst.as_mut_ptr(), src.len()) } {
         consumed
     } else {
         src.len()
@@ -435,15 +452,12 @@ pub fn copy_ascii_to_ascii(src: &[u8], dst: &mut [u8]) -> usize {
 }
 
 pub fn copy_ascii_to_basic_latin(src: &[u8], dst: &mut [u16]) -> usize {
-    assert!(dst.len() >= src.len(), "Destination must not be shorter than the source.");
+    assert!(
+        dst.len() >= src.len(),
+        "Destination must not be shorter than the source."
+    );
     if let Some((_, consumed)) =
-            unsafe {
-                ascii_to_basic_latin(
-                    src.as_ptr(),
-                    dst.as_mut_ptr(),
-                    src.len(),
-                )
-            } {
+        unsafe { ascii_to_basic_latin(src.as_ptr(), dst.as_mut_ptr(), src.len()) } {
         consumed
     } else {
         src.len()
@@ -451,15 +465,12 @@ pub fn copy_ascii_to_basic_latin(src: &[u8], dst: &mut [u16]) -> usize {
 }
 
 pub fn copy_basic_latin_to_ascii(src: &[u16], dst: &mut [u8]) -> usize {
-    assert!(dst.len() >= src.len(), "Destination must not be shorter than the source.");
+    assert!(
+        dst.len() >= src.len(),
+        "Destination must not be shorter than the source."
+    );
     if let Some((_, consumed)) =
-            unsafe {
-                basic_latin_to_ascii(
-                    src.as_ptr(),
-                    dst.as_mut_ptr(),
-                    src.len(),
-                )
-            } {
+        unsafe { basic_latin_to_ascii(src.as_ptr(), dst.as_mut_ptr(), src.len()) } {
         consumed
     } else {
         src.len()
@@ -693,5 +704,68 @@ mod tests {
         dst.truncate(len);
         assert_eq!(&dst[..], s.as_bytes());
     }
-}
 
+    #[test]
+    fn test_convert_utf8_to_latin1_lossy() {
+        let mut reference: Vec<u8> = Vec::with_capacity(256);
+        reference.resize(256, 0);
+        let mut src16: Vec<u16> = Vec::with_capacity(256);
+        src16.resize(256, 0);
+        for i in 0..256 {
+            src16[i] = i as u16;
+            reference[i] = i as u8;
+        }
+        let src = String::from_utf16(&src16[..]).unwrap();
+        let mut dst: Vec<u8> = Vec::with_capacity(src.len());
+        dst.resize(src.len(), 0);
+        let len = convert_utf8_to_latin1_lossy(src.as_bytes(), &mut dst[..]);
+        dst.truncate(len);
+        assert_eq!(dst, reference);
+    }
+
+    #[test]
+    fn test_convert_utf16_to_latin1_lossy() {
+        let mut src: Vec<u16> = Vec::with_capacity(256);
+        src.resize(256, 0);
+        let mut reference: Vec<u8> = Vec::with_capacity(256);
+        reference.resize(256, 0);
+        for i in 0..256 {
+            src[i] = i as u16;
+            reference[i] = i as u8;
+        }
+        let mut dst: Vec<u8> = Vec::with_capacity(src.len());
+        dst.resize(src.len(), 0);
+        convert_utf16_to_latin1_lossy(&src[..], &mut dst[..]);
+        assert_eq!(dst, reference);
+    }
+
+    #[test]
+    fn test_utf16_valid_up_to() {
+        let valid = vec![0u16, 0u16, 0u16, 0u16, 0u16, 0u16, 0u16, 0u16, 0u16, 0u16, 0u16, 0u16,
+                         0x2603u16, 0xD83Du16, 0xDCA9u16, 0x00B6u16];
+        assert_eq!(utf16_valid_up_to(&valid[..]), 16);;
+        let lone_high = vec![0u16, 0u16, 0u16, 0u16, 0u16, 0u16, 0u16, 0u16, 0u16, 0u16, 0u16,
+                             0u16, 0u16, 0x2603u16, 0xD83Du16, 0x00B6u16];
+        assert_eq!(utf16_valid_up_to(&lone_high[..]), 14);;
+        let lone_low = vec![0u16, 0u16, 0u16, 0u16, 0u16, 0u16, 0u16, 0u16, 0u16, 0u16, 0u16,
+                            0u16, 0u16, 0x2603u16, 0xDCA9u16, 0x00B6u16];
+        assert_eq!(utf16_valid_up_to(&lone_low[..]), 14);;
+        let lone_high_at_end = vec![0u16, 0u16, 0u16, 0u16, 0u16, 0u16, 0u16, 0u16, 0u16, 0u16,
+                                    0u16, 0u16, 0u16, 0x2603u16, 0x00B6u16, 0xD83Du16];
+        assert_eq!(utf16_valid_up_to(&lone_high_at_end[..]), 15);;
+    }
+
+    #[test]
+    fn test_ensure_utf16_validity() {
+        let mut src = vec![0u16, 0xD83Du16, 0u16, 0u16, 0u16, 0xD83Du16, 0xDCA9u16, 0u16, 0u16,
+                           0u16, 0u16, 0u16, 0u16, 0xDCA9u16, 0u16, 0u16, 0u16, 0u16, 0u16, 0u16,
+                           0u16, 0u16, 0u16, 0u16, 0u16, 0u16, 0u16, 0u16, 0u16, 0u16, 0u16];
+        let reference = vec![0u16, 0xFFFDu16, 0u16, 0u16, 0u16, 0xD83Du16, 0xDCA9u16, 0u16, 0u16,
+                             0u16, 0u16, 0u16, 0u16, 0xFFFDu16, 0u16, 0u16, 0u16, 0u16, 0u16,
+                             0u16, 0u16, 0u16, 0u16, 0u16, 0u16, 0u16, 0u16, 0u16, 0u16, 0u16,
+                             0u16];
+        ensure_utf16_validity(&mut src[..]);
+        assert_eq!(src, reference);
+    }
+
+}
