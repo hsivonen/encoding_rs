@@ -52,6 +52,7 @@ fn is_ascii_alu(buffer: &[u8]) -> bool {
     }
     while offset < len {
         accu |= buffer[offset] as usize;
+        offset += 1;
     }
     accu & ascii::ASCII_MASK == 0
 }
@@ -80,6 +81,7 @@ fn is_basic_latin_alu(buffer: &[u16]) -> bool {
     }
     while offset < len {
         accu |= buffer[offset] as usize;
+        offset += 1;
     }
     accu & ascii::BASIC_LATIN_MASK == 0
 }
@@ -108,6 +110,7 @@ fn is_utf16_latin1_alu(buffer: &[u16]) -> bool {
     }
     while offset < len {
         accu |= buffer[offset] as usize;
+        offset += 1;
     }
     accu & LATIN1_MASK == 0
 }
@@ -309,20 +312,20 @@ pub fn convert_latin1_to_utf16(src: &[u8], dst: &mut [u16]) {
 
 pub fn convert_latin1_to_utf8(src: &[u8], dst: &mut [u8]) -> usize {
     assert!(dst.len() >= src.len() * 2, "Destination must not be shorter than the source times two.");
-    let dst_len = dst.len();
+    let src_len = src.len();
     let src_ptr = src.as_ptr();
     let dst_ptr = dst.as_mut_ptr();
     let mut total_read = 0usize;
     let mut total_written = 0usize;
     loop {
         // src can't advance more than dst
-        let dst_left = dst_len - total_read;
+        let src_left = src_len - total_read;
         if let Some((non_ascii, consumed)) =
             unsafe {
                 ascii_to_ascii(
                     src_ptr.offset(total_read as isize),
                     dst_ptr.offset(total_written as isize),
-                    dst_left,
+                    src_left,
                 )
             } {
             total_read += consumed + 1;
@@ -331,14 +334,11 @@ pub fn convert_latin1_to_utf8(src: &[u8], dst: &mut [u8]) -> usize {
             let code_point = non_ascii as u32;
             dst[total_written] = ((code_point >> 6) | 0xC0u32) as u8;
             total_written += 1;
-            if total_written == dst_len {
-                return total_written;
-            }
             dst[total_written] = ((code_point as u32 & 0x3Fu32) | 0x80u32) as u8;
             total_written += 1;
             continue;
         }
-        return total_written + dst_left;
+        return total_written + src_left;
     }
 }
 
@@ -476,6 +476,7 @@ mod tests {
     #[test]
     fn test_is_ascii_success() {
         let mut src: Vec<u8> = Vec::with_capacity(128);
+        src.resize(128, 0);
         for i in 0..src.len() {
             src[i] = i as u8;
         }
@@ -487,6 +488,7 @@ mod tests {
     #[test]
     fn test_is_ascii_fail() {
         let mut src: Vec<u8> = Vec::with_capacity(128);
+        src.resize(128, 0);
         for i in 0..src.len() {
             src[i] = i as u8;
         }
@@ -502,6 +504,7 @@ mod tests {
     #[test]
     fn test_is_basic_latin_success() {
         let mut src: Vec<u16> = Vec::with_capacity(128);
+        src.resize(128, 0);
         for i in 0..src.len() {
             src[i] = i as u16;
         }
@@ -513,6 +516,7 @@ mod tests {
     #[test]
     fn test_is_basic_latin_fail() {
         let mut src: Vec<u16> = Vec::with_capacity(128);
+        src.resize(128, 0);
         for i in 0..src.len() {
             src[i] = i as u16;
         }
@@ -528,6 +532,7 @@ mod tests {
     #[test]
     fn test_is_utf16_latin1_success() {
         let mut src: Vec<u16> = Vec::with_capacity(256);
+        src.resize(256, 0);
         for i in 0..src.len() {
             src[i] = i as u16;
         }
@@ -539,6 +544,7 @@ mod tests {
     #[test]
     fn test_is_utf16_latin1_fail() {
         let mut src: Vec<u16> = Vec::with_capacity(256);
+        src.resize(256, 0);
         for i in 0..src.len() {
             src[i] = i as u16;
         }
@@ -554,6 +560,7 @@ mod tests {
     #[test]
     fn test_is_str_latin1_success() {
         let mut src: Vec<u16> = Vec::with_capacity(256);
+        src.resize(256, 0);
         for i in 0..src.len() {
             src[i] = i as u16;
         }
@@ -566,6 +573,7 @@ mod tests {
     #[test]
     fn test_is_str_latin1_fail() {
         let mut src: Vec<u16> = Vec::with_capacity(256);
+        src.resize(256, 0);
         for i in 0..src.len() {
             src[i] = i as u16;
         }
@@ -582,6 +590,7 @@ mod tests {
     #[test]
     fn test_is_utf8_latin1_success() {
         let mut src: Vec<u16> = Vec::with_capacity(256);
+        src.resize(256, 0);
         for i in 0..src.len() {
             src[i] = i as u16;
         }
@@ -594,6 +603,7 @@ mod tests {
     #[test]
     fn test_is_utf8_latin1_fail() {
         let mut src: Vec<u16> = Vec::with_capacity(256);
+        src.resize(256, 0);
         for i in 0..src.len() {
             src[i] = i as u16;
         }
@@ -616,4 +626,72 @@ mod tests {
         assert!(!is_utf8_latin1(b"\xC3\xFF"));
         assert!(!is_utf8_latin1(b"a\xC3\xFF"));
     }
+
+    #[test]
+    fn test_convert_utf8_to_utf16() {
+        let src = "abcdefghijklmnopqrstu\u{1F4A9}v\u{2603}w\u{00B6}xyzz";
+        let mut dst: Vec<u16> = Vec::with_capacity(src.len() + 1);
+        dst.resize(src.len() + 1, 0);
+        let len = convert_utf8_to_utf16(src.as_bytes(), &mut dst[..]);
+        dst.truncate(len);
+        let reference: Vec<u16> = src.encode_utf16().collect();
+        assert_eq!(dst, reference);
+    }
+
+    #[test]
+    fn test_convert_str_to_utf16() {
+        let src = "abcdefghijklmnopqrstu\u{1F4A9}v\u{2603}w\u{00B6}xyzz";
+        let mut dst: Vec<u16> = Vec::with_capacity(src.len());
+        dst.resize(src.len(), 0);
+        let len = convert_str_to_utf16(src, &mut dst[..]);
+        dst.truncate(len);
+        let reference: Vec<u16> = src.encode_utf16().collect();
+        assert_eq!(dst, reference);
+    }
+
+    #[test]
+    fn test_convert_utf16_to_utf8() {
+        let reference = "abcdefghijklmnopqrstu\u{1F4A9}v\u{2603}w\u{00B6}xyzz";
+        let src: Vec<u16> = reference.encode_utf16().collect();
+        let mut dst: Vec<u8> = Vec::with_capacity(src.len() * 3 + 1);
+        dst.resize(src.len() * 3 + 1, 0);
+        let len = convert_utf16_to_utf8(&src[..], &mut dst[..]);
+        dst.truncate(len);
+        assert_eq!(dst, reference.as_bytes());
+    }
+
+    #[test]
+    fn test_convert_latin1_to_utf16() {
+        let mut src: Vec<u8> = Vec::with_capacity(256);
+        src.resize(256, 0);
+        let mut reference: Vec<u16> = Vec::with_capacity(256);
+        reference.resize(256, 0);
+        for i in 0..256 {
+            src[i] = i as u8;
+            reference[i] = i as u16;
+        }
+        let mut dst: Vec<u16> = Vec::with_capacity(src.len());
+        dst.resize(src.len(), 0);
+        convert_latin1_to_utf16(&src[..], &mut dst[..]);
+        assert_eq!(dst, reference);
+    }
+
+    #[test]
+    fn test_convert_latin1_to_utf8() {
+        let mut src: Vec<u8> = Vec::with_capacity(256);
+        src.resize(256, 0);
+        let mut reference: Vec<u16> = Vec::with_capacity(256);
+        reference.resize(256, 0);
+        for i in 0..256 {
+            src[i] = i as u8;
+            reference[i] = i as u16;
+        }
+        let s = String::from_utf16(&reference[..]).unwrap();
+        let mut dst: Vec<u8> = Vec::with_capacity(src.len() * 2);
+        dst.resize(src.len() * 2, 0);
+        let len = convert_latin1_to_utf8(&src[..], &mut dst[..]);
+        dst.truncate(len);
+        assert_eq!(&dst[..], s.as_bytes());
+    }
 }
+
