@@ -7,6 +7,14 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
+//! While the functionality available on the top level of this crate is
+//! primarily aimed at encoding conversion near the I/O boundary, the
+//! functions in this module are meant for converting between different in-RAM
+//! representations of text.
+//!
+//! _Note:_ "Latin1" in this module refers to the Unicode range from U+0000 to
+//! U+00FF, inclusive, and does not refer to the windows-1252 range.
+
 use ascii::*;
 use ascii;
 use super::in_inclusive_range8;
@@ -153,14 +161,28 @@ fn utf16_valid_up_to_alu(buffer: &[u16]) -> usize {
     len
 }
 
+/// Checks whether the buffer is all-ASCII.
+///
+/// May read the entire buffer even if it isn't all-ASCII. (I.e. the function
+/// is not guaranteed to fail fast.)
 pub fn is_ascii(buffer: &[u8]) -> bool {
     is_ascii_alu(buffer)
 }
 
+/// Checks whether the buffer is all-Basic Latin (i.e. UTF-16 representing
+/// only ASCII characters).
+///
+/// May read the entire buffer even if it isn't all-ASCII. (I.e. the function
+/// is not guaranteed to fail fast.)
 pub fn is_basic_latin(buffer: &[u16]) -> bool {
     is_basic_latin_alu(buffer)
 }
 
+/// Checks whether the buffer is valid UTF-8 representing only code points
+/// less than or equal to U+00FF.
+///
+/// Fails fast. (I.e. returns before having read the whole buffer if UTF-8
+/// invalidity or code points above U+00FF are discovered.
 pub fn is_utf8_latin1(buffer: &[u8]) -> bool {
     let mut bytes = buffer;
     loop {
@@ -183,6 +205,11 @@ pub fn is_utf8_latin1(buffer: &[u8]) -> bool {
     }
 }
 
+/// Checks whether the buffer represents only code point less than or equal
+/// to U+00FF.
+///
+/// Fails fast. (I.e. returns before having read the whole buffer if code
+/// points above U+00FF are discovered.
 pub fn is_str_latin1(buffer: &str) -> bool {
     let mut bytes = buffer.as_bytes();
     loop {
@@ -197,10 +224,26 @@ pub fn is_str_latin1(buffer: &str) -> bool {
     }
 }
 
+/// Checks whether the buffer represents only code point less than or equal
+/// to U+00FF.
+///
+/// May read the entire buffer even if it isn't all-Latin1. (I.e. the function
+/// is not guaranteed to fail fast.)
 pub fn is_utf16_latin1(buffer: &[u16]) -> bool {
     is_utf16_latin1_alu(buffer)
 }
 
+/// Converts potentially-invalid UTF-8 to valid UTF-16 with errors replaced
+/// with the REPLACEMENT CHARACTER.
+///
+/// The length of the destination buffer must be at least the length of the
+/// source buffer _plus one_.
+///
+/// Returns the number of `u16`s written.
+///
+/// # Panics
+///
+/// Panics if the destination buffer is shorter than stated above.
 pub fn convert_utf8_to_utf16(src: &[u8], dst: &mut [u16]) -> usize {
     // TODO: Can the + 1 be eliminated?
     assert!(dst.len() >= src.len() + 1);
@@ -229,6 +272,17 @@ pub fn convert_utf8_to_utf16(src: &[u8], dst: &mut [u16]) -> usize {
     }
 }
 
+/// Converts valid UTF-8 to valid UTF-16 with errors replaced with the
+/// REPLACEMENT CHARACTER.
+///
+/// The length of the destination buffer must be at least the length of the
+/// source buffer.
+///
+/// Returns the number of `u16`s written.
+///
+/// # Panics
+///
+/// Panics if the destination buffer is shorter than stated above.
 pub fn convert_str_to_utf16(src: &str, dst: &mut [u16]) -> usize {
     assert!(
         dst.len() >= src.len(),
@@ -285,6 +339,24 @@ pub fn convert_str_to_utf16(src: &str, dst: &mut [u16]) -> usize {
     }
 }
 
+/// Converts potentially-invalid UTF-16 to valid UTF-8 with errors replaced
+/// with the REPLACEMENT CHARACTER.
+///
+/// The length of the destination buffer must be at least the length of the
+/// source buffer times three _plus one_.
+///
+/// Returns the number of bytes written.
+///
+/// # Panics
+///
+/// Panics if the destination buffer is shorter than stated above.
+///
+/// # Safety
+///
+/// Note that this function may write garbage beyond the number of bytes
+/// indicated by the return value, so using a `&mut str` interpreted as
+/// `&mut [u8]` as the destination is not safe. If you want to convert into
+/// a `&mut str`, use `convert_utf16_to_str()` instead of this function.
 pub fn convert_utf16_to_utf8(src: &[u16], dst: &mut [u8]) -> usize {
     assert!(dst.len() >= src.len() * 3 + 1);
     let mut encoder = Utf8Encoder;
@@ -293,6 +365,18 @@ pub fn convert_utf16_to_utf8(src: &[u16], dst: &mut [u8]) -> usize {
     written
 }
 
+/// Converts potentially-invalid UTF-16 to valid UTF-8 with errors replaced
+/// with the REPLACEMENT CHARACTER such that the validity of the output is
+/// signaled using the Rust type system.
+///
+/// The length of the destination buffer must be at least the length of the
+/// source buffer times three _plus one_.
+///
+/// Returns the number of bytes written.
+///
+/// # Panics
+///
+/// Panics if the destination buffer is shorter than stated above.
 pub fn convert_utf16_to_str(src: &[u16], dst: &mut str) -> usize {
     let bytes: &mut [u8] = unsafe { ::std::mem::transmute(dst) };
     let written = convert_utf16_to_utf8(src, bytes);
@@ -310,6 +394,17 @@ pub fn convert_utf16_to_str(src: &[u16], dst: &mut str) -> usize {
     written
 }
 
+/// Converts bytes whose unsigned value is interpreted as Unicode code point
+/// (i.e. U+0000 to U+00FF, inclusive) to UTF-16.
+///
+/// The length of the destination buffer must be at least the length of the
+/// source buffer.
+///
+/// The number of `u16`s written equals the length of the source buffer.
+///
+/// # Panics
+///
+/// Panics if the destination buffer is shorter than stated above.
 pub fn convert_latin1_to_utf16(src: &[u8], dst: &mut [u16]) {
     assert!(
         dst.len() >= src.len(),
@@ -320,6 +415,24 @@ pub fn convert_latin1_to_utf16(src: &[u8], dst: &mut [u16]) {
     }
 }
 
+/// Converts bytes whose unsigned value is interpreted as Unicode code point
+/// (i.e. U+0000 to U+00FF, inclusive) to UTF-8.
+///
+/// The length of the destination buffer must be at least the length of the
+/// source buffer times two.
+///
+/// Returns the number of bytes written.
+///
+/// # Panics
+///
+/// Panics if the destination buffer is shorter than stated above.
+///
+/// # Safety
+///
+/// Note that this function may write garbage beyond the number of bytes
+/// indicated by the return value, so using a `&mut str` interpreted as
+/// `&mut [u8]` as the destination is not safe. If you want to convert into
+/// a `&mut str`, use `convert_utf16_to_str()` instead of this function.
 pub fn convert_latin1_to_utf8(src: &[u8], dst: &mut [u8]) -> usize {
     assert!(
         dst.len() >= src.len() * 2,
@@ -355,6 +468,18 @@ pub fn convert_latin1_to_utf8(src: &[u8], dst: &mut [u8]) -> usize {
     }
 }
 
+/// Converts bytes whose unsigned value is interpreted as Unicode code point
+/// (i.e. U+0000 to U+00FF, inclusive) to UTF-8 such that the validity of the
+/// output is signaled using the Rust type system.
+///
+/// The length of the destination buffer must be at least the length of the
+/// source buffer times two.
+///
+/// Returns the number of bytes written.
+///
+/// # Panics
+///
+/// Panics if the destination buffer is shorter than stated above.
 pub fn convert_latin1_to_str(src: &[u8], dst: &mut str) -> usize {
     let bytes: &mut [u8] = unsafe { ::std::mem::transmute(dst) };
     let written = convert_latin1_to_utf8(src, bytes);
@@ -372,6 +497,25 @@ pub fn convert_latin1_to_str(src: &[u8], dst: &mut str) -> usize {
     written
 }
 
+/// If the input is valid UTF-8 representing only Unicode code points from
+/// U+0000 to U+00FF, inclusive, converts the input into output that
+/// represents the value of each code point as the unsigned byte value of
+/// each output byte.
+///
+/// If the input does not fulfill the condition stated above, this function
+/// does something that is memory-safe without any promises about any
+/// properties of the output. In particular, callers shouldn't assume the
+/// output to be the same across crate versions or CPU architectures and
+/// should not assume that non-ASCII input can't map to ASCII output.
+///
+/// The length of the destination buffer must be at least the length of the
+/// source buffer.
+///
+/// Returns the number of bytes written.
+///
+/// # Panics
+///
+/// Panics if the destination buffer is shorter than stated above.
 pub fn convert_utf8_to_latin1_lossy(src: &[u8], dst: &mut [u8]) -> usize {
     assert!(
         dst.len() >= src.len(),
@@ -412,6 +556,25 @@ pub fn convert_utf8_to_latin1_lossy(src: &[u8], dst: &mut [u8]) -> usize {
     }
 }
 
+/// If the input is valid UTF-16 representing only Unicode code points from
+/// U+0000 to U+00FF, inclusive, converts the input into output that
+/// represents the value of each code point as the unsigned byte value of
+/// each output byte.
+///
+/// If the input does not fulfill the condition stated above, this function
+/// does something that is memory-safe without any promises about any
+/// properties of the output. In particular, callers shouldn't assume the
+/// output to be the same across crate versions or CPU architectures and
+/// should not assume that non-Basic Latin input can't map to ASCII output.
+///
+/// The length of the destination buffer must be at least the length of the
+/// source buffer.
+///
+/// The number of bytes written equals the length of the source buffer.
+///
+/// # Panics
+///
+/// Panics if the destination buffer is shorter than stated above.
 pub fn convert_utf16_to_latin1_lossy(src: &[u16], dst: &mut [u8]) {
     assert!(
         dst.len() >= src.len(),
@@ -422,10 +585,13 @@ pub fn convert_utf16_to_latin1_lossy(src: &[u16], dst: &mut [u8]) {
     }
 }
 
+/// Returns the index of the first unpaired surrogate or, if the input is
+/// valid UTF-16 in its entirety, the length of the input.
 pub fn utf16_valid_up_to(buffer: &[u16]) -> usize {
     utf16_valid_up_to_alu(buffer)
 }
 
+/// Replaces unpaired surrogates in the input with the REPLACEMENT CHARACTER.
 pub fn ensure_utf16_validity(buffer: &mut [u16]) {
     let mut offset = 0;
     loop {
@@ -438,6 +604,17 @@ pub fn ensure_utf16_validity(buffer: &mut [u16]) {
     }
 }
 
+/// Copies ASCII from source to destination up to the first non-ASCII byte
+/// (or the end of the input if it is ASCII in its entirety).
+///
+/// The length of the destination buffer must be at least the length of the
+/// source buffer.
+///
+/// Returns the number of bytes written.
+///
+/// # Panics
+///
+/// Panics if the destination buffer is shorter than stated above.
 pub fn copy_ascii_to_ascii(src: &[u8], dst: &mut [u8]) -> usize {
     assert!(
         dst.len() >= src.len(),
@@ -451,6 +628,18 @@ pub fn copy_ascii_to_ascii(src: &[u8], dst: &mut [u8]) -> usize {
     }
 }
 
+/// Copies ASCII from source to destination zero-extending it to UTF-16 up to
+/// the first non-ASCII byte (or the end of the input if it is ASCII in its
+/// entirety).
+///
+/// The length of the destination buffer must be at least the length of the
+/// source buffer.
+///
+/// Returns the number of `u16`s written.
+///
+/// # Panics
+///
+/// Panics if the destination buffer is shorter than stated above.
 pub fn copy_ascii_to_basic_latin(src: &[u8], dst: &mut [u16]) -> usize {
     assert!(
         dst.len() >= src.len(),
@@ -464,6 +653,18 @@ pub fn copy_ascii_to_basic_latin(src: &[u8], dst: &mut [u16]) -> usize {
     }
 }
 
+/// Copies Basic Latin from source to destination narrowing it to ASCII up to
+/// the first non-Basic Latin code unit (or the end of the input if it is
+/// Basic Latin in its entirety).
+///
+/// The length of the destination buffer must be at least the length of the
+/// source buffer.
+///
+/// Returns the number of bytes written.
+///
+/// # Panics
+///
+/// Panics if the destination buffer is shorter than stated above.
 pub fn copy_basic_latin_to_ascii(src: &[u16], dst: &mut [u8]) -> usize {
     assert!(
         dst.len() >= src.len(),
