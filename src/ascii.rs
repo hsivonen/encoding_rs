@@ -24,6 +24,10 @@
 #[cfg(all(feature = "simd-accel", any(target_feature = "sse2", all(target_endian = "little", target_arch = "aarch64"))))]
 use simd_funcs::*;
 
+// `as` truncates, so works on 32-bit, too.
+pub const ASCII_MASK: usize = 0x80808080_80808080u64 as usize;
+pub const BASIC_LATIN_MASK: usize = 0xFF80FF80_FF80FF80u64 as usize;
+
 #[allow(unused_macros)]
 macro_rules! ascii_naive {
     ($name:ident,
@@ -492,7 +496,7 @@ macro_rules! ascii_to_ascii_simd_stride {
     #[inline(always)]
     pub unsafe fn $name(src: *const u8, dst: *mut u8) -> bool {
         let simd = $load(src);
-        if !is_ascii(simd) {
+        if !simd_is_ascii(simd) {
             return false;
         }
         $store(dst, simd);
@@ -508,7 +512,7 @@ macro_rules! ascii_to_basic_latin_simd_stride {
     #[inline(always)]
     pub unsafe fn $name(src: *const u8, dst: *mut u16) -> bool {
         let simd = $load(src);
-        if !is_ascii(simd) {
+        if !simd_is_ascii(simd) {
             return false;
         }
         let (first, second) = simd_unpack(simd);
@@ -541,7 +545,7 @@ macro_rules! basic_latin_to_ascii_simd_stride {
     pub unsafe fn $name(src: *const u16, dst: *mut u8) -> bool {
         let first = $load(src);
         let second = $load(src.offset(8));
-        if is_basic_latin(first | second) {
+        if simd_is_basic_latin(first | second) {
             $store(dst, simd_pack(first, second));
             true
         } else {
@@ -843,7 +847,7 @@ cfg_if! {
                 let len_minus_stride = len - STRIDE_SIZE;
                 loop {
                     let simd = unsafe { load16_unaligned(src.offset(offset as isize)) };
-                    if !is_ascii(simd) {
+                    if !simd_is_ascii(simd) {
                         break;
                     }
                     offset += STRIDE_SIZE;
@@ -914,10 +918,6 @@ cfg_if! {
             None
         }
     } else {
-        // `as` truncates, so works on 32-bit, too.
-        pub const ASCII_MASK: usize = 0x80808080_80808080u64 as usize;
-        pub const BASIC_LATIN_MASK: usize = 0xFF80FF80_FF80FF80u64 as usize;
-
         #[inline(always)]
         unsafe fn unpack_latin1_stride_alu(src: *const usize, dst: *mut usize) {
             let word = *src;

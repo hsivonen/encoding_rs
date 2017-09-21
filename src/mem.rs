@@ -22,9 +22,20 @@ use super::EncoderResult;
 use utf_8::Utf8Decoder;
 use utf_8::Utf8Encoder;
 
+#[cfg(all(feature = "simd-accel", any(target_feature = "sse2", all(target_endian = "little", target_arch = "aarch64"))))]
+use simd_funcs::*;
+
+#[cfg(all(feature = "simd-accel", any(target_feature = "sse2", all(target_endian = "little", target_arch = "aarch64"))))]
+use simd::u8x16;
+
+#[cfg(all(feature = "simd-accel", any(target_feature = "sse2", all(target_endian = "little", target_arch = "aarch64"))))]
+use simd::u16x8;
+
 const SIMD_ALIGNMENT: usize = 16;
 
 const SIMD_ALIGNMENT_MASK: usize = 15;
+
+const SIMD_STRIDE_SIZE: usize = 16;
 
 const ALU_ALIGNMENT: usize = 8;
 
@@ -35,6 +46,7 @@ const ALU_STRIDE_SIZE: usize = 8;
 // `as` truncates, so works on 32-bit, too.
 const LATIN1_MASK: usize = 0xFF00FF00_FF00FF00u64 as usize;
 
+#[allow(unused_macros)]
 macro_rules! by_unit_check_alu {
     ($name:ident,
      $unit:ty,
@@ -71,9 +83,63 @@ macro_rules! by_unit_check_alu {
     })
 }
 
-by_unit_check_alu!(is_ascii_alu, u8, ASCII_MASK);
-by_unit_check_alu!(is_basic_latin_alu, u16, BASIC_LATIN_MASK);
-by_unit_check_alu!(is_utf16_latin1_alu, u16, LATIN1_MASK);
+#[allow(unused_macros)]
+macro_rules! by_unit_check_simd {
+    ($name:ident,
+     $unit:ty,
+     $splat:expr,
+     $simd_ty:ty,
+     $mask:ident,
+     $func:ident) => (
+    #[inline(always)]
+    fn $name(buffer: &[$unit]) -> bool {
+        let unit_size = ::std::mem::size_of::<$unit>();
+        let src = buffer.as_ptr();
+        let len = buffer.len();
+        let mut offset = 0usize;
+        let mut until_alignment = ((SIMD_ALIGNMENT - ((src as usize) & SIMD_ALIGNMENT_MASK)) &
+                                   SIMD_ALIGNMENT_MASK) / unit_size;
+        let mut accu = 0usize;
+        if until_alignment + SIMD_STRIDE_SIZE / unit_size <= len {
+            while until_alignment != 0 {
+                accu |= buffer[offset] as usize;
+                offset += 1;
+                until_alignment -= 1;
+            }
+            let len_minus_stride = len - SIMD_STRIDE_SIZE / unit_size;
+            let mut simd_accu = $splat;
+            loop {
+                simd_accu = simd_accu | unsafe { *(src.offset(offset as isize) as *const $simd_ty) };
+                offset += SIMD_STRIDE_SIZE / unit_size;
+                if offset > len_minus_stride {
+                    break;
+                }
+            }
+            // TODO: Could optimize away this branch on aarch64 and arm by
+            // ORing the horizontal max into accu.
+            if !$func(simd_accu) {
+                return false;
+            }
+        }
+        while offset < len {
+            accu |= buffer[offset] as usize;
+            offset += 1;
+        }
+        accu & $mask == 0
+    })
+}
+
+cfg_if!{
+    if #[cfg(all(feature = "simd-accel", any(target_feature = "sse2", all(target_endian = "little", target_arch = "aarch64"))))] {
+        by_unit_check_simd!(is_ascii_impl, u8, u8x16::splat(0), u8x16, ASCII_MASK, simd_is_ascii);
+        by_unit_check_simd!(is_basic_latin_impl, u16, u16x8::splat(0), u16x8, BASIC_LATIN_MASK, simd_is_basic_latin);
+        by_unit_check_simd!(is_utf16_latin1_impl, u16, u16x8::splat(0), u16x8, LATIN1_MASK, simd_is_latin1);
+    } else {
+        by_unit_check_alu!(is_ascii_impl, u8, ASCII_MASK);
+        by_unit_check_alu!(is_basic_latin_impl, u16, BASIC_LATIN_MASK);
+        by_unit_check_alu!(is_utf16_latin1_impl, u16, LATIN1_MASK);
+    }
+}
 
 #[inline(always)]
 fn utf16_valid_up_to_alu(buffer: &[u16]) -> usize {
@@ -115,7 +181,7 @@ fn utf16_valid_up_to_alu(buffer: &[u16]) -> usize {
 /// May read the entire buffer even if it isn't all-ASCII. (I.e. the function
 /// is not guaranteed to fail fast.)
 pub fn is_ascii(buffer: &[u8]) -> bool {
-    is_ascii_alu(buffer)
+    is_ascii_impl(buffer)
 }
 
 /// Checks whether the buffer is all-Basic Latin (i.e. UTF-16 representing
@@ -124,7 +190,7 @@ pub fn is_ascii(buffer: &[u8]) -> bool {
 /// May read the entire buffer even if it isn't all-ASCII. (I.e. the function
 /// is not guaranteed to fail fast.)
 pub fn is_basic_latin(buffer: &[u16]) -> bool {
-    is_basic_latin_alu(buffer)
+    is_basic_latin_impl(buffer)
 }
 
 /// Checks whether the buffer is valid UTF-8 representing only code points
@@ -179,7 +245,7 @@ pub fn is_str_latin1(buffer: &str) -> bool {
 /// May read the entire buffer even if it isn't all-Latin1. (I.e. the function
 /// is not guaranteed to fail fast.)
 pub fn is_utf16_latin1(buffer: &[u16]) -> bool {
-    is_utf16_latin1_alu(buffer)
+    is_utf16_latin1_impl(buffer)
 }
 
 /// Converts potentially-invalid UTF-8 to valid UTF-16 with errors replaced
