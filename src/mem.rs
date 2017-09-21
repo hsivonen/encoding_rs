@@ -22,27 +22,6 @@ use super::EncoderResult;
 use utf_8::Utf8Decoder;
 use utf_8::Utf8Encoder;
 
-#[cfg(all(feature = "simd-accel", any(target_feature = "sse2", all(target_endian = "little", target_arch = "aarch64"))))]
-use simd_funcs::*;
-
-#[cfg(all(feature = "simd-accel", any(target_feature = "sse2", all(target_endian = "little", target_arch = "aarch64"))))]
-use simd::u8x16;
-
-#[cfg(all(feature = "simd-accel", any(target_feature = "sse2", all(target_endian = "little", target_arch = "aarch64"))))]
-use simd::u16x8;
-
-const SIMD_ALIGNMENT: usize = 16;
-
-const SIMD_ALIGNMENT_MASK: usize = 15;
-
-const SIMD_STRIDE_SIZE: usize = 16;
-
-const ALU_ALIGNMENT: usize = 8;
-
-const ALU_ALIGNMENT_MASK: usize = 7;
-
-const ALU_STRIDE_SIZE: usize = 8;
-
 // `as` truncates, so works on 32-bit, too.
 const LATIN1_MASK: usize = 0xFF00FF00_FF00FF00u64 as usize;
 
@@ -57,19 +36,19 @@ macro_rules! by_unit_check_alu {
         let src = buffer.as_ptr();
         let len = buffer.len();
         let mut offset = 0usize;
-        let mut until_alignment = ((ALU_ALIGNMENT - ((src as usize) & ALU_ALIGNMENT_MASK)) &
-                                   ALU_ALIGNMENT_MASK) / unit_size;
+        let mut until_alignment = ((ALIGNMENT - ((src as usize) & ALIGNMENT_MASK)) &
+                                   ALIGNMENT_MASK) / unit_size;
         let mut accu = 0usize;
-        if until_alignment + ALU_STRIDE_SIZE / unit_size <= len {
+        if until_alignment + ALIGNMENT / unit_size <= len {
             while until_alignment != 0 {
                 accu |= buffer[offset] as usize;
                 offset += 1;
                 until_alignment -= 1;
             }
-            let len_minus_stride = len - ALU_STRIDE_SIZE / unit_size;
+            let len_minus_stride = len - ALIGNMENT / unit_size;
             loop {
                 accu |= unsafe { *(src.offset(offset as isize) as *const usize) };
-                offset += ALU_STRIDE_SIZE / unit_size;
+                offset += ALIGNMENT / unit_size;
                 if offset > len_minus_stride {
                     break;
                 }
@@ -100,17 +79,17 @@ macro_rules! by_unit_check_simd {
         let mut until_alignment = ((SIMD_ALIGNMENT - ((src as usize) & SIMD_ALIGNMENT_MASK)) &
                                    SIMD_ALIGNMENT_MASK) / unit_size;
         let mut accu = 0usize;
-        if until_alignment + SIMD_STRIDE_SIZE / unit_size <= len {
+        if until_alignment + STRIDE_SIZE / unit_size <= len {
             while until_alignment != 0 {
                 accu |= buffer[offset] as usize;
                 offset += 1;
                 until_alignment -= 1;
             }
-            let len_minus_stride = len - SIMD_STRIDE_SIZE / unit_size;
+            let len_minus_stride = len - STRIDE_SIZE / unit_size;
             let mut simd_accu = $splat;
             loop {
                 simd_accu = simd_accu | unsafe { *(src.offset(offset as isize) as *const $simd_ty) };
-                offset += SIMD_STRIDE_SIZE / unit_size;
+                offset += STRIDE_SIZE / unit_size;
                 if offset > len_minus_stride {
                     break;
                 }
@@ -131,6 +110,14 @@ macro_rules! by_unit_check_simd {
 
 cfg_if!{
     if #[cfg(all(feature = "simd-accel", any(target_feature = "sse2", all(target_endian = "little", target_arch = "aarch64"))))] {
+        use simd_funcs::*;
+        use simd::u8x16;
+        use simd::u16x8;
+
+        const SIMD_ALIGNMENT: usize = 16;
+
+        const SIMD_ALIGNMENT_MASK: usize = 15;
+
         by_unit_check_simd!(is_ascii_impl, u8, u8x16::splat(0), u8x16, ASCII_MASK, simd_is_ascii);
         by_unit_check_simd!(is_basic_latin_impl, u16, u16x8::splat(0), u16x8, BASIC_LATIN_MASK, simd_is_basic_latin);
         by_unit_check_simd!(is_utf16_latin1_impl, u16, u16x8::splat(0), u16x8, LATIN1_MASK, simd_is_latin1);

@@ -573,7 +573,7 @@ cfg_if! {
 
         pub const STRIDE_SIZE: usize = 16;
 
-        const ALIGNMENT: usize = 8;
+        pub const ALIGNMENT: usize = 8;
 
         ascii_to_ascii_simd_stride!(ascii_to_ascii_stride_neither_aligned, load16_unaligned, store16_unaligned);
 
@@ -597,7 +597,7 @@ cfg_if! {
 
         pub const STRIDE_SIZE: usize = 16;
 
-        const ALIGNMENT_MASK: usize = 15;
+        pub const ALIGNMENT_MASK: usize = 15;
 
         ascii_to_ascii_simd_stride!(ascii_to_ascii_stride_both_aligned, load16_aligned, store16_aligned);
         ascii_to_ascii_simd_stride!(ascii_to_ascii_stride_src_aligned, load16_aligned, store16_unaligned);
@@ -634,9 +634,9 @@ cfg_if! {
 
         pub const STRIDE_SIZE: usize = 16;
 
-        const ALIGNMENT: usize = 8;
+        pub const ALIGNMENT: usize = 8;
 
-        const ALIGNMENT_MASK: usize = 7;
+        pub const ALIGNMENT_MASK: usize = 7;
 
         #[inline(always)]
         unsafe fn unpack_alu(word: usize, second_word: usize, dst: *mut usize) {
@@ -688,9 +688,9 @@ cfg_if! {
 
         pub const STRIDE_SIZE: usize = 8;
 
-        const ALIGNMENT: usize = 4;
+        pub const ALIGNMENT: usize = 4;
 
-        const ALIGNMENT_MASK: usize = 3;
+        pub const ALIGNMENT_MASK: usize = 3;
 
         #[inline(always)]
         unsafe fn unpack_alu(word: usize, second_word: usize, dst: *mut usize) {
@@ -726,9 +726,9 @@ cfg_if! {
 
         pub const STRIDE_SIZE: usize = 16;
 
-        const ALIGNMENT: usize = 8;
+        pub const ALIGNMENT: usize = 8;
 
-        const ALIGNMENT_MASK: usize = 7;
+        pub const ALIGNMENT_MASK: usize = 7;
 
         #[inline(always)]
         unsafe fn unpack_alu(word: usize, second_word: usize, dst: *mut usize) {
@@ -780,9 +780,9 @@ cfg_if! {
 
         pub const STRIDE_SIZE: usize = 8;
 
-        const ALIGNMENT: usize = 4;
+        pub const ALIGNMENT: usize = 4;
 
-        const ALIGNMENT_MASK: usize = 3;
+        pub const ALIGNMENT_MASK: usize = 3;
 
         #[inline(always)]
         unsafe fn unpack_alu(word: usize, second_word: usize, dst: *mut usize) {
