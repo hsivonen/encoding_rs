@@ -16,7 +16,6 @@
 //! U+00FF, inclusive, and does not refer to the windows-1252 range.
 
 use ascii::*;
-use ascii;
 use super::in_inclusive_range8;
 use super::DecoderResult;
 use super::EncoderResult;
@@ -36,95 +35,45 @@ const ALU_STRIDE_SIZE: usize = 8;
 // `as` truncates, so works on 32-bit, too.
 const LATIN1_MASK: usize = 0xFF00FF00_FF00FF00u64 as usize;
 
-#[inline(always)]
-fn is_ascii_alu(buffer: &[u8]) -> bool {
-    let src = buffer.as_ptr();
-    let len = buffer.len();
-    let mut offset = 0usize;
-    let mut until_alignment = (ALU_ALIGNMENT - ((src as usize) & ALU_ALIGNMENT_MASK)) &
-                              ALU_ALIGNMENT_MASK;
-    let mut accu = 0usize;
-    if until_alignment + ALU_STRIDE_SIZE <= len {
-        while until_alignment != 0 {
-            accu |= buffer[offset] as usize;
-            offset += 1;
-            until_alignment -= 1;
-        }
-        let len_minus_stride = len - ALU_STRIDE_SIZE;
-        loop {
-            accu |= unsafe { *(src.offset(offset as isize) as *const usize) };
-            offset += ALU_STRIDE_SIZE;
-            if offset > len_minus_stride {
-                break;
+macro_rules! by_unit_check_alu {
+    ($name:ident,
+     $unit:ty,
+     $mask:ident) => (
+    #[inline(always)]
+    fn $name(buffer: &[$unit]) -> bool {
+        let unit_size = ::std::mem::size_of::<$unit>();
+        let src = buffer.as_ptr();
+        let len = buffer.len();
+        let mut offset = 0usize;
+        let mut until_alignment = ((ALU_ALIGNMENT - ((src as usize) & ALU_ALIGNMENT_MASK)) &
+                                   ALU_ALIGNMENT_MASK) / unit_size;
+        let mut accu = 0usize;
+        if until_alignment + ALU_STRIDE_SIZE / unit_size <= len {
+            while until_alignment != 0 {
+                accu |= buffer[offset] as usize;
+                offset += 1;
+                until_alignment -= 1;
+            }
+            let len_minus_stride = len - ALU_STRIDE_SIZE / unit_size;
+            loop {
+                accu |= unsafe { *(src.offset(offset as isize) as *const usize) };
+                offset += ALU_STRIDE_SIZE / unit_size;
+                if offset > len_minus_stride {
+                    break;
+                }
             }
         }
-    }
-    while offset < len {
-        accu |= buffer[offset] as usize;
-        offset += 1;
-    }
-    accu & ascii::ASCII_MASK == 0
+        while offset < len {
+            accu |= buffer[offset] as usize;
+            offset += 1;
+        }
+        accu & $mask == 0
+    })
 }
 
-#[inline(always)]
-fn is_basic_latin_alu(buffer: &[u16]) -> bool {
-    let src = buffer.as_ptr();
-    let len = buffer.len();
-    let mut offset = 0usize;
-    let mut until_alignment = ((ALU_ALIGNMENT - ((src as usize) & ALU_ALIGNMENT_MASK)) &
-                               ALU_ALIGNMENT_MASK) / 2;
-    let mut accu = 0usize;
-    if until_alignment + ALU_STRIDE_SIZE / 2 <= len {
-        while until_alignment != 0 {
-            accu |= buffer[offset] as usize;
-            offset += 1;
-            until_alignment -= 1;
-        }
-        let len_minus_stride = len - ALU_STRIDE_SIZE / 2;
-        loop {
-            accu |= unsafe { *(src.offset(offset as isize) as *const usize) };
-            offset += ALU_STRIDE_SIZE / 2;
-            if offset > len_minus_stride {
-                break;
-            }
-        }
-    }
-    while offset < len {
-        accu |= buffer[offset] as usize;
-        offset += 1;
-    }
-    accu & ascii::BASIC_LATIN_MASK == 0
-}
-
-#[inline(always)]
-fn is_utf16_latin1_alu(buffer: &[u16]) -> bool {
-    let src = buffer.as_ptr();
-    let len = buffer.len();
-    let mut offset = 0usize;
-    let mut until_alignment = ((ALU_ALIGNMENT - ((src as usize) & ALU_ALIGNMENT_MASK)) &
-                               ALU_ALIGNMENT_MASK) / 2;
-    let mut accu = 0usize;
-    if until_alignment + ALU_STRIDE_SIZE / 2 <= len {
-        while until_alignment != 0 {
-            accu |= buffer[offset] as usize;
-            offset += 1;
-            until_alignment -= 1;
-        }
-        let len_minus_stride = len - ALU_STRIDE_SIZE / 2;
-        loop {
-            accu |= unsafe { *(src.offset(offset as isize) as *const usize) };
-            offset += ALU_STRIDE_SIZE / 2;
-            if offset > len_minus_stride {
-                break;
-            }
-        }
-    }
-    while offset < len {
-        accu |= buffer[offset] as usize;
-        offset += 1;
-    }
-    accu & LATIN1_MASK == 0
-}
+by_unit_check_alu!(is_ascii_alu, u8, ASCII_MASK);
+by_unit_check_alu!(is_basic_latin_alu, u16, BASIC_LATIN_MASK);
+by_unit_check_alu!(is_utf16_latin1_alu, u16, LATIN1_MASK);
 
 #[inline(always)]
 fn utf16_valid_up_to_alu(buffer: &[u16]) -> usize {
