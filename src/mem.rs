@@ -237,6 +237,7 @@ fn utf16_valid_up_to_alu(buffer: &[u16]) -> (usize, bool) {
 ///
 /// May read the entire buffer even if it isn't all-ASCII. (I.e. the function
 /// is not guaranteed to fail fast.)
+#[inline]
 pub fn is_ascii(buffer: &[u8]) -> bool {
     is_ascii_impl(buffer)
 }
@@ -246,6 +247,7 @@ pub fn is_ascii(buffer: &[u8]) -> bool {
 ///
 /// May read the entire buffer even if it isn't all-ASCII. (I.e. the function
 /// is not guaranteed to fail fast.)
+#[inline]
 pub fn is_basic_latin(buffer: &[u16]) -> bool {
     is_basic_latin_impl(buffer)
 }
@@ -255,6 +257,7 @@ pub fn is_basic_latin(buffer: &[u16]) -> bool {
 ///
 /// Fails fast. (I.e. returns before having read the whole buffer if UTF-8
 /// invalidity or code points above U+00FF are discovered.
+#[inline]
 pub fn is_utf8_latin1(buffer: &[u8]) -> bool {
     let mut bytes = buffer;
     loop {
@@ -282,6 +285,7 @@ pub fn is_utf8_latin1(buffer: &[u8]) -> bool {
 ///
 /// Fails fast. (I.e. returns before having read the whole buffer if code
 /// points above U+00FF are discovered.
+#[inline]
 pub fn is_str_latin1(buffer: &str) -> bool {
     let mut bytes = buffer.as_bytes();
     loop {
@@ -301,6 +305,7 @@ pub fn is_str_latin1(buffer: &str) -> bool {
 ///
 /// May read the entire buffer even if it isn't all-Latin1. (I.e. the function
 /// is not guaranteed to fail fast.)
+#[inline]
 pub fn is_utf16_latin1(buffer: &[u16]) -> bool {
     is_utf16_latin1_impl(buffer)
 }
@@ -316,6 +321,7 @@ pub fn is_utf16_latin1(buffer: &[u16]) -> bool {
 /// # Panics
 ///
 /// Panics if the destination buffer is shorter than stated above.
+#[inline]
 pub fn convert_utf8_to_utf16(src: &[u8], dst: &mut [u16]) -> usize {
     // TODO: Can the + 1 be eliminated?
     assert!(dst.len() >= src.len() + 1);
@@ -355,6 +361,7 @@ pub fn convert_utf8_to_utf16(src: &[u8], dst: &mut [u16]) -> usize {
 /// # Panics
 ///
 /// Panics if the destination buffer is shorter than stated above.
+#[inline]
 pub fn convert_str_to_utf16(src: &str, dst: &mut [u16]) -> usize {
     assert!(
         dst.len() >= src.len(),
@@ -429,6 +436,7 @@ pub fn convert_str_to_utf16(src: &str, dst: &mut [u16]) -> usize {
 /// indicated by the return value, so using a `&mut str` interpreted as
 /// `&mut [u8]` as the destination is not safe. If you want to convert into
 /// a `&mut str`, use `convert_utf16_to_str()` instead of this function.
+#[inline]
 pub fn convert_utf16_to_utf8(src: &[u16], dst: &mut [u8]) -> usize {
     assert!(dst.len() >= src.len() * 3 + 1);
     let mut encoder = Utf8Encoder;
@@ -449,6 +457,7 @@ pub fn convert_utf16_to_utf8(src: &[u16], dst: &mut [u8]) -> usize {
 /// # Panics
 ///
 /// Panics if the destination buffer is shorter than stated above.
+#[inline]
 pub fn convert_utf16_to_str(src: &[u16], dst: &mut str) -> usize {
     let bytes: &mut [u8] = unsafe { ::std::mem::transmute(dst) };
     let written = convert_utf16_to_utf8(src, bytes);
@@ -477,6 +486,7 @@ pub fn convert_utf16_to_str(src: &[u16], dst: &mut str) -> usize {
 /// # Panics
 ///
 /// Panics if the destination buffer is shorter than stated above.
+#[inline]
 pub fn convert_latin1_to_utf16(src: &[u8], dst: &mut [u16]) {
     assert!(
         dst.len() >= src.len(),
@@ -505,6 +515,7 @@ pub fn convert_latin1_to_utf16(src: &[u8], dst: &mut [u16]) {
 /// indicated by the return value, so using a `&mut str` interpreted as
 /// `&mut [u8]` as the destination is not safe. If you want to convert into
 /// a `&mut str`, use `convert_utf16_to_str()` instead of this function.
+#[inline]
 pub fn convert_latin1_to_utf8(src: &[u8], dst: &mut [u8]) -> usize {
     assert!(
         dst.len() >= src.len() * 2,
@@ -552,6 +563,7 @@ pub fn convert_latin1_to_utf8(src: &[u8], dst: &mut [u8]) -> usize {
 /// # Panics
 ///
 /// Panics if the destination buffer is shorter than stated above.
+#[inline]
 pub fn convert_latin1_to_str(src: &[u8], dst: &mut str) -> usize {
     let bytes: &mut [u8] = unsafe { ::std::mem::transmute(dst) };
     let written = convert_latin1_to_utf8(src, bytes);
@@ -588,6 +600,7 @@ pub fn convert_latin1_to_str(src: &[u8], dst: &mut str) -> usize {
 /// # Panics
 ///
 /// Panics if the destination buffer is shorter than stated above.
+#[inline]
 pub fn convert_utf8_to_latin1_lossy(src: &[u8], dst: &mut [u8]) -> usize {
     assert!(
         dst.len() >= src.len(),
@@ -647,6 +660,7 @@ pub fn convert_utf8_to_latin1_lossy(src: &[u8], dst: &mut [u8]) -> usize {
 /// # Panics
 ///
 /// Panics if the destination buffer is shorter than stated above.
+#[inline]
 pub fn convert_utf16_to_latin1_lossy(src: &[u16], dst: &mut [u8]) {
     assert!(
         dst.len() >= src.len(),
@@ -659,11 +673,13 @@ pub fn convert_utf16_to_latin1_lossy(src: &[u16], dst: &mut [u8]) {
 
 /// Returns the index of the first unpaired surrogate or, if the input is
 /// valid UTF-16 in its entirety, the length of the input.
+#[inline]
 pub fn utf16_valid_up_to(buffer: &[u16]) -> usize {
     utf16_valid_up_to_impl(buffer)
 }
 
 /// Replaces unpaired surrogates in the input with the REPLACEMENT CHARACTER.
+#[inline]
 pub fn ensure_utf16_validity(buffer: &mut [u16]) {
     let mut offset = 0;
     loop {
@@ -687,6 +703,7 @@ pub fn ensure_utf16_validity(buffer: &mut [u16]) {
 /// # Panics
 ///
 /// Panics if the destination buffer is shorter than stated above.
+#[inline]
 pub fn copy_ascii_to_ascii(src: &[u8], dst: &mut [u8]) -> usize {
     assert!(
         dst.len() >= src.len(),
@@ -712,6 +729,7 @@ pub fn copy_ascii_to_ascii(src: &[u8], dst: &mut [u8]) -> usize {
 /// # Panics
 ///
 /// Panics if the destination buffer is shorter than stated above.
+#[inline]
 pub fn copy_ascii_to_basic_latin(src: &[u8], dst: &mut [u16]) -> usize {
     assert!(
         dst.len() >= src.len(),
@@ -737,6 +755,7 @@ pub fn copy_ascii_to_basic_latin(src: &[u8], dst: &mut [u16]) -> usize {
 /// # Panics
 ///
 /// Panics if the destination buffer is shorter than stated above.
+#[inline]
 pub fn copy_basic_latin_to_ascii(src: &[u16], dst: &mut [u8]) -> usize {
     assert!(
         dst.len() >= src.len(),

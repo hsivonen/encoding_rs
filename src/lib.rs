@@ -2224,6 +2224,7 @@ impl Encoding {
     /// unsafe fallback for labels that `for_label()` maps to `Some(REPLACEMENT)`.
     ///
     /// Available via the C wrapper.
+    #[inline]
     pub fn for_label_no_replacement(label: &[u8]) -> Option<&'static Encoding> {
         match Encoding::for_label(label) {
             None => None,
@@ -2248,6 +2249,7 @@ impl Encoding {
     /// or UTF-16BE BOM or `None` otherwise.
     ///
     /// Available via the C wrapper.
+    #[inline]
     pub fn for_bom(buffer: &[u8]) -> Option<(&'static Encoding, usize)> {
         if buffer.starts_with(b"\xEF\xBB\xBF") {
             Some((UTF_8, 3))
@@ -2266,6 +2268,7 @@ impl Encoding {
     /// `document.characterSet` property.
     ///
     /// Available via the C wrapper.
+    #[inline]
     pub fn name(&'static self) -> &'static str {
         self.name
     }
@@ -2274,6 +2277,7 @@ impl Encoding {
     /// `char`. (Only true if the output encoding is UTF-8.)
     ///
     /// Available via the C wrapper.
+    #[inline]
     pub fn can_encode_everything(&'static self) -> bool {
         self.output_encoding() == UTF_8
     }
@@ -2282,12 +2286,14 @@ impl Encoding {
     /// U+0000...U+007F and vice versa.
     ///
     /// Available via the C wrapper.
+    #[inline]
     pub fn is_ascii_compatible(&'static self) -> bool {
         !(self == REPLACEMENT || self == UTF_16BE || self == UTF_16LE || self == ISO_2022_JP)
     }
 
     /// Checks whether the bytes 0x00...0x7F map mostly to the characters
     /// U+0000...U+007F and vice versa.
+    #[inline]
     fn is_potentially_borrowable(&'static self) -> bool {
         !(self == REPLACEMENT || self == UTF_16BE || self == UTF_16LE)
     }
@@ -2296,6 +2302,7 @@ impl Encoding {
     /// UTF-16BE, UTF-16LE and replacement and the encoding itself otherwise.
     ///
     /// Available via the C wrapper.
+    #[inline]
     pub fn output_encoding(&'static self) -> &'static Encoding {
         if self == REPLACEMENT || self == UTF_16BE || self == UTF_16LE {
             UTF_8
@@ -2338,6 +2345,7 @@ impl Encoding {
     /// `usize`.
     ///
     /// Available to Rust only.
+    #[inline]
     pub fn decode<'a>(&'static self, bytes: &'a [u8]) -> (Cow<'a, str>, &'static Encoding, bool) {
         let (encoding, without_bom) = match Encoding::for_bom(bytes) {
             Some((encoding, bom_length)) => (encoding, &bytes[bom_length..]),
@@ -2380,6 +2388,7 @@ impl Encoding {
     /// `usize`.
     ///
     /// Available to Rust only.
+    #[inline]
     pub fn decode_with_bom_removal<'a>(&'static self, bytes: &'a [u8]) -> (Cow<'a, str>, bool) {
         let without_bom = if self == UTF_8 && bytes.starts_with(b"\xEF\xBB\xBF") {
             &bytes[3..]
@@ -2691,6 +2700,7 @@ impl Encoding {
     /// for UTF-8, UTF-16LE or UTF-16BE instead of this encoding.
     ///
     /// Available via the C wrapper.
+    #[inline]
     pub fn new_decoder(&'static self) -> Decoder {
         Decoder::new(self, self.new_variant_decoder(), BomHandling::Sniff)
     }
@@ -2704,6 +2714,7 @@ impl Encoding {
     /// encoding.
     ///
     /// Available via the C wrapper.
+    #[inline]
     pub fn new_decoder_with_bom_removal(&'static self) -> Decoder {
         Decoder::new(self, self.new_variant_decoder(), BomHandling::Remove)
     }
@@ -2719,6 +2730,7 @@ impl Encoding {
     /// instead of this method to cause the BOM to be removed.
     ///
     /// Available via the C wrapper.
+    #[inline]
     pub fn new_decoder_without_bom_handling(&'static self) -> Decoder {
         Decoder::new(self, self.new_variant_decoder(), BomHandling::Off)
     }
@@ -2726,6 +2738,7 @@ impl Encoding {
     /// Instantiates a new encoder for the output encoding of this encoding.
     ///
     /// Available via the C wrapper.
+    #[inline]
     pub fn new_encoder(&'static self) -> Encoder {
         let enc = self.output_encoding();
         enc.variant.new_encoder(enc)
@@ -2769,6 +2782,7 @@ impl Encoding {
 }
 
 impl PartialEq for Encoding {
+    #[inline]
     fn eq(&self, other: &Encoding) -> bool {
         (self as *const Encoding) == (other as *const Encoding)
     }
@@ -2777,12 +2791,14 @@ impl PartialEq for Encoding {
 impl Eq for Encoding {}
 
 impl Hash for Encoding {
+    #[inline]
     fn hash<H: Hasher>(&self, state: &mut H) {
         (self as *const Encoding).hash(state);
     }
 }
 
 impl std::fmt::Debug for Encoding {
+    #[inline]
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "Encoding {{ {} }}", self.name)
     }
@@ -2790,6 +2806,7 @@ impl std::fmt::Debug for Encoding {
 
 #[cfg(feature = "serde")]
 impl Serialize for Encoding {
+    #[inline]
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
         where S: Serializer
     {
@@ -3056,6 +3073,7 @@ impl Decoder {
     /// of the decoder.
     ///
     /// Available via the C wrapper.
+    #[inline]
     pub fn encoding(&self) -> &'static Encoding {
         self.encoding
     }
@@ -3771,12 +3789,14 @@ impl Encoder {
     }
 
     /// The `Encoding` this `Encoder` is for.
+    #[inline]
     pub fn encoding(&self) -> &'static Encoding {
         self.encoding
     }
 
     /// Returns `true` if this is an ISO-2022-JP encoder that's not in the
     /// ASCII state and `false` otherwise.
+    #[inline]
     pub fn has_pending_state(&self) -> bool {
         self.variant.has_pending_state()
     }
