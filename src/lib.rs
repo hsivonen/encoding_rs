@@ -17,6 +17,10 @@
 //! streamability goals are browser-oriented, and that FFI-friendliness is a
 //! goal.
 //!
+//! Additionally, the `mem` module provides functions that are useful for
+//! applications that need to be able to deal with legacy in-memory
+//! representations of Unicode.
+//!
 //! # Availability
 //!
 //! The code is available under the

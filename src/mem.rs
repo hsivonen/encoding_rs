@@ -7,13 +7,17 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-//! While the functionality available on the top level of this crate is
-//! primarily aimed at encoding conversion near the I/O boundary, the
-//! functions in this module are meant for converting between different in-RAM
-//! representations of text.
+//! Functions for converting between different in-RAM representations of text.
+//!
+//! By using slices for output, the functions here seek to enable by-register
+//! (ALU register or SIMD register as available) operations in order to
+//! outperform iterator-based conversions available in the Rust standard
+//! library.
 //!
 //! _Note:_ "Latin1" in this module refers to the Unicode range from U+0000 to
-//! U+00FF, inclusive, and does not refer to the windows-1252 range.
+//! U+00FF, inclusive, and does not refer to the windows-1252 range. This
+//! in-memory encoding is sometimes used as a storage optimization of text
+//! when UTF-16 indexing and length semantics are exposed.
 
 use ascii::*;
 use super::in_inclusive_range8;
