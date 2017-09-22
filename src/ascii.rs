@@ -82,8 +82,8 @@ macro_rules! ascii_alu {
                 //                   }
                 //                   dst_until_alignment
                 //               }
-                };
-                if until_alignment + STRIDE_SIZE <= len {
+            };
+            if until_alignment + STRIDE_SIZE <= len {
                 // Moving pointers to alignment seems to be a pessimization on
                 // x86_64 for operations that have UTF-16 as the internal
                 // Unicode representation. However, since it seems to be a win
