@@ -150,6 +150,13 @@ cfg_if! {
 }
 
 #[inline(always)]
+pub fn contains_surrogates(s: u16x8) -> bool {
+    let mask = u16x8::splat(0xF800);
+    let surrogate_bits = u16x8::splat(0xD800);
+    (s & mask).eq(surrogate_bits).any()
+}
+
+#[inline(always)]
 pub fn simd_unpack(s: u8x16) -> (u16x8, u16x8) {
     unsafe {
         let first: u8x16 = simd_shuffle16(

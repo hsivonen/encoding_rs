@@ -121,24 +121,92 @@ cfg_if!{
         by_unit_check_simd!(is_ascii_impl, u8, u8x16::splat(0), u8x16, ASCII_MASK, simd_is_ascii);
         by_unit_check_simd!(is_basic_latin_impl, u16, u16x8::splat(0), u16x8, BASIC_LATIN_MASK, simd_is_basic_latin);
         by_unit_check_simd!(is_utf16_latin1_impl, u16, u16x8::splat(0), u16x8, LATIN1_MASK, simd_is_latin1);
+
+        #[inline(always)]
+        fn utf16_valid_up_to_impl(buffer: &[u16]) -> usize {
+            // This function is a mess, because it simultaneously tries to do
+            // only aligned SIMD (perhaps misguidedly) and needs to deal with
+            // the last code unit in a SIMD stride being part of a valid
+            // surrogate pair.
+            let unit_size = ::std::mem::size_of::<u16>();
+            let src = buffer.as_ptr();
+            let len = buffer.len();
+            let mut offset = 0usize;
+            let len_minus_stride = len - STRIDE_SIZE / unit_size;
+            'outer: loop {
+                let until_alignment = ((SIMD_ALIGNMENT - ((unsafe { src.offset(offset as isize) } as usize) & SIMD_ALIGNMENT_MASK)) &
+                                        SIMD_ALIGNMENT_MASK) / unit_size;
+                let offset_plus_until_alignment = offset + until_alignment;
+                let offset_plus_until_alignment_plus_one = offset_plus_until_alignment + 1;
+                if offset_plus_until_alignment_plus_one + STRIDE_SIZE / unit_size > len {
+                    break;
+                }
+                let (up_to, last_valid_low) = utf16_valid_up_to_alu(&buffer[offset..offset_plus_until_alignment_plus_one]);
+                if up_to != until_alignment + 1 {
+                    return offset + up_to;
+                }
+                if last_valid_low {
+                    offset = offset_plus_until_alignment_plus_one;
+                    continue;
+                }
+                offset = offset_plus_until_alignment;
+                'inner: loop {
+                    let offset_plus_stride = offset + STRIDE_SIZE / unit_size;
+                    if contains_surrogates(unsafe { *(src.offset(offset as isize) as *const u16x8) }) {
+                        if offset_plus_stride == len {
+                            break 'outer;
+                        }
+                        let offset_plus_stride_plus_one = offset_plus_stride + 1;
+                        let (up_to, last_valid_low) = utf16_valid_up_to_alu(&buffer[offset..offset_plus_stride_plus_one]);
+                        if up_to != STRIDE_SIZE / unit_size + 1 {
+                            return offset + up_to;
+                        }
+                        if last_valid_low {
+                            offset = offset_plus_stride_plus_one;
+                            continue 'outer;
+                        }
+                    }
+                    offset = offset_plus_stride;
+                    if offset > len_minus_stride {
+                        break 'outer;
+                    }
+                }
+            }
+            let (up_to, _) = utf16_valid_up_to_alu(&buffer[offset..]);
+            offset + up_to
+        }
     } else {
         by_unit_check_alu!(is_ascii_impl, u8, ASCII_MASK);
         by_unit_check_alu!(is_basic_latin_impl, u16, BASIC_LATIN_MASK);
         by_unit_check_alu!(is_utf16_latin1_impl, u16, LATIN1_MASK);
+
+        #[inline(always)]
+        fn utf16_valid_up_to_impl(buffer: &[u16]) -> usize {
+            let (up_to, _) = utf16_valid_up_to_alu(buffer);
+            up_to
+        }
     }
 }
 
+/// The second return value is true iff the last code unit examined is a low
+/// surrogate that is part of a valid pair.
 #[inline(always)]
-fn utf16_valid_up_to_alu(buffer: &[u16]) -> usize {
+fn utf16_valid_up_to_alu(buffer: &[u16]) -> (usize, bool) {
     let len = buffer.len();
+    if len == 0 {
+        return (0, false);
+    }
     let mut offset = 0usize;
-    while offset < len {
+    loop {
         let unit = buffer[offset];
         let next = offset + 1;
         let unit_minus_surrogate_start = unit.wrapping_sub(0xD800);
         if unit_minus_surrogate_start > (0xDFFF - 0xD800) {
             // Not a surrogate
             offset = next;
+            if offset == len {
+                return (offset, false);
+            }
             continue;
         }
         if unit_minus_surrogate_start <= (0xDFFF - 0xDBFF) {
@@ -149,6 +217,9 @@ fn utf16_valid_up_to_alu(buffer: &[u16]) -> usize {
                 if second_minus_low_surrogate_start <= (0xDFFF - 0xDC00) {
                     // The next code unit is a low surrogate. Advance position.
                     offset = next + 1;
+                    if offset == len {
+                        return (offset, true);
+                    }
                     continue;
                 }
                 // The next code unit is not a low surrogate. Don't advance
@@ -158,9 +229,8 @@ fn utf16_valid_up_to_alu(buffer: &[u16]) -> usize {
             // Unpaired, fall through
         }
         // Unpaired surrogate
-        return offset;
+        return (offset, false);
     }
-    len
 }
 
 /// Checks whether the buffer is all-ASCII.
@@ -590,7 +660,7 @@ pub fn convert_utf16_to_latin1_lossy(src: &[u16], dst: &mut [u8]) {
 /// Returns the index of the first unpaired surrogate or, if the input is
 /// valid UTF-16 in its entirety, the length of the input.
 pub fn utf16_valid_up_to(buffer: &[u16]) -> usize {
-    utf16_valid_up_to_alu(buffer)
+    utf16_valid_up_to_impl(buffer)
 }
 
 /// Replaces unpaired surrogates in the input with the REPLACEMENT CHARACTER.
