@@ -74,6 +74,14 @@ fn vec_with_len<T: EigthOrSixteen>(len: usize) -> Vec<T> {
     vec
 }
 
+fn string_with_len(len: usize) -> String {
+    let mut s = String::with_capacity(len);
+    for _ in 0..len {
+        s.push('\u{0}');
+    }
+    s
+}
+
 fn fuzz_is_ascii(data: &[u8]) {
     assert_eq!(encoding_rs::mem::is_ascii(data), safe_encoding_rs_mem::is_ascii(data));
 }
@@ -124,6 +132,95 @@ fn fuzz_convert_str_to_utf16(data: &[u8]) {
     }
 }
 
+fn fuzz_convert_utf16_to_utf8(data: &[u16]) {
+    let needed = data.len() * 3 + 1;
+    let mut dst = vec_with_len::<u8>(needed);
+    let mut safe_dst = vec_with_len::<u8>(needed);
+    let len = encoding_rs::mem::convert_utf16_to_utf8(data, &mut dst[..]);
+    let safe_len = safe_encoding_rs_mem::convert_utf16_to_utf8(data, &mut safe_dst[..]);
+    dst.truncate(len);
+    safe_dst.truncate(safe_len);
+    assert_eq!(len, safe_len);
+    assert_eq!(dst, safe_dst);
+    check_utf8(&dst[..]);
+}
+
+fn fuzz_convert_utf16_to_str(data: &[u16]) {
+    let needed = data.len() * 3 + 1;
+    let mut dst = string_with_len(needed);
+    let mut safe_dst = string_with_len(needed);
+    let len = encoding_rs::mem::convert_utf16_to_str(data, &mut dst[..]);
+    let safe_len = safe_encoding_rs_mem::convert_utf16_to_str(data, &mut safe_dst[..]);
+    check_utf8(dst.as_bytes());
+    check_utf8(safe_dst.as_bytes());
+    dst.truncate(len);
+    safe_dst.truncate(safe_len);
+    assert_eq!(len, safe_len);
+    assert_eq!(dst, safe_dst);
+}
+
+fn fuzz_convert_latin1_to_utf16(data: &[u8]) {
+    let needed = data.len();
+    let mut dst = vec_with_len::<u16>(needed);
+    let mut safe_dst = vec_with_len::<u16>(needed);
+    encoding_rs::mem::convert_latin1_to_utf16(data, &mut dst[..]);
+    safe_encoding_rs_mem::convert_latin1_to_utf16(data, &mut safe_dst[..]);
+    assert_eq!(dst, safe_dst);
+    check_utf16(&dst[..]);
+}
+
+fn fuzz_convert_latin1_to_utf8(data: &[u8]) {
+    let needed = data.len() * 2;
+    let mut dst = vec_with_len::<u8>(needed);
+    let mut safe_dst = vec_with_len::<u8>(needed);
+    let len = encoding_rs::mem::convert_latin1_to_utf8(data, &mut dst[..]);
+    let safe_len = safe_encoding_rs_mem::convert_latin1_to_utf8(data, &mut safe_dst[..]);
+    dst.truncate(len);
+    safe_dst.truncate(safe_len);
+    assert_eq!(len, safe_len);
+    assert_eq!(dst, safe_dst);
+    check_utf8(&dst[..]);
+}
+
+fn fuzz_convert_latin1_to_str(data: &[u8]) {
+    let needed = data.len() * 2;
+    let mut dst = string_with_len(needed);
+    let mut safe_dst = string_with_len(needed);
+    let len = encoding_rs::mem::convert_latin1_to_str(data, &mut dst[..]);
+    let safe_len = safe_encoding_rs_mem::convert_latin1_to_str(data, &mut safe_dst[..]);
+    check_utf8(dst.as_bytes());
+    check_utf8(safe_dst.as_bytes());
+    dst.truncate(len);
+    safe_dst.truncate(safe_len);
+    assert_eq!(len, safe_len);
+    assert_eq!(dst, safe_dst);
+}
+
+fn fuzz_convert_utf8_to_latin1_lossy(data: &[u8]) {
+    let needed = data.len();
+    let mut dst = vec_with_len::<u8>(needed);
+    let mut safe_dst = vec_with_len::<u8>(needed);
+    let len = encoding_rs::mem::convert_utf8_to_latin1_lossy(data, &mut dst[..]);
+    let safe_len = safe_encoding_rs_mem::convert_utf8_to_latin1_lossy(data, &mut safe_dst[..]);
+    if safe_encoding_rs_mem::is_utf8_latin1(data) {
+        dst.truncate(len);
+        safe_dst.truncate(safe_len);
+        assert_eq!(len, safe_len);
+        assert_eq!(dst, safe_dst);
+    }
+}
+
+fn fuzz_convert_utf16_to_latin1_lossy(data: &[u16]) {
+    let needed = data.len();
+    let mut dst = vec_with_len::<u8>(needed);
+    let mut safe_dst = vec_with_len::<u8>(needed);
+    encoding_rs::mem::convert_utf16_to_latin1_lossy(data, &mut dst[..]);
+    safe_encoding_rs_mem::convert_utf16_to_latin1_lossy(data, &mut safe_dst[..]);
+    if safe_encoding_rs_mem::is_utf16_latin1(data) {
+        assert_eq!(dst, safe_dst);
+    }
+}
+
 fuzz_target!(
     |data: &[u8]| {
         if let Some(first) = data.first() {
@@ -135,6 +232,13 @@ fuzz_target!(
                 4 => fuzz_is_utf16_latin1(as_u16_slice(&data[1..])),
                 5 => fuzz_convert_utf8_to_utf16(&data[1..]),
                 6 => fuzz_convert_str_to_utf16(&data[1..]),
+                7 => fuzz_convert_utf16_to_utf8(as_u16_slice(&data[1..])),
+                8 => fuzz_convert_utf16_to_str(as_u16_slice(&data[1..])),
+                9 => fuzz_convert_latin1_to_utf16(&data[1..]),
+                10 => fuzz_convert_latin1_to_utf8(&data[1..]),
+                11 => fuzz_convert_latin1_to_str(&data[1..]),
+                12 => fuzz_convert_utf8_to_latin1_lossy(&data[1..]),
+                13 => fuzz_convert_utf16_to_latin1_lossy(as_u16_slice(&data[1..])),
                 _ => return,
             }
         }
