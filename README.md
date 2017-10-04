@@ -193,6 +193,11 @@ used in Firefox.
 
 ## Release Notes
 
+### 0.7.1
+
+* When encoding from invalid UTF-16, correctly handle U+DC00 followed by
+  another low surrogate.
+
 ### 0.7.0
 
 * [Make `replacement` a label of the replacement

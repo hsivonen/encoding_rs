@@ -746,7 +746,7 @@ impl<'a> Utf16Source<'a> {
         if unit_minus_surrogate_start > (0xDFFF - 0xD800) {
             return unsafe { ::std::mem::transmute(unit) };
         }
-        if unit_minus_surrogate_start <= (0xDFFF - 0xDBFF) {
+        if unit_minus_surrogate_start <= (0xDBFF - 0xD800) {
             // high surrogate
             if self.pos < self.slice.len() {
                 let second = self.slice[self.pos] as u32;
@@ -783,7 +783,7 @@ impl<'a> Utf16Source<'a> {
         if unit_minus_surrogate_start > (0xDFFF - 0xD800) {
             return Unicode::NonAscii(NonAscii::BmpExclAscii(unit));
         }
-        if unit_minus_surrogate_start <= (0xDFFF - 0xDBFF) {
+        if unit_minus_surrogate_start <= (0xDBFF - 0xD800) {
             // high surrogate
             if self.pos < self.slice.len() {
                 let second = self.slice[self.pos] as u32;
@@ -855,7 +855,7 @@ impl<'a> Utf16Source<'a> {
                         let unit_minus_surrogate_start = unit.wrapping_sub(0xD800);
                         if unit_minus_surrogate_start > (0xDFFF - 0xD800) {
                             NonAscii::BmpExclAscii(unit)
-                        } else if unit_minus_surrogate_start <= (0xDFFF - 0xDBFF) {
+                        } else if unit_minus_surrogate_start <= (0xDBFF - 0xD800) {
                             // high surrogate
                             if self.pos < self.slice.len() {
                                 let second = self.slice[self.pos] as u32;
@@ -929,7 +929,7 @@ impl<'a> Utf16Source<'a> {
                         let unit_minus_surrogate_start = unit.wrapping_sub(0xD800);
                         if unit_minus_surrogate_start > (0xDFFF - 0xD800) {
                             NonAscii::BmpExclAscii(unit)
-                        } else if unit_minus_surrogate_start <= (0xDFFF - 0xDBFF) {
+                        } else if unit_minus_surrogate_start <= (0xDBFF - 0xD800) {
                             // high surrogate
                             if self.pos == self.slice.len() {
                                 // Unpaired surrogate at the end of the buffer.
