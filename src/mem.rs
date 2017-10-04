@@ -213,7 +213,7 @@ fn utf16_valid_up_to_alu(buffer: &[u16]) -> (usize, bool) {
             }
             continue;
         }
-        if unit_minus_surrogate_start <= (0xDFFF - 0xDBFF) {
+        if unit_minus_surrogate_start <= (0xDBFF - 0xD800) {
             // high surrogate
             if next < len {
                 let second = buffer[next];
