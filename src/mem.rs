@@ -139,12 +139,16 @@ cfg_if!{
             'outer: loop {
                 let until_alignment = ((SIMD_ALIGNMENT - ((unsafe { src.offset(offset as isize) } as usize) & SIMD_ALIGNMENT_MASK)) &
                                         SIMD_ALIGNMENT_MASK) / unit_size;
-                let offset_plus_until_alignment = offset + until_alignment;
-                let offset_plus_until_alignment_plus_one = offset_plus_until_alignment + 1;
-                if offset_plus_until_alignment_plus_one + STRIDE_SIZE / unit_size > len {
-                    break;
-                }
-                if until_alignment != 0 {
+                if until_alignment == 0 {
+                    if offset + STRIDE_SIZE / unit_size > len {
+                        break;
+                    }
+                } else {
+                    let offset_plus_until_alignment = offset + until_alignment;
+                    let offset_plus_until_alignment_plus_one = offset_plus_until_alignment + 1;
+                    if offset_plus_until_alignment_plus_one + STRIDE_SIZE / unit_size > len {
+                        break;
+                    }
                     let (up_to, last_valid_low) = utf16_valid_up_to_alu(&buffer[offset..offset_plus_until_alignment_plus_one]);
                     if up_to < until_alignment {
                         return offset + up_to;
