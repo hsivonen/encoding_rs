@@ -19,6 +19,9 @@ git = "https://github.com/rust-fuzz/libfuzzer-sys.git"
 [workspace]
 members = ["."]
 
+[features]
+simd-accel = ["encoding_rs/simd-accel"]
+
 [[bin]]
 name = "fuzz_encodings"
 path = "fuzzers/fuzz_encodings.rs"
