@@ -136,7 +136,6 @@ cfg_if!{
             let src = buffer.as_ptr();
             let len = buffer.len();
             let mut offset = 0usize;
-            let len_minus_stride = len - STRIDE_SIZE / unit_size;
             'outer: loop {
                 let until_alignment = ((SIMD_ALIGNMENT - ((unsafe { src.offset(offset as isize) } as usize) & SIMD_ALIGNMENT_MASK)) &
                                         SIMD_ALIGNMENT_MASK) / unit_size;
@@ -153,6 +152,7 @@ cfg_if!{
                     offset = offset_plus_until_alignment_plus_one;
                     continue;
                 }
+                let len_minus_stride = len - STRIDE_SIZE / unit_size;
                 offset = offset_plus_until_alignment;
                 'inner: loop {
                     let offset_plus_stride = offset + STRIDE_SIZE / unit_size;
