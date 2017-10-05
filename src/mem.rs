@@ -144,16 +144,18 @@ cfg_if!{
                 if offset_plus_until_alignment_plus_one + STRIDE_SIZE / unit_size > len {
                     break;
                 }
-                let (up_to, last_valid_low) = utf16_valid_up_to_alu(&buffer[offset..offset_plus_until_alignment_plus_one]);
-                if up_to != until_alignment + 1 {
-                    return offset + up_to;
-                }
-                if last_valid_low {
-                    offset = offset_plus_until_alignment_plus_one;
-                    continue;
+                if until_alignment != 0 {
+                    let (up_to, last_valid_low) = utf16_valid_up_to_alu(&buffer[offset..offset_plus_until_alignment_plus_one]);
+                    if up_to < until_alignment {
+                        return offset + up_to;
+                    }
+                    if last_valid_low {
+                        offset = offset_plus_until_alignment_plus_one;
+                        continue;
+                    }
+                    offset = offset_plus_until_alignment;
                 }
                 let len_minus_stride = len - STRIDE_SIZE / unit_size;
-                offset = offset_plus_until_alignment;
                 'inner: loop {
                     let offset_plus_stride = offset + STRIDE_SIZE / unit_size;
                     if contains_surrogates(unsafe { *(src.offset(offset as isize) as *const u16x8) }) {
@@ -162,7 +164,7 @@ cfg_if!{
                         }
                         let offset_plus_stride_plus_one = offset_plus_stride + 1;
                         let (up_to, last_valid_low) = utf16_valid_up_to_alu(&buffer[offset..offset_plus_stride_plus_one]);
-                        if up_to != STRIDE_SIZE / unit_size + 1 {
+                        if up_to < STRIDE_SIZE / unit_size {
                             return offset + up_to;
                         }
                         if last_valid_low {
@@ -192,8 +194,8 @@ cfg_if!{
     }
 }
 
-/// The second return value is true iff the last code unit examined is a low
-/// surrogate that is part of a valid pair.
+/// The second return value is true iff the last code unit of the slice was
+/// reached and turned out to be a low surrogate that is part of a valid pair.
 #[inline(always)]
 fn utf16_valid_up_to_alu(buffer: &[u16]) -> (usize, bool) {
     let len = buffer.len();
