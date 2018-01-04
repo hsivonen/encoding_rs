@@ -455,20 +455,21 @@ pub fn convert_str_to_utf16(src: &str, dst: &mut [u16]) -> usize {
         };
         'inner: loop {
             // At this point, `byte` is not included in `read`.
-            if byte < 0x80 {
-                // ASCII: write and go back to SIMD.
-                dst[written] = byte as u16;
-                read += 1;
-                written += 1;
-                continue 'outer;
-            }
             if byte < 0xE0 {
-                // Two-byte
-                let second = bytes[read + 1];
-                let point = (((byte as u32) & 0x1Fu32) << 6) | (second as u32 & 0x3Fu32);
-                dst[written] = point as u16;
-                read += 2;
-                written += 1;
+                if byte >= 0x80 {
+                    // Two-byte
+                    let second = bytes[read + 1];
+                    let point = (((byte as u32) & 0x1Fu32) << 6) | (second as u32 & 0x3Fu32);
+                    dst[written] = point as u16;
+                    read += 2;
+                    written += 1;
+                } else {
+                    // ASCII: write and go back to SIMD.
+                    dst[written] = byte as u16;
+                    read += 1;
+                    written += 1;
+                    continue 'outer;
+                }
             } else if byte < 0xF0 {
                 // Three-byte
                 let second = bytes[read + 1];

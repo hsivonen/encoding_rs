@@ -123,8 +123,7 @@ pub fn utf8_valid_up_to(bytes: &[u8]) -> usize {
 pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usize, usize) {
     // This algorithm differs from the UTF-8 validation algorithm, but making
     // this one consistent with that one makes this slower for reasons I don't
-    // understand. Keep mem::convert_str_to_utf16() in sync with this one if
-    // making this
+    // understand.
     let mut read = 0;
     let mut written = 0;
     'outer: loop {
