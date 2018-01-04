@@ -520,9 +520,6 @@ pub fn convert_str_to_utf16(src: &str, dst: &mut [u16]) -> usize {
                     }
                     0xF1...0xF3 => {
                         // Four-byte normal
-                        if written + 1 == dst.len() {
-                            break 'outer;
-                        }
                         let second = bytes[read + 1];
                         let third = bytes[read + 2];
                         let fourth = bytes[read + 3];
@@ -537,9 +534,6 @@ pub fn convert_str_to_utf16(src: &str, dst: &mut [u16]) -> usize {
                     }
                     0xF0 => {
                         // Four-byte special lower bound
-                        if written + 1 == dst.len() {
-                            break 'outer;
-                        }
                         let second = bytes[read + 1];
                         let third = bytes[read + 2];
                         let fourth = bytes[read + 3];
@@ -554,9 +548,6 @@ pub fn convert_str_to_utf16(src: &str, dst: &mut [u16]) -> usize {
                     }
                     0xF4 => {
                         // Four-byte special upper bound
-                        if written + 1 == dst.len() {
-                            break 'outer;
-                        }
                         let second = bytes[read + 1];
                         let third = bytes[read + 2];
                         let fourth = bytes[read + 3];
@@ -573,9 +564,6 @@ pub fn convert_str_to_utf16(src: &str, dst: &mut [u16]) -> usize {
                         // Invalid lead
                         break 'outer;
                     }
-                }
-                if written == dst.len() {
-                    break 'outer;
                 }
                 if read + 4 > src.len() {
                     if read == src.len() {
