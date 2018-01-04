@@ -461,109 +461,44 @@ pub fn convert_str_to_utf16(src: &str, dst: &mut [u16]) -> usize {
         // multi-byte sequences.
         if read + 4 <= src.len() {
             'inner: loop {
-                // At this point, `byte` is not included in `read`, because we
-                // don't yet know that a) the UTF-8 sequence is valid and b) that there
-                // is output space if it is an astral sequence.
-                // We know, thanks to `ascii_to_basic_latin` that there is output
-                // space for at least one UTF-16 code unit, so no need to check
-                // for output space in the BMP cases.
-                // Matching directly on the lead byte is faster than what the
-                // std lib does!
-                match byte {
-                    0...0x7F => {
-                        // ASCII: write and go back to SIMD.
-                        dst[written] = byte as u16;
-                        read += 1;
-                        written += 1;
-                        continue 'outer;
-                    }
-                    0xC2...0xDF => {
-                        // Two-byte
-                        let second = bytes[read + 1];
-                        let point = (((byte as u32) & 0x1Fu32) << 6) | (second as u32 & 0x3Fu32);
-                        dst[written] = point as u16;
-                        read += 2;
-                        written += 1;
-                    }
-                    0xE1...0xEC | 0xEE...0xEF => {
-                        // Three-byte normal
-                        let second = bytes[read + 1];
-                        let third = bytes[read + 2];
-                        let point = (((byte as u32) & 0xFu32) << 12) |
-                                    ((second as u32 & 0x3Fu32) << 6) |
-                                    (third as u32 & 0x3Fu32);
-                        dst[written] = point as u16;
-                        read += 3;
-                        written += 1;
-                    }
-                    0xE0 => {
-                        // Three-byte special lower bound
-                        let second = bytes[read + 1];
-                        let third = bytes[read + 2];
-                        let point = (((byte as u32) & 0xFu32) << 12) |
-                                    ((second as u32 & 0x3Fu32) << 6) |
-                                    (third as u32 & 0x3Fu32);
-                        dst[written] = point as u16;
-                        read += 3;
-                        written += 1;
-                    }
-                    0xED => {
-                        // Three-byte special upper bound
-                        let second = bytes[read + 1];
-                        let third = bytes[read + 2];
-                        let point = (((byte as u32) & 0xFu32) << 12) |
-                                    ((second as u32 & 0x3Fu32) << 6) |
-                                    (third as u32 & 0x3Fu32);
-                        dst[written] = point as u16;
-                        read += 3;
-                        written += 1;
-                    }
-                    0xF1...0xF3 => {
-                        // Four-byte normal
-                        let second = bytes[read + 1];
-                        let third = bytes[read + 2];
-                        let fourth = bytes[read + 3];
-                        let point = (((byte as u32) & 0x7u32) << 18) |
-                                    ((second as u32 & 0x3Fu32) << 12) |
-                                    ((third as u32 & 0x3Fu32) << 6) |
-                                    (fourth as u32 & 0x3Fu32);
-                        dst[written] = (0xD7C0 + (point >> 10)) as u16;
-                        dst[written + 1] = (0xDC00 + (point & 0x3FF)) as u16;
-                        read += 4;
-                        written += 2;
-                    }
-                    0xF0 => {
-                        // Four-byte special lower bound
-                        let second = bytes[read + 1];
-                        let third = bytes[read + 2];
-                        let fourth = bytes[read + 3];
-                        let point = (((byte as u32) & 0x7u32) << 18) |
-                                    ((second as u32 & 0x3Fu32) << 12) |
-                                    ((third as u32 & 0x3Fu32) << 6) |
-                                    (fourth as u32 & 0x3Fu32);
-                        dst[written] = (0xD7C0 + (point >> 10)) as u16;
-                        dst[written + 1] = (0xDC00 + (point & 0x3FF)) as u16;
-                        read += 4;
-                        written += 2;
-                    }
-                    0xF4 => {
-                        // Four-byte special upper bound
-                        let second = bytes[read + 1];
-                        let third = bytes[read + 2];
-                        let fourth = bytes[read + 3];
-                        let point = (((byte as u32) & 0x7u32) << 18) |
-                                    ((second as u32 & 0x3Fu32) << 12) |
-                                    ((third as u32 & 0x3Fu32) << 6) |
-                                    (fourth as u32 & 0x3Fu32);
-                        dst[written] = (0xD7C0 + (point >> 10)) as u16;
-                        dst[written + 1] = (0xDC00 + (point & 0x3FF)) as u16;
-                        read += 4;
-                        written += 2;
-                    }
-                    _ => {
-                        // Invalid lead
-                        break 'outer;
-                    }
+                // At this point, `byte` is not included in `read`.
+                if byte < 0x80 {
+                    // ASCII: write and go back to SIMD.
+                    dst[written] = byte as u16;
+                    read += 1;
+                    written += 1;
+                    continue 'outer;
+                }
+                if byte < 0xE0 {
+                    // Two-byte
+                    let second = bytes[read + 1];
+                    let point = (((byte as u32) & 0x1Fu32) << 6) | (second as u32 & 0x3Fu32);
+                    dst[written] = point as u16;
+                    read += 2;
+                    written += 1;
+                } else if byte < 0xF0 {
+                    // Three-byte
+                    let second = bytes[read + 1];
+                    let third = bytes[read + 2];
+                    let point = (((byte as u32) & 0xFu32) << 12) |
+                                ((second as u32 & 0x3Fu32) << 6) |
+                                (third as u32 & 0x3Fu32);
+                    dst[written] = point as u16;
+                    read += 3;
+                    written += 1;
+                } else {
+                    // Four-byte
+                    let second = bytes[read + 1];
+                    let third = bytes[read + 2];
+                    let fourth = bytes[read + 3];
+                    let point = (((byte as u32) & 0x7u32) << 18) |
+                                ((second as u32 & 0x3Fu32) << 12) |
+                                ((third as u32 & 0x3Fu32) << 6) |
+                                (fourth as u32 & 0x3Fu32);
+                    dst[written] = (0xD7C0 + (point >> 10)) as u16;
+                    dst[written + 1] = (0xDC00 + (point & 0x3FF)) as u16;
+                    read += 4;
+                    written += 2;
                 }
                 if read + 4 > src.len() {
                     if read == src.len() {
@@ -579,80 +514,31 @@ pub fn convert_str_to_utf16(src: &str, dst: &mut [u16]) -> usize {
         // We can't have a complete 4-byte sequence, but we could still have
         // a complete shorter sequence.
 
-        // At this point, `byte` is not included in `read`, because we
-        // don't yet know that a) the UTF-8 sequence is valid and b) that there
-        // is output space if it is an astral sequence.
-        // We know, thanks to `ascii_to_basic_latin` that there is output
-        // space for at least one UTF-16 code unit, so no need to check
-        // for output space in the BMP cases.
-        // Matching directly on the lead byte is faster than what the
-        // std lib does!
-        match byte {
-            0...0x7F => {
-                // ASCII: write and go back to SIMD.
-                dst[written] = byte as u16;
-                read += 1;
-                written += 1;
-                continue 'outer;
-            }
-            0xC2...0xDF => {
-                // Two-byte
-                let new_read = read + 2;
-                if new_read > src.len() {
-                    break 'outer;
-                }
-                let second = bytes[read + 1];
-                let point = (((byte as u32) & 0x1Fu32) << 6) | (second as u32 & 0x3Fu32);
-                dst[written] = point as u16;
-                read = new_read;
-                written += 1;
-            }
-            0xE1...0xEC | 0xEE...0xEF => {
-                // Three-byte normal
-                let new_read = read + 3;
-                if new_read > src.len() {
-                    break 'outer;
-                }
-                let second = bytes[read + 1];
-                let third = bytes[read + 2];
-                let point = (((byte as u32) & 0xFu32) << 12) | ((second as u32 & 0x3Fu32) << 6) |
-                            (third as u32 & 0x3Fu32);
-                dst[written] = point as u16;
-                read = new_read;
-                written += 1;
-            }
-            0xE0 => {
-                // Three-byte special lower bound
-                let new_read = read + 3;
-                if new_read > src.len() {
-                    break 'outer;
-                }
-                let second = bytes[read + 1];
-                let third = bytes[read + 2];
-                let point = (((byte as u32) & 0xFu32) << 12) | ((second as u32 & 0x3Fu32) << 6) |
-                            (third as u32 & 0x3Fu32);
-                dst[written] = point as u16;
-                read = new_read;
-                written += 1;
-            }
-            0xED => {
-                // Three-byte special upper bound
-                let new_read = read + 3;
-                if new_read > src.len() {
-                    break 'outer;
-                }
-                let second = bytes[read + 1];
-                let third = bytes[read + 2];
-                let point = (((byte as u32) & 0xFu32) << 12) | ((second as u32 & 0x3Fu32) << 6) |
-                            (third as u32 & 0x3Fu32);
-                dst[written] = point as u16;
-                read = new_read;
-                written += 1;
-            }
-            _ => {
-                // Invalid lead or 4-byte lead
-                break 'outer;
-            }
+        // At this point, `byte` is not included in `read`.
+        if byte < 0x80 {
+            // ASCII: write and go back to SIMD.
+            dst[written] = byte as u16;
+            read += 1;
+            written += 1;
+            continue 'outer;
+        }
+        if byte < 0xE0 {
+            // Two-byte
+            let second = bytes[read + 1];
+            let point = (((byte as u32) & 0x1Fu32) << 6) | (second as u32 & 0x3Fu32);
+            dst[written] = point as u16;
+            read += 2;
+            written += 1;
+        } else {
+            // Three-byte
+            let second = bytes[read + 1];
+            let third = bytes[read + 2];
+            let point = (((byte as u32) & 0xFu32) << 12) |
+                        ((second as u32 & 0x3Fu32) << 6) |
+                        (third as u32 & 0x3Fu32);
+            dst[written] = point as u16;
+            read += 3;
+            written += 1;
         }
         break 'outer;
     }
