@@ -494,7 +494,7 @@ pub fn convert_str_to_utf16(src: &str, dst: &mut [u16]) -> usize {
                 read += 4;
                 written += 2;
             }
-            if read == src.len() {
+            if read >= src.len() {
                 return written;
             }
             byte = bytes[read];
