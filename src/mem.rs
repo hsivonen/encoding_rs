@@ -427,9 +427,6 @@ pub fn convert_str_to_utf16(src: &str, dst: &mut [u16]) -> usize {
         dst.len() >= src.len(),
         "Destination must not be shorter than the source."
     );
-    // Simplified from convert_utf8_to_utf16_up_to_invalid().
-    // Unintuitively, this is faster than the more obvious code
-    // with two ifs per non-ascii lead.
     let bytes = src.as_bytes();
     let mut read = 0;
     let mut written = 0;
@@ -446,9 +443,8 @@ pub fn convert_str_to_utf16(src: &str, dst: &mut [u16]) -> usize {
                 )
                   } {
                 None => {
-                    read += length;
                     written += length;
-                    break 'outer;
+                    return written;
                 }
                 Some((non_ascii, consumed)) => {
                     read += consumed;
@@ -457,92 +453,53 @@ pub fn convert_str_to_utf16(src: &str, dst: &mut [u16]) -> usize {
                 }
             }
         };
-        // Check for the longest sequence to avoid checking twice for the
-        // multi-byte sequences.
-        if read + 4 <= src.len() {
-            'inner: loop {
-                // At this point, `byte` is not included in `read`.
-                if byte < 0x80 {
-                    // ASCII: write and go back to SIMD.
-                    dst[written] = byte as u16;
-                    read += 1;
-                    written += 1;
-                    continue 'outer;
-                }
-                if byte < 0xE0 {
-                    // Two-byte
-                    let second = bytes[read + 1];
-                    let point = (((byte as u32) & 0x1Fu32) << 6) | (second as u32 & 0x3Fu32);
-                    dst[written] = point as u16;
-                    read += 2;
-                    written += 1;
-                } else if byte < 0xF0 {
-                    // Three-byte
-                    let second = bytes[read + 1];
-                    let third = bytes[read + 2];
-                    let point = (((byte as u32) & 0xFu32) << 12) |
-                                ((second as u32 & 0x3Fu32) << 6) |
-                                (third as u32 & 0x3Fu32);
-                    dst[written] = point as u16;
-                    read += 3;
-                    written += 1;
-                } else {
-                    // Four-byte
-                    let second = bytes[read + 1];
-                    let third = bytes[read + 2];
-                    let fourth = bytes[read + 3];
-                    let point = (((byte as u32) & 0x7u32) << 18) |
-                                ((second as u32 & 0x3Fu32) << 12) |
-                                ((third as u32 & 0x3Fu32) << 6) |
-                                (fourth as u32 & 0x3Fu32);
-                    dst[written] = (0xD7C0 + (point >> 10)) as u16;
-                    dst[written + 1] = (0xDC00 + (point & 0x3FF)) as u16;
-                    read += 4;
-                    written += 2;
-                }
-                if read + 4 > src.len() {
-                    if read == src.len() {
-                        break 'outer;
-                    }
-                    byte = bytes[read];
-                    break 'inner;
-                }
-                byte = bytes[read];
-                continue 'inner;
+        'inner: loop {
+            // At this point, `byte` is not included in `read`.
+            if byte < 0x80 {
+                // ASCII: write and go back to SIMD.
+                dst[written] = byte as u16;
+                read += 1;
+                written += 1;
+                continue 'outer;
             }
+            if byte < 0xE0 {
+                // Two-byte
+                let second = bytes[read + 1];
+                let point = (((byte as u32) & 0x1Fu32) << 6) | (second as u32 & 0x3Fu32);
+                dst[written] = point as u16;
+                read += 2;
+                written += 1;
+            } else if byte < 0xF0 {
+                // Three-byte
+                let second = bytes[read + 1];
+                let third = bytes[read + 2];
+                let point = (((byte as u32) & 0xFu32) << 12) |
+                            ((second as u32 & 0x3Fu32) << 6) |
+                            (third as u32 & 0x3Fu32);
+                dst[written] = point as u16;
+                read += 3;
+                written += 1;
+            } else {
+                // Four-byte
+                let second = bytes[read + 1];
+                let third = bytes[read + 2];
+                let fourth = bytes[read + 3];
+                let point = (((byte as u32) & 0x7u32) << 18) |
+                            ((second as u32 & 0x3Fu32) << 12) |
+                            ((third as u32 & 0x3Fu32) << 6) |
+                            (fourth as u32 & 0x3Fu32);
+                dst[written] = (0xD7C0 + (point >> 10)) as u16;
+                dst[written + 1] = (0xDC00 + (point & 0x3FF)) as u16;
+                read += 4;
+                written += 2;
+            }
+            if read == src.len() {
+                return written;
+            }
+            byte = bytes[read];
+            continue 'inner;
         }
-        // We can't have a complete 4-byte sequence, but we could still have
-        // a complete shorter sequence.
-
-        // At this point, `byte` is not included in `read`.
-        if byte < 0x80 {
-            // ASCII: write and go back to SIMD.
-            dst[written] = byte as u16;
-            read += 1;
-            written += 1;
-            continue 'outer;
-        }
-        if byte < 0xE0 {
-            // Two-byte
-            let second = bytes[read + 1];
-            let point = (((byte as u32) & 0x1Fu32) << 6) | (second as u32 & 0x3Fu32);
-            dst[written] = point as u16;
-            read += 2;
-            written += 1;
-        } else {
-            // Three-byte
-            let second = bytes[read + 1];
-            let third = bytes[read + 2];
-            let point = (((byte as u32) & 0xFu32) << 12) |
-                        ((second as u32 & 0x3Fu32) << 6) |
-                        (third as u32 & 0x3Fu32);
-            dst[written] = point as u16;
-            read += 3;
-            written += 1;
-        }
-        break 'outer;
     }
-    written
 }
 
 /// Converts potentially-invalid UTF-16 to valid UTF-8 with errors replaced
