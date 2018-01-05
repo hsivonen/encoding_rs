@@ -468,6 +468,11 @@ pub fn convert_str_to_utf16(src: &str, dst: &mut [u16]) -> usize {
                     dst[written] = byte as u16;
                     read += 1;
                     written += 1;
+                    // Intuitively, we should go back to the outer loop only
+                    // if byte is 0x30 or above, so as to avoid trashing on
+                    // ASCII space, comma and period in non-Latin context.
+                    // However, the extra branch seems to cost more than it's
+                    // worth.
                     continue 'outer;
                 }
             } else if byte < 0xF0 {
