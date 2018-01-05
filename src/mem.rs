@@ -499,6 +499,9 @@ pub fn convert_str_to_utf16(src: &str, dst: &mut [u16]) -> usize {
                 read += 4;
                 written += 2;
             }
+            // The comparison is always < or == and never >, but including
+            // > here to let the compiler assume that < is true if this
+            // comparison is false.
             if read >= src.len() {
                 return written;
             }
