@@ -368,7 +368,7 @@ macro_rules! latin1_simd_check_align {
      $stride_dst_aligned:ident,
      $stride_neither_aligned:ident) => (
     #[inline(always)]
-    pub unsafe fn $name(src: *const $src_unit, dst: *mut $dst_unit, len: usize) -> Option<($src_unit, usize)> {
+    pub unsafe fn $name(src: *const $src_unit, dst: *mut $dst_unit, len: usize) {
         let mut offset = 0usize;
         if STRIDE_SIZE <= len {
             let len_minus_stride = len - STRIDE_SIZE;
@@ -433,7 +433,6 @@ macro_rules! latin1_simd_check_align {
             *(dst.offset(offset as isize)) = code_unit as $dst_unit;
             offset += 1;
         }
-        None
     });
 }
 
@@ -478,7 +477,7 @@ macro_rules! latin1_simd_unalign {
      $dst_unit:ty,
      $stride_neither_aligned:ident) => (
     #[inline(always)]
-    pub unsafe fn $name(src: *const $src_unit, dst: *mut $dst_unit, len: usize) -> Option<($src_unit, usize)> {
+    pub unsafe fn $name(src: *const $src_unit, dst: *mut $dst_unit, len: usize) {
         let mut offset = 0usize;
         if STRIDE_SIZE <= len {
             let len_minus_stride = len - STRIDE_SIZE;
@@ -496,7 +495,6 @@ macro_rules! latin1_simd_unalign {
             *(dst.offset(offset as isize)) = code_unit as $dst_unit;
             offset += 1;
         }
-        None
     });
 }
 
