@@ -422,6 +422,14 @@ macro_rules! latin1_simd_check_align {
         }
         while offset < len {
             let code_unit = *(src.offset(offset as isize));
+            // TODO: On x86_64, this loop autovectorizes but in the pack
+            // case there are instructions whose purpose is to make sure
+            // the u16 is truncated before packing. However, since we
+            // don't care about saturating behavior of SSE2 packing when
+            // the input isn't Latin1, we might lie to the optimizer here
+            // to claim `code_unit` is Latin1 in the hope of getting rid
+            // of the extra istructions. That would probably be the most
+            // questionable use of `unsafe` in this crate.
             *(dst.offset(offset as isize)) = code_unit as $dst_unit;
             offset += 1;
         }

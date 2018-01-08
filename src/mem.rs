@@ -586,6 +586,9 @@ pub fn convert_latin1_to_utf16(src: &[u8], dst: &mut [u16]) {
         dst.len() >= src.len(),
         "Destination must not be shorter than the source."
     );
+    // TODO: On aarch64, the safe version autovectorizes to the same unpacking
+    // instructions and this code, but, yet, the autovectorized version is
+    // faster.
     unsafe {
         unpack_latin1(src.as_ptr(), dst.as_mut_ptr(), src.len());
     }
