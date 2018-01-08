@@ -27,6 +27,7 @@ use utf_8::Utf8Decoder;
 use utf_8::Utf8Encoder;
 
 // `as` truncates, so works on 32-bit, too.
+#[allow(dead_code)]
 const LATIN1_MASK: usize = 0xFF00FF00_FF00FF00u64 as usize;
 
 #[allow(unused_macros)]

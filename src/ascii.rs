@@ -25,7 +25,11 @@
 use simd_funcs::*;
 
 // `as` truncates, so works on 32-bit, too.
+#[allow(dead_code)]
 pub const ASCII_MASK: usize = 0x80808080_80808080u64 as usize;
+
+// `as` truncates, so works on 32-bit, too.
+#[allow(dead_code)]
 pub const BASIC_LATIN_MASK: usize = 0xFF80FF80_FF80FF80u64 as usize;
 
 #[allow(unused_macros)]
