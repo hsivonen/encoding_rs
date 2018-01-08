@@ -422,14 +422,19 @@ macro_rules! latin1_simd_check_align {
         }
         while offset < len {
             let code_unit = *(src.offset(offset as isize));
-            // TODO: On x86_64, this loop autovectorizes but in the pack
+            // On x86_64, this loop autovectorizes but in the pack
             // case there are instructions whose purpose is to make sure
-            // the u16 is truncated before packing. However, since we
-            // don't care about saturating behavior of SSE2 packing when
-            // the input isn't Latin1, we might lie to the optimizer here
-            // to claim `code_unit` is Latin1 in the hope of getting rid
-            // of the extra istructions. That would probably be the most
-            // questionable use of `unsafe` in this crate.
+            // each u16 in the vector is truncated before packing. However,
+            // since we don't care about saturating behavior of SSE2 packing
+            // when the input isn't Latin1, those instructions are useless.
+            // Unfortunately, using the `assume` intrinsic to lie to the
+            // optimizer doesn't make LLVM omit the trunctation that we
+            // don't need. Possibly this loop could be manually optimized
+            // to do the sort of thing that LLVM does but without the
+            // ANDing the read vectors of u16 with a constant that discards
+            // the high half of each u16. As far as I can tell, the
+            // optimization assumes that doing a SIMD read past the end of
+            // the array is OK.
             *(dst.offset(offset as isize)) = code_unit as $dst_unit;
             offset += 1;
         }
