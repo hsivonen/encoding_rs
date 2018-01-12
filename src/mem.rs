@@ -26,6 +26,22 @@ use super::EncoderResult;
 use utf_8::Utf8Decoder;
 use utf_8::Utf8Encoder;
 
+/// Classification of text as Latin1 (all code points are below U+0100),
+/// left-to-right with some non-Latin1 characters or as containing at least
+/// some right-to-left characters.
+#[must_use]
+#[derive(Debug, PartialEq, Eq)]
+#[repr(C)]
+pub enum Latin1Bidi {
+    /// Every character is below U+0100.
+    Latin1 = 0,
+    /// There is at least one character that's U+0100 or higher, but there
+    /// are no right-to-left characters.
+    LeftToRight = 1,
+    /// There is at least one right-to-left character.
+    Bidi = 2,
+}
+
 // `as` truncates, so works on 32-bit, too.
 #[allow(dead_code)]
 const LATIN1_MASK: usize = 0xFF00FF00_FF00FF00u64 as usize;
@@ -370,6 +386,194 @@ pub fn is_str_latin1(buffer: &str) -> bool {
 #[inline]
 pub fn is_utf16_latin1(buffer: &[u16]) -> bool {
     is_utf16_latin1_impl(buffer)
+}
+
+/// Checks whether a potentially-invalid UTF-8 buffer contains code points
+/// that trigger right-to-left processing.
+///
+/// The check is done on a Unicode block basis without regard to assigned
+/// vs. unassigned code points in the block. Additionally, the four
+/// RIGHT-TO-LEFT FOO controls in General Punctuation are checked for.
+/// Control characters that are technically bidi controls but do not cause
+/// right-to-left behavior without the presence of right-to-left characters
+/// or right-to-left controls are not checked for.
+///
+/// If the input is invalid UTF-8, may return `true` even if replacing the
+/// errors with the REPLACEMENT CHARACTER and trying again would result in
+/// `false`.
+#[inline]
+pub fn is_utf8_bidi(buffer: &[u8]) -> bool {
+    match ::std::str::from_utf8(buffer) {
+        Err(_) => true,
+        Ok(s) => is_str_bidi(s),
+    }
+}
+
+/// Checks whether a valid UTF-8 buffer contains code points that trigger
+/// right-to-left processing.
+///
+/// The check is done on a Unicode block basis without regard to assigned
+/// vs. unassigned code points in the block. Additionally, the four
+/// RIGHT-TO-LEFT FOO controls in General Punctuation are checked for.
+/// Control characters that are technically bidi controls but do not cause
+/// right-to-left behavior without the presence of right-to-left characters
+/// or right-to-left controls are not checked for.
+#[inline]
+pub fn is_str_bidi(buffer: &str) -> bool {
+    for c in buffer.chars() {
+        if is_char_bidi(c) {
+            return true;
+        }
+    }
+    false
+}
+
+/// Checks whether a UTF-16 buffer contains code points that trigger
+/// right-to-left processing.
+///
+/// The check is done on a Unicode block basis without regard to assigned
+/// vs. unassigned code points in the block. Additionally, the four
+/// RIGHT-TO-LEFT FOO controls in General Punctuation are checked for.
+/// Control characters that are technically bidi controls but do not cause
+/// right-to-left behavior without the presence of right-to-left characters
+/// or right-to-left controls are not checked for.
+///
+/// If the input is invalid UTF-16, may return `true` even if replacing the
+/// errors with the REPLACEMENT CHARACTER and trying again would result in
+/// `false`.
+#[inline]
+pub fn is_utf16_bidi(buffer: &[u16]) -> bool {
+    for u in buffer {
+        if is_utf16_code_unit_bidi(*u) {
+            return true;
+        }
+    }
+    false
+}
+
+/// Checks whether a code point triggers right-to-left processing.
+///
+/// The check is done on a Unicode block basis without regard to assigned
+/// vs. unassigned code points in the block. Additionally, the four
+/// RIGHT-TO-LEFT FOO controls in General Punctuation are checked for.
+/// Control characters that are technically bidi controls but do not cause
+/// right-to-left behavior without the presence of right-to-left characters
+/// or right-to-left controls are not checked for.
+#[inline(always)]
+pub fn is_char_bidi(c: char) -> bool {
+    // Controls:
+    // Every control with RIGHT-TO-LEFT in its name in
+    // https://www.unicode.org/charts/PDF/U2000.pdf
+    // U+200F RLM
+    // U+202B RLE
+    // U+202E RLO
+    // U+2067 RLI
+    //
+    // BMP RTL:
+    // https://www.unicode.org/roadmaps/bmp/
+    // U+0590...U+08FF
+    // U+FB50...U+FDFF Arabic Presentation Forms A
+    // U+FE70...U+FEFF Arabic Presentation Forms B
+    //
+    // Supplementary RTL:
+    // https://www.unicode.org/roadmaps/smp/
+    // U+10800...U+10FFF (Lead surrogate U+D802 or U+D803)
+    // U+1E800...U+1EFFF (Lead surrogate U+D83A or U+D83B)
+    match c {
+        '\u{0590}'...'\u{08FF}' | '\u{FB50}'...'\u{FDFF}' |
+        '\u{FE70}'...'\u{FEFF}' | '\u{10800}'...'\u{10FFF}' |
+        '\u{1E800}'...'\u{1EFFF}' | '\u{200F}' | '\u{202B}' |
+        '\u{202E}' | '\u{2067}' => true,
+        _ => false,
+    }
+}
+
+/// Checks whether a UTF-16 code unit triggers right-to-left processing.
+///
+/// The check is done on a Unicode block basis without regard to assigned
+/// vs. unassigned code points in the block. Additionally, the four
+/// RIGHT-TO-LEFT FOO controls in General Punctuation are checked for.
+/// Control characters that are technically bidi controls but do not cause
+/// right-to-left behavior without the presence of right-to-left characters
+/// or right-to-left controls are not checked for.
+///
+/// Since supplementary-plane right-to-left blocks are identifiable from the
+/// high surrogate without examining the low surrogate, this function returns
+/// `true` for such high surrogates making the function suitable for handling
+/// supplementary-plane text without decoding surrogate pairs to scalar
+/// values. Obviously, such high surrogates are then reported as right-to-left
+/// even if actually unpaired.
+#[inline(always)]
+pub fn is_utf16_code_unit_bidi(u: u16) -> bool {
+    match u {
+        0x0590...0x08FF | 0xFB50...0xFDFF |
+        0xFE70...0xFEFF | 0xD802 | 0xD803 | 0xD83A | 0xD83B |
+        0x200F | 0x202B | 0x202E | 0x2067 => true,
+        _ => false,
+    }
+}
+
+/// Checks whether a potentially invalid UTF-8 buffer contains code points
+/// that trigger right-to-left processing or is all-Latin1.
+///
+/// Possibly more efficient than performing the checks separately.
+///
+/// Returns `Latin1Bidi::Latin1` if `is_utf8_latin1()` would return `true`.
+/// Otherwise, returns `Latin1Bidi::Bidi` if `is_utf8_bidi()` would return
+/// `true`. Otherwise, returns `Latin1Bidi::LeftToRight`.
+#[inline]
+pub fn check_utf8_for_latin1_and_bidi(buffer: &[u8]) -> Latin1Bidi {
+    if is_utf8_latin1(buffer) {
+        Latin1Bidi::Latin1
+    } else {
+        if is_utf8_bidi(buffer) {
+            Latin1Bidi::Bidi
+        } else {
+            Latin1Bidi::LeftToRight
+        }
+    }
+}
+
+/// Checks whether a valid UTF-8 buffer contains code points
+/// that trigger right-to-left processing or is all-Latin1.
+///
+/// Possibly more efficient than performing the checks separately.
+///
+/// Returns `Latin1Bidi::Latin1` if `is_str_latin1()` would return `true`.
+/// Otherwise, returns `Latin1Bidi::Bidi` if `is_str_bidi()` would return
+/// `true`. Otherwise, returns `Latin1Bidi::LeftToRight`.
+#[inline]
+pub fn check_str_for_latin1_and_bidi(buffer: &str) -> Latin1Bidi {
+    if is_str_latin1(buffer) {
+        Latin1Bidi::Latin1
+    } else {
+        if is_str_bidi(buffer) {
+            Latin1Bidi::Bidi
+        } else {
+            Latin1Bidi::LeftToRight
+        }
+    }
+}
+
+/// Checks whether a potentially invalid UTF-16 buffer contains code points
+/// that trigger right-to-left processing or is all-Latin1.
+///
+/// Possibly more efficient than performing the checks separately.
+///
+/// Returns `Latin1Bidi::Latin1` if `is_utf16_latin1()` would return `true`.
+/// Otherwise, returns `Latin1Bidi::Bidi` if `is_utf16_bidi()` would return
+/// `true`. Otherwise, returns `Latin1Bidi::LeftToRight`.
+#[inline]
+pub fn check_utf16_for_latin1_and_bidi(buffer: &[u16]) -> Latin1Bidi {
+    if is_utf16_latin1(buffer) {
+        Latin1Bidi::Latin1
+    } else {
+        if is_utf16_bidi(buffer) {
+            Latin1Bidi::Bidi
+        } else {
+            Latin1Bidi::LeftToRight
+        }
+    }
 }
 
 /// Converts potentially-invalid UTF-8 to valid UTF-16 with errors replaced
@@ -880,10 +1084,9 @@ mod tests {
         for i in 0..src.len() {
             src[i] = i as u8;
         }
-        assert!(is_ascii(&src[0..]));
-        // for i in 0..src.len() {
-        //     assert!(is_ascii(&src[i..]));
-        // }
+        for i in 0..src.len() {
+            assert!(is_ascii(&src[i..]));
+        }
     }
 
     #[test]
@@ -939,6 +1142,7 @@ mod tests {
         }
         for i in 0..src.len() {
             assert!(is_utf16_latin1(&src[i..]));
+            assert_eq!(check_utf16_for_latin1_and_bidi(&src[i..]), Latin1Bidi::Latin1);
         }
     }
 
@@ -954,6 +1158,7 @@ mod tests {
             for j in 0..tail.len() {
                 tail[j] = 0x100 + j as u16;
                 assert!(!is_utf16_latin1(tail));
+                assert_ne!(check_utf16_for_latin1_and_bidi(tail), Latin1Bidi::Latin1);
             }
         }
     }
@@ -968,6 +1173,7 @@ mod tests {
         for i in 0..src.len() {
             let s = String::from_utf16(&src[i..]).unwrap();
             assert!(is_str_latin1(&s[..]));
+            assert_eq!(check_str_for_latin1_and_bidi(&s[..]), Latin1Bidi::Latin1);
         }
     }
 
@@ -984,6 +1190,7 @@ mod tests {
                 tail[j] = 0x100 + j as u16;
                 let s = String::from_utf16(tail).unwrap();
                 assert!(!is_str_latin1(&s[..]));
+                assert_ne!(check_str_for_latin1_and_bidi(&s[..]), Latin1Bidi::Latin1);
             }
         }
     }
@@ -998,6 +1205,7 @@ mod tests {
         for i in 0..src.len() {
             let s = String::from_utf16(&src[i..]).unwrap();
             assert!(is_utf8_latin1(s.as_bytes()));
+            assert_eq!(check_utf8_for_latin1_and_bidi(s.as_bytes()), Latin1Bidi::Latin1);
         }
     }
 
@@ -1014,6 +1222,7 @@ mod tests {
                 tail[j] = 0x100 + j as u16;
                 let s = String::from_utf16(tail).unwrap();
                 assert!(!is_utf8_latin1(s.as_bytes()));
+                assert_ne!(check_utf8_for_latin1_and_bidi(s.as_bytes()), Latin1Bidi::Latin1);
             }
         }
     }
@@ -1158,4 +1367,207 @@ mod tests {
         assert_eq!(src, reference);
     }
 
+    #[test]
+    fn test_is_char_bidi() {
+        assert!(!is_char_bidi('a'));
+        assert!(!is_char_bidi('\u{03B1}'));
+        assert!(!is_char_bidi('\u{3041}'));
+        assert!(!is_char_bidi('\u{1F4A9}'));
+        assert!(!is_char_bidi('\u{FE00}'));
+        assert!(!is_char_bidi('\u{202C}'));
+        assert!(is_char_bidi('\u{0590}'));
+        assert!(is_char_bidi('\u{08FF}'));
+        assert!(is_char_bidi('\u{061C}'));
+        assert!(is_char_bidi('\u{FB50}'));
+        assert!(is_char_bidi('\u{FDFF}'));
+        assert!(is_char_bidi('\u{FE70}'));
+        assert!(is_char_bidi('\u{FEFF}'));
+        assert!(is_char_bidi('\u{200F}'));
+        assert!(is_char_bidi('\u{202B}'));
+        assert!(is_char_bidi('\u{202E}'));
+        assert!(is_char_bidi('\u{2067}'));
+        assert!(is_char_bidi('\u{10800}'));
+        assert!(is_char_bidi('\u{10FFF}'));
+        assert!(is_char_bidi('\u{1E800}'));
+        assert!(is_char_bidi('\u{1EFFF}'));
+    }
+
+    #[test]
+    fn test_is_utf16_code_unit_bidi() {
+        assert!(!is_utf16_code_unit_bidi(0x0062));
+        assert!(!is_utf16_code_unit_bidi(0x03B1));
+        assert!(!is_utf16_code_unit_bidi(0x3041));
+        assert!(!is_utf16_code_unit_bidi(0xD801));
+        assert!(!is_utf16_code_unit_bidi(0xFE00));
+        assert!(!is_utf16_code_unit_bidi(0x202C));
+        assert!(is_utf16_code_unit_bidi(0x0590));
+        assert!(is_utf16_code_unit_bidi(0x08FF));
+        assert!(is_utf16_code_unit_bidi(0x061C));
+        assert!(is_utf16_code_unit_bidi(0xFB50));
+        assert!(is_utf16_code_unit_bidi(0xFDFF));
+        assert!(is_utf16_code_unit_bidi(0xFE70));
+        assert!(is_utf16_code_unit_bidi(0xFEFF));
+        assert!(is_utf16_code_unit_bidi(0x200F));
+        assert!(is_utf16_code_unit_bidi(0x202B));
+        assert!(is_utf16_code_unit_bidi(0x202E));
+        assert!(is_utf16_code_unit_bidi(0x2067));
+        assert!(is_utf16_code_unit_bidi(0xD802));
+        assert!(is_utf16_code_unit_bidi(0xD803));
+        assert!(is_utf16_code_unit_bidi(0xD83A));
+        assert!(is_utf16_code_unit_bidi(0xD83B));
+    }
+
+    #[test]
+    fn test_is_str_bidi() {
+        assert!(!is_str_bidi("abcdefghijklmnopaabcdefghijklmnop"));
+        assert!(!is_str_bidi("abcdefghijklmnop\u{03B1}abcdefghijklmnop"));
+        assert!(!is_str_bidi("abcdefghijklmnop\u{3041}abcdefghijklmnop"));
+        assert!(!is_str_bidi("abcdefghijklmnop\u{1F4A9}abcdefghijklmnop"));
+        assert!(!is_str_bidi("abcdefghijklmnop\u{FE00}abcdefghijklmnop"));
+        assert!(!is_str_bidi("abcdefghijklmnop\u{202C}abcdefghijklmnop"));
+        assert!(is_str_bidi("abcdefghijklmnop\u{0590}abcdefghijklmnop"));
+        assert!(is_str_bidi("abcdefghijklmnop\u{08FF}abcdefghijklmnop"));
+        assert!(is_str_bidi("abcdefghijklmnop\u{061C}abcdefghijklmnop"));
+        assert!(is_str_bidi("abcdefghijklmnop\u{FB50}abcdefghijklmnop"));
+        assert!(is_str_bidi("abcdefghijklmnop\u{FDFF}abcdefghijklmnop"));
+        assert!(is_str_bidi("abcdefghijklmnop\u{FE70}abcdefghijklmnop"));
+        assert!(is_str_bidi("abcdefghijklmnop\u{FEFF}abcdefghijklmnop"));
+        assert!(is_str_bidi("abcdefghijklmnop\u{200F}abcdefghijklmnop"));
+        assert!(is_str_bidi("abcdefghijklmnop\u{202B}abcdefghijklmnop"));
+        assert!(is_str_bidi("abcdefghijklmnop\u{202E}abcdefghijklmnop"));
+        assert!(is_str_bidi("abcdefghijklmnop\u{2067}abcdefghijklmnop"));
+        assert!(is_str_bidi("abcdefghijklmnop\u{10800}abcdefghijklmnop"));
+        assert!(is_str_bidi("abcdefghijklmnop\u{10FFF}abcdefghijklmnop"));
+        assert!(is_str_bidi("abcdefghijklmnop\u{1E800}abcdefghijklmnop"));
+        assert!(is_str_bidi("abcdefghijklmnop\u{1EFFF}abcdefghijklmnop"));
+    }
+
+    #[test]
+    fn test_is_utf8_bidi() {
+        assert!(!is_utf8_bidi("abcdefghijklmnopaabcdefghijklmnop".as_bytes()));
+        assert!(!is_utf8_bidi("abcdefghijklmnop\u{03B1}abcdefghijklmnop".as_bytes()));
+        assert!(!is_utf8_bidi("abcdefghijklmnop\u{3041}abcdefghijklmnop".as_bytes()));
+        assert!(!is_utf8_bidi("abcdefghijklmnop\u{1F4A9}abcdefghijklmnop".as_bytes()));
+        assert!(!is_utf8_bidi("abcdefghijklmnop\u{FE00}abcdefghijklmnop".as_bytes()));
+        assert!(!is_utf8_bidi("abcdefghijklmnop\u{202C}abcdefghijklmnop".as_bytes()));
+        assert!(is_utf8_bidi("abcdefghijklmnop\u{0590}abcdefghijklmnop".as_bytes()));
+        assert!(is_utf8_bidi("abcdefghijklmnop\u{08FF}abcdefghijklmnop".as_bytes()));
+        assert!(is_utf8_bidi("abcdefghijklmnop\u{061C}abcdefghijklmnop".as_bytes()));
+        assert!(is_utf8_bidi("abcdefghijklmnop\u{FB50}abcdefghijklmnop".as_bytes()));
+        assert!(is_utf8_bidi("abcdefghijklmnop\u{FDFF}abcdefghijklmnop".as_bytes()));
+        assert!(is_utf8_bidi("abcdefghijklmnop\u{FE70}abcdefghijklmnop".as_bytes()));
+        assert!(is_utf8_bidi("abcdefghijklmnop\u{FEFF}abcdefghijklmnop".as_bytes()));
+        assert!(is_utf8_bidi("abcdefghijklmnop\u{200F}abcdefghijklmnop".as_bytes()));
+        assert!(is_utf8_bidi("abcdefghijklmnop\u{202B}abcdefghijklmnop".as_bytes()));
+        assert!(is_utf8_bidi("abcdefghijklmnop\u{202E}abcdefghijklmnop".as_bytes()));
+        assert!(is_utf8_bidi("abcdefghijklmnop\u{2067}abcdefghijklmnop".as_bytes()));
+        assert!(is_utf8_bidi("abcdefghijklmnop\u{10800}abcdefghijklmnop".as_bytes()));
+        assert!(is_utf8_bidi("abcdefghijklmnop\u{10FFF}abcdefghijklmnop".as_bytes()));
+        assert!(is_utf8_bidi("abcdefghijklmnop\u{1E800}abcdefghijklmnop".as_bytes()));
+        assert!(is_utf8_bidi("abcdefghijklmnop\u{1EFFF}abcdefghijklmnop".as_bytes()));
+    }
+
+    #[test]
+    fn test_is_utf16_bidi() {
+        assert!(!is_utf16_bidi(&[0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69, 0x0062, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69]));
+        assert!(!is_utf16_bidi(&[0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69, 0x03B1, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69]));
+        assert!(!is_utf16_bidi(&[0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69, 0x3041, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69]));
+        assert!(!is_utf16_bidi(&[0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69, 0xD801, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69]));
+        assert!(!is_utf16_bidi(&[0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69, 0xFE00, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69]));
+        assert!(!is_utf16_bidi(&[0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69, 0x202C, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69]));
+        assert!(is_utf16_bidi(&[0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69, 0x0590, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69]));
+        assert!(is_utf16_bidi(&[0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69, 0x08FF, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69]));
+        assert!(is_utf16_bidi(&[0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69, 0x061C, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69]));
+        assert!(is_utf16_bidi(&[0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69, 0xFB50, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69]));
+        assert!(is_utf16_bidi(&[0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69, 0xFDFF, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69]));
+        assert!(is_utf16_bidi(&[0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69, 0xFE70, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69]));
+        assert!(is_utf16_bidi(&[0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69, 0xFEFF, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69]));
+        assert!(is_utf16_bidi(&[0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69, 0x200F, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69]));
+        assert!(is_utf16_bidi(&[0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69, 0x202B, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69]));
+        assert!(is_utf16_bidi(&[0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69, 0x202E, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69]));
+        assert!(is_utf16_bidi(&[0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69, 0x2067, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69]));
+        assert!(is_utf16_bidi(&[0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69, 0xD802, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69]));
+        assert!(is_utf16_bidi(&[0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69, 0xD803, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69]));
+        assert!(is_utf16_bidi(&[0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69, 0xD83A, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69]));
+        assert!(is_utf16_bidi(&[0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69, 0xD83B, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69]));
+
+        assert!(is_utf16_bidi(&[0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69, 0x0590, 0x3041, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69]));
+    }
+
+    #[test]
+    fn test_check_str_for_latin1_and_bidi() {
+        assert_ne!(check_str_for_latin1_and_bidi("abcdefghijklmnopaabcdefghijklmnop"), Latin1Bidi::Bidi);
+        assert_ne!(check_str_for_latin1_and_bidi("abcdefghijklmnop\u{03B1}abcdefghijklmnop"), Latin1Bidi::Bidi);
+        assert_ne!(check_str_for_latin1_and_bidi("abcdefghijklmnop\u{3041}abcdefghijklmnop"), Latin1Bidi::Bidi);
+        assert_ne!(check_str_for_latin1_and_bidi("abcdefghijklmnop\u{1F4A9}abcdefghijklmnop"), Latin1Bidi::Bidi);
+        assert_ne!(check_str_for_latin1_and_bidi("abcdefghijklmnop\u{FE00}abcdefghijklmnop"), Latin1Bidi::Bidi);
+        assert_ne!(check_str_for_latin1_and_bidi("abcdefghijklmnop\u{202C}abcdefghijklmnop"), Latin1Bidi::Bidi);
+        assert_eq!(check_str_for_latin1_and_bidi("abcdefghijklmnop\u{0590}abcdefghijklmnop"), Latin1Bidi::Bidi);
+        assert_eq!(check_str_for_latin1_and_bidi("abcdefghijklmnop\u{08FF}abcdefghijklmnop"), Latin1Bidi::Bidi);
+        assert_eq!(check_str_for_latin1_and_bidi("abcdefghijklmnop\u{061C}abcdefghijklmnop"), Latin1Bidi::Bidi);
+        assert_eq!(check_str_for_latin1_and_bidi("abcdefghijklmnop\u{FB50}abcdefghijklmnop"), Latin1Bidi::Bidi);
+        assert_eq!(check_str_for_latin1_and_bidi("abcdefghijklmnop\u{FDFF}abcdefghijklmnop"), Latin1Bidi::Bidi);
+        assert_eq!(check_str_for_latin1_and_bidi("abcdefghijklmnop\u{FE70}abcdefghijklmnop"), Latin1Bidi::Bidi);
+        assert_eq!(check_str_for_latin1_and_bidi("abcdefghijklmnop\u{FEFF}abcdefghijklmnop"), Latin1Bidi::Bidi);
+        assert_eq!(check_str_for_latin1_and_bidi("abcdefghijklmnop\u{200F}abcdefghijklmnop"), Latin1Bidi::Bidi);
+        assert_eq!(check_str_for_latin1_and_bidi("abcdefghijklmnop\u{202B}abcdefghijklmnop"), Latin1Bidi::Bidi);
+        assert_eq!(check_str_for_latin1_and_bidi("abcdefghijklmnop\u{202E}abcdefghijklmnop"), Latin1Bidi::Bidi);
+        assert_eq!(check_str_for_latin1_and_bidi("abcdefghijklmnop\u{2067}abcdefghijklmnop"), Latin1Bidi::Bidi);
+        assert_eq!(check_str_for_latin1_and_bidi("abcdefghijklmnop\u{10800}abcdefghijklmnop"), Latin1Bidi::Bidi);
+        assert_eq!(check_str_for_latin1_and_bidi("abcdefghijklmnop\u{10FFF}abcdefghijklmnop"), Latin1Bidi::Bidi);
+        assert_eq!(check_str_for_latin1_and_bidi("abcdefghijklmnop\u{1E800}abcdefghijklmnop"), Latin1Bidi::Bidi);
+        assert_eq!(check_str_for_latin1_and_bidi("abcdefghijklmnop\u{1EFFF}abcdefghijklmnop"), Latin1Bidi::Bidi);
+    }
+
+    #[test]
+    fn test_check_utf8_for_latin1_and_bidi() {
+        assert_ne!(check_utf8_for_latin1_and_bidi("abcdefghijklmnopaabcdefghijklmnop".as_bytes()), Latin1Bidi::Bidi);
+        assert_ne!(check_utf8_for_latin1_and_bidi("abcdefghijklmnop\u{03B1}abcdefghijklmnop".as_bytes()), Latin1Bidi::Bidi);
+        assert_ne!(check_utf8_for_latin1_and_bidi("abcdefghijklmnop\u{3041}abcdefghijklmnop".as_bytes()), Latin1Bidi::Bidi);
+        assert_ne!(check_utf8_for_latin1_and_bidi("abcdefghijklmnop\u{1F4A9}abcdefghijklmnop".as_bytes()), Latin1Bidi::Bidi);
+        assert_ne!(check_utf8_for_latin1_and_bidi("abcdefghijklmnop\u{FE00}abcdefghijklmnop".as_bytes()), Latin1Bidi::Bidi);
+        assert_ne!(check_utf8_for_latin1_and_bidi("abcdefghijklmnop\u{202C}abcdefghijklmnop".as_bytes()), Latin1Bidi::Bidi);
+        assert_eq!(check_utf8_for_latin1_and_bidi("abcdefghijklmnop\u{0590}abcdefghijklmnop".as_bytes()), Latin1Bidi::Bidi);
+        assert_eq!(check_utf8_for_latin1_and_bidi("abcdefghijklmnop\u{08FF}abcdefghijklmnop".as_bytes()), Latin1Bidi::Bidi);
+        assert_eq!(check_utf8_for_latin1_and_bidi("abcdefghijklmnop\u{061C}abcdefghijklmnop".as_bytes()), Latin1Bidi::Bidi);
+        assert_eq!(check_utf8_for_latin1_and_bidi("abcdefghijklmnop\u{FB50}abcdefghijklmnop".as_bytes()), Latin1Bidi::Bidi);
+        assert_eq!(check_utf8_for_latin1_and_bidi("abcdefghijklmnop\u{FDFF}abcdefghijklmnop".as_bytes()), Latin1Bidi::Bidi);
+        assert_eq!(check_utf8_for_latin1_and_bidi("abcdefghijklmnop\u{FE70}abcdefghijklmnop".as_bytes()), Latin1Bidi::Bidi);
+        assert_eq!(check_utf8_for_latin1_and_bidi("abcdefghijklmnop\u{FEFF}abcdefghijklmnop".as_bytes()), Latin1Bidi::Bidi);
+        assert_eq!(check_utf8_for_latin1_and_bidi("abcdefghijklmnop\u{200F}abcdefghijklmnop".as_bytes()), Latin1Bidi::Bidi);
+        assert_eq!(check_utf8_for_latin1_and_bidi("abcdefghijklmnop\u{202B}abcdefghijklmnop".as_bytes()), Latin1Bidi::Bidi);
+        assert_eq!(check_utf8_for_latin1_and_bidi("abcdefghijklmnop\u{202E}abcdefghijklmnop".as_bytes()), Latin1Bidi::Bidi);
+        assert_eq!(check_utf8_for_latin1_and_bidi("abcdefghijklmnop\u{2067}abcdefghijklmnop".as_bytes()), Latin1Bidi::Bidi);
+        assert_eq!(check_utf8_for_latin1_and_bidi("abcdefghijklmnop\u{10800}abcdefghijklmnop".as_bytes()), Latin1Bidi::Bidi);
+        assert_eq!(check_utf8_for_latin1_and_bidi("abcdefghijklmnop\u{10FFF}abcdefghijklmnop".as_bytes()), Latin1Bidi::Bidi);
+        assert_eq!(check_utf8_for_latin1_and_bidi("abcdefghijklmnop\u{1E800}abcdefghijklmnop".as_bytes()), Latin1Bidi::Bidi);
+        assert_eq!(check_utf8_for_latin1_and_bidi("abcdefghijklmnop\u{1EFFF}abcdefghijklmnop".as_bytes()), Latin1Bidi::Bidi);
+    }
+
+    #[test]
+    fn test_check_utf16_for_latin1_and_bidi() {
+        assert_ne!(check_utf16_for_latin1_and_bidi(&[0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69, 0x0062, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69]), Latin1Bidi::Bidi);
+        assert_ne!(check_utf16_for_latin1_and_bidi(&[0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69, 0x03B1, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69]), Latin1Bidi::Bidi);
+        assert_ne!(check_utf16_for_latin1_and_bidi(&[0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69, 0x3041, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69]), Latin1Bidi::Bidi);
+        assert_ne!(check_utf16_for_latin1_and_bidi(&[0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69, 0xD801, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69]), Latin1Bidi::Bidi);
+        assert_ne!(check_utf16_for_latin1_and_bidi(&[0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69, 0xFE00, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69]), Latin1Bidi::Bidi);
+        assert_ne!(check_utf16_for_latin1_and_bidi(&[0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69, 0x202C, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69]), Latin1Bidi::Bidi);
+        assert_eq!(check_utf16_for_latin1_and_bidi(&[0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69, 0x0590, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69]), Latin1Bidi::Bidi);
+        assert_eq!(check_utf16_for_latin1_and_bidi(&[0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69, 0x08FF, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69]), Latin1Bidi::Bidi);
+        assert_eq!(check_utf16_for_latin1_and_bidi(&[0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69, 0x061C, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69]), Latin1Bidi::Bidi);
+        assert_eq!(check_utf16_for_latin1_and_bidi(&[0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69, 0xFB50, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69]), Latin1Bidi::Bidi);
+        assert_eq!(check_utf16_for_latin1_and_bidi(&[0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69, 0xFDFF, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69]), Latin1Bidi::Bidi);
+        assert_eq!(check_utf16_for_latin1_and_bidi(&[0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69, 0xFE70, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69]), Latin1Bidi::Bidi);
+        assert_eq!(check_utf16_for_latin1_and_bidi(&[0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69, 0xFEFF, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69]), Latin1Bidi::Bidi);
+        assert_eq!(check_utf16_for_latin1_and_bidi(&[0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69, 0x200F, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69]), Latin1Bidi::Bidi);
+        assert_eq!(check_utf16_for_latin1_and_bidi(&[0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69, 0x202B, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69]), Latin1Bidi::Bidi);
+        assert_eq!(check_utf16_for_latin1_and_bidi(&[0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69, 0x202E, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69]), Latin1Bidi::Bidi);
+        assert_eq!(check_utf16_for_latin1_and_bidi(&[0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69, 0x2067, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69]), Latin1Bidi::Bidi);
+        assert_eq!(check_utf16_for_latin1_and_bidi(&[0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69, 0xD802, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69]), Latin1Bidi::Bidi);
+        assert_eq!(check_utf16_for_latin1_and_bidi(&[0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69, 0xD803, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69]), Latin1Bidi::Bidi);
+        assert_eq!(check_utf16_for_latin1_and_bidi(&[0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69, 0xD83A, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69]), Latin1Bidi::Bidi);
+        assert_eq!(check_utf16_for_latin1_and_bidi(&[0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69, 0xD83B, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69]), Latin1Bidi::Bidi);
+
+        assert_eq!(check_utf16_for_latin1_and_bidi(&[0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69, 0x0590, 0x3041, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69]), Latin1Bidi::Bidi);
+    }
 }
