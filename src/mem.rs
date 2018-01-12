@@ -21,6 +21,10 @@
 
 use ascii::*;
 use super::in_inclusive_range8;
+use super::in_inclusive_range16;
+use super::in_range16;
+use super::in_inclusive_range32;
+use super::in_range32;
 use super::DecoderResult;
 use super::EncoderResult;
 use utf_8::Utf8Decoder;
@@ -479,13 +483,41 @@ pub fn is_char_bidi(c: char) -> bool {
     // https://www.unicode.org/roadmaps/smp/
     // U+10800...U+10FFF (Lead surrogate U+D802 or U+D803)
     // U+1E800...U+1EFFF (Lead surrogate U+D83A or U+D83B)
-    match c {
-        '\u{0590}'...'\u{08FF}' | '\u{FB50}'...'\u{FDFF}' |
-        '\u{FE70}'...'\u{FEFF}' | '\u{10800}'...'\u{10FFF}' |
-        '\u{1E800}'...'\u{1EFFF}' | '\u{200F}' | '\u{202B}' |
-        '\u{202E}' | '\u{2067}' => true,
-        _ => false,
+    let code_point = c as u32;
+    if code_point < 0x0590 {
+        // Below Hebrew
+        return false;
     }
+    if in_range32(code_point, 0x0900, 0xFB50) {
+        // Above Arabic Extended-A and below Arabic Presentation Forms
+        if in_inclusive_range32(code_point, 0x200F, 0x2067) {
+            // In the range that contains the RTL controls
+            if code_point == 0x200F || code_point == 0x202B || code_point == 0x202E || code_point == 0x2067 {
+                return true;
+            }
+        }
+        return false;
+    }
+    // Subdivide search space
+    if code_point <= 0xFFFF {
+        if in_inclusive_range32(code_point, 0x0590, 0x08FF) {
+            return true;
+        }
+        if in_inclusive_range32(code_point, 0xFB50, 0xFDFF) {
+            return true;
+        }
+        if in_inclusive_range32(code_point, 0xFE70, 0xFEFF) {
+            return true;
+        }
+        return false;
+    }
+    if in_inclusive_range32(code_point, 0x10800, 0x10FFF) {
+        return true;
+    }
+    if in_inclusive_range32(code_point, 0x1E800, 0x1EFFF) {
+        return true;
+    }
+    false
 }
 
 /// Checks whether a UTF-16 code unit triggers right-to-left processing.
@@ -505,12 +537,38 @@ pub fn is_char_bidi(c: char) -> bool {
 /// even if actually unpaired.
 #[inline(always)]
 pub fn is_utf16_code_unit_bidi(u: u16) -> bool {
-    match u {
-        0x0590...0x08FF | 0xFB50...0xFDFF |
-        0xFE70...0xFEFF | 0xD802 | 0xD803 | 0xD83A | 0xD83B |
-        0x200F | 0x202B | 0x202E | 0x2067 => true,
-        _ => false,
+    if u < 0x0590 {
+        // Below Hebrew
+        return false;
     }
+    if in_range16(u, 0x0900, 0xD802) {
+        // Above Arabic Extended-A and below first RTL suggate
+        if in_inclusive_range16(u, 0x200F, 0x2067) {
+            // In the range that contains the RTL controls
+            if u == 0x200F || u == 0x202B || u == 0x202E || u == 0x2067 {
+                return true;
+            }
+        }
+        return false;
+    }
+    // Subdivide search space
+    if u < 0xFB50 {
+        if in_inclusive_range16(u, 0x0590, 0x08FF) {
+            return true;
+        }
+        let high_bits = u & 0xFFFE;
+        if high_bits == 0xD802 || high_bits == 0xD83A {
+            return true;
+        }
+        return false;
+    }
+    if in_inclusive_range16(u, 0xFB50, 0xFDFF) {
+        return true;
+    }
+    if in_inclusive_range16(u, 0xFE70, 0xFEFF) {
+        return true;
+    }
+    false
 }
 
 /// Checks whether a potentially invalid UTF-8 buffer contains code points
