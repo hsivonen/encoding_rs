@@ -73,7 +73,7 @@ macro_rules! by_unit_check_alu {
                                        ALIGNMENT_MASK) / unit_size;
             if until_alignment + ALIGNMENT / unit_size <= len {
                 if until_alignment != 0 {
-                    // XXX are the two lines below a bug?
+                    accu |= buffer[offset] as usize;
                     offset += 1;
                     until_alignment -= 1;
                     while until_alignment != 0 {
@@ -140,7 +140,7 @@ macro_rules! by_unit_check_simd {
                                        SIMD_ALIGNMENT_MASK) / unit_size;
             if until_alignment + STRIDE_SIZE / unit_size <= len {
                 if until_alignment != 0 {
-                    // XXX are the two lines below a bug?
+                    accu |= buffer[offset] as usize;
                     offset += 1;
                     until_alignment -= 1;
                     while until_alignment != 0 {
