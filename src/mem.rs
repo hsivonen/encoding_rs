@@ -490,7 +490,6 @@ pub fn is_char_bidi(c: char) -> bool {
     }
     if in_range32(code_point, 0x0900, 0xFB50) {
         // Above Arabic Extended-A and below Arabic Presentation Forms
-        // TODO rearrange
         if in_inclusive_range32(code_point, 0x200F, 0x2067) {
             // In the range that contains the RTL controls
             return code_point == 0x200F || code_point == 0x202B || code_point == 0x202E || code_point == 0x2067;
@@ -539,8 +538,7 @@ pub fn is_utf16_code_unit_bidi(u: u16) -> bool {
         return false;
     }
     if in_range16(u, 0x0900, 0xD802) {
-        // Above Arabic Extended-A and below first RTL suggate
-        // TODO rearrange
+        // Above Arabic Extended-A and below first RTL surrogate
         if in_inclusive_range16(u, 0x200F, 0x2067) {
             // In the range that contains the RTL controls
             return u == 0x200F || u == 0x202B || u == 0x202E || u == 0x2067;
