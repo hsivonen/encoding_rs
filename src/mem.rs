@@ -73,6 +73,7 @@ macro_rules! by_unit_check_alu {
                                        ALIGNMENT_MASK) / unit_size;
             if until_alignment + ALIGNMENT / unit_size <= len {
                 if until_alignment != 0 {
+                    // XXX are the two lines below a bug?
                     offset += 1;
                     until_alignment -= 1;
                     while until_alignment != 0 {
@@ -139,6 +140,7 @@ macro_rules! by_unit_check_simd {
                                        SIMD_ALIGNMENT_MASK) / unit_size;
             if until_alignment + STRIDE_SIZE / unit_size <= len {
                 if until_alignment != 0 {
+                    // XXX are the two lines below a bug?
                     offset += 1;
                     until_alignment -= 1;
                     while until_alignment != 0 {
@@ -327,16 +329,12 @@ cfg_if!{
                 let mut until_alignment = (SIMD_ALIGNMENT - ((src as usize) & SIMD_ALIGNMENT_MASK)) &
                                            SIMD_ALIGNMENT_MASK;
                 if until_alignment + STRIDE_SIZE <= len {
-                    if until_alignment != 0 {
+                    while until_alignment != 0 {
+                        if bytes[offset] > 0xC3 {
+                            return false;
+                        }
                         offset += 1;
                         until_alignment -= 1;
-                        while until_alignment != 0 {
-                            if bytes[offset] > 0xC3 {
-                                return false;
-                            }
-                            offset += 1;
-                            until_alignment -= 1;
-                        }
                     }
                     let len_minus_stride = len - STRIDE_SIZE;
                     loop {
