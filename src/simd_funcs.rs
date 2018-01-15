@@ -169,8 +169,11 @@ cfg_if! {
 
         #[inline(always)]
         pub fn simd_is_latin1(s: u16x8) -> bool {
-            let above_latin1 = u16x8::splat(0x100);
-            s.lt(above_latin1).all()
+            // For some reason, on SSE2 this formulation
+            // seems faster in this case while the above
+            // function is better the other way round...
+            let highest_latin1 = u16x8::splat(0xFF);
+            !s.gt(highest_latin1).any()
         }
     }
 }
