@@ -472,12 +472,132 @@ pub fn is_utf8_bidi(buffer: &[u8]) -> bool {
 /// or right-to-left controls are not checked for.
 #[inline]
 pub fn is_str_bidi(buffer: &str) -> bool {
-    for c in buffer.chars() {
-        if is_char_bidi(c) {
-            return true;
+    // U+058F: D6 8F
+    // U+0590: D6 90
+    // U+08FF: E0 A3 BF
+    // U+0900: E0 A4 80
+    //
+    // U+200F: E2 80 8F
+    // U+202B: E2 80 AB
+    // U+202E: E2 80 AE
+    // U+2067: E2 81 A7
+    //
+    // U+FB4F: EF AD 8F
+    // U+FB50: EF AD 90
+    // U+FDFF: EF B7 BF
+    // U+FE00: EF B8 80
+    //
+    // U+FE6F: EF B9 AF
+    // U+FE70: EF B9 B0
+    // U+FEFF: EF BB BF
+    // U+FF00: EF BC 80
+    //
+    // U+107FF: F0 90 9F BF
+    // U+10800: F0 90 A0 80
+    // U+10FFF: F0 90 BF BF
+    // U+11000: F0 91 80 80
+    //
+    // U+1E7FF: F0 9E 9F BF
+    // U+1E800: F0 9E A0 80
+    // U+1EFFF: F0 9E BF BF
+    // U+1F000: F0 9F 80 80
+    let mut bytes = buffer.as_bytes();
+    'outer: loop {
+        if let Some((mut byte, mut read)) = validate_ascii(bytes) {
+            'inner: loop {
+                // At this point, `byte` is not included in `read`.
+                if byte < 0xE0 {
+                    if byte >= 0x80 {
+                        // Two-byte
+                        if byte >= 0xD6 {
+                            if byte == 0xD6 {
+                                let second = bytes[read + 1];
+                                if second > 0x8F {
+                                    return true;
+                                }
+                            } else {
+                                return true;
+                            }
+                        }
+                        read += 2;
+                    } else {
+                        // ASCII: write and go back to SIMD.
+                        read += 1;
+                        // Intuitively, we should go back to the outer loop only
+                        // if byte is 0x30 or above, so as to avoid trashing on
+                        // ASCII space, comma and period in non-Latin context.
+                        // However, the extra branch seems to cost more than it's
+                        // worth.
+                        bytes = &bytes[read..];
+                        continue 'outer;
+                    }
+                } else if byte < 0xF0 {
+                    // Three-byte
+                    if !in_inclusive_range8(byte, 0xE3, 0xEE) && byte != 0xE1 {
+                        let second = bytes[read + 1];
+                        if byte == 0xE0 {
+                            if second < 0xA4 {
+                                return true;
+                            }
+                        } else if byte == 0xE2 {
+                            let third = bytes[read + 2];
+                            if second == 0x80 {
+                                if third == 0x8F || third == 0xAB || third == 0xAE {
+                                    return true;
+                                }
+                            } else if second == 0x81 {
+                                if third == 0xA7 {
+                                    return true;
+                                }
+                            }
+                        } else {
+                            debug_assert_eq!(byte, 0xEF);
+                            if in_inclusive_range8(second, 0xAD, 0xB7) {
+                                if second == 0xAD {
+                                    let third = bytes[read + 2];
+                                    if third > 0x8F {
+                                        return true;
+                                    }
+                                } else {
+                                    return true;
+                                }
+                            } else if in_inclusive_range8(second, 0xB9, 0xBB) {
+                                if second == 0xB9 {
+                                    let third = bytes[read + 2];
+                                    if third > 0xAF {
+                                        return true;
+                                    }
+                                } else {
+                                    return true;
+                                }
+                            }
+                        }
+                    }
+                    read += 3;
+                } else {
+                    // Four-byte
+                    let second = bytes[read + 1];
+                    if second == 0x90 || second == 0x9E {
+                        let third = bytes[read + 2];
+                        if third >= 0xA0 {
+                            return true;
+                        }
+                    }
+                    read += 4;
+                }
+                // The comparison is always < or == and never >, but including
+                // > here to let the compiler assume that < is true if this
+                // comparison is false.
+                if read >= bytes.len() {
+                    return false;
+                }
+                byte = bytes[read];
+                continue 'inner;
+            }
+        } else {
+            return false;
         }
     }
-    false
 }
 
 /// Checks whether a UTF-16 buffer contains code points that trigger
