@@ -490,34 +490,31 @@ pub fn is_char_bidi(c: char) -> bool {
     }
     if in_range32(code_point, 0x0900, 0xFB50) {
         // Above Arabic Extended-A and below Arabic Presentation Forms
+        // TODO rearrange
         if in_inclusive_range32(code_point, 0x200F, 0x2067) {
             // In the range that contains the RTL controls
-            if code_point == 0x200F || code_point == 0x202B || code_point == 0x202E || code_point == 0x2067 {
-                return true;
-            }
+            return code_point == 0x200F || code_point == 0x202B || code_point == 0x202E || code_point == 0x2067;
         }
         return false;
     }
-    // Subdivide search space
-    if code_point <= 0xFFFF {
-        if in_inclusive_range32(code_point, 0x0590, 0x08FF) {
-            return true;
-        }
-        if in_inclusive_range32(code_point, 0xFB50, 0xFDFF) {
-            return true;
-        }
-        if in_inclusive_range32(code_point, 0xFE70, 0xFEFF) {
-            return true;
-        }
+    if code_point > 0x1EFFF {
+        // Above second astral RTL. (Emoji is here.)
         return false;
     }
-    if in_inclusive_range32(code_point, 0x10800, 0x10FFF) {
-        return true;
+    if in_range32(code_point, 0x11000, 0x1E800) {
+        // Between astral RTL blocks
+        return false;
     }
-    if in_inclusive_range32(code_point, 0x1E800, 0x1EFFF) {
-        return true;
+    if in_range32(code_point, 0xFF00, 0x10800) {
+        // Above Arabic Presentations Forms B and below first
+        // astral RTL
+        return false;
     }
-    false
+    if in_range32(code_point, 0xFE00, 0xFE70) {
+        // Between Arabic Presentations Forms
+        return false;
+    }
+    true
 }
 
 /// Checks whether a UTF-16 code unit triggers right-to-left processing.
@@ -543,32 +540,31 @@ pub fn is_utf16_code_unit_bidi(u: u16) -> bool {
     }
     if in_range16(u, 0x0900, 0xD802) {
         // Above Arabic Extended-A and below first RTL suggate
+        // TODO rearrange
         if in_inclusive_range16(u, 0x200F, 0x2067) {
             // In the range that contains the RTL controls
-            if u == 0x200F || u == 0x202B || u == 0x202E || u == 0x2067 {
-                return true;
-            }
+            return u == 0x200F || u == 0x202B || u == 0x202E || u == 0x2067;
         }
         return false;
     }
-    // Subdivide search space
-    if u < 0xFB50 {
-        if in_inclusive_range16(u, 0x0590, 0x08FF) {
-            return true;
-        }
-        let high_bits = u & 0xFFFE;
-        if high_bits == 0xD802 || high_bits == 0xD83A {
-            return true;
-        }
+    if in_range16(u, 0xD83C, 0xFB50) {
+        // Between astral RTL high surrogates and Arabic Presentation Forms
+        // (Emoji is here)
         return false;
     }
-    if in_inclusive_range16(u, 0xFB50, 0xFDFF) {
-        return true;
+    if in_range16(u, 0xD804, 0xD83A) {
+        // Between RTL high surragates
+        return false;
     }
-    if in_inclusive_range16(u, 0xFE70, 0xFEFF) {
-        return true;
+    if u > 0xFEFF {
+        // Above Arabic Presentation Forms
+        return false;
     }
-    false
+    if in_range16(u, 0xFE00, 0xFE70) {
+        // Between Arabic Presentations Forms
+        return false;
+    }
+    true
 }
 
 /// Checks whether a potentially invalid UTF-8 buffer contains code points
@@ -1627,5 +1623,47 @@ mod tests {
         assert_eq!(check_utf16_for_latin1_and_bidi(&[0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69, 0xD83B, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69]), Latin1Bidi::Bidi);
 
         assert_eq!(check_utf16_for_latin1_and_bidi(&[0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69, 0x0590, 0x3041, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69]), Latin1Bidi::Bidi);
+    }
+
+    #[inline(always)]
+    pub fn reference_is_char_bidi(c: char) -> bool {
+        match c {
+            '\u{0590}'...'\u{08FF}' | '\u{FB50}'...'\u{FDFF}' |
+            '\u{FE70}'...'\u{FEFF}' | '\u{10800}'...'\u{10FFF}' |
+            '\u{1E800}'...'\u{1EFFF}' | '\u{200F}' | '\u{202B}' |
+            '\u{202E}' | '\u{2067}' => true,
+            _ => false,
+        }
+    }
+
+    #[inline(always)]
+    pub fn reference_is_utf16_code_unit_bidi(u: u16) -> bool {
+        match u {
+            0x0590...0x08FF | 0xFB50...0xFDFF |
+            0xFE70...0xFEFF | 0xD802 | 0xD803 | 0xD83A | 0xD83B |
+            0x200F | 0x202B | 0x202E | 0x2067 => true,
+            _ => false,
+        }
+    }
+
+    #[test]
+    fn test_is_char_bidi_thoroughly() {
+        for i in 0..0xD800u32 {
+            let c: char = unsafe { ::std::mem::transmute(i) };
+            assert_eq!(is_char_bidi(c), reference_is_char_bidi(c));
+        }
+        // Test just BMP and SMP
+        for i in 0xE000..0x20000u32 {
+            let c: char = unsafe { ::std::mem::transmute(i) };
+            assert_eq!(is_char_bidi(c), reference_is_char_bidi(c));
+        }
+    }
+
+    #[test]
+    fn test_is_utf16_code_unit_bidi_thoroughly() {
+        for i in 0..0x10000u32 {
+            let u = i as u16;
+            assert_eq!(is_utf16_code_unit_bidi(u), reference_is_utf16_code_unit_bidi(u));
+        }
     }
 }
