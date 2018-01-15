@@ -1846,4 +1846,20 @@ mod tests {
             assert_eq!(is_utf16_code_unit_bidi(u), reference_is_utf16_code_unit_bidi(u));
         }
     }
+
+    #[test]
+    fn test_is_str_bidi_thoroughly() {
+        let mut buf = [0; 4];
+        for i in 0..0xD800u32 {
+            let c: char = unsafe { ::std::mem::transmute(i) };
+            assert_eq!(is_str_bidi(c.encode_utf8(&mut buf[..])), reference_is_char_bidi(c));
+        }
+        // Test just BMP and SMP
+        for i in 0xE000..0x20000u32 {
+            let c: char = unsafe { ::std::mem::transmute(i) };
+            assert_eq!(is_str_bidi(c.encode_utf8(&mut buf[..])), reference_is_char_bidi(c));
+        }
+    }
+
+
 }
