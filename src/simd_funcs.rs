@@ -109,8 +109,34 @@ cfg_if! {
     } else {
         #[inline(always)]
         pub fn simd_is_ascii(s: u8x16) -> bool {
-            let highest_ascii = u8x16::splat(0x7F);
-            !s.gt(highest_ascii).any()
+            let above_ascii = u8x16::splat(0x80);
+            s.lt(above_ascii).all()
+        }
+    }
+}
+
+cfg_if! {
+    if #[cfg(target_feature = "sse2")] {
+        #[inline(always)]
+        pub fn simd_is_str_latin1(s: u8x16) -> bool {
+            if simd_is_ascii(s) {
+                return true;
+            }
+            let above_str_latin1 = u8x16::splat(0xC4);
+            s.lt(above_str_latin1).all()
+        }
+    } else if #[cfg(target_arch = "aarch64")]{
+        #[inline(always)]
+        pub fn simd_is_str_latin1(s: u8x16) -> bool {
+            unsafe {
+                aarch64_vmaxvq_u8(s) < 0xC4
+            }
+        }
+    } else {
+        #[inline(always)]
+        pub fn simd_is_str_latin1(s: u8x16) -> bool {
+            let above_str_latin1 = u8x16::splat(0xC4);
+            s.lt(above_str_latin1).all()
         }
     }
 }
@@ -137,14 +163,14 @@ cfg_if! {
     } else {
         #[inline(always)]
         pub fn simd_is_basic_latin(s: u16x8) -> bool {
-            let highest_ascii = u16x8::splat(0x7F);
-            !s.gt(highest_ascii).any()
+            let above_ascii = u16x8::splat(0x80);
+            s.lt(above_ascii).all()
         }
 
         #[inline(always)]
         pub fn simd_is_latin1(s: u16x8) -> bool {
-            let highest_latin1 = u16x8::splat(0xFF);
-            !s.gt(highest_latin1).any()
+            let above_latin1 = u16x8::splat(0x100);
+            s.lt(above_latin1).all()
         }
     }
 }

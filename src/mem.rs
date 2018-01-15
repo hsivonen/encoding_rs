@@ -315,6 +315,66 @@ fn utf16_valid_up_to_alu(buffer: &[u16]) -> (usize, bool) {
     }
 }
 
+cfg_if!{
+    if #[cfg(all(feature = "simd-accel", any(target_feature = "sse2", all(target_endian = "little", target_arch = "aarch64"))))] {
+        #[inline(always)]
+        fn is_str_latin1_impl(buffer: &str) -> bool {
+            let mut offset = 0usize;
+            let bytes = buffer.as_bytes();
+            let len = bytes.len();
+            if len >= STRIDE_SIZE {
+                let src = bytes.as_ptr();
+                let mut until_alignment = (SIMD_ALIGNMENT - ((src as usize) & SIMD_ALIGNMENT_MASK)) &
+                                           SIMD_ALIGNMENT_MASK;
+                if until_alignment + STRIDE_SIZE <= len {
+                    if until_alignment != 0 {
+                        offset += 1;
+                        until_alignment -= 1;
+                        while until_alignment != 0 {
+                            if bytes[offset] > 0xC3 {
+                                return false;
+                            }
+                            offset += 1;
+                            until_alignment -= 1;
+                        }
+                    }
+                    let len_minus_stride = len - STRIDE_SIZE;
+                    loop {
+                        if !simd_is_str_latin1(unsafe { *(src.offset(offset as isize) as *const u8x16) }) {
+                            return false;
+                        }
+                        offset += STRIDE_SIZE;
+                        if offset > len_minus_stride {
+                            break;
+                        }
+                    }
+                }
+            }
+            for &byte in &bytes[offset..] {
+                if byte > 0xC3 {
+                    return false;
+                }
+            }
+            true
+        }
+    } else {
+        #[inline(always)]
+        fn is_str_latin1_impl(buffer: &str) -> bool {
+            let mut bytes = buffer.as_bytes();
+            loop {
+                if let Some((byte, offset)) = validate_ascii(bytes) {
+                    if byte > 0xC3 {
+                        return false;
+                    }
+                    bytes = &bytes[offset + 2..];
+                } else {
+                    return true;
+                }
+            }
+        }
+    }
+}
+
 /// Checks whether the buffer is all-ASCII.
 ///
 /// May read the entire buffer even if it isn't all-ASCII. (I.e. the function
@@ -369,17 +429,7 @@ pub fn is_utf8_latin1(buffer: &[u8]) -> bool {
 /// points above U+00FF are discovered.
 #[inline]
 pub fn is_str_latin1(buffer: &str) -> bool {
-    let mut bytes = buffer.as_bytes();
-    loop {
-        if let Some((byte, offset)) = validate_ascii(bytes) {
-            if byte > 0xC3 {
-                return false;
-            }
-            bytes = &bytes[offset + 2..];
-        } else {
-            return true;
-        }
-    }
+    is_str_latin1_impl(buffer)
 }
 
 /// Checks whether the buffer represents only code point less than or equal
