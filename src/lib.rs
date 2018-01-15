@@ -495,7 +495,7 @@
 //! </tbody>
 //! </table>
 
-#![cfg_attr(feature = "simd-accel", feature(cfg_target_feature, platform_intrinsics))]
+#![cfg_attr(feature = "simd-accel", feature(cfg_target_feature, platform_intrinsics, core_intrinsics))]
 
 #[macro_use]
 extern crate cfg_if;

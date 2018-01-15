@@ -30,6 +30,18 @@ use super::EncoderResult;
 use utf_8::Utf8Decoder;
 use utf_8::Utf8Encoder;
 
+cfg_if!{
+    if #[cfg(feature = "simd-accel")] {
+		use ::std::intrinsics::unlikely;
+	} else {
+		#[inline(always)]
+		// Unsafe to match the intrinsic, which is needlessly unsafe.
+		unsafe fn unlikely(b: bool) -> bool {
+			b
+		}
+	}
+}
+
 /// Classification of text as Latin1 (all code points are below U+0100),
 /// left-to-right with some non-Latin1 characters or as containing at least
 /// some right-to-left characters.
@@ -509,7 +521,9 @@ pub fn is_str_bidi(buffer: &str) -> bool {
                 if byte < 0xE0 {
                     if byte >= 0x80 {
                         // Two-byte
-                        if byte >= 0xD6 {
+                        // Adding `unlikely` here improved throughput on
+                        // Russian plain text by 33%!
+                        if unsafe { unlikely(byte >= 0xD6) } {
                             if byte == 0xD6 {
                                 let second = bytes[read + 1];
                                 if second > 0x8F {
@@ -533,7 +547,7 @@ pub fn is_str_bidi(buffer: &str) -> bool {
                     }
                 } else if byte < 0xF0 {
                     // Three-byte
-                    if !in_inclusive_range8(byte, 0xE3, 0xEE) && byte != 0xE1 {
+                    if unsafe { unlikely(!in_inclusive_range8(byte, 0xE3, 0xEE) && byte != 0xE1) } {
                         let second = bytes[read + 1];
                         if byte == 0xE0 {
                             if second < 0xA4 {
@@ -577,7 +591,7 @@ pub fn is_str_bidi(buffer: &str) -> bool {
                 } else {
                     // Four-byte
                     let second = bytes[read + 1];
-                    if second == 0x90 || second == 0x9E {
+                    if unsafe { unlikely(second == 0x90 || second == 0x9E) } {
                         let third = bytes[read + 2];
                         if third >= 0xA0 {
                             return true;
