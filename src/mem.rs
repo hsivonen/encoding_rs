@@ -466,6 +466,15 @@ pub fn is_utf16_latin1(buffer: &[u16]) -> bool {
 /// no RTL characters.
 #[inline]
 pub fn is_utf8_bidi(buffer: &[u8]) -> bool {
+    // As of rustc 1.25.0-nightly (73ac5d6a8 2018-01-11), this is faster
+    // than UTF-8 validation followed by `is_str_bidi()` for German,
+    // Russian and Japanese. However, this is considerably slower for Thai.
+    // Chances are that the compiler makes some branch predictions that are
+    // unfortunate for Thai. Not spending the time to manually optimize
+    // further at this time, since it's unclear if this variant even has
+    // use cases. However, this is worth revisiting once Rust gets the
+    // ability to annotate relative priorities of match arms.
+
     // U+058F: D6 8F
     // U+0590: D6 90
     // U+08FF: E0 A3 BF
