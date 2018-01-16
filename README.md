@@ -133,9 +133,9 @@ decode-optimized tables. With realistic work loads, this seemed fast enough
 not to be user-visibly slow on Raspberry Pi 3 (which stood in for a phone
 for testing) in the Web-exposed encoder use cases.
 
-A framework for measuring performance is [available separately][1].
+A framework for measuring performance is [available separately][2].
 
-[1]: https://github.com/hsivonen/encoding_bench/
+[2]: https://github.com/hsivonen/encoding_bench/
 
 ## Rust Version Compatibility
 
