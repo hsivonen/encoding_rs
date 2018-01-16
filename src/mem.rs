@@ -27,8 +27,7 @@ use super::in_inclusive_range32;
 use super::in_range32;
 use super::DecoderResult;
 use super::EncoderResult;
-use utf_8::Utf8Decoder;
-use utf_8::Utf8Encoder;
+use utf_8::*;
 
 cfg_if!{
     if #[cfg(feature = "simd-accel")] {
@@ -462,14 +461,385 @@ pub fn is_utf16_latin1(buffer: &[u16]) -> bool {
 /// right-to-left behavior without the presence of right-to-left characters
 /// or right-to-left controls are not checked for.
 ///
-/// If the input is invalid UTF-8, may return `true` even if replacing the
-/// errors with the REPLACEMENT CHARACTER and trying again would result in
-/// `false`.
+/// Returns `true` if the input is invalid UTF-8 or the input contains an
+/// RTL character. Returns `false` if the input is valid UTF-8 and contains
+/// no RTL characters.
 #[inline]
 pub fn is_utf8_bidi(buffer: &[u8]) -> bool {
-    match ::std::str::from_utf8(buffer) {
-        Err(_) => true,
-        Ok(s) => is_str_bidi(s),
+    // U+058F: D6 8F
+    // U+0590: D6 90
+    // U+08FF: E0 A3 BF
+    // U+0900: E0 A4 80
+    //
+    // U+200F: E2 80 8F
+    // U+202B: E2 80 AB
+    // U+202E: E2 80 AE
+    // U+2067: E2 81 A7
+    //
+    // U+FB4F: EF AD 8F
+    // U+FB50: EF AD 90
+    // U+FDFF: EF B7 BF
+    // U+FE00: EF B8 80
+    //
+    // U+FE6F: EF B9 AF
+    // U+FE70: EF B9 B0
+    // U+FEFF: EF BB BF
+    // U+FF00: EF BC 80
+    //
+    // U+107FF: F0 90 9F BF
+    // U+10800: F0 90 A0 80
+    // U+10FFF: F0 90 BF BF
+    // U+11000: F0 91 80 80
+    //
+    // U+1E7FF: F0 9E 9F BF
+    // U+1E800: F0 9E A0 80
+    // U+1EFFF: F0 9E BF BF
+    // U+1F000: F0 9F 80 80
+    let mut bytes = buffer;
+    'outer: loop {
+        if let Some((mut byte, mut read)) = validate_ascii(bytes) {
+            // Check for the longest sequence to avoid checking twice for the
+            // multi-byte sequences.
+            if read + 4 <= bytes.len() {
+                'inner: loop {
+                    // At this point, `byte` is not included in `read`.
+                    match byte {
+                        0...0x7F => {
+                            // ASCII: go back to SIMD.
+                            read += 1;
+                            bytes = &bytes[read..];
+                            continue 'outer;
+                        }
+                        0xC2...0xD5 => {
+                            // Two-byte
+                            let second = bytes[read + 1];
+                            if (UTF8_TRAIL_INVALID[second as usize] & UTF8_NORMAL_TRAIL) != 0 {
+                                return true;
+                            }
+                            read += 2;
+                        }
+                        0xD6 => {
+                            // Two-byte
+                            let second = bytes[read + 1];
+                            if (UTF8_TRAIL_INVALID[second as usize] & UTF8_NORMAL_TRAIL) != 0 {
+                                return true;
+                            }
+                            // XXX consider folding the above and below checks
+                            if second > 0x8F {
+                                return true;
+                            }
+                            read += 2;
+                        }
+                        // two-byte starting with 0xD7 and above is bidi
+                        0xE1 | 0xE3...0xEC | 0xEE => {
+                            // Three-byte normal
+                            let second = bytes[read + 1];
+                            let third = bytes[read + 2];
+                            if ((UTF8_TRAIL_INVALID[second as usize] & UTF8_NORMAL_TRAIL) |
+                                (UTF8_TRAIL_INVALID[third as usize] & UTF8_NORMAL_TRAIL)) !=
+                               0 {
+                                return true;
+                            }
+                            read += 3;
+                        }
+                        0xE2 => {
+                            // Three-byte normal, potentially bidi
+                            let second = bytes[read + 1];
+                            let third = bytes[read + 2];
+                            if ((UTF8_TRAIL_INVALID[second as usize] & UTF8_NORMAL_TRAIL) |
+                                (UTF8_TRAIL_INVALID[third as usize] & UTF8_NORMAL_TRAIL)) !=
+                               0 {
+                                return true;
+                            }
+                            if second == 0x80 {
+                                if third == 0x8F || third == 0xAB || third == 0xAE {
+                                    return true;
+                                }
+                            } else if second == 0x81 {
+                                if third == 0xA7 {
+                                    return true;
+                                }
+                            }
+                            read += 3;
+                        }
+                        0xEF => {
+                            // Three-byte normal, potentially bidi
+                            let second = bytes[read + 1];
+                            let third = bytes[read + 2];
+                            if ((UTF8_TRAIL_INVALID[second as usize] & UTF8_NORMAL_TRAIL) |
+                                (UTF8_TRAIL_INVALID[third as usize] & UTF8_NORMAL_TRAIL)) !=
+                               0 {
+                                return true;
+                            }
+                            if in_inclusive_range8(second, 0xAD, 0xB7) {
+                                if second == 0xAD {
+                                    if third > 0x8F {
+                                        return true;
+                                    }
+                                } else {
+                                    return true;
+                                }
+                            } else if in_inclusive_range8(second, 0xB9, 0xBB) {
+                                if second == 0xB9 {
+                                    if third > 0xAF {
+                                        return true;
+                                    }
+                                } else {
+                                    return true;
+                                }
+                            }
+                            read += 3;
+                        }
+                        0xE0 => {
+                            // Three-byte special lower bound, potentially bidi
+                            let second = bytes[read + 1];
+                            let third = bytes[read + 2];
+                            if ((UTF8_TRAIL_INVALID[second as usize] &
+                                 UTF8_THREE_BYTE_SPECIAL_LOWER_BOUND_TRAIL) |
+                                (UTF8_TRAIL_INVALID[third as usize] & UTF8_NORMAL_TRAIL)) !=
+                               0 {
+                                return true;
+                            }
+                            // XXX can this be folded into the above validity check
+                            if second < 0xA4 {
+                                return true;
+                            }
+                            read += 3;
+                        }
+                        0xED => {
+                            // Three-byte special upper bound
+                            let second = bytes[read + 1];
+                            let third = bytes[read + 2];
+                            if ((UTF8_TRAIL_INVALID[second as usize] &
+                                 UTF8_THREE_BYTE_SPECIAL_UPPER_BOUND_TRAIL) |
+                                (UTF8_TRAIL_INVALID[third as usize] & UTF8_NORMAL_TRAIL)) !=
+                               0 {
+                                return true;
+                            }
+                            read += 3;
+                        }
+                        0xF1...0xF3 => {
+                            // Four-byte normal
+                            let second = bytes[read + 1];
+                            let third = bytes[read + 2];
+                            let fourth = bytes[read + 3];
+                            if ((UTF8_TRAIL_INVALID[second as usize] & UTF8_NORMAL_TRAIL) |
+                                (UTF8_TRAIL_INVALID[third as usize] & UTF8_NORMAL_TRAIL) |
+                                (UTF8_TRAIL_INVALID[fourth as usize] & UTF8_NORMAL_TRAIL)) !=
+                               0 {
+                                return true;
+                            }
+                            read += 4;
+                        }
+                        0xF0 => {
+                            // Four-byte special lower bound, potentially bidi
+                            let second = bytes[read + 1];
+                            let third = bytes[read + 2];
+                            let fourth = bytes[read + 3];
+                            if ((UTF8_TRAIL_INVALID[second as usize] &
+                                 UTF8_FOUR_BYTE_SPECIAL_LOWER_BOUND_TRAIL) |
+                                (UTF8_TRAIL_INVALID[third as usize] & UTF8_NORMAL_TRAIL) |
+                                (UTF8_TRAIL_INVALID[fourth as usize] & UTF8_NORMAL_TRAIL)) !=
+                               0 {
+                                return true;
+                            }
+                            if unsafe { unlikely(second == 0x90 || second == 0x9E) } {
+                                let third = bytes[read + 2];
+                                if third >= 0xA0 {
+                                    return true;
+                                }
+                            }
+                            read += 4;
+                        }
+                        0xF4 => {
+                            // Four-byte special upper bound
+                            let second = bytes[read + 1];
+                            let third = bytes[read + 2];
+                            let fourth = bytes[read + 3];
+                            if ((UTF8_TRAIL_INVALID[second as usize] &
+                                 UTF8_FOUR_BYTE_SPECIAL_UPPER_BOUND_TRAIL) |
+                                (UTF8_TRAIL_INVALID[third as usize] & UTF8_NORMAL_TRAIL) |
+                                (UTF8_TRAIL_INVALID[fourth as usize] & UTF8_NORMAL_TRAIL)) !=
+                               0 {
+                                return true;
+                            }
+                            read += 4;
+                        }
+                        _ => {
+                            // Invalid lead or bidi-only lead
+                            return true;
+                        }
+                    }
+                    if read + 4 > bytes.len() {
+                        if read == bytes.len() {
+                            return false;
+                        }
+                        byte = bytes[read];
+                        break 'inner;
+                    }
+                    byte = bytes[read];
+                    continue 'inner;
+                }
+            }
+            // We can't have a complete 4-byte sequence, but we could still have
+            // a complete shorter sequence.
+
+            // At this point, `byte` is not included in `read`.
+            match byte {
+                0...0x7F => {
+                    // ASCII: go back to SIMD.
+                    read += 1;
+                    bytes = &bytes[read..];
+                    continue 'outer;
+                }
+                0xC2...0xD5 => {
+                    // Two-byte
+                    let new_read = read + 2;
+                    if new_read > bytes.len() {
+                        return true;
+                    }
+                    let second = bytes[read + 1];
+                    if (UTF8_TRAIL_INVALID[second as usize] & UTF8_NORMAL_TRAIL) != 0 {
+                        return true;
+                    }
+                    read = new_read;
+                    // We need to deal with the case where we came here with 3 bytes
+                    // left, so we need to take a look at the last one.
+                    bytes = &bytes[read..];
+                    continue 'outer;
+                }
+                0xD6 => {
+                    // Two-byte, potentially bidi
+                    let new_read = read + 2;
+                    if new_read > bytes.len() {
+                        return true;
+                    }
+                    let second = bytes[read + 1];
+                    if (UTF8_TRAIL_INVALID[second as usize] & UTF8_NORMAL_TRAIL) != 0 {
+                        return true;
+                    }
+                    // XXX consider folding the above and below checks
+                    if second > 0x8F {
+                        return true;
+                    }
+                    read = new_read;
+                    // We need to deal with the case where we came here with 3 bytes
+                    // left, so we need to take a look at the last one.
+                    bytes = &bytes[read..];
+                    continue 'outer;
+                }
+                // two-byte starting with 0xD7 and above is bidi
+                0xE1 | 0xE3...0xEC | 0xEE => {
+                    // Three-byte normal
+                    let new_read = read + 3;
+                    if new_read > bytes.len() {
+                        return true;
+                    }
+                    let second = bytes[read + 1];
+                    let third = bytes[read + 2];
+                    if ((UTF8_TRAIL_INVALID[second as usize] & UTF8_NORMAL_TRAIL) |
+                        (UTF8_TRAIL_INVALID[third as usize] & UTF8_NORMAL_TRAIL)) !=
+                       0 {
+                        return true;
+                    }
+                }
+                0xE2 => {
+                    // Three-byte normal, potentially bidi
+                    let new_read = read + 3;
+                    if new_read > bytes.len() {
+                        return true;
+                    }
+                    let second = bytes[read + 1];
+                    let third = bytes[read + 2];
+                    if ((UTF8_TRAIL_INVALID[second as usize] & UTF8_NORMAL_TRAIL) |
+                        (UTF8_TRAIL_INVALID[third as usize] & UTF8_NORMAL_TRAIL)) !=
+                       0 {
+                        return true;
+                    }
+                    if second == 0x80 {
+                        if third == 0x8F || third == 0xAB || third == 0xAE {
+                            return true;
+                        }
+                    } else if second == 0x81 {
+                        if third == 0xA7 {
+                            return true;
+                        }
+                    }
+                }
+                0xEF => {
+                    // Three-byte normal, potentially bidi
+                    let new_read = read + 3;
+                    if new_read > bytes.len() {
+                        return true;
+                    }
+                    let second = bytes[read + 1];
+                    let third = bytes[read + 2];
+                    if ((UTF8_TRAIL_INVALID[second as usize] & UTF8_NORMAL_TRAIL) |
+                        (UTF8_TRAIL_INVALID[third as usize] & UTF8_NORMAL_TRAIL)) !=
+                       0 {
+                        return true;
+                    }
+                    if in_inclusive_range8(second, 0xAD, 0xB7) {
+                        if second == 0xAD {
+                            if third > 0x8F {
+                                return true;
+                            }
+                        } else {
+                            return true;
+                        }
+                    } else if in_inclusive_range8(second, 0xB9, 0xBB) {
+                        if second == 0xB9 {
+                            if third > 0xAF {
+                                return true;
+                            }
+                        } else {
+                            return true;
+                        }
+                    }
+                }
+                0xE0 => {
+                    // Three-byte special lower bound, potentially bidi
+                    let new_read = read + 3;
+                    if new_read > bytes.len() {
+                        return true;
+                    }
+                    let second = bytes[read + 1];
+                    let third = bytes[read + 2];
+                    if ((UTF8_TRAIL_INVALID[second as usize] &
+                         UTF8_THREE_BYTE_SPECIAL_LOWER_BOUND_TRAIL) |
+                        (UTF8_TRAIL_INVALID[third as usize] & UTF8_NORMAL_TRAIL)) !=
+                       0 {
+                        return true;
+                    }
+                    // XXX can this be folded into the above validity check
+                    if second < 0xA4 {
+                        return true;
+                    }
+                }
+                0xED => {
+                    // Three-byte special upper bound
+                    let new_read = read + 3;
+                    if new_read > bytes.len() {
+                        return true;
+                    }
+                    let second = bytes[read + 1];
+                    let third = bytes[read + 2];
+                    if ((UTF8_TRAIL_INVALID[second as usize] &
+                         UTF8_THREE_BYTE_SPECIAL_UPPER_BOUND_TRAIL) |
+                        (UTF8_TRAIL_INVALID[third as usize] & UTF8_NORMAL_TRAIL)) !=
+                       0 {
+                        return true;
+                    }
+                }
+                _ => {
+                    // Invalid lead, 4-byte lead or 2-byte bidi-only lead
+                    return true;
+                }
+            }
+            return false;
+        } else {
+            return false;
+        }
     }
 }
 
@@ -591,7 +961,7 @@ pub fn is_str_bidi(buffer: &str) -> bool {
                 } else {
                     // Four-byte
                     let second = bytes[read + 1];
-                    if unsafe { unlikely(second == 0x90 || second == 0x9E) } {
+                    if unsafe { unlikely(byte == 0xF0 && (second == 0x90 || second == 0x9E)) } {
                         let third = bytes[read + 2];
                         if third >= 0xA0 {
                             return true;
@@ -624,9 +994,10 @@ pub fn is_str_bidi(buffer: &str) -> bool {
 /// right-to-left behavior without the presence of right-to-left characters
 /// or right-to-left controls are not checked for.
 ///
-/// If the input is invalid UTF-16, may return `true` even if replacing the
-/// errors with the REPLACEMENT CHARACTER and trying again would result in
-/// `false`.
+/// Returns `true` if the input contains an RTL character or an unpaired
+/// high surrogate that could be the high half of an RTL character.
+/// Returns `false` if teh input contains neither RTL characters nor
+/// unpaired high surrogates that could be higher halves of RTL characters.
 #[inline]
 pub fn is_utf16_bidi(buffer: &[u16]) -> bool {
     for u in buffer {
@@ -1832,8 +2203,7 @@ mod tests {
             let c: char = unsafe { ::std::mem::transmute(i) };
             assert_eq!(is_char_bidi(c), reference_is_char_bidi(c));
         }
-        // Test just BMP and SMP
-        for i in 0xE000..0x20000u32 {
+        for i in 0xE000..0x110000u32 {
             let c: char = unsafe { ::std::mem::transmute(i) };
             assert_eq!(is_char_bidi(c), reference_is_char_bidi(c));
         }
@@ -1854,12 +2224,60 @@ mod tests {
             let c: char = unsafe { ::std::mem::transmute(i) };
             assert_eq!(is_str_bidi(c.encode_utf8(&mut buf[..])), reference_is_char_bidi(c));
         }
-        // Test just BMP and SMP
-        for i in 0xE000..0x20000u32 {
+        for i in 0xE000..0x110000u32 {
             let c: char = unsafe { ::std::mem::transmute(i) };
             assert_eq!(is_str_bidi(c.encode_utf8(&mut buf[..])), reference_is_char_bidi(c));
         }
     }
 
+    #[test]
+    fn test_is_utf8_bidi_thoroughly() {
+        let mut buf = [0; 8];
+        for i in 0..0xD800u32 {
+            let c: char = unsafe { ::std::mem::transmute(i) };
+            let expect = reference_is_char_bidi(c);
+            {
+                let len = {
+                    let bytes = c.encode_utf8(&mut buf[..]).as_bytes();
+                    assert_eq!(is_utf8_bidi(bytes), expect);
+                    bytes.len()
+                };
+                {
+                    let tail = &mut buf[len..];
+                    for b in tail.iter_mut() {
+                        *b = 0;
+                    }
+                }
+            }
+            assert_eq!(is_utf8_bidi(&buf[..]), expect);
+        }
+        for i in 0xE000..0x110000u32 {
+            let c: char = unsafe { ::std::mem::transmute(i) };
+            let expect = reference_is_char_bidi(c);
+            {
+                let len = {
+                    let bytes = c.encode_utf8(&mut buf[..]).as_bytes();
+                    assert_eq!(is_utf8_bidi(bytes), expect);
+                    bytes.len()
+                };
+                {
+                    let tail = &mut buf[len..];
+                    for b in tail.iter_mut() {
+                        *b = 0;
+                    }
+                }
+            }
+            assert_eq!(is_utf8_bidi(&buf[..]), expect);
+        }
+    }
 
+    #[test]
+    fn test_is_utf8_bidi_edge_cases() {
+        assert!(!is_utf8_bidi(b"\xD5\xBF\x61"));
+        assert!(!is_utf8_bidi(b"\xD6\x80\x61"));
+        assert!(!is_utf8_bidi(b"abc"));
+        assert!(is_utf8_bidi(b"\xD5\xBF\xC2"));
+        assert!(is_utf8_bidi(b"\xD6\x80\xC2"));
+        assert!(is_utf8_bidi(b"ab\xC2"));
+    }
 }
