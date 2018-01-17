@@ -185,6 +185,66 @@ pub fn contains_surrogates(s: u16x8) -> bool {
     (s & mask).eq(surrogate_bits).any()
 }
 
+cfg_if! {
+    if #[cfg(target_arch = "aarch64")]{
+        macro_rules! aarch64_return_false_if_below_hebrew {
+            ($s:ident) => ({
+                unsafe {
+                    if aarch64_vmaxvq_u16($s) < 0x0590 {
+                        return false;
+                    }
+                }
+            })
+        }
+
+        macro_rules! non_aarch64_return_false_if_all {
+            ($s:ident) => ()
+        }
+    } else {
+        macro_rules! aarch64_return_false_if_below_hebrew {
+            ($s:ident) => ()
+        }
+
+        macro_rules! non_aarch64_return_false_if_all {
+            ($s:ident) => ({
+                if $s.all() {
+                    return false;
+                }
+            })
+        }
+    }
+}
+
+macro_rules! in_range16x8 {
+    ($s:ident, $start:expr, $end:expr) => ({
+        // SIMD sub is wrapping
+        ($s - u16x8::splat($start)).lt(u16x8::splat($end - $start))
+    })
+}
+
+#[inline(always)]
+pub fn is_u16x8_bidi(s: u16x8) -> bool {
+    // We try to first quickly refute the RTLness of the vector. If that
+    // fails, we do the real RTL check, so in that case we end up wasting
+    // the work for the up-front quick checks. Even the quick-check is
+    // two-fold in order to return `false` ASAP if everything is below
+    // Hebrew.
+
+    aarch64_return_false_if_below_hebrew!(s);
+
+    let below_hebrew = s.lt(u16x8::splat(0x0590));
+
+    non_aarch64_return_false_if_all!(below_hebrew);
+
+    if (below_hebrew | in_range16x8!(s, 0x0900, 0x200F) | in_range16x8!(s, 0x2068, 0xD802)).all() {
+        return false;
+    }
+
+    // Quick refutation failed. Let's do the full check.
+
+    (in_range16x8!(s, 0x0590, 0x0900) | in_range16x8!(s, 0xFB50, 0xFE00) | in_range16x8!(s, 0xFE70, 0xFF00) | in_range16x8!(s, 0xD802, 0xD804) | in_range16x8!(s, 0xD83A, 0xD83C) | s.eq(u16x8::splat(0x200F)) | s.eq(u16x8::splat(0x202B)) | s.eq(u16x8::splat(0x202E)) | s.eq(u16x8::splat(0x2067))).any()
+}
+
 #[inline(always)]
 pub fn simd_unpack(s: u8x16) -> (u16x8, u16x8) {
     unsafe {
