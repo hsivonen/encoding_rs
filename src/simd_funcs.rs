@@ -21,7 +21,7 @@ pub unsafe fn load16_unaligned(ptr: *const u8) -> u8x16 {
     simd
 }
 
-#[#[allow(dead_code)]]
+#[allow(dead_code)]
 #[inline(always)]
 pub unsafe fn load16_aligned(ptr: *const u8) -> u8x16 {
     *(ptr as *const u8x16)
@@ -32,7 +32,7 @@ pub unsafe fn store16_unaligned(ptr: *mut u8, s: u8x16) {
     ::std::ptr::copy_nonoverlapping(&s as *const u8x16 as *const u8, ptr, 16);
 }
 
-#[#[allow(dead_code)]]
+#[allow(dead_code)]
 #[inline(always)]
 pub unsafe fn store16_aligned(ptr: *mut u8, s: u8x16) {
     *(ptr as *mut u8x16) = s;
@@ -45,7 +45,7 @@ pub unsafe fn load8_unaligned(ptr: *const u16) -> u16x8 {
     simd
 }
 
-#[#[allow(dead_code)]]
+#[allow(dead_code)]
 #[inline(always)]
 pub unsafe fn load8_aligned(ptr: *const u16) -> u16x8 {
     *(ptr as *const u16x8)
@@ -56,7 +56,7 @@ pub unsafe fn store8_unaligned(ptr: *mut u16, s: u16x8) {
     ::std::ptr::copy_nonoverlapping(&s as *const u16x8 as *const u8, ptr as *mut u8, 16);
 }
 
-#[#[allow(dead_code)]]
+#[allow(dead_code)]
 #[inline(always)]
 pub unsafe fn store8_aligned(ptr: *mut u16, s: u16x8) {
     *(ptr as *mut u16x8) = s;
