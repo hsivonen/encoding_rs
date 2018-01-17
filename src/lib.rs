@@ -2036,20 +2036,20 @@ static ENCODINGS_IN_LABEL_SORT: [&'static Encoding; 219] = [&WINDOWS_1252_INIT,
 /// # Streaming vs. Non-Streaming
 ///
 /// When you have the entire input in a single buffer, you can use the
-/// methods [`decode()`][1], [`decode_with_bom_removal()`][2],
-/// [`decode_without_bom_handling()`][3],
-/// [`decode_without_bom_handling_and_without_replacement()`][4] and
-/// [`encode()`][5]. (These methods are available to Rust callers only and are
+/// methods [`decode()`][3], [`decode_with_bom_removal()`][3],
+/// [`decode_without_bom_handling()`][5],
+/// [`decode_without_bom_handling_and_without_replacement()`][6] and
+/// [`encode()`][7]. (These methods are available to Rust callers only and are
 /// not available in the C API.) Unlike the rest of the API available to Rust,
 /// these methods perform heap allocations. You should the `Decoder` and
 /// `Encoder` objects when your input is split into multiple buffers or when
 /// you want to control the allocation of the output buffers.
 ///
-/// [1]: #method.decode
-/// [2]: #method.decode_with_bom_removal
-/// [3]: #method.decode_without_bom_handling
-/// [4]: #method.decode_without_bom_handling_and_without_replacement
-/// [5]: #method.encode
+/// [3]: #method.decode
+/// [4]: #method.decode_with_bom_removal
+/// [5]: #method.decode_without_bom_handling
+/// [6]: #method.decode_without_bom_handling_and_without_replacement
+/// [7]: #method.encode
 ///
 /// # Instances
 ///

@@ -7,7 +7,9 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-//! Functions for converting between different in-RAM representations of text.
+//! Functions for converting between different in-RAM representations of text
+//! and for quickly checking if the Unicode Bidirectional Algorithm can be
+//! avoided.
 //!
 //! By using slices for output, the functions here seek to enable by-register
 //! (ALU register or SIMD register as available) operations in order to
@@ -378,6 +380,7 @@ cfg_if!{
                         return Some(total);
                     }
                     bytes = &bytes[offset + 2..];
+                    total += 2;
                 } else {
                     return None;
                 }
@@ -402,6 +405,7 @@ fn is_utf8_latin1_impl(buffer: &[u8]) -> Option<usize> {
                     return Some(total);
                 }
                 bytes = &bytes[offset + 2..];
+                total += 2;
             } else {
                 return Some(total);
             }
@@ -2469,6 +2473,7 @@ mod tests {
         assert!(!is_utf8_bidi(b"\xD5\xBF\x61"));
         assert!(!is_utf8_bidi(b"\xD6\x80\x61"));
         assert!(!is_utf8_bidi(b"abc"));
+        assert!(!is_utf8_bidi(b"\xCB\xBB"));
         assert!(is_utf8_bidi(b"\xD5\xBF\xC2"));
         assert!(is_utf8_bidi(b"\xD6\x80\xC2"));
         assert!(is_utf8_bidi(b"ab\xC2"));
