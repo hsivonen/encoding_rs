@@ -387,7 +387,7 @@ cfg_if!{
 }
 
 #[inline(always)]
-pub fn is_utf8_latin1_impl(buffer: &[u8]) -> Option<usize> {
+fn is_utf8_latin1_impl(buffer: &[u8]) -> Option<usize> {
     let mut bytes = buffer;
     let mut total = 0;
     loop {
@@ -457,6 +457,136 @@ cfg_if!{
                 }
             }
             false
+        }
+    }
+}
+
+cfg_if!{
+    if #[cfg(all(feature = "simd-accel", any(target_feature = "sse2", all(target_endian = "little", target_arch = "aarch64"))))] {
+        #[inline(always)]
+        fn check_utf16_for_latin1_and_bidi_impl(buffer: &[u16]) -> Latin1Bidi {
+            let mut offset = 0usize;
+            let len = buffer.len();
+            if len >= STRIDE_SIZE / 2 {
+                let src = buffer.as_ptr();
+                let mut until_alignment = ((SIMD_ALIGNMENT - ((src as usize) & SIMD_ALIGNMENT_MASK)) &
+                                           SIMD_ALIGNMENT_MASK) / 2;
+                if until_alignment + (STRIDE_SIZE / 2) <= len {
+                    while until_alignment != 0 {
+                        if buffer[offset] > 0xFF {
+                            // This transition isn't optimal, since the aligment is recomputing
+                            // but not tweaking further today.
+                            if is_utf16_bidi_impl(&buffer[offset..]) {
+                                return Latin1Bidi::Bidi;
+                            }
+                            return Latin1Bidi::LeftToRight;
+                        }
+                        offset += 1;
+                        until_alignment -= 1;
+                    }
+                    let len_minus_stride = len - (STRIDE_SIZE / 2);
+                    loop {
+                        let mut s = unsafe { *(src.offset(offset as isize) as *const u16x8) };
+                        if !simd_is_latin1(s) {
+                            loop {
+                                if is_u16x8_bidi(s) {
+                                    return Latin1Bidi::Bidi;
+                                }
+                                offset += STRIDE_SIZE / 2;
+                                if offset > len_minus_stride {
+                                    for &u in &buffer[offset..] {
+                                        if is_utf16_code_unit_bidi(u) {
+                                            return Latin1Bidi::Bidi;
+                                        }
+                                    }
+                                    return Latin1Bidi::LeftToRight;
+                                }
+                                s = unsafe { *(src.offset(offset as isize) as *const u16x8) };
+                            }
+                        }
+                        offset += STRIDE_SIZE / 2;
+                        if offset > len_minus_stride {
+                            break;
+                        }
+                    }
+                }
+            }
+            let mut iter = (&buffer[offset..]).iter();
+            loop {
+                if let Some(&u) = iter.next() {
+                    if u > 0xFF {
+                        let mut inner_u = u;
+                        loop {
+                            if is_utf16_code_unit_bidi(inner_u) {
+                                return Latin1Bidi::Bidi;
+                            }
+                            if let Some(&code_unit) = iter.next() {
+                                inner_u = code_unit;
+                            } else {
+                                return Latin1Bidi::LeftToRight;
+                            }
+                        }
+                    }
+                } else {
+                    return Latin1Bidi::Latin1;
+                }
+            }
+        }
+    } else {
+        #[inline(always)]
+        fn check_utf16_for_latin1_and_bidi_impl(buffer: &[u16]) -> Latin1Bidi {
+            let mut offset = 0usize;
+            let len = buffer.len();
+            if len >= ALIGNMENT / 2 {
+                let src = buffer.as_ptr();
+                let mut until_alignment = ((ALIGNMENT - ((src as usize) & ALIGNMENT_MASK)) &
+                                           ALIGNMENT_MASK) / 2;
+                if until_alignment + ALIGNMENT / 2 <= len {
+                    while until_alignment != 0 {
+                        if buffer[offset] > 0xFF {
+                            if is_utf16_bidi_impl(&buffer[offset..]) {
+                                return Latin1Bidi::Bidi;
+                            }
+                            return Latin1Bidi::LeftToRight;
+                        }
+                        offset += 1;
+                        until_alignment -= 1;
+                    }
+                    let len_minus_stride = len - ALIGNMENT / 2;
+                    loop {
+                        if unsafe { *(src.offset(offset as isize) as *const usize) } & LATIN1_MASK != 0 {
+                            if is_utf16_bidi_impl(&buffer[offset..]) {
+                                return Latin1Bidi::Bidi;
+                            }
+                            return Latin1Bidi::LeftToRight;
+                        }
+                        offset += ALIGNMENT / 2;
+                        if offset > len_minus_stride {
+                            break;
+                        }
+                    }
+                }
+            }
+            let mut iter = (&buffer[offset..]).iter();
+            loop {
+                if let Some(&u) = iter.next() {
+                    if u > 0xFF {
+                        let mut inner_u = u;
+                        loop {
+                            if is_utf16_code_unit_bidi(inner_u) {
+                                return Latin1Bidi::Bidi;
+                            }
+                            if let Some(&code_unit) = iter.next() {
+                                inner_u = code_unit;
+                            } else {
+                                return Latin1Bidi::LeftToRight;
+                            }
+                        }
+                    }
+                } else {
+                    return Latin1Bidi::Latin1;
+                }
+            }
         }
     }
 }
@@ -1241,15 +1371,7 @@ pub fn check_str_for_latin1_and_bidi(buffer: &str) -> Latin1Bidi {
 /// `true`. Otherwise, returns `Latin1Bidi::LeftToRight`.
 #[inline]
 pub fn check_utf16_for_latin1_and_bidi(buffer: &[u16]) -> Latin1Bidi {
-    if is_utf16_latin1(buffer) {
-        Latin1Bidi::Latin1
-    } else {
-        if is_utf16_bidi(buffer) {
-            Latin1Bidi::Bidi
-        } else {
-            Latin1Bidi::LeftToRight
-        }
-    }
+    check_utf16_for_latin1_and_bidi_impl(buffer)
 }
 
 /// Converts potentially-invalid UTF-8 to valid UTF-16 with errors replaced
