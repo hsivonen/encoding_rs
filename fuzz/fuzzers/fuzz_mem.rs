@@ -263,6 +263,10 @@ fn fuzz_copy_ascii_to_basic_latin(data: &[u8]) {
     assert_eq!(dst, safe_dst);
 }
 
+fn fuzz_is_utf8_bidi(data: &[u8]) {
+    assert_eq!(encoding_rs::mem::is_utf8_bidi(data), safe_encoding_rs_mem::is_utf8_bidi(data));
+}
+
 fn fuzz_copy_basic_latin_to_ascii(data: &[u16]) {
     let needed = data.len();
     let mut dst = vec_with_len::<u8>(needed);
@@ -298,6 +302,7 @@ fuzz_target!(
                 16 => fuzz_copy_ascii_to_ascii(&data[1..]),
                 17 => fuzz_copy_ascii_to_basic_latin(&data[1..]),
                 18 => fuzz_copy_basic_latin_to_ascii(as_u16_slice(&data[1..])),
+                19 => fuzz_is_utf8_bidi(&data[1..]),
                 _ => return,
             }
         }
