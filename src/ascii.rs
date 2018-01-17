@@ -588,7 +588,7 @@ cfg_if! {
 
         pub const STRIDE_SIZE: usize = 16;
 
-        pub const ALIGNMENT: usize = 8;
+//        pub const ALIGNMENT: usize = 8;
 
         ascii_to_ascii_simd_stride!(ascii_to_ascii_stride_neither_aligned, load16_unaligned, store16_unaligned);
 
