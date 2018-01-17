@@ -263,10 +263,6 @@ fn fuzz_copy_ascii_to_basic_latin(data: &[u8]) {
     assert_eq!(dst, safe_dst);
 }
 
-fn fuzz_is_utf8_bidi(data: &[u8]) {
-    assert_eq!(encoding_rs::mem::is_utf8_bidi(data), safe_encoding_rs_mem::is_utf8_bidi(data));
-}
-
 fn fuzz_copy_basic_latin_to_ascii(data: &[u16]) {
     let needed = data.len();
     let mut dst = vec_with_len::<u8>(needed);
@@ -277,6 +273,36 @@ fn fuzz_copy_basic_latin_to_ascii(data: &[u16]) {
     safe_dst.truncate(safe_len);
     assert_eq!(len, safe_len);
     assert_eq!(dst, safe_dst);
+}
+
+fn fuzz_is_utf8_bidi(data: &[u8]) {
+    assert_eq!(encoding_rs::mem::is_utf8_bidi(data), safe_encoding_rs_mem::is_utf8_bidi(data));
+}
+
+fn fuzz_is_str_bidi(data: &[u8]) {
+    if let Ok(s) = std::str::from_utf8(data) {
+        assert_eq!(encoding_rs::mem::is_str_bidi(s), safe_encoding_rs_mem::is_str_bidi(s));
+    }
+}
+
+fn fuzz_is_utf16_bidi(data: &[u16]) {
+    assert_eq!(encoding_rs::mem::is_utf16_bidi(data), safe_encoding_rs_mem::is_utf16_bidi(data));
+}
+
+// is_char_bidi() and is_utf16_code_unit_bidi() are tested exhaustively, so no need to fuzz them.as_u16_slice
+
+fn fuzz_check_utf8_for_latin1_and_bidi(data: &[u8]) {
+    assert_eq!(encoding_rs::mem::check_utf8_for_latin1_and_bidi(data), safe_encoding_rs_mem::check_utf8_for_latin1_and_bidi(data));
+}
+
+fn fuzz_check_str_for_latin1_and_bidi(data: &[u8]) {
+    if let Ok(s) = std::str::from_utf8(data) {
+        assert_eq!(encoding_rs::mem::check_str_for_latin1_and_bidi(s), safe_encoding_rs_mem::check_str_for_latin1_and_bidi(s));
+    }
+}
+
+fn fuzz_check_utf16_for_latin1_and_bidi(data: &[u16]) {
+    assert_eq!(encoding_rs::mem::check_utf16_for_latin1_and_bidi(data), safe_encoding_rs_mem::check_utf16_for_latin1_and_bidi(data));
 }
 
 fuzz_target!(
@@ -303,6 +329,11 @@ fuzz_target!(
                 17 => fuzz_copy_ascii_to_basic_latin(&data[1..]),
                 18 => fuzz_copy_basic_latin_to_ascii(as_u16_slice(&data[1..])),
                 19 => fuzz_is_utf8_bidi(&data[1..]),
+                20 => fuzz_is_str_bidi(&data[1..]),
+                21 => fuzz_is_utf16_bidi(as_u16_slice(&data[1..])),
+                22 => fuzz_check_utf8_for_latin1_and_bidi(&data[1..]),
+                23 => fuzz_check_str_for_latin1_and_bidi(&data[1..]),
+                24 => fuzz_check_utf16_for_latin1_and_bidi(as_u16_slice(&data[1..])),
                 _ => return,
             }
         }
