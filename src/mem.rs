@@ -352,6 +352,10 @@ cfg_if!{
                     let len_minus_stride = len - STRIDE_SIZE;
                     loop {
                         if !simd_is_str_latin1(unsafe { *(src.offset(offset as isize) as *const u8x16) }) {
+                            // TODO: Ensure this compiles away when inlined into `is_str_latin1()`.
+                            while bytes[offset] & 0xC0 == 0x80 {
+                                offset += 1;
+                            }
                             return Some(offset);
                         }
                         offset += STRIDE_SIZE;
@@ -2473,7 +2477,6 @@ mod tests {
         assert!(!is_utf8_bidi(b"\xD5\xBF\x61"));
         assert!(!is_utf8_bidi(b"\xD6\x80\x61"));
         assert!(!is_utf8_bidi(b"abc"));
-        assert!(!is_utf8_bidi(b"\xCB\xBB"));
         assert!(is_utf8_bidi(b"\xD5\xBF\xC2"));
         assert!(is_utf8_bidi(b"\xD6\x80\xC2"));
         assert!(is_utf8_bidi(b"ab\xC2"));
