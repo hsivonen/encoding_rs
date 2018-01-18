@@ -394,9 +394,7 @@ fn gbk_encode_non_unified(bmp: u16) -> Option<(usize, usize)> {
     // PUA between Hanzi Levels
     let bmp_minus_pua_between_hanzi = bmp.wrapping_sub(0xE810);
     if bmp_minus_pua_between_hanzi < 5 {
-        return Some(
-            (0x81 + 0x56, 0xFF - 5 + bmp_minus_pua_between_hanzi as usize),
-        );
+        return Some((0x81 + 0x56, 0xFF - 5 + bmp_minus_pua_between_hanzi as usize));
     }
     None
 }
@@ -599,7 +597,10 @@ mod tests {
         decode_gb18030(b"\xFF\x32\x9A\x33", "\u{FFFD}\u{0032}\u{FFFD}"); // not \u{FFFD}\u{0032}\u{FFFD}\u{0033} !
         decode_gb18030(b"\xFF\x40\x00", "\u{FFFD}\u{0040}\u{0000}");
         decode_gb18030(b"\xE3\xFF\x9A\x33\x00", "\u{FFFD}\u{FFFD}\u{0033}\u{0000}");
-        decode_gb18030(b"\xFF\x32\x9A\x33\x00", "\u{FFFD}\u{0032}\u{FFFD}\u{0033}\u{0000}");
+        decode_gb18030(
+            b"\xFF\x32\x9A\x33\x00",
+            "\u{FFFD}\u{0032}\u{FFFD}\u{0033}\u{0000}",
+        );
 
         // Four bytes
         decode_gb18030(b"\x81\x30\x81\x30", "\u{0080}");
