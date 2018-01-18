@@ -10,6 +10,8 @@ cargo-fuzz = true
 
 [dependencies.encoding_rs]
 path = ".."
+[dependencies.safe_encoding_rs_mem]
+path = "../../safe_encoding_rs_mem"
 [dependencies.libfuzzer-sys]
 git = "https://github.com/rust-fuzz/libfuzzer-sys.git"
 
@@ -27,3 +29,7 @@ path = "fuzzers/fuzz_encodings.rs"
 [[bin]]
 name = "fuzz_labels"
 path = "fuzzers/fuzz_labels.rs"
+
+[[bin]]
+name = "fuzz_mem"
+path = "fuzzers/fuzz_mem.rs"
