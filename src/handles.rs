@@ -80,13 +80,15 @@ impl<'a> ByteSource<'a> {
 }
 
 pub struct ByteReadHandle<'a, 'b>
-    where 'b: 'a
+where
+    'b: 'a,
 {
     source: &'a mut ByteSource<'b>,
 }
 
 impl<'a, 'b> ByteReadHandle<'a, 'b>
-    where 'b: 'a
+where
+    'b: 'a,
 {
     #[inline(always)]
     fn new(src: &'a mut ByteSource<'b>) -> ByteReadHandle<'a, 'b> {
@@ -105,13 +107,15 @@ impl<'a, 'b> ByteReadHandle<'a, 'b>
 }
 
 pub struct ByteUnreadHandle<'a, 'b>
-    where 'b: 'a
+where
+    'b: 'a,
 {
     source: &'a mut ByteSource<'b>,
 }
 
 impl<'a, 'b> ByteUnreadHandle<'a, 'b>
-    where 'b: 'a
+where
+    'b: 'a,
 {
     #[inline(always)]
     fn new(src: &'a mut ByteSource<'b>) -> ByteUnreadHandle<'a, 'b> {
@@ -134,13 +138,15 @@ impl<'a, 'b> ByteUnreadHandle<'a, 'b>
 // UTF-16 destination
 
 pub struct Utf16BmpHandle<'a, 'b>
-    where 'b: 'a
+where
+    'b: 'a,
 {
     dest: &'a mut Utf16Destination<'b>,
 }
 
 impl<'a, 'b> Utf16BmpHandle<'a, 'b>
-    where 'b: 'a
+where
+    'b: 'a,
 {
     #[inline(always)]
     fn new(dst: &'a mut Utf16Destination<'b>) -> Utf16BmpHandle<'a, 'b> {
@@ -182,13 +188,15 @@ impl<'a, 'b> Utf16BmpHandle<'a, 'b>
 }
 
 pub struct Utf16AstralHandle<'a, 'b>
-    where 'b: 'a
+where
+    'b: 'a,
 {
     dest: &'a mut Utf16Destination<'b>,
 }
 
 impl<'a, 'b> Utf16AstralHandle<'a, 'b>
-    where 'b: 'a
+where
+    'b: 'a,
 {
     #[inline(always)]
     fn new(dst: &'a mut Utf16Destination<'b>) -> Utf16AstralHandle<'a, 'b> {
@@ -229,10 +237,11 @@ impl<'a, 'b> Utf16AstralHandle<'a, 'b>
         self.dest
     }
     #[inline(always)]
-    pub fn write_big5_combination(self,
-                                  combined: u16,
-                                  combining: u16)
-                                  -> &'a mut Utf16Destination<'b> {
+    pub fn write_big5_combination(
+        self,
+        combined: u16,
+        combining: u16,
+    ) -> &'a mut Utf16Destination<'b> {
         self.dest.write_big5_combination(combined, combining);
         self.dest
     }
@@ -322,10 +331,10 @@ impl<'a> Utf16Destination<'a> {
         self.write_bmp_excl_ascii(combining);
     }
     #[inline(always)]
-    pub fn copy_ascii_from_check_space_bmp<'b>
-        (&'b mut self,
-         source: &mut ByteSource)
-         -> CopyAsciiResult<(DecoderResult, usize, usize), (u8, Utf16BmpHandle<'b, 'a>)> {
+    pub fn copy_ascii_from_check_space_bmp<'b>(
+        &'b mut self,
+        source: &mut ByteSource,
+    ) -> CopyAsciiResult<(DecoderResult, usize, usize), (u8, Utf16BmpHandle<'b, 'a>)> {
         let non_ascii_ret = {
             let src_remaining = &source.slice[source.pos..];
             let dst_remaining = &mut self.slice[self.pos..];
@@ -335,12 +344,8 @@ impl<'a> Utf16Destination<'a> {
                 (DecoderResult::InputEmpty, src_remaining.len())
             };
             match unsafe {
-                      ascii_to_basic_latin(
-                    src_remaining.as_ptr(),
-                    dst_remaining.as_mut_ptr(),
-                    length,
-                )
-                  } {
+                ascii_to_basic_latin(src_remaining.as_ptr(), dst_remaining.as_mut_ptr(), length)
+            } {
                 None => {
                     source.pos += length;
                     self.pos += length;
@@ -357,10 +362,10 @@ impl<'a> Utf16Destination<'a> {
         CopyAsciiResult::GoOn((non_ascii_ret, Utf16BmpHandle::new(self)))
     }
     #[inline(always)]
-    pub fn copy_ascii_from_check_space_astral<'b>
-        (&'b mut self,
-         source: &mut ByteSource)
-         -> CopyAsciiResult<(DecoderResult, usize, usize), (u8, Utf16AstralHandle<'b, 'a>)> {
+    pub fn copy_ascii_from_check_space_astral<'b>(
+        &'b mut self,
+        source: &mut ByteSource,
+    ) -> CopyAsciiResult<(DecoderResult, usize, usize), (u8, Utf16AstralHandle<'b, 'a>)> {
         let non_ascii_ret = {
             let dst_len = self.slice.len();
             let src_remaining = &source.slice[source.pos..];
@@ -371,12 +376,8 @@ impl<'a> Utf16Destination<'a> {
                 (DecoderResult::InputEmpty, src_remaining.len())
             };
             match unsafe {
-                      ascii_to_basic_latin(
-                    src_remaining.as_ptr(),
-                    dst_remaining.as_mut_ptr(),
-                    length,
-                )
-                  } {
+                ascii_to_basic_latin(src_remaining.as_ptr(), dst_remaining.as_mut_ptr(), length)
+            } {
                 None => {
                     source.pos += length;
                     self.pos += length;
@@ -389,9 +390,11 @@ impl<'a> Utf16Destination<'a> {
                         source.pos += 1; // +1 for non_ascii
                         non_ascii
                     } else {
-                        return CopyAsciiResult::Stop(
-                            (DecoderResult::OutputFull, source.pos, self.pos),
-                        );
+                        return CopyAsciiResult::Stop((
+                            DecoderResult::OutputFull,
+                            source.pos,
+                            self.pos,
+                        ));
                     }
                 }
             }
@@ -411,13 +414,15 @@ impl<'a> Utf16Destination<'a> {
 // UTF-8 destination
 
 pub struct Utf8BmpHandle<'a, 'b>
-    where 'b: 'a
+where
+    'b: 'a,
 {
     dest: &'a mut Utf8Destination<'b>,
 }
 
 impl<'a, 'b> Utf8BmpHandle<'a, 'b>
-    where 'b: 'a
+where
+    'b: 'a,
 {
     #[inline(always)]
     fn new(dst: &'a mut Utf8Destination<'b>) -> Utf8BmpHandle<'a, 'b> {
@@ -459,13 +464,15 @@ impl<'a, 'b> Utf8BmpHandle<'a, 'b>
 }
 
 pub struct Utf8AstralHandle<'a, 'b>
-    where 'b: 'a
+where
+    'b: 'a,
 {
     dest: &'a mut Utf8Destination<'b>,
 }
 
 impl<'a, 'b> Utf8AstralHandle<'a, 'b>
-    where 'b: 'a
+where
+    'b: 'a,
 {
     #[inline(always)]
     fn new(dst: &'a mut Utf8Destination<'b>) -> Utf8AstralHandle<'a, 'b> {
@@ -506,10 +513,11 @@ impl<'a, 'b> Utf8AstralHandle<'a, 'b>
         self.dest
     }
     #[inline(always)]
-    pub fn write_big5_combination(self,
-                                  combined: u16,
-                                  combining: u16)
-                                  -> &'a mut Utf8Destination<'b> {
+    pub fn write_big5_combination(
+        self,
+        combined: u16,
+        combining: u16,
+    ) -> &'a mut Utf8Destination<'b> {
         self.dest.write_big5_combination(combined, combining);
         self.dest
     }
@@ -606,8 +614,7 @@ impl<'a> Utf8Destination<'a> {
     #[inline(always)]
     pub fn write_surrogate_pair(&mut self, high: u16, low: u16) {
         self.write_astral(
-            ((high as u32) << 10) + (low as u32) -
-            (((0xD800u32 << 10) - 0x10000u32) + 0xDC00u32)
+            ((high as u32) << 10) + (low as u32) - (((0xD800u32 << 10) - 0x10000u32) + 0xDC00u32),
         );
     }
     #[inline(always)]
@@ -616,10 +623,10 @@ impl<'a> Utf8Destination<'a> {
         self.write_mid_bmp(combining);
     }
     #[inline(always)]
-    pub fn copy_ascii_from_check_space_bmp<'b>
-        (&'b mut self,
-         source: &mut ByteSource)
-         -> CopyAsciiResult<(DecoderResult, usize, usize), (u8, Utf8BmpHandle<'b, 'a>)> {
+    pub fn copy_ascii_from_check_space_bmp<'b>(
+        &'b mut self,
+        source: &mut ByteSource,
+    ) -> CopyAsciiResult<(DecoderResult, usize, usize), (u8, Utf8BmpHandle<'b, 'a>)> {
         let non_ascii_ret = {
             let dst_len = self.slice.len();
             let src_remaining = &source.slice[source.pos..];
@@ -630,8 +637,8 @@ impl<'a> Utf8Destination<'a> {
                 (DecoderResult::InputEmpty, src_remaining.len())
             };
             match unsafe {
-                      ascii_to_ascii(src_remaining.as_ptr(), dst_remaining.as_mut_ptr(), length)
-                  } {
+                ascii_to_ascii(src_remaining.as_ptr(), dst_remaining.as_mut_ptr(), length)
+            } {
                 None => {
                     source.pos += length;
                     self.pos += length;
@@ -644,9 +651,11 @@ impl<'a> Utf8Destination<'a> {
                         source.pos += 1; // +1 for non_ascii
                         non_ascii
                     } else {
-                        return CopyAsciiResult::Stop(
-                            (DecoderResult::OutputFull, source.pos, self.pos),
-                        );
+                        return CopyAsciiResult::Stop((
+                            DecoderResult::OutputFull,
+                            source.pos,
+                            self.pos,
+                        ));
                     }
                 }
             }
@@ -654,10 +663,10 @@ impl<'a> Utf8Destination<'a> {
         CopyAsciiResult::GoOn((non_ascii_ret, Utf8BmpHandle::new(self)))
     }
     #[inline(always)]
-    pub fn copy_ascii_from_check_space_astral<'b>
-        (&'b mut self,
-         source: &mut ByteSource)
-         -> CopyAsciiResult<(DecoderResult, usize, usize), (u8, Utf8AstralHandle<'b, 'a>)> {
+    pub fn copy_ascii_from_check_space_astral<'b>(
+        &'b mut self,
+        source: &mut ByteSource,
+    ) -> CopyAsciiResult<(DecoderResult, usize, usize), (u8, Utf8AstralHandle<'b, 'a>)> {
         let non_ascii_ret = {
             let dst_len = self.slice.len();
             let src_remaining = &source.slice[source.pos..];
@@ -668,8 +677,8 @@ impl<'a> Utf8Destination<'a> {
                 (DecoderResult::InputEmpty, src_remaining.len())
             };
             match unsafe {
-                      ascii_to_ascii(src_remaining.as_ptr(), dst_remaining.as_mut_ptr(), length)
-                  } {
+                ascii_to_ascii(src_remaining.as_ptr(), dst_remaining.as_mut_ptr(), length)
+            } {
                 None => {
                     source.pos += length;
                     self.pos += length;
@@ -682,9 +691,11 @@ impl<'a> Utf8Destination<'a> {
                         source.pos += 1; // +1 for non_ascii
                         non_ascii
                     } else {
-                        return CopyAsciiResult::Stop(
-                            (DecoderResult::OutputFull, source.pos, self.pos),
-                        );
+                        return CopyAsciiResult::Stop((
+                            DecoderResult::OutputFull,
+                            source.pos,
+                            self.pos,
+                        ));
                     }
                 }
             }
@@ -755,11 +766,10 @@ impl<'a> Utf16Source<'a> {
                     // The next code unit is a low surrogate. Advance position.
                     self.pos += 1;
                     return unsafe {
-                               ::std::mem::transmute(
-                            (unit << 10) + second -
-                            (((0xD800u32 << 10) - 0x10000u32) + 0xDC00u32)
+                        ::std::mem::transmute(
+                            (unit << 10) + second - (((0xD800u32 << 10) - 0x10000u32) + 0xDC00u32),
                         )
-                           };
+                    };
                 }
                 // The next code unit is not a low surrogate. Don't advance
                 // position and treat the high surrogate as unpaired.
@@ -791,16 +801,12 @@ impl<'a> Utf16Source<'a> {
                 if second_minus_low_surrogate_start <= (0xDFFF - 0xDC00) {
                     // The next code unit is a low surrogate. Advance position.
                     self.pos += 1;
-                    return Unicode::NonAscii(
-                        NonAscii::Astral(
-                            unsafe {
-                                ::std::mem::transmute(
-                                    ((unit as u32) << 10) + (second as u32) -
-                                    (((0xD800u32 << 10) - 0x10000u32) + 0xDC00u32)
-                                )
-                            }
+                    return Unicode::NonAscii(NonAscii::Astral(unsafe {
+                        ::std::mem::transmute(
+                            ((unit as u32) << 10) + (second as u32)
+                                - (((0xD800u32 << 10) - 0x10000u32) + 0xDC00u32),
                         )
-                    );
+                    }));
                 }
                 // The next code unit is not a low surrogate. Don't advance
                 // position and treat the high surrogate as unpaired.
@@ -821,10 +827,10 @@ impl<'a> Utf16Source<'a> {
         self.pos
     }
     #[inline(always)]
-    pub fn copy_ascii_to_check_space_two<'b>
-        (&mut self,
-         dest: &'b mut ByteDestination<'a>)
-         -> CopyAsciiResult<(EncoderResult, usize, usize), (NonAscii, ByteTwoHandle<'b, 'a>)> {
+    pub fn copy_ascii_to_check_space_two<'b>(
+        &mut self,
+        dest: &'b mut ByteDestination<'a>,
+    ) -> CopyAsciiResult<(EncoderResult, usize, usize), (NonAscii, ByteTwoHandle<'b, 'a>)> {
         let non_ascii_ret = {
             let dst_len = dest.slice.len();
             let src_remaining = &self.slice[self.pos..];
@@ -835,12 +841,8 @@ impl<'a> Utf16Source<'a> {
                 (EncoderResult::InputEmpty, src_remaining.len())
             };
             match unsafe {
-                      basic_latin_to_ascii(
-                    src_remaining.as_ptr(),
-                    dst_remaining.as_mut_ptr(),
-                    length,
-                )
-                  } {
+                basic_latin_to_ascii(src_remaining.as_ptr(), dst_remaining.as_mut_ptr(), length)
+            } {
                 None => {
                     self.pos += length;
                     dest.pos += length;
@@ -863,14 +865,12 @@ impl<'a> Utf16Source<'a> {
                                 if second_minus_low_surrogate_start <= (0xDFFF - 0xDC00) {
                                     // The next code unit is a low surrogate. Advance position.
                                     self.pos += 1;
-                                    NonAscii::Astral(
-                                        unsafe {
-                                            ::std::mem::transmute(
-                                                ((unit as u32) << 10) + (second as u32) -
-                                                (((0xD800u32 << 10) - 0x10000u32) + 0xDC00u32)
-                                            )
-                                        }
-                                    )
+                                    NonAscii::Astral(unsafe {
+                                        ::std::mem::transmute(
+                                            ((unit as u32) << 10) + (second as u32)
+                                                - (((0xD800u32 << 10) - 0x10000u32) + 0xDC00u32),
+                                        )
+                                    })
                                 } else {
                                     // The next code unit is not a low surrogate. Don't advance
                                     // position and treat the high surrogate as unpaired.
@@ -885,9 +885,11 @@ impl<'a> Utf16Source<'a> {
                             NonAscii::BmpExclAscii(0xFFFDu16)
                         }
                     } else {
-                        return CopyAsciiResult::Stop(
-                            (EncoderResult::OutputFull, self.pos, dest.pos),
-                        );
+                        return CopyAsciiResult::Stop((
+                            EncoderResult::OutputFull,
+                            self.pos,
+                            dest.pos,
+                        ));
                     }
                 }
             }
@@ -895,10 +897,10 @@ impl<'a> Utf16Source<'a> {
         CopyAsciiResult::GoOn((non_ascii_ret, ByteTwoHandle::new(dest)))
     }
     #[inline(always)]
-    pub fn copy_ascii_to_check_space_four<'b>
-        (&mut self,
-         dest: &'b mut ByteDestination<'a>)
-         -> CopyAsciiResult<(EncoderResult, usize, usize), (NonAscii, ByteFourHandle<'b, 'a>)> {
+    pub fn copy_ascii_to_check_space_four<'b>(
+        &mut self,
+        dest: &'b mut ByteDestination<'a>,
+    ) -> CopyAsciiResult<(EncoderResult, usize, usize), (NonAscii, ByteFourHandle<'b, 'a>)> {
         let non_ascii_ret = {
             let dst_len = dest.slice.len();
             let src_remaining = &self.slice[self.pos..];
@@ -909,12 +911,8 @@ impl<'a> Utf16Source<'a> {
                 (EncoderResult::InputEmpty, src_remaining.len())
             };
             match unsafe {
-                      basic_latin_to_ascii(
-                    src_remaining.as_ptr(),
-                    dst_remaining.as_mut_ptr(),
-                    length,
-                )
-                  } {
+                basic_latin_to_ascii(src_remaining.as_ptr(), dst_remaining.as_mut_ptr(), length)
+            } {
                 None => {
                     self.pos += length;
                     dest.pos += length;
@@ -940,14 +938,12 @@ impl<'a> Utf16Source<'a> {
                                 if second_minus_low_surrogate_start <= (0xDFFF - 0xDC00) {
                                     // The next code unit is a low surrogate. Advance position.
                                     self.pos += 1;
-                                    NonAscii::Astral(
-                                        unsafe {
-                                            ::std::mem::transmute(
-                                                ((unit as u32) << 10) + (second as u32) -
-                                                (((0xD800u32 << 10) - 0x10000u32) + 0xDC00u32)
-                                            )
-                                        }
-                                    )
+                                    NonAscii::Astral(unsafe {
+                                        ::std::mem::transmute(
+                                            ((unit as u32) << 10) + (second as u32)
+                                                - (((0xD800u32 << 10) - 0x10000u32) + 0xDC00u32),
+                                        )
+                                    })
                                 } else {
                                     // The next code unit is not a low surrogate. Don't advance
                                     // position and treat the high surrogate as unpaired.
@@ -959,9 +955,11 @@ impl<'a> Utf16Source<'a> {
                             NonAscii::BmpExclAscii(0xFFFDu16)
                         }
                     } else {
-                        return CopyAsciiResult::Stop(
-                            (EncoderResult::OutputFull, self.pos, dest.pos),
-                        );
+                        return CopyAsciiResult::Stop((
+                            EncoderResult::OutputFull,
+                            self.pos,
+                            dest.pos,
+                        ));
                     }
                 }
             }
@@ -971,13 +969,15 @@ impl<'a> Utf16Source<'a> {
 }
 
 pub struct Utf16ReadHandle<'a, 'b>
-    where 'b: 'a
+where
+    'b: 'a,
 {
     source: &'a mut Utf16Source<'b>,
 }
 
 impl<'a, 'b> Utf16ReadHandle<'a, 'b>
-    where 'b: 'a
+where
+    'b: 'a,
 {
     #[inline(always)]
     fn new(src: &'a mut Utf16Source<'b>) -> Utf16ReadHandle<'a, 'b> {
@@ -1002,13 +1002,15 @@ impl<'a, 'b> Utf16ReadHandle<'a, 'b>
 }
 
 pub struct Utf16UnreadHandle<'a, 'b>
-    where 'b: 'a
+where
+    'b: 'a,
 {
     source: &'a mut Utf16Source<'b>,
 }
 
 impl<'a, 'b> Utf16UnreadHandle<'a, 'b>
-    where 'b: 'a
+where
+    'b: 'a,
 {
     #[inline(always)]
     fn new(src: &'a mut Utf16Source<'b>) -> Utf16UnreadHandle<'a, 'b> {
@@ -1067,15 +1069,14 @@ impl<'a> Utf8Source<'a> {
             return unsafe { ::std::mem::transmute(point) };
         }
         if unit < 0xF0u32 {
-            let point = ((unit & 0xFu32) << 12) |
-                        ((self.slice[self.pos + 1] as u32 & 0x3Fu32) << 6) |
-                        (self.slice[self.pos + 2] as u32 & 0x3Fu32);
+            let point = ((unit & 0xFu32) << 12) | ((self.slice[self.pos + 1] as u32 & 0x3Fu32) << 6)
+                | (self.slice[self.pos + 2] as u32 & 0x3Fu32);
             self.pos += 3;
             return unsafe { ::std::mem::transmute(point) };
         }
-        let point = ((unit & 0x7u32) << 18) | ((self.slice[self.pos + 1] as u32 & 0x3Fu32) << 12) |
-                    ((self.slice[self.pos + 2] as u32 & 0x3Fu32) << 6) |
-                    (self.slice[self.pos + 3] as u32 & 0x3Fu32);
+        let point = ((unit & 0x7u32) << 18) | ((self.slice[self.pos + 1] as u32 & 0x3Fu32) << 12)
+            | ((self.slice[self.pos + 2] as u32 & 0x3Fu32) << 6)
+            | (self.slice[self.pos + 3] as u32 & 0x3Fu32);
         self.pos += 4;
         unsafe { ::std::mem::transmute(point) }
     }
@@ -1088,22 +1089,22 @@ impl<'a> Utf8Source<'a> {
             return Unicode::Ascii(unit);
         }
         if unit < 0xE0u8 {
-            let point = (((unit as u32) & 0x1Fu32) << 6) |
-                        (self.slice[self.pos + 1] as u32 & 0x3Fu32);
+            let point =
+                (((unit as u32) & 0x1Fu32) << 6) | (self.slice[self.pos + 1] as u32 & 0x3Fu32);
             self.pos += 2;
             return Unicode::NonAscii(NonAscii::BmpExclAscii(point as u16));
         }
         if unit < 0xF0u8 {
-            let point = (((unit as u32) & 0xFu32) << 12) |
-                        ((self.slice[self.pos + 1] as u32 & 0x3Fu32) << 6) |
-                        (self.slice[self.pos + 2] as u32 & 0x3Fu32);
+            let point = (((unit as u32) & 0xFu32) << 12)
+                | ((self.slice[self.pos + 1] as u32 & 0x3Fu32) << 6)
+                | (self.slice[self.pos + 2] as u32 & 0x3Fu32);
             self.pos += 3;
             return Unicode::NonAscii(NonAscii::BmpExclAscii(point as u16));
         }
-        let point = (((unit as u32) & 0x7u32) << 18) |
-                    ((self.slice[self.pos + 1] as u32 & 0x3Fu32) << 12) |
-                    ((self.slice[self.pos + 2] as u32 & 0x3Fu32) << 6) |
-                    (self.slice[self.pos + 3] as u32 & 0x3Fu32);
+        let point = (((unit as u32) & 0x7u32) << 18)
+            | ((self.slice[self.pos + 1] as u32 & 0x3Fu32) << 12)
+            | ((self.slice[self.pos + 2] as u32 & 0x3Fu32) << 6)
+            | (self.slice[self.pos + 3] as u32 & 0x3Fu32);
         self.pos += 4;
         Unicode::NonAscii(NonAscii::Astral(unsafe { ::std::mem::transmute(point) }))
     }
@@ -1117,10 +1118,10 @@ impl<'a> Utf8Source<'a> {
         self.pos
     }
     #[inline(always)]
-    pub fn copy_ascii_to_check_space_one<'b>
-        (&mut self,
-         dest: &'b mut ByteDestination<'a>)
-         -> CopyAsciiResult<(EncoderResult, usize, usize), (NonAscii, ByteOneHandle<'b, 'a>)> {
+    pub fn copy_ascii_to_check_space_one<'b>(
+        &mut self,
+        dest: &'b mut ByteDestination<'a>,
+    ) -> CopyAsciiResult<(EncoderResult, usize, usize), (NonAscii, ByteOneHandle<'b, 'a>)> {
         let non_ascii_ret = {
             let src_remaining = &self.slice[self.pos..];
             let dst_remaining = &mut dest.slice[dest.pos..];
@@ -1130,8 +1131,8 @@ impl<'a> Utf8Source<'a> {
                 (EncoderResult::InputEmpty, src_remaining.len())
             };
             match unsafe {
-                      ascii_to_ascii(src_remaining.as_ptr(), dst_remaining.as_mut_ptr(), length)
-                  } {
+                ascii_to_ascii(src_remaining.as_ptr(), dst_remaining.as_mut_ptr(), length)
+            } {
                 None => {
                     self.pos += length;
                     dest.pos += length;
@@ -1144,21 +1145,21 @@ impl<'a> Utf8Source<'a> {
                     // `ascii_to_ascii()` already did.
                     let non_ascii32 = non_ascii as u32;
                     if non_ascii32 < 0xE0u32 {
-                        let point = ((non_ascii32 & 0x1Fu32) << 6) |
-                                    (self.slice[self.pos + 1] as u32 & 0x3Fu32);
+                        let point = ((non_ascii32 & 0x1Fu32) << 6)
+                            | (self.slice[self.pos + 1] as u32 & 0x3Fu32);
                         self.pos += 2;
                         NonAscii::BmpExclAscii(point as u16)
                     } else if non_ascii32 < 0xF0u32 {
-                        let point = ((non_ascii32 & 0xFu32) << 12) |
-                                    ((self.slice[self.pos + 1] as u32 & 0x3Fu32) << 6) |
-                                    (self.slice[self.pos + 2] as u32 & 0x3Fu32);
+                        let point = ((non_ascii32 & 0xFu32) << 12)
+                            | ((self.slice[self.pos + 1] as u32 & 0x3Fu32) << 6)
+                            | (self.slice[self.pos + 2] as u32 & 0x3Fu32);
                         self.pos += 3;
                         NonAscii::BmpExclAscii(point as u16)
                     } else {
-                        let point = ((non_ascii32 & 0x7u32) << 18) |
-                                    ((self.slice[self.pos + 1] as u32 & 0x3Fu32) << 12) |
-                                    ((self.slice[self.pos + 2] as u32 & 0x3Fu32) << 6) |
-                                    (self.slice[self.pos + 3] as u32 & 0x3Fu32);
+                        let point = ((non_ascii32 & 0x7u32) << 18)
+                            | ((self.slice[self.pos + 1] as u32 & 0x3Fu32) << 12)
+                            | ((self.slice[self.pos + 2] as u32 & 0x3Fu32) << 6)
+                            | (self.slice[self.pos + 3] as u32 & 0x3Fu32);
                         self.pos += 4;
                         NonAscii::Astral(unsafe { ::std::mem::transmute(point) })
                     }
@@ -1168,10 +1169,10 @@ impl<'a> Utf8Source<'a> {
         CopyAsciiResult::GoOn((non_ascii_ret, ByteOneHandle::new(dest)))
     }
     #[inline(always)]
-    pub fn copy_ascii_to_check_space_two<'b>
-        (&mut self,
-         dest: &'b mut ByteDestination<'a>)
-         -> CopyAsciiResult<(EncoderResult, usize, usize), (NonAscii, ByteTwoHandle<'b, 'a>)> {
+    pub fn copy_ascii_to_check_space_two<'b>(
+        &mut self,
+        dest: &'b mut ByteDestination<'a>,
+    ) -> CopyAsciiResult<(EncoderResult, usize, usize), (NonAscii, ByteTwoHandle<'b, 'a>)> {
         let non_ascii_ret = {
             let dst_len = dest.slice.len();
             let src_remaining = &self.slice[self.pos..];
@@ -1182,8 +1183,8 @@ impl<'a> Utf8Source<'a> {
                 (EncoderResult::InputEmpty, src_remaining.len())
             };
             match unsafe {
-                      ascii_to_ascii(src_remaining.as_ptr(), dst_remaining.as_mut_ptr(), length)
-                  } {
+                ascii_to_ascii(src_remaining.as_ptr(), dst_remaining.as_mut_ptr(), length)
+            } {
                 None => {
                     self.pos += length;
                     dest.pos += length;
@@ -1195,28 +1196,30 @@ impl<'a> Utf8Source<'a> {
                     if dest.pos + 1 < dst_len {
                         let non_ascii32 = non_ascii as u32;
                         if non_ascii32 < 0xE0u32 {
-                            let point = ((non_ascii32 & 0x1Fu32) << 6) |
-                                        (self.slice[self.pos + 1] as u32 & 0x3Fu32);
+                            let point = ((non_ascii32 & 0x1Fu32) << 6)
+                                | (self.slice[self.pos + 1] as u32 & 0x3Fu32);
                             self.pos += 2;
                             NonAscii::BmpExclAscii(point as u16)
                         } else if non_ascii32 < 0xF0u32 {
-                            let point = ((non_ascii32 & 0xFu32) << 12) |
-                                        ((self.slice[self.pos + 1] as u32 & 0x3Fu32) << 6) |
-                                        (self.slice[self.pos + 2] as u32 & 0x3Fu32);
+                            let point = ((non_ascii32 & 0xFu32) << 12)
+                                | ((self.slice[self.pos + 1] as u32 & 0x3Fu32) << 6)
+                                | (self.slice[self.pos + 2] as u32 & 0x3Fu32);
                             self.pos += 3;
                             NonAscii::BmpExclAscii(point as u16)
                         } else {
-                            let point = ((non_ascii32 & 0x7u32) << 18) |
-                                        ((self.slice[self.pos + 1] as u32 & 0x3Fu32) << 12) |
-                                        ((self.slice[self.pos + 2] as u32 & 0x3Fu32) << 6) |
-                                        (self.slice[self.pos + 3] as u32 & 0x3Fu32);
+                            let point = ((non_ascii32 & 0x7u32) << 18)
+                                | ((self.slice[self.pos + 1] as u32 & 0x3Fu32) << 12)
+                                | ((self.slice[self.pos + 2] as u32 & 0x3Fu32) << 6)
+                                | (self.slice[self.pos + 3] as u32 & 0x3Fu32);
                             self.pos += 4;
                             NonAscii::Astral(unsafe { ::std::mem::transmute(point) })
                         }
                     } else {
-                        return CopyAsciiResult::Stop(
-                            (EncoderResult::OutputFull, self.pos, dest.pos),
-                        );
+                        return CopyAsciiResult::Stop((
+                            EncoderResult::OutputFull,
+                            self.pos,
+                            dest.pos,
+                        ));
                     }
                 }
             }
@@ -1224,10 +1227,10 @@ impl<'a> Utf8Source<'a> {
         CopyAsciiResult::GoOn((non_ascii_ret, ByteTwoHandle::new(dest)))
     }
     #[inline(always)]
-    pub fn copy_ascii_to_check_space_four<'b>
-        (&mut self,
-         dest: &'b mut ByteDestination<'a>)
-         -> CopyAsciiResult<(EncoderResult, usize, usize), (NonAscii, ByteFourHandle<'b, 'a>)> {
+    pub fn copy_ascii_to_check_space_four<'b>(
+        &mut self,
+        dest: &'b mut ByteDestination<'a>,
+    ) -> CopyAsciiResult<(EncoderResult, usize, usize), (NonAscii, ByteFourHandle<'b, 'a>)> {
         let non_ascii_ret = {
             let dst_len = dest.slice.len();
             let src_remaining = &self.slice[self.pos..];
@@ -1238,8 +1241,8 @@ impl<'a> Utf8Source<'a> {
                 (EncoderResult::InputEmpty, src_remaining.len())
             };
             match unsafe {
-                      ascii_to_ascii(src_remaining.as_ptr(), dst_remaining.as_mut_ptr(), length)
-                  } {
+                ascii_to_ascii(src_remaining.as_ptr(), dst_remaining.as_mut_ptr(), length)
+            } {
                 None => {
                     self.pos += length;
                     dest.pos += length;
@@ -1251,28 +1254,30 @@ impl<'a> Utf8Source<'a> {
                     if dest.pos + 3 < dst_len {
                         let non_ascii32 = non_ascii as u32;
                         if non_ascii32 < 0xE0u32 {
-                            let point = ((non_ascii32 & 0x1Fu32) << 6) |
-                                        (self.slice[self.pos + 1] as u32 & 0x3Fu32);
+                            let point = ((non_ascii32 & 0x1Fu32) << 6)
+                                | (self.slice[self.pos + 1] as u32 & 0x3Fu32);
                             self.pos += 2;
                             NonAscii::BmpExclAscii(point as u16)
                         } else if non_ascii32 < 0xF0u32 {
-                            let point = ((non_ascii32 & 0xFu32) << 12) |
-                                        ((self.slice[self.pos + 1] as u32 & 0x3Fu32) << 6) |
-                                        (self.slice[self.pos + 2] as u32 & 0x3Fu32);
+                            let point = ((non_ascii32 & 0xFu32) << 12)
+                                | ((self.slice[self.pos + 1] as u32 & 0x3Fu32) << 6)
+                                | (self.slice[self.pos + 2] as u32 & 0x3Fu32);
                             self.pos += 3;
                             NonAscii::BmpExclAscii(point as u16)
                         } else {
-                            let point = ((non_ascii32 & 0x7u32) << 18) |
-                                        ((self.slice[self.pos + 1] as u32 & 0x3Fu32) << 12) |
-                                        ((self.slice[self.pos + 2] as u32 & 0x3Fu32) << 6) |
-                                        (self.slice[self.pos + 3] as u32 & 0x3Fu32);
+                            let point = ((non_ascii32 & 0x7u32) << 18)
+                                | ((self.slice[self.pos + 1] as u32 & 0x3Fu32) << 12)
+                                | ((self.slice[self.pos + 2] as u32 & 0x3Fu32) << 6)
+                                | (self.slice[self.pos + 3] as u32 & 0x3Fu32);
                             self.pos += 4;
                             NonAscii::Astral(unsafe { ::std::mem::transmute(point) })
                         }
                     } else {
-                        return CopyAsciiResult::Stop(
-                            (EncoderResult::OutputFull, self.pos, dest.pos),
-                        );
+                        return CopyAsciiResult::Stop((
+                            EncoderResult::OutputFull,
+                            self.pos,
+                            dest.pos,
+                        ));
                     }
                 }
             }
@@ -1282,13 +1287,15 @@ impl<'a> Utf8Source<'a> {
 }
 
 pub struct Utf8ReadHandle<'a, 'b>
-    where 'b: 'a
+where
+    'b: 'a,
 {
     source: &'a mut Utf8Source<'b>,
 }
 
 impl<'a, 'b> Utf8ReadHandle<'a, 'b>
-    where 'b: 'a
+where
+    'b: 'a,
 {
     #[inline(always)]
     fn new(src: &'a mut Utf8Source<'b>) -> Utf8ReadHandle<'a, 'b> {
@@ -1313,13 +1320,15 @@ impl<'a, 'b> Utf8ReadHandle<'a, 'b>
 }
 
 pub struct Utf8UnreadHandle<'a, 'b>
-    where 'b: 'a
+where
+    'b: 'a,
 {
     source: &'a mut Utf8Source<'b>,
 }
 
 impl<'a, 'b> Utf8UnreadHandle<'a, 'b>
-    where 'b: 'a
+where
+    'b: 'a,
 {
     #[inline(always)]
     fn new(src: &'a mut Utf8Source<'b>) -> Utf8UnreadHandle<'a, 'b> {
@@ -1342,13 +1351,15 @@ impl<'a, 'b> Utf8UnreadHandle<'a, 'b>
 // Byte destination
 
 pub struct ByteOneHandle<'a, 'b>
-    where 'b: 'a
+where
+    'b: 'a,
 {
     dest: &'a mut ByteDestination<'b>,
 }
 
 impl<'a, 'b> ByteOneHandle<'a, 'b>
-    where 'b: 'a
+where
+    'b: 'a,
 {
     #[inline(always)]
     fn new(dst: &'a mut ByteDestination<'b>) -> ByteOneHandle<'a, 'b> {
@@ -1366,13 +1377,15 @@ impl<'a, 'b> ByteOneHandle<'a, 'b>
 }
 
 pub struct ByteTwoHandle<'a, 'b>
-    where 'b: 'a
+where
+    'b: 'a,
 {
     dest: &'a mut ByteDestination<'b>,
 }
 
 impl<'a, 'b> ByteTwoHandle<'a, 'b>
-    where 'b: 'a
+where
+    'b: 'a,
 {
     #[inline(always)]
     fn new(dst: &'a mut ByteDestination<'b>) -> ByteTwoHandle<'a, 'b> {
@@ -1395,13 +1408,15 @@ impl<'a, 'b> ByteTwoHandle<'a, 'b>
 }
 
 pub struct ByteThreeHandle<'a, 'b>
-    where 'b: 'a
+where
+    'b: 'a,
 {
     dest: &'a mut ByteDestination<'b>,
 }
 
 impl<'a, 'b> ByteThreeHandle<'a, 'b>
-    where 'b: 'a
+where
+    'b: 'a,
 {
     #[inline(always)]
     fn new(dst: &'a mut ByteDestination<'b>) -> ByteThreeHandle<'a, 'b> {
@@ -1434,13 +1449,15 @@ impl<'a, 'b> ByteThreeHandle<'a, 'b>
 }
 
 pub struct ByteFourHandle<'a, 'b>
-    where 'b: 'a
+where
+    'b: 'a,
 {
     dest: &'a mut ByteDestination<'b>,
 }
 
 impl<'a, 'b> ByteFourHandle<'a, 'b>
-    where 'b: 'a
+where
+    'b: 'a,
 {
     #[inline(always)]
     fn new(dst: &'a mut ByteDestination<'b>) -> ByteFourHandle<'a, 'b> {
@@ -1461,12 +1478,13 @@ impl<'a, 'b> ByteFourHandle<'a, 'b>
         self.dest
     }
     #[inline(always)]
-    pub fn write_four(self,
-                      first: u8,
-                      second: u8,
-                      third: u8,
-                      fourth: u8)
-                      -> &'a mut ByteDestination<'b> {
+    pub fn write_four(
+        self,
+        first: u8,
+        second: u8,
+        third: u8,
+        fourth: u8,
+    ) -> &'a mut ByteDestination<'b> {
         self.dest.write_four(first, second, third, fourth);
         self.dest
     }

@@ -20,19 +20,20 @@ pub struct Utf16Decoder {
 
 impl Utf16Decoder {
     pub fn new(big_endian: bool) -> VariantDecoder {
-        VariantDecoder::Utf16(
-            Utf16Decoder {
-                lead_surrogate: 0,
-                lead_byte: None,
-                be: big_endian,
-                pending_bmp: false,
-            }
-        )
+        VariantDecoder::Utf16(Utf16Decoder {
+            lead_surrogate: 0,
+            lead_byte: None,
+            be: big_endian,
+            pending_bmp: false,
+        })
     }
 
     pub fn additional_from_state(&self) -> usize {
-        1 + if self.lead_byte.is_some() { 1 } else { 0 } +
-        if self.lead_surrogate == 0 { 0 } else { 2 }
+        1 + if self.lead_byte.is_some() { 1 } else { 0 } + if self.lead_surrogate == 0 {
+            0
+        } else {
+            2
+        }
     }
 
     pub fn max_utf16_buffer_length(&self, byte_length: usize) -> Option<usize> {
@@ -121,9 +122,11 @@ impl Utf16Decoder {
                             // error and this one becomes the new
                             // pending one.
                             self.lead_surrogate = code_unit as u16;
-                            return (DecoderResult::Malformed(2, 2),
-                                    unread_handle.consumed(),
-                                    destination_handle.written());
+                            return (
+                                DecoderResult::Malformed(2, 2),
+                                unread_handle.consumed(),
+                                destination_handle.written(),
+                            );
                         }
                         self.lead_surrogate = code_unit;
                         continue;
@@ -131,9 +134,11 @@ impl Utf16Decoder {
                     if high_bits == 0xDC00u16 {
                         // low surrogate
                         if self.lead_surrogate == 0 {
-                            return (DecoderResult::Malformed(2, 0),
-                                    unread_handle.consumed(),
-                                    destination_handle.written());
+                            return (
+                                DecoderResult::Malformed(2, 0),
+                                unread_handle.consumed(),
+                                destination_handle.written(),
+                            );
                         }
                         destination_handle.write_surrogate_pair(self.lead_surrogate, code_unit);
                         self.lead_surrogate = 0;
@@ -146,9 +151,11 @@ impl Utf16Decoder {
                         // pending BMP character.
                         self.lead_surrogate = code_unit;
                         self.pending_bmp = true;
-                        return (DecoderResult::Malformed(2, 2),
-                                unread_handle.consumed(),
-                                destination_handle.written());
+                        return (
+                            DecoderResult::Malformed(2, 2),
+                            unread_handle.consumed(),
+                            destination_handle.written(),
+                        );
                     }
                     destination_handle.write_bmp(code_unit);
                     continue;

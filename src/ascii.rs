@@ -21,7 +21,8 @@
 // on Raspberry Pi 3 measurements. The UTF-16 and UTF-8 ALU cases take
 // different approaches based on benchmarking on Raspberry Pi 3.
 
-#[cfg(all(feature = "simd-accel", any(target_feature = "sse2", all(target_endian = "little", target_arch = "aarch64"))))]
+#[cfg(all(feature = "simd-accel",
+          any(target_feature = "sse2", all(target_endian = "little", target_arch = "aarch64"))))]
 use simd_funcs::*;
 
 // `as` truncates, so works on 32-bit, too.
