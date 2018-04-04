@@ -2282,6 +2282,18 @@ impl Encoding {
         self.name
     }
 
+    /// Returns a WHATWG label for this encoding.
+    /// https://encoding.spec.whatwg.org/#names-and-labels
+    ///
+    /// Note that multiple labels may apply to the same encoding,
+    /// e.g., "utf8" / "utf-8" / "unicode-1-1-utf-8",
+    /// but only a single label will be returned.
+    #[inline]
+    pub fn label(&'static self) -> &'static [u8] {
+        let index = ENCODINGS_IN_LABEL_SORT.iter().position(|x| *x == self).unwrap();
+        LABELS_SORTED[index].as_bytes()
+    }
+
     /// Checks whether the _output encoding_ of this encoding can encode every
     /// `char`. (Only true if the output encoding is UTF-8.)
     ///
@@ -4503,6 +4515,16 @@ mod tests {
         assert_eq!(Encoding::for_label(b"utf-8 _"), None);
         assert_eq!(Encoding::for_label(b"bogus"), None);
         assert_eq!(Encoding::for_label(b"bogusbogusbogusbogus"), None);
+    }
+
+    #[test]
+    fn test_conversion_to_label() {
+        assert_eq!("utf8".as_bytes(), UTF_8.label());
+        assert_eq!("iso-2022-jp".as_bytes(), ISO_2022_JP.label());
+
+        for encoding in ENCODINGS_IN_LABEL_SORT.iter() {
+            assert_eq!(Encoding::for_label(&encoding.label()), Some(*encoding));
+        }
     }
 
     #[test]
