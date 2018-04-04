@@ -89,7 +89,7 @@ impl UserDefinedDecoder {
         src_trim
             .iter()
             .zip(dst_trim.iter_mut())
-            .for_each(|(from, to)| {
+            .fold((), move |(), (from, to)| {
                 *to = {
                     let unit = *from;
                     if unit < 0x80 {
@@ -132,7 +132,7 @@ impl UserDefinedDecoder {
         src_tail
             .iter()
             .zip(dst_tail.iter_mut())
-            .for_each(|(from, to)| {
+            .fold((), move |(), (from, to)| {
                 *to = {
                     let unit = *from;
                     if unit < 0x80 {
