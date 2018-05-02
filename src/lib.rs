@@ -157,7 +157,7 @@
 //! ## UTF-16LE, UTF-16BE and Unicode Encoding Schemes
 //!
 //! The Encoding Standard doesn't specify encoders for UTF-16LE and UTF-16BE,
-//! *so this crate does not provide encoders for those encodings*!
+//! __so this crate does not provide encoders for those encodings__!
 //! Along with the replacement encoding, their _output encoding_ is UTF-8,
 //! so you get an UTF-8 encoder if you request an encoder for them.
 //!
