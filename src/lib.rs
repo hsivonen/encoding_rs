@@ -194,8 +194,8 @@
 //! byte value to the same Unicode scalar value is not available via
 //! `Encoding` in this crate.
 //!
-//! However, the functions with `latin1` in their name in the `mem` module
-//! support such conversions, which are known as
+//! However, the functions whose name starts with `convert` and contains
+//! `latin1` in the `mem` module support such conversions, which are known as
 //! [_isomorphic decode_](https://infra.spec.whatwg.org/#isomorphic-decode)
 //! and [_isomorphic encode_](https://infra.spec.whatwg.org/#isomorphic-encode)
 //! in the [Infra Standard](https://infra.spec.whatwg.org/).
