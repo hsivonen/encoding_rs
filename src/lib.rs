@@ -21,6 +21,10 @@
 //! applications that need to be able to deal with legacy in-memory
 //! representations of Unicode.
 //!
+//! For expectation setting, please be sure to read the sections "UTF-16LE,
+//! UTF-16BE and Unicode Encoding Schemes", "ISO-8859-1" and "Web / Browser
+//! Focus" below.
+//!
 //! # Availability
 //!
 //! The code is available under the
@@ -149,6 +153,51 @@
 //! assert_eq!(&output[..], expectation);
 //! assert!(!total_had_errors);
 //! ```
+//!
+//! ## UTF-16LE, UTF-16BE and Unicode Encoding Schemes
+//!
+//! The Encoding Standard doesn't specify encoders for UTF-16LE and UTF-16BE.
+//! Along with the replacement encoding, their _output encoding_ is UTF-8,
+//! so you get an UTF-8 encoder if you request an encoder for them.
+//!
+//! Additionally, the Encoding Standard factors BOM handling into wrapper
+//! algorithms so that BOM handling isn't part of the definition of the
+//! encodings themselves. The Unicode _encoding schemes_ in the Unicode
+//! Standard define BOM handling or lack thereof as part of the encoding
+//! scheme. 
+//!
+//! When used with the `_without_bom_handling` entry points, the UTF-16LE
+//! and UTF-16BE _encodings_ match the same-named _encoding schemes_ from
+//! the Unicode Standard.
+//!
+//! When used with the `_with_bom_removal` entry points, the UTF-8
+//! _encoding_ matches the UTF-8 _encoding scheme_ from the Unicode
+//! Standard.
+//!
+//! This crate does not provide a mode that matches the UTF-16 _encoding
+//! scheme_ from the Unicode Stardard. The UTF-16BE encoding using with
+//! the entry points without `_bom_` qualifiers are the closest match,
+//! but in that case, the UTF-8 BOM triggers UTF-8 decoding, which is
+//! not part of the behavior of the UTF-16 _encoding scheme_ per the
+//! Unicode Standard.
+//!
+//! The UTF-32 family of Unicode encoding schemes is not supported
+//! by this crate. The Encoding Standard doesn't define any UTF-32
+//! family encodings, since they aren't necessary for consuming Web
+//! content.
+//! 
+//! ## ISO-8859-1
+//!
+//! ISO-8859-1 does not exist as a distinct encoding from windows-1252 in
+//! the Encoding Standard. Therefore, an encoding that maps the unsigned
+//! byte value to the same Unicode scalar value is not available via
+//! `Encoding` in this crate.
+//!
+//! However, the functions with `latin1` in their name in the `mem` module
+//! support such conversions, which are known as
+//! [_isomorphic decode_](https://infra.spec.whatwg.org/#isomorphic-decode)
+//! and [_isomorphic encode_](https://infra.spec.whatwg.org/#isomorphic-encode)
+//! in the [Infra Standard](https://infra.spec.whatwg.org/).
 //!
 //! ## Web / Browser Focus
 //!
