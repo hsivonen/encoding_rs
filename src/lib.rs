@@ -175,8 +175,8 @@
 //! Standard.
 //!
 //! This crate does not provide a mode that matches the UTF-16 _encoding
-//! scheme_ from the Unicode Stardard. The UTF-16BE encoding using with
-//! the entry points without `_bom_` qualifiers are the closest match,
+//! scheme_ from the Unicode Stardard. The UTF-16BE encoding used with
+//! the entry points without `_bom_` qualifiers is the closest match,
 //! but in that case, the UTF-8 BOM triggers UTF-8 decoding, which is
 //! not part of the behavior of the UTF-16 _encoding scheme_ per the
 //! Unicode Standard.
