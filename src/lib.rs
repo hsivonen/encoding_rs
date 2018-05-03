@@ -624,7 +624,7 @@
 //!
 //! <table>
 //! <thead>
-//! <tr><th>Separate per IANA</th><th>Unified into</th></tr>
+//! <tr><th>IANA</th><th>Unified into Encoding</th></tr>
 //! </thead>
 //! <tbody>
 //! <tr><td>ISO-8859-1</td><td>windows-1252</td></tr>
