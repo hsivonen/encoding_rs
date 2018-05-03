@@ -599,6 +599,42 @@
 //! 4. Windows decodes 0xAF to OVERLINE instead of MACRON and 0xFE and 0xFD to PUA instead
 //!    of LRM and RLM.
 //! 5. Remarks from the previous item apply.
+//!
+//! # Notable Differences from IANA Naming
+//!
+//! In some cases, the Encoding Standard specifies the popular unextended encoding
+//! name where in IANA terms one of the other labels would be more precise considering
+//! the extensions that the Encoding Standard has unified into the encoding.
+//!
+//! <table>
+//! <thead>
+//! <tr><th>Encoding</th><th>IANA</th></tr>
+//! </thead>
+//! <tbody>
+//! <tr><td>Big5</td><td>Big5-HKSCS</td></tr>
+//! <tr><td>EUC-KR</td><td>windows-949</td></tr>
+//! <tr><td>Shift_JIS</td><td>windows-31j</td></tr>
+//! <tr><td>x-mac-cyrillic</td><td>x-mac-ukrainian</td></tr>
+//! </tbody>
+//! </table>
+//!
+//! In other cases where the Encoding Standard unifies unextended and extended
+//! variants of an encoding, the encoding get the name of the extended
+//! variant.
+//!
+//! <table>
+//! <thead>
+//! <tr><th>Separate per IANA</th><th>Unified into</th></tr>
+//! </thead>
+//! <tbody>
+//! <tr><td>ISO-8859-1</td><td>windows-1252</td></tr>
+//! <tr><td>ISO-8859-9</td><td>windows-1254</td></tr>
+//! <tr><td>TIS-620</td><td>windows-874</td></tr>
+//! </tbody>
+//! </table>
+//!
+//! See the section [_UTF-16LE, UTF-16BE and Unicode Encoding Schemes_](#utf-16le-utf-16be-and-unicode-encoding-schemes)
+//! for discussion about the UTF-16 family.
 
 #![cfg_attr(feature = "simd-accel",
             feature(cfg_target_feature, platform_intrinsics, core_intrinsics))]
