@@ -165,7 +165,7 @@
 //! algorithms so that BOM handling isn't part of the definition of the
 //! encodings themselves. The Unicode _encoding schemes_ in the Unicode
 //! Standard define BOM handling or lack thereof as part of the encoding
-//! scheme. 
+//! scheme.
 //!
 //! When used with the `_without_bom_handling` entry points, the UTF-16LE
 //! and UTF-16BE _encodings_ match the same-named _encoding schemes_ from
@@ -186,7 +186,7 @@
 //! by this crate. The Encoding Standard doesn't define any UTF-32
 //! family encodings, since they aren't necessary for consuming Web
 //! content.
-//! 
+//!
 //! ## ISO-8859-1
 //!
 //! ISO-8859-1 does not exist as a distinct encoding from windows-1252 in
@@ -544,6 +544,61 @@
 //! <tr><td><code>encoding::EncoderTrap::Call(EncoderTrapFunc)</code></td><td>Can be implemented using <code>encode*</code> methods that have <code>_without_replacement</code> in their name.</td></tr>
 //! </tbody>
 //! </table>
+//!
+//! # Relationship with Windows Code Pages
+//!
+//! Despite the Web and browser focus, the encodings defined by the Encoding
+//! Standard and implemented by this crate may be useful for decoding legacy
+//! data that uses Windows code pages. The following table names the single-byte
+//! encodings
+//! that have a closely related Windows code page, the number of the closest
+//! code page, a column indicating whether Windows maps unassigned code points
+//! to the Unicode Private Use Area instead of U+FFFD and a remark number
+//! indicating remarks in the list after the table.
+//!
+//! <table>
+//! <thead>
+//! <tr><th>Encoding</th><th>Code Page</th><th>PUA</th><th>Remarks</th></tr>
+//! </thead>
+//! <tbody>
+//! <tr><td>IBM866</td><td>866</td><td></td><td></td></tr>
+//! <tr><td>windows-874</td><td>874</td><td>&bullet;</td><td></td></tr>
+//! <tr><td>windows-1250</td><td>1250</td><td></td><td></td></tr>
+//! <tr><td>windows-1251</td><td>1251</td><td></td><td></td></tr>
+//! <tr><td>windows-1252</td><td>1252</td><td></td><td></td></tr>
+//! <tr><td>windows-1253</td><td>1253</td><td>&bullet;</td><td></td></tr>
+//! <tr><td>windows-1254</td><td>1254</td><td></td><td></td></tr>
+//! <tr><td>windows-1255</td><td>1255</td><td>&bullet;</td><td></td></tr>
+//! <tr><td>windows-1256</td><td>1256</td><td></td><td></td></tr>
+//! <tr><td>windows-1257</td><td>1257</td><td>&bullet;</td><td></td></tr>
+//! <tr><td>windows-1258</td><td>1258</td><td></td><td></td></tr>
+//! <tr><td>macintosh</td><td>10000</td><td></td><td>1</td></tr>
+//! <tr><td>x-mac-cyrillic</td><td>10017</td><td></td><td>2</td></tr>
+//! <tr><td>KOI8-R</td><td>20866</td><td></td><td></td></tr>
+//! <tr><td>KOI8-U</td><td>21866</td><td></td><td></td></tr>
+//! <tr><td>ISO-8859-2</td><td>28592</td><td></td><td></td></tr>
+//! <tr><td>ISO-8859-3</td><td>28593</td><td></td><td></td></tr>
+//! <tr><td>ISO-8859-4</td><td>28594</td><td></td><td></td></tr>
+//! <tr><td>ISO-8859-5</td><td>28595</td><td></td><td></td></tr>
+//! <tr><td>ISO-8859-6</td><td>28596</td><td>&bullet;</td><td></td></tr>
+//! <tr><td>ISO-8859-7</td><td>28597</td><td>&bullet;</td><td>3</td></tr>
+//! <tr><td>ISO-8859-8</td><td>28598</td><td>&bullet;</td><td>4</td></tr>
+//! <tr><td>ISO-8859-13</td><td>28603</td><td>&bullet;</td><td></td></tr>
+//! <tr><td>ISO-8859-15</td><td>28605</td><td></td><td></td></tr>
+//! <tr><td>ISO-8859-8-I</td><td>38598</td><td></td><td>5</td></tr>
+//! </tbody>
+//! </table>
+//!
+//! 1. Windows decodes 0xBD to U+2126 OHM SIGN instead of U+03A9 GREEK CAPITAL LETTER OMEGA.
+//! 2. Windows decodes 0xFF to U+00A4 CURRENCY SIGN instead of U+20AC EURO SIGN.
+//! 3. Windows decodes the currency signs at 0xA4 and 0xA5 as well as 0xAA,
+//!    which should be U+037A GREEK YPOGEGRAMMENI, to PUA code points. Windows
+//!    decodes 0xA1 to U+02BD MODIFIER LETTER REVERSED COMMA instead of U+2018
+//!    LEFT SINGLE QUOTATION MARK and 0xA2 to U+02BC MODIFIER LETTER APOSTROPHE
+//!    instead of U+2019 RIGHT SINGLE QUOTATION MARK.
+//! 4. Windows decodes 0xAF to OVERLINE instead of MACRON and 0xFE and 0xFD to PUA instead
+//!    of LRM and RLM.
+//! 5. Remarks from the previous item apply.
 
 #![cfg_attr(feature = "simd-accel",
             feature(cfg_target_feature, platform_intrinsics, core_intrinsics))]
