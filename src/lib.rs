@@ -552,7 +552,7 @@
 extern crate cfg_if;
 
 #[cfg(all(feature = "simd-accel",
-          any(target_feature = "sse2", all(target_endian = "little", target_arch = "aarch64"))))]
+          any(target_feature = "sse2", all(target_endian = "little", target_arch = "aarch64"), all(target_endian = "little", target_feature = "neon"))))]
 extern crate simd;
 
 #[cfg(feature = "serde")]
@@ -570,7 +570,7 @@ extern crate serde_json;
 mod macros;
 
 #[cfg(all(feature = "simd-accel",
-          any(target_feature = "sse2", all(target_endian = "little", target_arch = "aarch64"))))]
+          any(target_feature = "sse2", all(target_endian = "little", target_arch = "aarch64"), all(target_endian = "little", target_feature = "neon"))))]
 mod simd_funcs;
 
 #[cfg(any(all(feature = "simd-accel", target_feature = "sse2"),
