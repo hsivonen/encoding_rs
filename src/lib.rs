@@ -21,9 +21,9 @@
 //! applications that need to be able to deal with legacy in-memory
 //! representations of Unicode.
 //!
-//! For expectation setting, please be sure to read the sections "UTF-16LE,
-//! UTF-16BE and Unicode Encoding Schemes", "ISO-8859-1" and "Web / Browser
-//! Focus" below.
+//! For expectation setting, please be sure to read the sections
+//! [_UTF-16LE, UTF-16BE and Unicode Encoding Schemes_](#utf-16le-utf-16be-and-unicode-encoding-schemes),
+//! [_ISO-8859-1_](#iso-8859-1) and [_Web / Browser Focus_](#web--browser-focus) below.
 //!
 //! # Availability
 //!
