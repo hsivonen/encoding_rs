@@ -619,7 +619,7 @@
 //! </table>
 //!
 //! In other cases where the Encoding Standard unifies unextended and extended
-//! variants of an encoding, the encoding get the name of the extended
+//! variants of an encoding, the encoding gets the name of the extended
 //! variant.
 //!
 //! <table>
