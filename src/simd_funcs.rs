@@ -113,8 +113,10 @@ cfg_if! {
     } else {
         #[inline(always)]
         pub fn simd_is_ascii(s: u8x16) -> bool {
-            let above_ascii = u8x16::splat(0x80);
-            s.lt(above_ascii).all()
+            // This optimizes better on ARM than
+            // the lt formulation.
+            let highest_ascii = u8x16::splat(0x7F);
+            !s.gt(highest_ascii).any()
         }
     }
 }
