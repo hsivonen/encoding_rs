@@ -589,8 +589,6 @@ cfg_if! {
 
         pub const STRIDE_SIZE: usize = 16;
 
-//        pub const ALIGNMENT: usize = 8;
-
         ascii_to_ascii_simd_stride!(ascii_to_ascii_stride_neither_aligned, load16_unaligned, store16_unaligned);
 
         ascii_to_basic_latin_simd_stride!(ascii_to_basic_latin_stride_neither_aligned, load16_unaligned, store8_unaligned);
@@ -614,6 +612,8 @@ cfg_if! {
         pub const STRIDE_SIZE: usize = 16;
 
         pub const ALIGNMENT_MASK: usize = 15;
+
+        pub const ALIGNMENT: usize = 16;
 
         ascii_to_ascii_simd_stride!(ascii_to_ascii_stride_both_aligned, load16_aligned, store16_aligned);
         ascii_to_ascii_simd_stride!(ascii_to_ascii_stride_src_aligned, load16_aligned, store16_unaligned);
@@ -888,21 +888,20 @@ cfg_if! {
             let len = slice.len();
             let mut offset = 0usize;
             if STRIDE_SIZE <= len {
-                let len_minus_stride = len - STRIDE_SIZE;
-                if ((src as usize) & ALIGNMENT_MASK) == 0 {
+                let mut until_alignment = (ALIGNMENT - ((src as usize) & ALIGNMENT_MASK)) &
+                                           ALIGNMENT_MASK;
+                if until_alignment + STRIDE_SIZE <= len {
+                    while until_alignment != 0 {
+                        let code_unit = slice[offset];
+                        if code_unit > 127 {
+                            return Some((code_unit, offset));
+                        }
+                        offset += 1;
+                        until_alignment -= 1;
+                    }
+                    let len_minus_stride = len - STRIDE_SIZE;
                     loop {
                         let simd = unsafe { load16_aligned(src.offset(offset as isize)) };
-                        if !simd_is_ascii(simd) {
-                            break;
-                        }
-                        offset += STRIDE_SIZE;
-                        if offset > len_minus_stride {
-                            break;
-                        }
-                    }
-                } else {
-                    loop {
-                        let simd = unsafe { load16_unaligned(src.offset(offset as isize)) };
                         if !simd_is_ascii(simd) {
                             break;
                         }
