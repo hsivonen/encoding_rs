@@ -84,7 +84,42 @@ cfg_if! {
                 x86_mm_movemask_epi8(signed)
             }
         }
+    } else if #[cfg(target_arch = "arm")] {
+        use simd::u32x4;
+        use simd::bool8ix16;
 
+        #[allow(non_camel_case_types)]
+        #[repr(simd)]
+        #[derive(Debug)]
+        struct u64x2(u64, u64);
+
+        #[allow(improper_ctypes)]
+        extern "C" {
+            #[cfg_attr(target_arch = "arm", link_name = "llvm.arm.neon.vpaddls.v8i16.v16i8")]
+            fn vpaddlq_u8(s: u8x16) -> u16x8;
+            #[cfg_attr(target_arch = "arm", link_name = "llvm.arm.neon.vpaddls.v4i32.v8i16")]
+            fn vpaddlq_u16(s: u16x8) -> u32x4;
+            #[cfg_attr(target_arch = "arm", link_name = "llvm.arm.neon.vpaddls.v2i64.v4i32")]
+            fn vpaddlq_u32(s: u32x4) -> u64x2;
+        }
+
+        #[inline(always)]
+        fn movemask(s: bool8ix16) -> i32 {
+            // https://stackoverflow.com/questions/11870910/sse-mm-movemask-epi8-equivalent-method-for-arm-neon
+            let mask = u8x16::new(1, 2, 4, 8, 16, 32, 64, 128, 1, 2, 4, 8, 16, 32, 64, 128);
+            let simd: u8x16 = unsafe { ::std::mem::transmute(s) };
+            let sum = unsafe { vpaddlq_u32(vpaddlq_u16(vpaddlq_u8(simd & mask))) };
+            // There exists no shuffle in NEON to bring lanes 0 and 8 of u8x16 to lane 0 of u16x8.
+            // LLVM generates the shuffle via ALU registers, so there's no point in shuffling.
+            let sixteen: u8x16 = unsafe { ::std::mem::transmute(sum) };
+            ((sixteen.extract(8) as i32) << 8) | (sixteen.extract(0) as i32)
+        }
+
+        #[inline(always)]
+        pub fn mask_ascii(s: u8x16) -> i32 {
+            let highest_ascii = u8x16::splat(0x7F);
+            movemask(s.gt(highest_ascii))
+        }
     } else {
 
     }

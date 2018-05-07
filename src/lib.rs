@@ -165,7 +165,7 @@
 //! algorithms so that BOM handling isn't part of the definition of the
 //! encodings themselves. The Unicode _encoding schemes_ in the Unicode
 //! Standard define BOM handling or lack thereof as part of the encoding
-//! scheme. 
+//! scheme.
 //!
 //! When used with the `_without_bom_handling` entry points, the UTF-16LE
 //! and UTF-16BE _encodings_ match the same-named _encoding schemes_ from
@@ -186,7 +186,7 @@
 //! by this crate. The Encoding Standard doesn't define any UTF-32
 //! family encodings, since they aren't necessary for consuming Web
 //! content.
-//! 
+//!
 //! ## ISO-8859-1
 //!
 //! ISO-8859-1 does not exist as a distinct encoding from windows-1252 in
@@ -546,7 +546,7 @@
 //! </table>
 
 #![cfg_attr(feature = "simd-accel",
-            feature(cfg_target_feature, platform_intrinsics, core_intrinsics))]
+            feature(cfg_target_feature, platform_intrinsics, core_intrinsics, link_llvm_intrinsics, repr_simd, simd_ffi))]
 
 #[macro_use]
 extern crate cfg_if;
