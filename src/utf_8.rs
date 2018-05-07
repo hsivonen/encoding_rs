@@ -10,11 +10,11 @@
 #[cfg(feature = "parallel-utf8")]
 extern crate rayon;
 
-use handles::*;
-use variant::*;
 use super::*;
 use ascii::ascii_to_basic_latin;
 use ascii::basic_latin_to_ascii;
+use handles::*;
+use variant::*;
 
 // Keep this cfg_if in sync with whether the utf_8_core module is defined in lib.rs.
 cfg_if! {

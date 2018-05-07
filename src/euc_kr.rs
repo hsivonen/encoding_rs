@@ -7,13 +7,13 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-use handles::*;
-use data::*;
-use variant::*;
 use super::*;
+use data::*;
+use handles::*;
+use variant::*;
 // Rust 1.14.0 requires the following despite the asterisk above.
-use super::in_range16;
 use super::in_inclusive_range16;
+use super::in_range16;
 
 pub struct EucKrDecoder {
     lead: Option<u8>,

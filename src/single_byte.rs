@@ -7,10 +7,10 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
+use super::*;
+use ascii::*;
 use handles::*;
 use variant::*;
-use ascii::*;
-use super::*;
 
 pub struct SingleByteDecoder {
     table: &'static [u16; 128],

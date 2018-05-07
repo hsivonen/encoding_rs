@@ -21,14 +21,14 @@
 //! in-memory encoding is sometimes used as a storage optimization of text
 //! when UTF-16 indexing and length semantics are exposed.
 
-use ascii::*;
-use super::in_inclusive_range8;
 use super::in_inclusive_range16;
-use super::in_range16;
 use super::in_inclusive_range32;
+use super::in_inclusive_range8;
+use super::in_range16;
 use super::in_range32;
 use super::DecoderResult;
 use super::EncoderResult;
+use ascii::*;
 use utf_8::*;
 
 cfg_if!{
@@ -65,138 +65,152 @@ const LATIN1_MASK: usize = 0xFF00FF00_FF00FF00u64 as usize;
 
 #[allow(unused_macros)]
 macro_rules! by_unit_check_alu {
-    ($name:ident,
-     $unit:ty,
-     $bound:expr,
-     $mask:ident) => (
-    #[inline(always)]
-    fn $name(buffer: &[$unit]) -> bool {
-        let mut offset = 0usize;
-        let mut accu = 0usize;
-        let unit_size = ::std::mem::size_of::<$unit>();
-        let len = buffer.len();
-        if len >= ALU_ALIGNMENT / unit_size {
-            // The most common reason to return `false` is for the first code
-            // unit to fail the test, so check that first.
-            if buffer[0] >= $bound {
-                return false;
-            }
-            let src = buffer.as_ptr();
-            let mut until_alignment = ((ALU_ALIGNMENT - ((src as usize) & ALU_ALIGNMENT_MASK)) &
-                                       ALU_ALIGNMENT_MASK) / unit_size;
-            if until_alignment + ALU_ALIGNMENT / unit_size <= len {
-                if until_alignment != 0 {
-                    accu |= buffer[offset] as usize;
-                    offset += 1;
-                    until_alignment -= 1;
-                    while until_alignment != 0 {
+    ($name:ident, $unit:ty, $bound:expr, $mask:ident) => {
+        #[inline(always)]
+        fn $name(buffer: &[$unit]) -> bool {
+            let mut offset = 0usize;
+            let mut accu = 0usize;
+            let unit_size = ::std::mem::size_of::<$unit>();
+            let len = buffer.len();
+            if len >= ALU_ALIGNMENT / unit_size {
+                // The most common reason to return `false` is for the first code
+                // unit to fail the test, so check that first.
+                if buffer[0] >= $bound {
+                    return false;
+                }
+                let src = buffer.as_ptr();
+                let mut until_alignment = ((ALU_ALIGNMENT - ((src as usize) & ALU_ALIGNMENT_MASK))
+                    & ALU_ALIGNMENT_MASK) / unit_size;
+                if until_alignment + ALU_ALIGNMENT / unit_size <= len {
+                    if until_alignment != 0 {
                         accu |= buffer[offset] as usize;
                         offset += 1;
                         until_alignment -= 1;
-                    }
-                    if accu >= $bound {
-                        return false;
-                    }
-                }
-                let len_minus_stride = len - ALU_ALIGNMENT / unit_size;
-                if offset + (4 * (ALU_ALIGNMENT / unit_size)) <= len {
-                    let len_minus_unroll = len - (4 * (ALU_ALIGNMENT / unit_size));
-                    loop {
-                        let unroll_accu = unsafe { *(src.offset(offset as isize) as *const usize) } |
-                                          unsafe { *(src.offset((offset + (ALU_ALIGNMENT / unit_size)) as isize) as *const usize) } |
-                                          unsafe { *(src.offset((offset + (2 * (ALU_ALIGNMENT / unit_size))) as isize) as *const usize) } |
-                                          unsafe { *(src.offset((offset + (3 * (ALU_ALIGNMENT / unit_size))) as isize) as *const usize) };
-                        if unroll_accu & $mask != 0 {
+                        while until_alignment != 0 {
+                            accu |= buffer[offset] as usize;
+                            offset += 1;
+                            until_alignment -= 1;
+                        }
+                        if accu >= $bound {
                             return false;
                         }
-                        offset += 4 * (ALU_ALIGNMENT / unit_size);
-                        if offset > len_minus_unroll {
-                            break;
+                    }
+                    let len_minus_stride = len - ALU_ALIGNMENT / unit_size;
+                    if offset + (4 * (ALU_ALIGNMENT / unit_size)) <= len {
+                        let len_minus_unroll = len - (4 * (ALU_ALIGNMENT / unit_size));
+                        loop {
+                            let unroll_accu = unsafe {
+                                *(src.offset(offset as isize) as *const usize)
+                            } | unsafe {
+                                *(src.offset((offset + (ALU_ALIGNMENT / unit_size)) as isize)
+                                    as *const usize)
+                            } | unsafe {
+                                *(src.offset((offset + (2 * (ALU_ALIGNMENT / unit_size))) as isize)
+                                    as *const usize)
+                            } | unsafe {
+                                *(src.offset((offset + (3 * (ALU_ALIGNMENT / unit_size))) as isize)
+                                    as *const usize)
+                            };
+                            if unroll_accu & $mask != 0 {
+                                return false;
+                            }
+                            offset += 4 * (ALU_ALIGNMENT / unit_size);
+                            if offset > len_minus_unroll {
+                                break;
+                            }
                         }
                     }
-                }
-                while offset <= len_minus_stride {
-                    accu |= unsafe { *(src.offset(offset as isize) as *const usize) };
-                    offset += ALU_ALIGNMENT / unit_size;
+                    while offset <= len_minus_stride {
+                        accu |= unsafe { *(src.offset(offset as isize) as *const usize) };
+                        offset += ALU_ALIGNMENT / unit_size;
+                    }
                 }
             }
+            for &unit in &buffer[offset..] {
+                accu |= unit as usize;
+            }
+            accu & $mask == 0
         }
-        for &unit in &buffer[offset..] {
-            accu |= unit as usize;
-        }
-        accu & $mask == 0
-    })
+    };
 }
 
 #[allow(unused_macros)]
 macro_rules! by_unit_check_simd {
-    ($name:ident,
-     $unit:ty,
-     $splat:expr,
-     $simd_ty:ty,
-     $bound:expr,
-     $func:ident) => (
-    #[inline(always)]
-    fn $name(buffer: &[$unit]) -> bool {
-        let mut offset = 0usize;
-        let mut accu = 0usize;
-        let unit_size = ::std::mem::size_of::<$unit>();
-        let len = buffer.len();
-        if len >= SIMD_STRIDE_SIZE / unit_size {
-            // The most common reason to return `false` is for the first code
-            // unit to fail the test, so check that first.
-            if buffer[0] >= $bound {
-                return false;
-            }
-            let src = buffer.as_ptr();
-            let mut until_alignment = ((SIMD_ALIGNMENT - ((src as usize) & SIMD_ALIGNMENT_MASK)) &
-                                       SIMD_ALIGNMENT_MASK) / unit_size;
-            if until_alignment + SIMD_STRIDE_SIZE / unit_size <= len {
-                if until_alignment != 0 {
-                    accu |= buffer[offset] as usize;
-                    offset += 1;
-                    until_alignment -= 1;
-                    while until_alignment != 0 {
+    ($name:ident, $unit:ty, $splat:expr, $simd_ty:ty, $bound:expr, $func:ident) => {
+        #[inline(always)]
+        fn $name(buffer: &[$unit]) -> bool {
+            let mut offset = 0usize;
+            let mut accu = 0usize;
+            let unit_size = ::std::mem::size_of::<$unit>();
+            let len = buffer.len();
+            if len >= SIMD_STRIDE_SIZE / unit_size {
+                // The most common reason to return `false` is for the first code
+                // unit to fail the test, so check that first.
+                if buffer[0] >= $bound {
+                    return false;
+                }
+                let src = buffer.as_ptr();
+                let mut until_alignment = ((SIMD_ALIGNMENT - ((src as usize) & SIMD_ALIGNMENT_MASK))
+                    & SIMD_ALIGNMENT_MASK) / unit_size;
+                if until_alignment + SIMD_STRIDE_SIZE / unit_size <= len {
+                    if until_alignment != 0 {
                         accu |= buffer[offset] as usize;
                         offset += 1;
                         until_alignment -= 1;
+                        while until_alignment != 0 {
+                            accu |= buffer[offset] as usize;
+                            offset += 1;
+                            until_alignment -= 1;
+                        }
+                        if accu >= $bound {
+                            return false;
+                        }
                     }
-                    if accu >= $bound {
+                    let len_minus_stride = len - SIMD_STRIDE_SIZE / unit_size;
+                    if offset + (4 * (SIMD_STRIDE_SIZE / unit_size)) <= len {
+                        let len_minus_unroll = len - (4 * (SIMD_STRIDE_SIZE / unit_size));
+                        loop {
+                            let unroll_accu = unsafe {
+                                *(src.offset(offset as isize) as *const $simd_ty)
+                            } | unsafe {
+                                *(src.offset((offset + (SIMD_STRIDE_SIZE / unit_size)) as isize)
+                                    as *const $simd_ty)
+                            } | unsafe {
+                                *(src.offset(
+                                    (offset + (2 * (SIMD_STRIDE_SIZE / unit_size))) as isize,
+                                ) as *const $simd_ty)
+                            } | unsafe {
+                                *(src.offset(
+                                    (offset + (3 * (SIMD_STRIDE_SIZE / unit_size))) as isize,
+                                ) as *const $simd_ty)
+                            };
+                            if !$func(unroll_accu) {
+                                return false;
+                            }
+                            offset += 4 * (SIMD_STRIDE_SIZE / unit_size);
+                            if offset > len_minus_unroll {
+                                break;
+                            }
+                        }
+                    }
+                    let mut simd_accu = $splat;
+                    while offset <= len_minus_stride {
+                        simd_accu = simd_accu | unsafe {
+                            *(src.offset(offset as isize) as *const $simd_ty)
+                        };
+                        offset += SIMD_STRIDE_SIZE / unit_size;
+                    }
+                    if !$func(simd_accu) {
                         return false;
                     }
                 }
-                let len_minus_stride = len - SIMD_STRIDE_SIZE / unit_size;
-                if offset + (4 * (SIMD_STRIDE_SIZE / unit_size)) <= len {
-                    let len_minus_unroll = len - (4 * (SIMD_STRIDE_SIZE / unit_size));
-                    loop {
-                        let unroll_accu = unsafe { *(src.offset(offset as isize) as *const $simd_ty) } |
-                                          unsafe { *(src.offset((offset + (SIMD_STRIDE_SIZE / unit_size)) as isize) as *const $simd_ty) } |
-                                          unsafe { *(src.offset((offset + (2 * (SIMD_STRIDE_SIZE / unit_size))) as isize) as *const $simd_ty) } |
-                                          unsafe { *(src.offset((offset + (3 * (SIMD_STRIDE_SIZE / unit_size))) as isize) as *const $simd_ty) };
-                        if !$func(unroll_accu) {
-                            return false;
-                        }
-                        offset += 4 * (SIMD_STRIDE_SIZE / unit_size);
-                        if offset > len_minus_unroll {
-                            break;
-                        }
-                    }
-                }
-                let mut simd_accu = $splat;
-                while offset <= len_minus_stride {
-                    simd_accu = simd_accu | unsafe { *(src.offset(offset as isize) as *const $simd_ty) };
-                    offset += SIMD_STRIDE_SIZE / unit_size;
-                }
-                if !$func(simd_accu) {
-                    return false;
-                }
             }
+            for &unit in &buffer[offset..] {
+                accu |= unit as usize;
+            }
+            accu < $bound
         }
-        for &unit in &buffer[offset..] {
-            accu |= unit as usize;
-        }
-        accu < $bound
-    })
+    };
 }
 
 cfg_if!{

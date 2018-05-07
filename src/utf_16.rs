@@ -7,9 +7,9 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
+use super::*;
 use handles::*;
 use variant::*;
-use super::*;
 
 pub struct Utf16Decoder {
     lead_surrogate: u16, // If non-zero and pending_bmp == false, a pending lead surrogate

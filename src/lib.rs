@@ -636,14 +636,23 @@
 //! See the section [_UTF-16LE, UTF-16BE and Unicode Encoding Schemes_](#utf-16le-utf-16be-and-unicode-encoding-schemes)
 //! for discussion about the UTF-16 family.
 
-#![cfg_attr(feature = "simd-accel",
-            feature(cfg_target_feature, platform_intrinsics, core_intrinsics))]
+#![cfg_attr(
+    feature = "simd-accel", feature(cfg_target_feature, platform_intrinsics, core_intrinsics)
+)]
 
 #[macro_use]
 extern crate cfg_if;
 
-#[cfg(all(feature = "simd-accel",
-          any(target_feature = "sse2", all(target_endian = "little", target_arch = "aarch64"), all(target_endian = "little", target_feature = "neon"))))]
+#[cfg(
+    all(
+        feature = "simd-accel",
+        any(
+            target_feature = "sse2",
+            all(target_endian = "little", target_arch = "aarch64"),
+            all(target_endian = "little", target_feature = "neon")
+        )
+    )
+)]
 extern crate simd;
 
 #[cfg(feature = "serde")]
@@ -660,41 +669,53 @@ extern crate serde_json;
 #[macro_use]
 mod macros;
 
-#[cfg(all(feature = "simd-accel",
-          any(target_feature = "sse2", all(target_endian = "little", target_arch = "aarch64"), all(target_endian = "little", target_feature = "neon"))))]
+#[cfg(
+    all(
+        feature = "simd-accel",
+        any(
+            target_feature = "sse2",
+            all(target_endian = "little", target_arch = "aarch64"),
+            all(target_endian = "little", target_feature = "neon")
+        )
+    )
+)]
 mod simd_funcs;
 
-#[cfg(any(all(feature = "simd-accel", target_feature = "sse2"),
-          all(target_endian = "little", target_arch = "aarch64"),
-          all(target_endian = "little", target_arch = "arm")))]
+#[cfg(
+    any(
+        all(feature = "simd-accel", target_feature = "sse2"),
+        all(target_endian = "little", target_arch = "aarch64"),
+        all(target_endian = "little", target_arch = "arm")
+    )
+)]
 mod utf_8_core;
 
 #[cfg(test)]
 mod testing;
 
-mod single_byte;
-mod utf_8;
-mod gb18030;
 mod big5;
 mod euc_jp;
-mod iso_2022_jp;
-mod shift_jis;
 mod euc_kr;
+mod gb18030;
+mod iso_2022_jp;
 mod replacement;
-mod x_user_defined;
+mod shift_jis;
+mod single_byte;
 mod utf_16;
+mod utf_8;
+mod x_user_defined;
 
 mod ascii;
-mod handles;
 mod data;
+mod handles;
 mod variant;
 
 pub mod mem;
 
-use variant::*;
-use utf_8::utf8_valid_up_to;
 use ascii::ascii_valid_up_to;
 use ascii::iso_2022_jp_ascii_valid_up_to;
+use utf_8::utf8_valid_up_to;
+use variant::*;
 
 use std::borrow::Cow;
 use std::cmp::Ordering;
@@ -702,9 +723,9 @@ use std::hash::Hash;
 use std::hash::Hasher;
 
 #[cfg(feature = "serde")]
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
-#[cfg(feature = "serde")]
 use serde::de::Visitor;
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 /// This has to be the max length of an NCR instead of max
 /// minus one, because we can't rely on getting the minus

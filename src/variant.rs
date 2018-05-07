@@ -19,18 +19,18 @@
 //! The purpose of making `Decoder` and `Encoder` `Sized` is to allow stack
 //! allocation in Rust code, including the convenience methods on `Encoding`.
 
-use single_byte::*;
-use utf_8::*;
-use gb18030::*;
+use super::*;
 use big5::*;
 use euc_jp::*;
-use iso_2022_jp::*;
-use shift_jis::*;
 use euc_kr::*;
+use gb18030::*;
+use iso_2022_jp::*;
 use replacement::*;
-use x_user_defined::*;
+use shift_jis::*;
+use single_byte::*;
 use utf_16::*;
-use super::*;
+use utf_8::*;
+use x_user_defined::*;
 
 pub enum VariantDecoder {
     SingleByte(SingleByteDecoder),

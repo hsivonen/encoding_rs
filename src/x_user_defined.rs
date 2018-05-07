@@ -7,9 +7,9 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
+use super::*;
 use handles::*;
 use variant::*;
-use super::*;
 
 cfg_if!{
     if #[cfg(feature = "simd-accel")] {

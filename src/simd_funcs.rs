@@ -7,8 +7,8 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-use simd::u8x16;
 use simd::u16x8;
+use simd::u8x16;
 use simd::Simd;
 
 // TODO: Migrate unaligned access to stdlib code if/when the RFC
@@ -222,10 +222,10 @@ cfg_if! {
 }
 
 macro_rules! in_range16x8 {
-    ($s:ident, $start:expr, $end:expr) => ({
+    ($s:ident, $start:expr, $end:expr) => {{
         // SIMD sub is wrapping
         ($s - u16x8::splat($start)).lt(u16x8::splat($end - $start))
-    })
+    }};
 }
 
 #[inline(always)]

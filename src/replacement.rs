@@ -7,8 +7,8 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-use variant::*;
 use super::*;
+use variant::*;
 
 pub struct ReplacementDecoder {
     emitted: bool,
