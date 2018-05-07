@@ -102,16 +102,18 @@ There are currently three optional cargo features:
 
 ### `simd-accel`
 
-Enables SSE2 acceleration on x86 and x86_64 and NEON acceleration on Aarch64.
-Requires nightly Rust. _Enabling this cargo feature is recommended when
-building for x86, x86_64 or Aarch64 on nightly Rust._ The intention is for the
-functionality enabled by this feature to become the normal on-by-default
-behavior once explicit SIMD becames available on all Rust release channels.
+Enables SSE2 acceleration on x86 and x86_64 and NEON acceleration on Aarch64
+and ARMv7. Requires nightly Rust. _Enabling this cargo feature is recommended
+when building for x86, x86_64, ARMv7 or Aarch64 on nightly Rust._ The intention
+is for the functionality enabled by this feature to become the normal
+on-by-default behavior once
+[portable SIMD](https://github.com/rust-lang/rfcs/pull/2366) becames available
+on all Rust release channels.
 
 Enabling this feature breaks the build unless the target is x86 with SSE2
 (Rust's default 32-bit x86 target, `i686`, has SSE2, but Linux distros may
-use an x86 target without SSE2, i.e. `i586` in `rustup` terms), x86_64 or
-Aarch64.
+use an x86 target without SSE2, i.e. `i586` in `rustup` terms), ARMv7 or
+thumbv7 with NEON (`-C target_feature=+neon`), x86_64 or Aarch64.
 
 ### `serde`
 
@@ -215,7 +217,7 @@ used in Firefox.
 - [x] Replace uconv with encoding_rs in Gecko.
 - [x] Implement the rust-encoding API in terms of encoding_rs.
 - [x] Add SIMD acceleration for Aarch64.
-- [ ] Investigate the use of NEON on 32-bit ARM.
+- [x] Investigate the use of NEON on 32-bit ARM.
 - [ ] Investigate Björn Höhrmann's lookup table acceleration for UTF-8 as
       adapted to Rust in rust-encoding.
 
@@ -224,6 +226,7 @@ used in Firefox.
 ### 0.8.0
 
 * Changed the minimum supported version of Rust to 1.21.0.
+* Added NEON support on ARMv7.
 
 ### 0.7.2
 
