@@ -70,12 +70,12 @@ macro_rules! ascii_alu {
                 // to alignment.
                 //               if ::std::mem::size_of::<$src_unit>() == ::std::mem::size_of::<$dst_unit>() {
                 // ascii_to_ascii
-                let src_alignment = (src as usize) & ALIGNMENT_MASK;
-                let dst_alignment = (dst as usize) & ALIGNMENT_MASK;
+                let src_alignment = (src as usize) & ALU_ALIGNMENT_MASK;
+                let dst_alignment = (dst as usize) & ALU_ALIGNMENT_MASK;
                 if src_alignment != dst_alignment {
                     break;
                 }
-                (ALIGNMENT - src_alignment) & ALIGNMENT_MASK
+                (ALU_ALIGNMENT - src_alignment) & ALU_ALIGNMENT_MASK
                 //               } else if ::std::mem::size_of::<$src_unit>() < ::std::mem::size_of::<$dst_unit>() {
                 // ascii_to_basic_latin
                 //                   let src_until_alignment = (ALIGNMENT - ((src as usize) & ALIGNMENT_MASK)) & ALIGNMENT_MASK;
@@ -92,7 +92,7 @@ macro_rules! ascii_alu {
                 //                   dst_until_alignment
                 //               }
             };
-            if until_alignment + STRIDE_SIZE <= len {
+            if until_alignment + ALU_STRIDE_SIZE <= len {
                 // Moving pointers to alignment seems to be a pessimization on
                 // x86_64 for operations that have UTF-16 as the internal
                 // Unicode representation. However, since it seems to be a win
@@ -110,14 +110,14 @@ macro_rules! ascii_alu {
                     offset += 1;
                     until_alignment -= 1;
                 }
-                let len_minus_stride = len - STRIDE_SIZE;
+                let len_minus_stride = len - ALU_STRIDE_SIZE;
                 loop {
                     if let Some(num_ascii) = $stride_fn(src.offset(offset as isize) as *const usize,
                                    dst.offset(offset as isize) as *mut usize) {
                         offset += num_ascii;
                         return Some((*(src.offset(offset as isize)), offset));
                     }
-                    offset += STRIDE_SIZE;
+                    offset += ALU_STRIDE_SIZE;
                     if offset > len_minus_stride {
                         break;
                     }
@@ -163,21 +163,21 @@ macro_rules! basic_latin_alu {
                 //               } else
                 if ::std::mem::size_of::<$src_unit>() < ::std::mem::size_of::<$dst_unit>() {
                     // ascii_to_basic_latin
-                    let src_until_alignment = (ALIGNMENT - ((src as usize) & ALIGNMENT_MASK)) & ALIGNMENT_MASK;
-                    if (dst.offset(src_until_alignment as isize) as usize) & ALIGNMENT_MASK != 0 {
+                    let src_until_alignment = (ALU_ALIGNMENT - ((src as usize) & ALU_ALIGNMENT_MASK)) & ALU_ALIGNMENT_MASK;
+                    if (dst.offset(src_until_alignment as isize) as usize) & ALU_ALIGNMENT_MASK != 0 {
                         break;
                     }
                     src_until_alignment
                 } else {
                     // basic_latin_to_ascii
-                    let dst_until_alignment = (ALIGNMENT - ((dst as usize) & ALIGNMENT_MASK)) & ALIGNMENT_MASK;
-                    if (src.offset(dst_until_alignment as isize) as usize) & ALIGNMENT_MASK != 0 {
+                    let dst_until_alignment = (ALU_ALIGNMENT - ((dst as usize) & ALU_ALIGNMENT_MASK)) & ALU_ALIGNMENT_MASK;
+                    if (src.offset(dst_until_alignment as isize) as usize) & ALU_ALIGNMENT_MASK != 0 {
                         break;
                     }
                     dst_until_alignment
                 }
             };
-            if until_alignment + STRIDE_SIZE <= len {
+            if until_alignment + ALU_STRIDE_SIZE <= len {
                 // Moving pointers to alignment seems to be a pessimization on
                 // x86_64 for operations that have UTF-16 as the internal
                 // Unicode representation. However, since it seems to be a win
@@ -195,13 +195,13 @@ macro_rules! basic_latin_alu {
                     offset += 1;
                     until_alignment -= 1;
                 }
-                let len_minus_stride = len - STRIDE_SIZE;
+                let len_minus_stride = len - ALU_STRIDE_SIZE;
                 loop {
                     if !$stride_fn(src.offset(offset as isize) as *const usize,
                                    dst.offset(offset as isize) as *mut usize) {
                         break;
                     }
-                    offset += STRIDE_SIZE;
+                    offset += ALU_STRIDE_SIZE;
                     if offset > len_minus_stride {
                         break;
                     }
@@ -236,32 +236,32 @@ macro_rules! latin1_alu {
             let mut until_alignment = {
                 if ::std::mem::size_of::<$src_unit>() < ::std::mem::size_of::<$dst_unit>() {
                     // unpack
-                    let src_until_alignment = (ALIGNMENT - ((src as usize) & ALIGNMENT_MASK)) & ALIGNMENT_MASK;
-                    if (dst.offset(src_until_alignment as isize) as usize) & ALIGNMENT_MASK != 0 {
+                    let src_until_alignment = (ALU_ALIGNMENT - ((src as usize) & ALU_ALIGNMENT_MASK)) & ALU_ALIGNMENT_MASK;
+                    if (dst.offset(src_until_alignment as isize) as usize) & ALU_ALIGNMENT_MASK != 0 {
                         break;
                     }
                     src_until_alignment
                 } else {
                     // pack
-                    let dst_until_alignment = (ALIGNMENT - ((dst as usize) & ALIGNMENT_MASK)) & ALIGNMENT_MASK;
-                    if (src.offset(dst_until_alignment as isize) as usize) & ALIGNMENT_MASK != 0 {
+                    let dst_until_alignment = (ALU_ALIGNMENT - ((dst as usize) & ALU_ALIGNMENT_MASK)) & ALU_ALIGNMENT_MASK;
+                    if (src.offset(dst_until_alignment as isize) as usize) & ALU_ALIGNMENT_MASK != 0 {
                         break;
                     }
                     dst_until_alignment
                 }
             };
-            if until_alignment + STRIDE_SIZE <= len {
+            if until_alignment + ALU_STRIDE_SIZE <= len {
                 while until_alignment != 0 {
                     let code_unit = *(src.offset(offset as isize));
                     *(dst.offset(offset as isize)) = code_unit as $dst_unit;
                     offset += 1;
                     until_alignment -= 1;
                 }
-                let len_minus_stride = len - STRIDE_SIZE;
+                let len_minus_stride = len - ALU_STRIDE_SIZE;
                 loop {
                     $stride_fn(src.offset(offset as isize) as *const usize,
                                dst.offset(offset as isize) as *mut usize);
-                    offset += STRIDE_SIZE;
+                    offset += ALU_STRIDE_SIZE;
                     if offset > len_minus_stride {
                         break;
                     }
@@ -289,22 +289,22 @@ macro_rules! ascii_simd_check_align {
     #[inline(always)]
     pub unsafe fn $name(src: *const $src_unit, dst: *mut $dst_unit, len: usize) -> Option<($src_unit, usize)> {
         let mut offset = 0usize;
-        if STRIDE_SIZE <= len {
-            let len_minus_stride = len - STRIDE_SIZE;
+        if SIMD_STRIDE_SIZE <= len {
+            let len_minus_stride = len - SIMD_STRIDE_SIZE;
             // XXX Should we first process one stride unconditinoally as unaligned to
             // avoid the cost of the branchiness below if the first stride fails anyway?
             // XXX Should we just use unaligned SSE2 access unconditionally? It seems that
             // on Haswell, it would make sense to just use unaligned and not bother
             // checking. Need to benchmark older architectures before deciding.
-            let dst_masked = (dst as usize) & ALIGNMENT_MASK;
-            if ((src as usize) & ALIGNMENT_MASK) == 0 {
+            let dst_masked = (dst as usize) & SIMD_ALIGNMENT_MASK;
+            if ((src as usize) & SIMD_ALIGNMENT_MASK) == 0 {
                 if dst_masked == 0 {
                     loop {
                         if !$stride_both_aligned(src.offset(offset as isize),
                                                  dst.offset(offset as isize)) {
                             break;
                         }
-                        offset += STRIDE_SIZE;
+                        offset += SIMD_STRIDE_SIZE;
                         if offset > len_minus_stride {
                             break;
                         }
@@ -315,7 +315,7 @@ macro_rules! ascii_simd_check_align {
                                                 dst.offset(offset as isize)) {
                             break;
                         }
-                        offset += STRIDE_SIZE;
+                        offset += SIMD_STRIDE_SIZE;
                         if offset > len_minus_stride {
                             break;
                         }
@@ -328,7 +328,7 @@ macro_rules! ascii_simd_check_align {
                                                 dst.offset(offset as isize)) {
                             break;
                         }
-                        offset += STRIDE_SIZE;
+                        offset += SIMD_STRIDE_SIZE;
                         if offset > len_minus_stride {
                             break;
                         }
@@ -339,7 +339,7 @@ macro_rules! ascii_simd_check_align {
                                                     dst.offset(offset as isize)) {
                             break;
                         }
-                        offset += STRIDE_SIZE;
+                        offset += SIMD_STRIDE_SIZE;
                         if offset > len_minus_stride {
                             break;
                         }
@@ -371,20 +371,20 @@ macro_rules! latin1_simd_check_align {
     #[inline(always)]
     pub unsafe fn $name(src: *const $src_unit, dst: *mut $dst_unit, len: usize) {
         let mut offset = 0usize;
-        if STRIDE_SIZE <= len {
-            let len_minus_stride = len - STRIDE_SIZE;
+        if SIMD_STRIDE_SIZE <= len {
+            let len_minus_stride = len - SIMD_STRIDE_SIZE;
             // XXX Should we first process one stride unconditinoally as unaligned to
             // avoid the cost of the branchiness below if the first stride fails anyway?
             // XXX Should we just use unaligned SSE2 access unconditionally? It seems that
             // on Haswell, it would make sense to just use unaligned and not bother
             // checking. Need to benchmark older architectures before deciding.
-            let dst_masked = (dst as usize) & ALIGNMENT_MASK;
-            if ((src as usize) & ALIGNMENT_MASK) == 0 {
+            let dst_masked = (dst as usize) & SIMD_ALIGNMENT_MASK;
+            if ((src as usize) & SIMD_ALIGNMENT_MASK) == 0 {
                 if dst_masked == 0 {
                     loop {
                         $stride_both_aligned(src.offset(offset as isize),
                                              dst.offset(offset as isize));
-                        offset += STRIDE_SIZE;
+                        offset += SIMD_STRIDE_SIZE;
                         if offset > len_minus_stride {
                             break;
                         }
@@ -393,7 +393,7 @@ macro_rules! latin1_simd_check_align {
                     loop {
                         $stride_src_aligned(src.offset(offset as isize),
                                             dst.offset(offset as isize));
-                        offset += STRIDE_SIZE;
+                        offset += SIMD_STRIDE_SIZE;
                         if offset > len_minus_stride {
                             break;
                         }
@@ -404,7 +404,7 @@ macro_rules! latin1_simd_check_align {
                     loop {
                         $stride_dst_aligned(src.offset(offset as isize),
                                             dst.offset(offset as isize));
-                        offset += STRIDE_SIZE;
+                        offset += SIMD_STRIDE_SIZE;
                         if offset > len_minus_stride {
                             break;
                         }
@@ -413,7 +413,7 @@ macro_rules! latin1_simd_check_align {
                     loop {
                         $stride_neither_aligned(src.offset(offset as isize),
                                                 dst.offset(offset as isize));
-                        offset += STRIDE_SIZE;
+                        offset += SIMD_STRIDE_SIZE;
                         if offset > len_minus_stride {
                             break;
                         }
@@ -451,14 +451,14 @@ macro_rules! ascii_simd_unalign {
     #[inline(always)]
     pub unsafe fn $name(src: *const $src_unit, dst: *mut $dst_unit, len: usize) -> Option<($src_unit, usize)> {
         let mut offset = 0usize;
-        if STRIDE_SIZE <= len {
-            let len_minus_stride = len - STRIDE_SIZE;
+        if SIMD_STRIDE_SIZE <= len {
+            let len_minus_stride = len - SIMD_STRIDE_SIZE;
             loop {
                 if !$stride_neither_aligned(src.offset(offset as isize),
                                             dst.offset(offset as isize)) {
                     break;
                 }
-                offset += STRIDE_SIZE;
+                offset += SIMD_STRIDE_SIZE;
                 if offset > len_minus_stride {
                     break;
                 }
@@ -485,12 +485,12 @@ macro_rules! latin1_simd_unalign {
     #[inline(always)]
     pub unsafe fn $name(src: *const $src_unit, dst: *mut $dst_unit, len: usize) {
         let mut offset = 0usize;
-        if STRIDE_SIZE <= len {
-            let len_minus_stride = len - STRIDE_SIZE;
+        if SIMD_STRIDE_SIZE <= len {
+            let len_minus_stride = len - SIMD_STRIDE_SIZE;
             loop {
                 $stride_neither_aligned(src.offset(offset as isize),
                                         dst.offset(offset as isize));
-                offset += STRIDE_SIZE;
+                offset += SIMD_STRIDE_SIZE;
                 if offset > len_minus_stride {
                     break;
                 }
@@ -587,7 +587,9 @@ cfg_if! {
     if #[cfg(all(feature = "simd-accel", target_endian = "little", target_arch = "aarch64"))] {
         // SIMD with the same instructions for aligned and unaligned loads and stores
 
-        pub const STRIDE_SIZE: usize = 16;
+        pub const SIMD_STRIDE_SIZE: usize = 16;
+
+        pub const MAX_STRIDE_SIZE: usize = 16;
 
 //        pub const ALIGNMENT: usize = 8;
 
@@ -611,9 +613,11 @@ cfg_if! {
         // aligned and unaligned SSE2 loads and stores when the address is actually aligned,
         // but the benchmark results I see don't agree.
 
-        pub const STRIDE_SIZE: usize = 16;
+        pub const SIMD_STRIDE_SIZE: usize = 16;
 
-        pub const ALIGNMENT_MASK: usize = 15;
+        pub const MAX_STRIDE_SIZE: usize = 16;
+
+        pub const SIMD_ALIGNMENT_MASK: usize = 15;
 
         ascii_to_ascii_simd_stride!(ascii_to_ascii_stride_both_aligned, load16_aligned, store16_aligned);
         ascii_to_ascii_simd_stride!(ascii_to_ascii_stride_src_aligned, load16_aligned, store16_unaligned);
@@ -648,11 +652,13 @@ cfg_if! {
     } else if #[cfg(all(target_endian = "little", target_pointer_width = "64"))] {
         // Aligned ALU word, little-endian, 64-bit
 
-        pub const STRIDE_SIZE: usize = 16;
+        pub const ALU_STRIDE_SIZE: usize = 16;
 
-        pub const ALIGNMENT: usize = 8;
+        pub const MAX_STRIDE_SIZE: usize = 16;
 
-        pub const ALIGNMENT_MASK: usize = 7;
+        pub const ALU_ALIGNMENT: usize = 8;
+
+        pub const ALU_ALIGNMENT_MASK: usize = 7;
 
         #[inline(always)]
         unsafe fn unpack_alu(word: usize, second_word: usize, dst: *mut usize) {
@@ -702,11 +708,13 @@ cfg_if! {
     } else if #[cfg(all(target_endian = "little", target_pointer_width = "32"))] {
         // Aligned ALU word, little-endian, 32-bit
 
-        pub const STRIDE_SIZE: usize = 8;
+        pub const ALU_STRIDE_SIZE: usize = 8;
 
-        pub const ALIGNMENT: usize = 4;
+        pub const MAX_STRIDE_SIZE: usize = 8;
 
-        pub const ALIGNMENT_MASK: usize = 3;
+        pub const ALU_ALIGNMENT: usize = 4;
+
+        pub const ALU_ALIGNMENT_MASK: usize = 3;
 
         #[inline(always)]
         unsafe fn unpack_alu(word: usize, second_word: usize, dst: *mut usize) {
@@ -740,11 +748,13 @@ cfg_if! {
     } else if #[cfg(all(target_endian = "big", target_pointer_width = "64"))] {
         // Aligned ALU word, big-endian, 64-bit
 
-        pub const STRIDE_SIZE: usize = 16;
+        pub const ALU_STRIDE_SIZE: usize = 16;
 
-        pub const ALIGNMENT: usize = 8;
+        pub const MAX_STRIDE_SIZE: usize = 16;
 
-        pub const ALIGNMENT_MASK: usize = 7;
+        pub const ALU_ALIGNMENT: usize = 8;
+
+        pub const ALU_ALIGNMENT_MASK: usize = 7;
 
         #[inline(always)]
         unsafe fn unpack_alu(word: usize, second_word: usize, dst: *mut usize) {
@@ -794,11 +804,13 @@ cfg_if! {
     } else if #[cfg(all(target_endian = "big", target_pointer_width = "32"))] {
         // Aligned ALU word, big-endian, 32-bit
 
-        pub const STRIDE_SIZE: usize = 8;
+        pub const ALU_STRIDE_SIZE: usize = 8;
 
-        pub const ALIGNMENT: usize = 4;
+        pub const MAX_STRIDE_SIZE: usize = 8;
 
-        pub const ALIGNMENT_MASK: usize = 3;
+        pub const ALU_ALIGNMENT: usize = 4;
+
+        pub const ALU_ALIGNMENT_MASK: usize = 3;
 
         #[inline(always)]
         unsafe fn unpack_alu(word: usize, second_word: usize, dst: *mut usize) {
@@ -859,57 +871,16 @@ cfg_if! {
             let src = slice.as_ptr();
             let len = slice.len();
             let mut offset = 0usize;
-            if STRIDE_SIZE <= len {
-                let len_minus_stride = len - STRIDE_SIZE;
+            if SIMD_STRIDE_SIZE <= len {
+                let len_minus_stride = len - SIMD_STRIDE_SIZE;
                 loop {
                     let simd = unsafe { load16_unaligned(src.offset(offset as isize)) };
                     if !simd_is_ascii(simd) {
                         break;
                     }
-                    offset += STRIDE_SIZE;
+                    offset += SIMD_STRIDE_SIZE;
                     if offset > len_minus_stride {
                         break;
-                    }
-                }
-            }
-            while offset < len {
-                let code_unit = slice[offset];
-                if code_unit > 127 {
-                    return Some((code_unit, offset));
-                }
-                offset += 1;
-            }
-            None
-        }
-    } else if #[cfg(all(feature = "simd-accel", target_endian = "little", target_feature = "neon"))] {
-        #[inline(always)]
-        pub fn validate_ascii(slice: &[u8]) -> Option<(u8, usize)> {
-            let src = slice.as_ptr();
-            let len = slice.len();
-            let mut offset = 0usize;
-            if STRIDE_SIZE <= len {
-                let len_minus_stride = len - STRIDE_SIZE;
-                if ((src as usize) & ALIGNMENT_MASK) == 0 {
-                    loop {
-                        let simd = unsafe { load16_aligned(src.offset(offset as isize)) };
-                        if !simd_is_ascii(simd) {
-                            break;
-                        }
-                        offset += STRIDE_SIZE;
-                        if offset > len_minus_stride {
-                            break;
-                        }
-                    }
-                } else {
-                    loop {
-                        let simd = unsafe { load16_unaligned(src.offset(offset as isize)) };
-                        if !simd_is_ascii(simd) {
-                            break;
-                        }
-                        offset += STRIDE_SIZE;
-                        if offset > len_minus_stride {
-                            break;
-                        }
                     }
                 }
             }
@@ -928,14 +899,14 @@ cfg_if! {
             let src = slice.as_ptr();
             let len = slice.len();
             let mut offset = 0usize;
-            if STRIDE_SIZE <= len {
-                let len_minus_stride = len - STRIDE_SIZE;
+            if SIMD_STRIDE_SIZE <= len {
+                let len_minus_stride = len - SIMD_STRIDE_SIZE;
                 // XXX Should we first process one stride unconditionally as unaligned to
                 // avoid the cost of the branchiness below if the first stride fails anyway?
                 // XXX Should we just use unaligned SSE2 access unconditionally? It seems that
                 // on Haswell, it would make sense to just use unaligned and not bother
                 // checking. Need to benchmark older architectures before deciding.
-                if ((src as usize) & ALIGNMENT_MASK) == 0 {
+                if ((src as usize) & SIMD_ALIGNMENT_MASK) == 0 {
                     loop {
                         let simd = unsafe { load16_aligned(src.offset(offset as isize)) };
                         let mask = mask_ascii(simd);
@@ -944,7 +915,7 @@ cfg_if! {
                             let non_ascii = unsafe { *src.offset(offset as isize) };
                             return Some((non_ascii, offset));
                         }
-                        offset += STRIDE_SIZE;
+                        offset += SIMD_STRIDE_SIZE;
                         if offset > len_minus_stride {
                             break;
                         }
@@ -958,7 +929,7 @@ cfg_if! {
                             let non_ascii = unsafe { *src.offset(offset as isize) };
                             return Some((non_ascii, offset));
                         }
-                        offset += STRIDE_SIZE;
+                        offset += SIMD_STRIDE_SIZE;
                         if offset > len_minus_stride {
                             break;
                         }
@@ -974,6 +945,93 @@ cfg_if! {
             }
             None
         }
+    } else {
+        #[inline(always)]
+        fn find_non_ascii(word: usize, second_word: usize) -> Option<usize> {
+            let word_masked = word & ASCII_MASK;
+            let second_masked = second_word & ASCII_MASK;
+            if (word_masked | second_masked) == 0 {
+                return None;
+            }
+            if word_masked != 0 {
+                let zeros = count_zeros(word_masked);
+                // `zeros` now contains 7 (for the seven bits of non-ASCII)
+                // plus 8 times the number of ASCII in text order before the
+                // non-ASCII byte in the little-endian case or 8 times the number of ASCII in
+                // text order before the non-ASCII byte in the big-endian case.
+                let num_ascii = (zeros >> 3) as usize;
+                return Some(num_ascii);
+            }
+            let zeros = count_zeros(second_masked);
+            // `zeros` now contains 7 (for the seven bits of non-ASCII)
+            // plus 8 times the number of ASCII in text order before the
+            // non-ASCII byte in the little-endian case or 8 times the number of ASCII in
+            // text order before the non-ASCII byte in the big-endian case.
+            let num_ascii = (zeros >> 3) as usize;
+            Some(ALU_ALIGNMENT + num_ascii)
+        }
+
+        #[inline(always)]
+        unsafe fn validate_ascii_stride(src: *const usize) -> Option<usize> {
+            let word = *src;
+            let second_word = *(src.offset(1));
+            find_non_ascii(word, second_word)
+        }
+
+        #[inline(always)]
+        pub fn validate_ascii(slice: &[u8]) -> Option<(u8, usize)> {
+            let src = slice.as_ptr();
+            let len = slice.len();
+            let mut offset = 0usize;
+            let mut until_alignment = (ALU_ALIGNMENT - ((src as usize) & ALU_ALIGNMENT_MASK)) & ALU_ALIGNMENT_MASK;
+            if until_alignment + ALU_STRIDE_SIZE <= len {
+                while until_alignment != 0 {
+                    let code_unit = slice[offset];
+                    if code_unit > 127 {
+                        return Some((code_unit, offset));
+                    }
+                    offset += 1;
+                    until_alignment -= 1;
+                }
+                let len_minus_stride = len - ALU_STRIDE_SIZE;
+                loop {
+                    let ptr = unsafe { src.offset(offset as isize) as *const usize };
+                    if let Some(num_ascii) = unsafe { validate_ascii_stride(ptr) } {
+                        offset += num_ascii;
+                        return Some((unsafe { *(src.offset(offset as isize)) }, offset));
+                    }
+                    offset += ALU_STRIDE_SIZE;
+                    if offset > len_minus_stride {
+                        break;
+                    }
+                }
+            }
+            while offset < len {
+                let code_unit = slice[offset];
+                if code_unit > 127 {
+                    return Some((code_unit, offset));
+                }
+                offset += 1;
+           }
+           None
+        }
+
+    }
+}
+
+cfg_if! {
+    if #[cfg(all(feature = "simd-accel", any(target_feature = "sse2", all(target_endian = "little", target_arch = "aarch64"))))] {
+
+    } else if #[cfg(all(feature = "simd-accel", target_endian = "little", target_feature = "neon"))] {
+        // Even with NEON enabled, we use the ALU path for ASCII validation, because testing
+        // on Exynos 5 indicated that using NEON isn't worthwhile where there are only
+        // vector reads without vector writes.
+
+        pub const ALU_STRIDE_SIZE: usize = 8;
+
+        pub const ALU_ALIGNMENT: usize = 4;
+
+        pub const ALU_ALIGNMENT_MASK: usize = 3;
     } else {
         #[inline(always)]
         unsafe fn unpack_latin1_stride_alu(src: *const usize, dst: *mut usize) {
@@ -1016,11 +1074,6 @@ cfg_if! {
             true
         }
 
-        basic_latin_alu!(ascii_to_basic_latin, u8, u16, ascii_to_basic_latin_stride_alu);
-        basic_latin_alu!(basic_latin_to_ascii, u16, u8, basic_latin_to_ascii_stride_alu);
-        latin1_alu!(unpack_latin1, u8, u16, unpack_latin1_stride_alu);
-        latin1_alu!(pack_latin1, u16, u8, pack_latin1_stride_alu);
-
         #[inline(always)]
         unsafe fn ascii_to_ascii_stride(src: *const usize, dst: *mut usize) -> Option<usize> {
             let word = *src;
@@ -1030,81 +1083,14 @@ cfg_if! {
             find_non_ascii(word, second_word)
         }
 
-        #[inline(always)]
-        unsafe fn validate_ascii_stride(src: *const usize) -> Option<usize> {
-            let word = *src;
-            let second_word = *(src.offset(1));
-            find_non_ascii(word, second_word)
-        }
-
-        #[inline(always)]
-        fn find_non_ascii(word: usize, second_word: usize) -> Option<usize> {
-            let word_masked = word & ASCII_MASK;
-            let second_masked = second_word & ASCII_MASK;
-            if (word_masked | second_masked) == 0 {
-                return None;
-            }
-            if word_masked != 0 {
-                let zeros = count_zeros(word_masked);
-                // `zeros` now contains 7 (for the seven bits of non-ASCII)
-                // plus 8 times the number of ASCII in text order before the
-                // non-ASCII byte in the little-endian case or 8 times the number of ASCII in
-                // text order before the non-ASCII byte in the big-endian case.
-                let num_ascii = (zeros >> 3) as usize;
-                return Some(num_ascii);
-            }
-            let zeros = count_zeros(second_masked);
-            // `zeros` now contains 7 (for the seven bits of non-ASCII)
-            // plus 8 times the number of ASCII in text order before the
-            // non-ASCII byte in the little-endian case or 8 times the number of ASCII in
-            // text order before the non-ASCII byte in the big-endian case.
-            let num_ascii = (zeros >> 3) as usize;
-            Some(ALIGNMENT + num_ascii)
-        }
-
-        #[cfg(not(all(feature = "simd-accel", target_endian = "little", target_arch = "aarch64")))]
+        basic_latin_alu!(ascii_to_basic_latin, u8, u16, ascii_to_basic_latin_stride_alu);
+        basic_latin_alu!(basic_latin_to_ascii, u16, u8, basic_latin_to_ascii_stride_alu);
+        latin1_alu!(unpack_latin1, u8, u16, unpack_latin1_stride_alu);
+        latin1_alu!(pack_latin1, u16, u8, pack_latin1_stride_alu);
         ascii_alu!(ascii_to_ascii, u8, u8, ascii_to_ascii_stride);
-
-        #[inline(always)]
-        pub fn validate_ascii(slice: &[u8]) -> Option<(u8, usize)> {
-            let src = slice.as_ptr();
-            let len = slice.len();
-            let mut offset = 0usize;
-            let mut until_alignment = (ALIGNMENT - ((src as usize) & ALIGNMENT_MASK)) & ALIGNMENT_MASK;
-            if until_alignment + STRIDE_SIZE <= len {
-                while until_alignment != 0 {
-                    let code_unit = slice[offset];
-                    if code_unit > 127 {
-                        return Some((code_unit, offset));
-                    }
-                    offset += 1;
-                    until_alignment -= 1;
-                }
-                let len_minus_stride = len - STRIDE_SIZE;
-                loop {
-                    let ptr = unsafe { src.offset(offset as isize) as *const usize };
-                    if let Some(num_ascii) = unsafe { validate_ascii_stride(ptr) } {
-                        offset += num_ascii;
-                        return Some((unsafe { *(src.offset(offset as isize)) }, offset));
-                    }
-                    offset += STRIDE_SIZE;
-                    if offset > len_minus_stride {
-                        break;
-                    }
-                }
-            }
-            while offset < len {
-                let code_unit = slice[offset];
-                if code_unit > 127 {
-                    return Some((code_unit, offset));
-                }
-                offset += 1;
-           }
-           None
-        }
-
     }
 }
+
 
 pub fn ascii_valid_up_to(bytes: &[u8]) -> usize {
     match validate_ascii(bytes) {

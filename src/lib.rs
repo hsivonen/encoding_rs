@@ -165,7 +165,7 @@
 //! algorithms so that BOM handling isn't part of the definition of the
 //! encodings themselves. The Unicode _encoding schemes_ in the Unicode
 //! Standard define BOM handling or lack thereof as part of the encoding
-//! scheme. 
+//! scheme.
 //!
 //! When used with the `_without_bom_handling` entry points, the UTF-16LE
 //! and UTF-16BE _encodings_ match the same-named _encoding schemes_ from
@@ -186,7 +186,7 @@
 //! by this crate. The Encoding Standard doesn't define any UTF-32
 //! family encodings, since they aren't necessary for consuming Web
 //! content.
-//! 
+//!
 //! ## ISO-8859-1
 //!
 //! ISO-8859-1 does not exist as a distinct encoding from windows-1252 in
@@ -3391,11 +3391,11 @@ impl Decoder {
         let (result, read, written, replaced) = self.decode_to_utf8(src, bytes, last);
         let len = bytes.len();
         let mut trail = written;
-        // Non-UTF-8 ASCII-compatible decoders may write up to `STRIDE_SIZE`
+        // Non-UTF-8 ASCII-compatible decoders may write up to `MAX_STRIDE_SIZE`
         // bytes of trailing garbage. No need to optimize non-ASCII-compatible
         // encodings to avoid overwriting here.
         if self.encoding != UTF_8 {
-            let max = std::cmp::min(len, trail + ascii::STRIDE_SIZE);
+            let max = std::cmp::min(len, trail + ascii::MAX_STRIDE_SIZE);
             while trail < max {
                 bytes[trail] = 0;
                 trail += 1;
@@ -3481,11 +3481,11 @@ impl Decoder {
         let (result, read, written) = self.decode_to_utf8_without_replacement(src, bytes, last);
         let len = bytes.len();
         let mut trail = written;
-        // Non-UTF-8 ASCII-compatible decoders may write up to `STRIDE_SIZE`
+        // Non-UTF-8 ASCII-compatible decoders may write up to `MAX_STRIDE_SIZE`
         // bytes of trailing garbage. No need to optimize non-ASCII-compatible
         // encodings to avoid overwriting here.
         if self.encoding != UTF_8 {
-            let max = std::cmp::min(len, trail + ascii::STRIDE_SIZE);
+            let max = std::cmp::min(len, trail + ascii::MAX_STRIDE_SIZE);
             while trail < max {
                 bytes[trail] = 0;
                 trail += 1;
