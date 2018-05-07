@@ -75,16 +75,16 @@ macro_rules! by_unit_check_alu {
         let mut accu = 0usize;
         let unit_size = ::std::mem::size_of::<$unit>();
         let len = buffer.len();
-        if len >= ALIGNMENT / unit_size {
+        if len >= ALU_ALIGNMENT / unit_size {
             // The most common reason to return `false` is for the first code
             // unit to fail the test, so check that first.
             if buffer[0] >= $bound {
                 return false;
             }
             let src = buffer.as_ptr();
-            let mut until_alignment = ((ALIGNMENT - ((src as usize) & ALIGNMENT_MASK)) &
-                                       ALIGNMENT_MASK) / unit_size;
-            if until_alignment + ALIGNMENT / unit_size <= len {
+            let mut until_alignment = ((ALU_ALIGNMENT - ((src as usize) & ALU_ALIGNMENT_MASK)) &
+                                       ALU_ALIGNMENT_MASK) / unit_size;
+            if until_alignment + ALU_ALIGNMENT / unit_size <= len {
                 if until_alignment != 0 {
                     accu |= buffer[offset] as usize;
                     offset += 1;
@@ -98,18 +98,18 @@ macro_rules! by_unit_check_alu {
                         return false;
                     }
                 }
-                let len_minus_stride = len - ALIGNMENT / unit_size;
-                if offset + (4 * (ALIGNMENT / unit_size)) <= len {
-                    let len_minus_unroll = len - (4 * (ALIGNMENT / unit_size));
+                let len_minus_stride = len - ALU_ALIGNMENT / unit_size;
+                if offset + (4 * (ALU_ALIGNMENT / unit_size)) <= len {
+                    let len_minus_unroll = len - (4 * (ALU_ALIGNMENT / unit_size));
                     loop {
                         let unroll_accu = unsafe { *(src.offset(offset as isize) as *const usize) } |
-                                          unsafe { *(src.offset((offset + (ALIGNMENT / unit_size)) as isize) as *const usize) } |
-                                          unsafe { *(src.offset((offset + (2 * (ALIGNMENT / unit_size))) as isize) as *const usize) } |
-                                          unsafe { *(src.offset((offset + (3 * (ALIGNMENT / unit_size))) as isize) as *const usize) };
+                                          unsafe { *(src.offset((offset + (ALU_ALIGNMENT / unit_size)) as isize) as *const usize) } |
+                                          unsafe { *(src.offset((offset + (2 * (ALU_ALIGNMENT / unit_size))) as isize) as *const usize) } |
+                                          unsafe { *(src.offset((offset + (3 * (ALU_ALIGNMENT / unit_size))) as isize) as *const usize) };
                         if unroll_accu & $mask != 0 {
                             return false;
                         }
-                        offset += 4 * (ALIGNMENT / unit_size);
+                        offset += 4 * (ALU_ALIGNMENT / unit_size);
                         if offset > len_minus_unroll {
                             break;
                         }
@@ -117,7 +117,7 @@ macro_rules! by_unit_check_alu {
                 }
                 while offset <= len_minus_stride {
                     accu |= unsafe { *(src.offset(offset as isize) as *const usize) };
-                    offset += ALIGNMENT / unit_size;
+                    offset += ALU_ALIGNMENT / unit_size;
                 }
             }
         }
@@ -142,7 +142,7 @@ macro_rules! by_unit_check_simd {
         let mut accu = 0usize;
         let unit_size = ::std::mem::size_of::<$unit>();
         let len = buffer.len();
-        if len >= STRIDE_SIZE / unit_size {
+        if len >= SIMD_STRIDE_SIZE / unit_size {
             // The most common reason to return `false` is for the first code
             // unit to fail the test, so check that first.
             if buffer[0] >= $bound {
@@ -151,7 +151,7 @@ macro_rules! by_unit_check_simd {
             let src = buffer.as_ptr();
             let mut until_alignment = ((SIMD_ALIGNMENT - ((src as usize) & SIMD_ALIGNMENT_MASK)) &
                                        SIMD_ALIGNMENT_MASK) / unit_size;
-            if until_alignment + STRIDE_SIZE / unit_size <= len {
+            if until_alignment + SIMD_STRIDE_SIZE / unit_size <= len {
                 if until_alignment != 0 {
                     accu |= buffer[offset] as usize;
                     offset += 1;
@@ -165,18 +165,18 @@ macro_rules! by_unit_check_simd {
                         return false;
                     }
                 }
-                let len_minus_stride = len - STRIDE_SIZE / unit_size;
-                if offset + (4 * (STRIDE_SIZE / unit_size)) <= len {
-                    let len_minus_unroll = len - (4 * (STRIDE_SIZE / unit_size));
+                let len_minus_stride = len - SIMD_STRIDE_SIZE / unit_size;
+                if offset + (4 * (SIMD_STRIDE_SIZE / unit_size)) <= len {
+                    let len_minus_unroll = len - (4 * (SIMD_STRIDE_SIZE / unit_size));
                     loop {
                         let unroll_accu = unsafe { *(src.offset(offset as isize) as *const $simd_ty) } |
-                                          unsafe { *(src.offset((offset + (STRIDE_SIZE / unit_size)) as isize) as *const $simd_ty) } |
-                                          unsafe { *(src.offset((offset + (2 * (STRIDE_SIZE / unit_size))) as isize) as *const $simd_ty) } |
-                                          unsafe { *(src.offset((offset + (3 * (STRIDE_SIZE / unit_size))) as isize) as *const $simd_ty) };
+                                          unsafe { *(src.offset((offset + (SIMD_STRIDE_SIZE / unit_size)) as isize) as *const $simd_ty) } |
+                                          unsafe { *(src.offset((offset + (2 * (SIMD_STRIDE_SIZE / unit_size))) as isize) as *const $simd_ty) } |
+                                          unsafe { *(src.offset((offset + (3 * (SIMD_STRIDE_SIZE / unit_size))) as isize) as *const $simd_ty) };
                         if !$func(unroll_accu) {
                             return false;
                         }
-                        offset += 4 * (STRIDE_SIZE / unit_size);
+                        offset += 4 * (SIMD_STRIDE_SIZE / unit_size);
                         if offset > len_minus_unroll {
                             break;
                         }
@@ -185,7 +185,7 @@ macro_rules! by_unit_check_simd {
                 let mut simd_accu = $splat;
                 while offset <= len_minus_stride {
                     simd_accu = simd_accu | unsafe { *(src.offset(offset as isize) as *const $simd_ty) };
-                    offset += STRIDE_SIZE / unit_size;
+                    offset += SIMD_STRIDE_SIZE / unit_size;
                 }
                 if !$func(simd_accu) {
                     return false;
@@ -200,7 +200,7 @@ macro_rules! by_unit_check_simd {
 }
 
 cfg_if!{
-    if #[cfg(all(feature = "simd-accel", any(target_feature = "sse2", all(target_endian = "little", target_arch = "aarch64"))))] {
+    if #[cfg(all(feature = "simd-accel", any(target_feature = "sse2", all(target_endian = "little", target_arch = "aarch64"), all(target_endian = "little", target_feature = "neon"))))] {
         use simd_funcs::*;
         use simd::u8x16;
         use simd::u16x8;
@@ -227,13 +227,13 @@ cfg_if!{
                 let until_alignment = ((SIMD_ALIGNMENT - ((unsafe { src.offset(offset as isize) } as usize) & SIMD_ALIGNMENT_MASK)) &
                                         SIMD_ALIGNMENT_MASK) / unit_size;
                 if until_alignment == 0 {
-                    if offset + STRIDE_SIZE / unit_size > len {
+                    if offset + SIMD_STRIDE_SIZE / unit_size > len {
                         break;
                     }
                 } else {
                     let offset_plus_until_alignment = offset + until_alignment;
                     let offset_plus_until_alignment_plus_one = offset_plus_until_alignment + 1;
-                    if offset_plus_until_alignment_plus_one + STRIDE_SIZE / unit_size > len {
+                    if offset_plus_until_alignment_plus_one + SIMD_STRIDE_SIZE / unit_size > len {
                         break;
                     }
                     let (up_to, last_valid_low) = utf16_valid_up_to_alu(&buffer[offset..offset_plus_until_alignment_plus_one]);
@@ -246,16 +246,16 @@ cfg_if!{
                     }
                     offset = offset_plus_until_alignment;
                 }
-                let len_minus_stride = len - STRIDE_SIZE / unit_size;
+                let len_minus_stride = len - SIMD_STRIDE_SIZE / unit_size;
                 'inner: loop {
-                    let offset_plus_stride = offset + STRIDE_SIZE / unit_size;
+                    let offset_plus_stride = offset + SIMD_STRIDE_SIZE / unit_size;
                     if contains_surrogates(unsafe { *(src.offset(offset as isize) as *const u16x8) }) {
                         if offset_plus_stride == len {
                             break 'outer;
                         }
                         let offset_plus_stride_plus_one = offset_plus_stride + 1;
                         let (up_to, last_valid_low) = utf16_valid_up_to_alu(&buffer[offset..offset_plus_stride_plus_one]);
-                        if up_to < STRIDE_SIZE / unit_size {
+                        if up_to < SIMD_STRIDE_SIZE / unit_size {
                             return offset + up_to;
                         }
                         if last_valid_low {
@@ -331,17 +331,17 @@ fn utf16_valid_up_to_alu(buffer: &[u16]) -> (usize, bool) {
 }
 
 cfg_if!{
-    if #[cfg(all(feature = "simd-accel", any(target_feature = "sse2", all(target_endian = "little", target_arch = "aarch64"))))] {
+    if #[cfg(all(feature = "simd-accel", any(target_feature = "sse2", all(target_endian = "little", target_arch = "aarch64"), all(target_endian = "little", target_feature = "neon"))))] {
         #[inline(always)]
         fn is_str_latin1_impl(buffer: &str) -> Option<usize> {
             let mut offset = 0usize;
             let bytes = buffer.as_bytes();
             let len = bytes.len();
-            if len >= STRIDE_SIZE {
+            if len >= SIMD_STRIDE_SIZE {
                 let src = bytes.as_ptr();
                 let mut until_alignment = (SIMD_ALIGNMENT - ((src as usize) & SIMD_ALIGNMENT_MASK)) &
                                            SIMD_ALIGNMENT_MASK;
-                if until_alignment + STRIDE_SIZE <= len {
+                if until_alignment + SIMD_STRIDE_SIZE <= len {
                     while until_alignment != 0 {
                         if bytes[offset] > 0xC3 {
                             return Some(offset);
@@ -349,7 +349,7 @@ cfg_if!{
                         offset += 1;
                         until_alignment -= 1;
                     }
-                    let len_minus_stride = len - STRIDE_SIZE;
+                    let len_minus_stride = len - SIMD_STRIDE_SIZE;
                     loop {
                         if !simd_is_str_latin1(unsafe { *(src.offset(offset as isize) as *const u8x16) }) {
                             // TODO: Ensure this compiles away when inlined into `is_str_latin1()`.
@@ -358,7 +358,7 @@ cfg_if!{
                             }
                             return Some(offset);
                         }
-                        offset += STRIDE_SIZE;
+                        offset += SIMD_STRIDE_SIZE;
                         if offset > len_minus_stride {
                             break;
                         }
@@ -420,16 +420,16 @@ fn is_utf8_latin1_impl(buffer: &[u8]) -> Option<usize> {
 }
 
 cfg_if!{
-    if #[cfg(all(feature = "simd-accel", any(target_feature = "sse2", all(target_endian = "little", target_arch = "aarch64"))))] {
+    if #[cfg(all(feature = "simd-accel", any(target_feature = "sse2", all(target_endian = "little", target_arch = "aarch64"), all(target_endian = "little", target_feature = "neon"))))] {
         #[inline(always)]
         fn is_utf16_bidi_impl(buffer: &[u16]) -> bool {
             let mut offset = 0usize;
             let len = buffer.len();
-            if len >= STRIDE_SIZE / 2 {
+            if len >= SIMD_STRIDE_SIZE / 2 {
                 let src = buffer.as_ptr();
                 let mut until_alignment = ((SIMD_ALIGNMENT - ((src as usize) & SIMD_ALIGNMENT_MASK)) &
                                            SIMD_ALIGNMENT_MASK) / 2;
-                if until_alignment + (STRIDE_SIZE / 2) <= len {
+                if until_alignment + (SIMD_STRIDE_SIZE / 2) <= len {
                     while until_alignment != 0 {
                         if is_utf16_code_unit_bidi(buffer[offset]) {
                             return true;
@@ -437,12 +437,12 @@ cfg_if!{
                         offset += 1;
                         until_alignment -= 1;
                     }
-                    let len_minus_stride = len - (STRIDE_SIZE / 2);
+                    let len_minus_stride = len - (SIMD_STRIDE_SIZE / 2);
                     loop {
                         if is_u16x8_bidi(unsafe { *(src.offset(offset as isize) as *const u16x8) }) {
                             return true;
                         }
-                        offset += STRIDE_SIZE / 2;
+                        offset += SIMD_STRIDE_SIZE / 2;
                         if offset > len_minus_stride {
                             break;
                         }
@@ -470,16 +470,16 @@ cfg_if!{
 }
 
 cfg_if!{
-    if #[cfg(all(feature = "simd-accel", any(target_feature = "sse2", all(target_endian = "little", target_arch = "aarch64"))))] {
+    if #[cfg(all(feature = "simd-accel", any(target_feature = "sse2", all(target_endian = "little", target_arch = "aarch64"), all(target_endian = "little", target_feature = "neon"))))] {
         #[inline(always)]
         fn check_utf16_for_latin1_and_bidi_impl(buffer: &[u16]) -> Latin1Bidi {
             let mut offset = 0usize;
             let len = buffer.len();
-            if len >= STRIDE_SIZE / 2 {
+            if len >= SIMD_STRIDE_SIZE / 2 {
                 let src = buffer.as_ptr();
                 let mut until_alignment = ((SIMD_ALIGNMENT - ((src as usize) & SIMD_ALIGNMENT_MASK)) &
                                            SIMD_ALIGNMENT_MASK) / 2;
-                if until_alignment + (STRIDE_SIZE / 2) <= len {
+                if until_alignment + (SIMD_STRIDE_SIZE / 2) <= len {
                     while until_alignment != 0 {
                         if buffer[offset] > 0xFF {
                             // This transition isn't optimal, since the aligment is recomputing
@@ -492,7 +492,7 @@ cfg_if!{
                         offset += 1;
                         until_alignment -= 1;
                     }
-                    let len_minus_stride = len - (STRIDE_SIZE / 2);
+                    let len_minus_stride = len - (SIMD_STRIDE_SIZE / 2);
                     loop {
                         let mut s = unsafe { *(src.offset(offset as isize) as *const u16x8) };
                         if !simd_is_latin1(s) {
@@ -500,7 +500,7 @@ cfg_if!{
                                 if is_u16x8_bidi(s) {
                                     return Latin1Bidi::Bidi;
                                 }
-                                offset += STRIDE_SIZE / 2;
+                                offset += SIMD_STRIDE_SIZE / 2;
                                 if offset > len_minus_stride {
                                     for &u in &buffer[offset..] {
                                         if is_utf16_code_unit_bidi(u) {
@@ -512,7 +512,7 @@ cfg_if!{
                                 s = unsafe { *(src.offset(offset as isize) as *const u16x8) };
                             }
                         }
-                        offset += STRIDE_SIZE / 2;
+                        offset += SIMD_STRIDE_SIZE / 2;
                         if offset > len_minus_stride {
                             break;
                         }
@@ -545,11 +545,11 @@ cfg_if!{
         fn check_utf16_for_latin1_and_bidi_impl(buffer: &[u16]) -> Latin1Bidi {
             let mut offset = 0usize;
             let len = buffer.len();
-            if len >= ALIGNMENT / 2 {
+            if len >= ALU_ALIGNMENT / 2 {
                 let src = buffer.as_ptr();
-                let mut until_alignment = ((ALIGNMENT - ((src as usize) & ALIGNMENT_MASK)) &
-                                           ALIGNMENT_MASK) / 2;
-                if until_alignment + ALIGNMENT / 2 <= len {
+                let mut until_alignment = ((ALU_ALIGNMENT - ((src as usize) & ALU_ALIGNMENT_MASK)) &
+                                           ALU_ALIGNMENT_MASK) / 2;
+                if until_alignment + ALU_ALIGNMENT / 2 <= len {
                     while until_alignment != 0 {
                         if buffer[offset] > 0xFF {
                             if is_utf16_bidi_impl(&buffer[offset..]) {
@@ -560,7 +560,7 @@ cfg_if!{
                         offset += 1;
                         until_alignment -= 1;
                     }
-                    let len_minus_stride = len - ALIGNMENT / 2;
+                    let len_minus_stride = len - ALU_ALIGNMENT / 2;
                     loop {
                         if unsafe { *(src.offset(offset as isize) as *const usize) } & LATIN1_MASK != 0 {
                             if is_utf16_bidi_impl(&buffer[offset..]) {
@@ -568,7 +568,7 @@ cfg_if!{
                             }
                             return Latin1Bidi::LeftToRight;
                         }
-                        offset += ALIGNMENT / 2;
+                        offset += ALU_ALIGNMENT / 2;
                         if offset > len_minus_stride {
                             break;
                         }
@@ -1575,7 +1575,7 @@ pub fn convert_utf16_to_str(src: &[u16], dst: &mut str) -> usize {
     let written = convert_utf16_to_utf8(src, bytes);
     let len = bytes.len();
     let mut trail = written;
-    let max = ::std::cmp::min(len, trail + STRIDE_SIZE);
+    let max = ::std::cmp::min(len, trail + MAX_STRIDE_SIZE);
     while trail < max {
         bytes[trail] = 0;
         trail += 1;
@@ -1683,7 +1683,7 @@ pub fn convert_latin1_to_str(src: &[u8], dst: &mut str) -> usize {
     let written = convert_latin1_to_utf8(src, bytes);
     let len = bytes.len();
     let mut trail = written;
-    let max = ::std::cmp::min(len, trail + STRIDE_SIZE);
+    let max = ::std::cmp::min(len, trail + MAX_STRIDE_SIZE);
     while trail < max {
         bytes[trail] = 0;
         trail += 1;

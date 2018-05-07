@@ -643,7 +643,7 @@
 extern crate cfg_if;
 
 #[cfg(all(feature = "simd-accel",
-          any(target_feature = "sse2", all(target_endian = "little", target_arch = "aarch64"))))]
+          any(target_feature = "sse2", all(target_endian = "little", target_arch = "aarch64"), all(target_endian = "little", target_feature = "neon"))))]
 extern crate simd;
 
 #[cfg(feature = "serde")]
@@ -661,7 +661,7 @@ extern crate serde_json;
 mod macros;
 
 #[cfg(all(feature = "simd-accel",
-          any(target_feature = "sse2", all(target_endian = "little", target_arch = "aarch64"))))]
+          any(target_feature = "sse2", all(target_endian = "little", target_arch = "aarch64"), all(target_endian = "little", target_feature = "neon"))))]
 mod simd_funcs;
 
 #[cfg(any(all(feature = "simd-accel", target_feature = "sse2"),
@@ -3482,11 +3482,11 @@ impl Decoder {
         let (result, read, written, replaced) = self.decode_to_utf8(src, bytes, last);
         let len = bytes.len();
         let mut trail = written;
-        // Non-UTF-8 ASCII-compatible decoders may write up to `STRIDE_SIZE`
+        // Non-UTF-8 ASCII-compatible decoders may write up to `MAX_STRIDE_SIZE`
         // bytes of trailing garbage. No need to optimize non-ASCII-compatible
         // encodings to avoid overwriting here.
         if self.encoding != UTF_8 {
-            let max = std::cmp::min(len, trail + ascii::STRIDE_SIZE);
+            let max = std::cmp::min(len, trail + ascii::MAX_STRIDE_SIZE);
             while trail < max {
                 bytes[trail] = 0;
                 trail += 1;
@@ -3572,11 +3572,11 @@ impl Decoder {
         let (result, read, written) = self.decode_to_utf8_without_replacement(src, bytes, last);
         let len = bytes.len();
         let mut trail = written;
-        // Non-UTF-8 ASCII-compatible decoders may write up to `STRIDE_SIZE`
+        // Non-UTF-8 ASCII-compatible decoders may write up to `MAX_STRIDE_SIZE`
         // bytes of trailing garbage. No need to optimize non-ASCII-compatible
         // encodings to avoid overwriting here.
         if self.encoding != UTF_8 {
-            let max = std::cmp::min(len, trail + ascii::STRIDE_SIZE);
+            let max = std::cmp::min(len, trail + ascii::MAX_STRIDE_SIZE);
             while trail < max {
                 bytes[trail] = 0;
                 trail += 1;
