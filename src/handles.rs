@@ -16,6 +16,42 @@
 //! the plan is to replace the internals with unsafe code that omits the
 //! bound check at the read/write time.
 
+#[cfg(
+    all(
+        feature = "simd-accel",
+        any(
+            target_feature = "sse2",
+            all(target_endian = "little", target_arch = "aarch64"),
+            all(target_endian = "little", target_feature = "neon")
+        )
+    )
+)]
+use simd_funcs::*;
+
+#[cfg(
+    all(
+        feature = "simd-accel",
+        any(
+            target_feature = "sse2",
+            all(target_endian = "little", target_arch = "aarch64"),
+            all(target_endian = "little", target_feature = "neon")
+        )
+    )
+)]
+use simd::u16x8;
+
+#[cfg(
+    all(
+        feature = "simd-accel",
+        any(
+            target_feature = "sse2",
+            all(target_endian = "little", target_arch = "aarch64"),
+            all(target_endian = "little", target_feature = "neon")
+        )
+    )
+)]
+use simd::u8x16;
+
 use super::DecoderResult;
 use super::EncoderResult;
 use ascii::*;
@@ -145,12 +181,14 @@ impl UnalignedU16Slice {
             let dst_bytes = other.as_ptr() as *mut u16 as *mut u8;
             let simd_len = byte_len & !SIMD_ALIGNMENT_MASK;
             start = simd_len / 2;
-            while i < simd_len {
-                let s = load16_unaligned(src.offset(i as isize));
-                store16_unaligned(dst_bytes.offset(i as isize), simd_byte_swap(s));
-                i += SIMD_STRIDE_SIZE;
+            let mut offset = 0;
+            while offset < simd_len {
+                let s = load16_unaligned(self.ptr.offset(offset as isize));
+                store16_unaligned(dst_bytes.offset(offset as isize), simd_byte_swap(s));
+                offset += SIMD_STRIDE_SIZE;
             }
         }
+        self.copy_to_swap_bytes_alu(other, start)
     }
 
     #[cfg(not(feature = "simd-accel"))]
@@ -181,9 +219,42 @@ fn copy_unaligned_basic_latin_to_ascii_alu<E: Endian>(src: UnalignedU16Slice, ds
     }
 }
 
+#[cfg(not(feature = "simd-accel"))]
 #[inline(always)]
 fn copy_unaligned_basic_latin_to_ascii<E: Endian>(src: UnalignedU16Slice, dst: &mut [u8]) -> CopyAsciiResult<usize, (u16, usize)> {
     copy_unaligned_basic_latin_to_ascii_alu::<E>(src, dst)
+}
+
+#[cfg(feature = "simd-accel")]
+#[inline(always)]
+fn copy_unaligned_basic_latin_to_ascii<E: Endian>(src: UnalignedU16Slice, dst: &mut [u8]) -> CopyAsciiResult<usize, (u16, usize)> {
+    let len = ::std::cmp::min(src.len(), dst.len());
+    let mut offset = 0;
+    if SIMD_STRIDE_SIZE <= len {
+        let len_minus_stride = len - SIMD_STRIDE_SIZE;
+        loop {
+            let mut first = src.simd_at(offset);
+            let mut second = src.simd_at(offset + (SIMD_STRIDE_SIZE / 2));
+            if E::OPPOSITE_ENDIAN {
+                first = simd_byte_swap(first);
+                second = simd_byte_swap(second);
+            }
+            let first16: u16x8 = unsafe { ::std::mem::transmute(first) };
+            let second16: u16x8 = unsafe { ::std::mem::transmute(second) };
+            if !simd_is_basic_latin(first16 | second16) {
+                break;
+            }
+            let packed = simd_pack(first16, second16);
+            unsafe {
+                store16_unaligned(dst.as_mut_ptr().offset(offset as isize), packed);
+            }
+            offset += SIMD_STRIDE_SIZE;
+            if offset > len_minus_stride {
+                break;
+            }
+        }
+    }
+    copy_unaligned_basic_latin_to_ascii_alu::<E>(src.tail(offset), &mut dst[offset..])
 }
 
 #[inline(always)]

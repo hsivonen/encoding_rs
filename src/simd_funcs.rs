@@ -66,6 +66,13 @@ extern "platform-intrinsic" {
     fn simd_shuffle16<T: Simd, U: Simd<Elem = T::Elem>>(x: T, y: T, idx: [u32; 16]) -> U;
 }
 
+#[inline(always)]
+pub fn simd_byte_swap(s: u8x16) -> u8x16 {
+    unsafe {
+        simd_shuffle16(s, s, [1, 0, 3, 2, 5, 4, 7, 6, 9, 8, 11, 10, 13, 12, 15, 14])
+    }
+}
+
 cfg_if! {
     if #[cfg(target_feature = "sse2")] {
 
