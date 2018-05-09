@@ -67,10 +67,25 @@ extern "platform-intrinsic" {
 }
 
 #[inline(always)]
-pub fn simd_byte_swap(s: u8x16) -> u8x16 {
+fn simd_byte_swap_u8(s: u8x16) -> u8x16 {
     unsafe {
         simd_shuffle16(s, s, [1, 0, 3, 2, 5, 4, 7, 6, 9, 8, 11, 10, 13, 12, 15, 14])
     }
+}
+
+#[inline(always)]
+pub fn simd_byte_swap(s: u16x8) -> u16x8 {
+    to_u16_lanes(simd_byte_swap_u8(to_u8_lanes(s)))
+}
+
+#[inline(always)]
+pub fn to_u16_lanes(s: u8x16) -> u16x8 {
+    unsafe { ::std::mem::transmute(s) }
+}
+
+#[inline(always)]
+pub fn to_u8_lanes(s: u16x8) -> u8x16 {
+    unsafe { ::std::mem::transmute(s) }
 }
 
 cfg_if! {

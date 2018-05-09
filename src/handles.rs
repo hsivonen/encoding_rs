@@ -40,18 +40,6 @@ use simd_funcs::*;
 )]
 use simd::u16x8;
 
-#[cfg(
-    all(
-        feature = "simd-accel",
-        any(
-            target_feature = "sse2",
-            all(target_endian = "little", target_arch = "aarch64"),
-            all(target_endian = "little", target_feature = "neon")
-        )
-    )
-)]
-use simd::u8x16;
-
 use super::DecoderResult;
 use super::EncoderResult;
 use ascii::*;
@@ -133,11 +121,11 @@ impl UnalignedU16Slice {
 
     #[cfg(feature = "simd-accel")]
     #[inline(always)]
-    pub fn simd_at(&self, i: usize) -> u8x16 {
+    pub fn simd_at(&self, i: usize) -> u16x8 {
         assert!(i + SIMD_STRIDE_SIZE / 2 <= self.len);
         let byte_index = i * 2;
         unsafe {
-            load16_unaligned(self.ptr.offset(byte_index as isize))
+            to_u16_lanes(load16_unaligned(self.ptr.offset(byte_index as isize)))
         }
     }
 
@@ -178,14 +166,13 @@ impl UnalignedU16Slice {
         let start;
         unsafe {
             let byte_len = self.len * 2;
-            let dst_bytes = other.as_ptr() as *mut u16 as *mut u8;
-            let simd_len = byte_len & !SIMD_ALIGNMENT_MASK;
+            let simd_len = (byte_len & !SIMD_ALIGNMENT_MASK) / 2;
             start = simd_len / 2;
             let mut offset = 0;
             while offset < simd_len {
-                let s = load16_unaligned(self.ptr.offset(offset as isize));
-                store16_unaligned(dst_bytes.offset(offset as isize), simd_byte_swap(s));
-                offset += SIMD_STRIDE_SIZE;
+                let s = self.simd_at(offset);
+                store8_unaligned(other.as_mut_ptr().offset(offset as isize), simd_byte_swap(s));
+                offset += SIMD_STRIDE_SIZE / 2;
             }
         }
         self.copy_to_swap_bytes_alu(other, start)
@@ -239,12 +226,10 @@ fn copy_unaligned_basic_latin_to_ascii<E: Endian>(src: UnalignedU16Slice, dst: &
                 first = simd_byte_swap(first);
                 second = simd_byte_swap(second);
             }
-            let first16: u16x8 = unsafe { ::std::mem::transmute(first) };
-            let second16: u16x8 = unsafe { ::std::mem::transmute(second) };
-            if !simd_is_basic_latin(first16 | second16) {
+            if !simd_is_basic_latin(first | second) {
                 break;
             }
-            let packed = simd_pack(first16, second16);
+            let packed = simd_pack(first, second);
             unsafe {
                 store16_unaligned(dst.as_mut_ptr().offset(offset as isize), packed);
             }
