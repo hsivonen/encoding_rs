@@ -134,8 +134,8 @@ impl UnalignedU16Slice {
     #[cfg(feature = "simd-accel")]
     #[inline(always)]
     pub fn simd_at(&self, i: usize) -> u8x16 {
+        assert!(i + SIMD_STRIDE_SIZE / 2 <= self.len);
         let byte_index = i * 2;
-        assert!(byte_index + SIMD_STRIDE_SIZE <= self.len);
         unsafe {
             load16_unaligned(self.ptr.offset(byte_index as isize))
         }
