@@ -42,6 +42,219 @@ pub enum Unicode {
     NonAscii(NonAscii),
 }
 
+// Start UTF-16LE/BE fast path
+
+struct UnalignedU16Slice {
+    ptr: *const u8,
+    len: usize,
+}
+
+impl UnalignedU16Slice {
+    #[inline(always)]
+    pub unsafe fn new(ptr: *const u8, len: usize) -> UnalignedU16Slice {
+        UnalignedU16Slice{ ptr, len }
+    }
+
+    #[inline(always)]
+    pub fn trim_last(&mut self) {
+        assert!(self.len > 0);
+        self.len -= 1;
+    }
+
+    #[inline(always)]
+    pub fn at(&self, i: usize) -> u16 {
+        assert!(i < self.len);
+        unsafe {
+            let mut u: u16 = ::std::mem::uninitialized();
+            ::std::ptr::copy_nonoverlapping(self.ptr.offset((i * 2) as isize), &mut u as *mut u16 as *mut u8, 2);
+            u
+        }
+    }
+
+    #[cfg(feature = "simd-accel")]
+    #[inline(always)]
+    pub fn simd_at(&self, i: usize) -> u8x16 {
+        let byte_index = i * 2;
+        assert!(byte_index + SIMD_STRIDE_SIZE <= self.len);
+        unsafe {
+            load16_unaligned(self.ptr.offset(byte_index as isize))
+        }
+    }
+
+    #[inline(always)]
+    pub fn len(&self) -> usize {
+        self.len
+    }
+
+    #[inline(always)]
+    pub fn tail(&self, from: usize) -> UnalignedU16Slice {
+        // XXX the return value should be restricted not to
+        // outlive self.
+        assert!(from <= self.len);
+        unsafe {
+            UnalignedU16Slice::new(self.ptr.offset((from * 2) as isize), self.len - from)
+        }
+    }
+
+    #[inline(always)]
+    pub fn copy_to(&self, other: &mut [u16]) {
+        assert_eq!(self.len, other.len());
+        unsafe {
+            ::std::ptr::copy_nonoverlapping(self.ptr, other.as_ptr() as *mut u16 as *mut u8, self.len * 2);
+        }
+    }
+
+    #[inline(always)]
+    fn copy_to_swap_bytes_alu(&self, other: &mut [u16], start: usize) {
+        for i in start..self.len {
+            other[i] = self.at(i).swap_bytes();
+        }
+    }
+
+    #[cfg(feature = "simd-accel")]
+    #[inline(always)]
+    pub fn copy_to_swap_bytes(&self, other: &mut [u16]) {
+        assert_eq!(self.len, other.len());
+        let start;
+        unsafe {
+            let byte_len = self.len * 2;
+            let dst_bytes = other.as_ptr() as *mut u16 as *mut u8;
+            let simd_len = byte_len & !SIMD_ALIGNMENT_MASK;
+            start = simd_len / 2;
+            while i < simd_len {
+                let s = load16_unaligned(src.offset(i as isize));
+                store16_unaligned(dst_bytes.offset(i as isize), simd_byte_swap(s));
+                i += SIMD_STRIDE_SIZE;
+            }
+        }
+    }
+
+    #[cfg(not(feature = "simd-accel"))]
+    #[inline(always)]
+    pub fn copy_to_swap_bytes(&self, other: &mut [u16]) {
+        assert_eq!(self.len, other.len());
+        self.copy_to_swap_bytes_alu(other, 0);
+    }
+}
+
+#[inline(always)]
+fn copy_unaligned_basic_latin_to_ascii_alu(src: UnalignedU16Slice, dst: &mut [u8], swap_bytes: bool) -> CopyAsciiResult<usize, (u16, usize)> {
+    let len = ::std::cmp::min(src.len(), dst.len());
+    let mut i = 0usize;
+    loop {
+        if i == len {
+            return CopyAsciiResult::Stop(len);
+        }
+        let mut unit = src.at(i);
+        if swap_bytes {
+            unit = unit.swap_bytes();
+        }
+        if unit > 0x7F {
+            return CopyAsciiResult::GoOn((unit, i));
+        }
+        dst[i] = unit as u8;
+        i += 1;
+    }
+}
+
+#[inline(always)]
+fn copy_unaligned_basic_latin_to_ascii(src: UnalignedU16Slice, dst: &mut [u8], swap_bytes: bool) -> CopyAsciiResult<usize, (u16, usize)> {
+    copy_unaligned_basic_latin_to_ascii_alu(src, dst, swap_bytes)
+}
+
+#[inline(always)]
+fn convert_unaligned_utf16_to_utf8(src: UnalignedU16Slice, dst: &mut [u8], swap_bytes: bool) -> (usize, usize, bool) {
+    let mut src_pos = 0usize;
+    let mut dst_pos = 0usize;
+    let src_len = src.len();
+    let dst_len_minus_three = dst.len() - 3;
+    'outer: loop {
+        let mut non_ascii = match copy_unaligned_basic_latin_to_ascii(src.tail(src_pos), &mut dst[dst_pos..], swap_bytes) {
+            CopyAsciiResult::GoOn((unit, read_written)) => {
+                src_pos += read_written;
+                dst_pos += read_written;
+                unit
+            },
+            CopyAsciiResult::Stop(read_written) => {
+                return (src_pos + read_written, dst_pos + read_written, false)
+            }
+        };
+        if dst_pos >= dst_len_minus_three {
+            break 'outer;
+        }
+        // We have enough destination space to commit to
+        // having read `non_ascii`.
+        src_pos += 1;
+        'inner: loop {
+            let non_ascii_minus_surrogate_start = non_ascii.wrapping_sub(0xD800);
+            if non_ascii_minus_surrogate_start > (0xDFFF - 0xD800) {
+                if non_ascii < 0x800 {
+                    dst[dst_pos] = ((non_ascii as u32 >> 6) | 0xC0u32) as u8;
+                    dst_pos += 1;
+                    dst[dst_pos] = ((non_ascii as u32 & 0x3Fu32) | 0x80u32) as u8;
+                    dst_pos += 1;
+                } else {
+                    dst[dst_pos] = ((non_ascii as u32 >> 12) | 0xE0u32) as u8;
+                    dst_pos += 1;
+                    dst[dst_pos] = (((non_ascii as u32 & 0xFC0u32) >> 6) | 0x80u32) as u8;
+                    dst_pos += 1;
+                    dst[dst_pos] = ((non_ascii as u32 & 0x3Fu32) | 0x80u32) as u8;
+                    dst_pos += 1;
+                }
+            } else if non_ascii_minus_surrogate_start <= (0xDBFF - 0xD800) {
+                // high surrogate
+                if src_pos < src_len {
+                    let mut second = src.at(src_pos);
+                    if swap_bytes {
+                        second = second.swap_bytes();
+                    }
+                    let second_minus_low_surrogate_start = second.wrapping_sub(0xDC00);
+                    if second_minus_low_surrogate_start <= (0xDFFF - 0xDC00) {
+                        // The next code unit is a low surrogate. Advance position.
+                        src_pos += 1;
+                        let point = ((non_ascii as u32) << 10) + (second as u32) - (((0xD800u32 << 10) - 0x10000u32) + 0xDC00u32);
+
+                        dst[dst_pos] = ((point >> 18) | 0xF0u32) as u8;
+                        dst_pos += 1;
+                        dst[dst_pos] = (((point & 0x3F000u32) >> 12) | 0x80u32) as u8;
+                        dst_pos += 1;
+                        dst[dst_pos] = (((point & 0xFC0u32) >> 6) | 0x80u32) as u8;
+                        dst_pos += 1;
+                        dst[dst_pos] = ((point & 0x3Fu32) | 0x80u32) as u8;
+                        dst_pos += 1;
+                    } else {
+                        // The next code unit is not a low surrogate. Don't advance
+                        // position and treat the high surrogate as unpaired.
+                        return (src_pos, dst_pos, true);
+                    }
+                } else {
+                    // Unpaired surrogate at the end of buffer
+                    return (src_pos, dst_pos, true);
+                }
+            } else {
+                // Unpaired low surrogate
+                return (src_pos, dst_pos, true);
+            }
+            if dst_pos >= dst_len_minus_three || src_pos == src_len {
+                break 'outer;
+            }
+            let mut unit = src.at(src_pos);
+            src_pos += 1;
+            if swap_bytes {
+                unit = unit.swap_bytes();
+            }
+            if unit > 0x7F {
+                non_ascii = unit;
+                continue 'inner;
+            }
+            dst[dst_pos] = unit as u8;
+            dst_pos += 1;
+            continue 'outer;
+        }
+    }
+    (src_pos, dst_pos, false)
+}
+
 // Byte source
 
 pub struct ByteSource<'a> {
@@ -409,6 +622,42 @@ impl<'a> Utf16Destination<'a> {
         source.pos += read;
         self.pos += written;
     }
+    #[inline(always)]
+    pub fn copy_utf16_from(&mut self, source: &mut ByteSource, swap_bytes: bool) -> Option<(usize, usize)> {
+        let src_remaining = &source.slice[source.pos..];
+        let dst_remaining = &mut self.slice[self.pos..];
+
+        let mut src_unaligned = unsafe { UnalignedU16Slice::new(src_remaining.as_ptr(), ::std::cmp::min(src_remaining.len() / 2, dst_remaining.len())) };
+        if src_unaligned.len() == 0 {
+            return None;
+        }
+        let mut last_unit = src_unaligned.at(src_unaligned.len() - 1);
+        if swap_bytes {
+            last_unit = last_unit.swap_bytes();
+        }
+        if super::in_range16(last_unit, 0xD800, 0xDC00) {
+            // Last code unit is a high surrogate. It might
+            // legitimately form a pair later, so let's not
+            // include it.
+            src_unaligned.trim_last();
+        }
+        if swap_bytes {
+            src_unaligned.copy_to_swap_bytes(&mut dst_remaining[..src_unaligned.len()]);
+        } else {
+            src_unaligned.copy_to(&mut dst_remaining[..src_unaligned.len()]);
+        }
+        let written = src_unaligned.len();
+        let valid_up_to = super::mem::utf16_valid_up_to(&dst_remaining[..written]);
+        if valid_up_to != written {
+            let read = valid_up_to * 2 + 2;
+            source.pos += read;
+            self.pos += valid_up_to;
+            return Some((source.pos, self.pos));
+        }
+        source.pos += written * 2;
+        self.pos += written;
+        None
+    }
 }
 
 // UTF-8 destination
@@ -719,6 +968,34 @@ impl<'a> Utf8Destination<'a> {
         }
         source.pos += valid_len;
         self.pos += valid_len;
+    }
+    #[inline(always)]
+    pub fn copy_utf16_from(&mut self, source: &mut ByteSource, swap_bytes: bool) -> Option<(usize, usize)> {
+        let src_remaining = &source.slice[source.pos..];
+        let dst_remaining = &mut self.slice[self.pos..];
+
+        let mut src_unaligned = unsafe { UnalignedU16Slice::new(src_remaining.as_ptr(), src_remaining.len() / 2) };
+        if src_unaligned.len() == 0 {
+            return None;
+        }
+        let mut last_unit = src_unaligned.at(src_unaligned.len() - 1);
+        if swap_bytes {
+            last_unit = last_unit.swap_bytes();
+        }
+        if super::in_range16(last_unit, 0xD800, 0xDC00) {
+            // Last code unit is a high surrogate. It might
+            // legitimately form a pair later, so let's not
+            // include it.
+            src_unaligned.trim_last();
+        }
+        let (read, written, had_error) = convert_unaligned_utf16_to_utf8(src_unaligned, dst_remaining, swap_bytes);
+        source.pos += read * 2;
+        self.pos += written;
+        if had_error {
+            Some((source.pos, self.pos))
+        } else {
+            None
+        }
     }
 }
 
