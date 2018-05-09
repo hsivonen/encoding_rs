@@ -187,19 +187,19 @@ impl UnalignedU16Slice {
 }
 
 #[inline(always)]
-fn copy_unaligned_basic_latin_to_ascii_alu<E: Endian>(src: UnalignedU16Slice, dst: &mut [u8]) -> CopyAsciiResult<usize, (u16, usize)> {
+fn copy_unaligned_basic_latin_to_ascii_alu<E: Endian>(src: UnalignedU16Slice, dst: &mut [u8], offset: usize) -> CopyAsciiResult<usize, (u16, usize)> {
     let len = ::std::cmp::min(src.len(), dst.len());
     let mut i = 0usize;
     loop {
         if i == len {
-            return CopyAsciiResult::Stop(len);
+            return CopyAsciiResult::Stop(i + offset);
         }
         let mut unit = src.at(i);
         if E::OPPOSITE_ENDIAN {
             unit = unit.swap_bytes();
         }
         if unit > 0x7F {
-            return CopyAsciiResult::GoOn((unit, i));
+            return CopyAsciiResult::GoOn((unit, i + offset));
         }
         dst[i] = unit as u8;
         i += 1;
@@ -209,7 +209,7 @@ fn copy_unaligned_basic_latin_to_ascii_alu<E: Endian>(src: UnalignedU16Slice, ds
 #[cfg(not(feature = "simd-accel"))]
 #[inline(always)]
 fn copy_unaligned_basic_latin_to_ascii<E: Endian>(src: UnalignedU16Slice, dst: &mut [u8]) -> CopyAsciiResult<usize, (u16, usize)> {
-    copy_unaligned_basic_latin_to_ascii_alu::<E>(src, dst)
+    copy_unaligned_basic_latin_to_ascii_alu::<E>(src, dst, 0)
 }
 
 #[cfg(feature = "simd-accel")]
@@ -239,7 +239,7 @@ fn copy_unaligned_basic_latin_to_ascii<E: Endian>(src: UnalignedU16Slice, dst: &
             }
         }
     }
-    copy_unaligned_basic_latin_to_ascii_alu::<E>(src.tail(offset), &mut dst[offset..])
+    copy_unaligned_basic_latin_to_ascii_alu::<E>(src.tail(offset), &mut dst[offset..], offset)
 }
 
 #[inline(always)]
