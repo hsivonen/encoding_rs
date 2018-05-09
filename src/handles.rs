@@ -22,22 +22,6 @@ use ascii::*;
 use utf_8::convert_utf8_to_utf16_up_to_invalid;
 use utf_8::utf8_valid_up_to;
 
-pub trait Endian {
-    const OPPOSITE_ENDIAN: bool;
-}
-
-pub struct BigEndian;
-
-impl Endian for BigEndian {
-    const OPPOSITE_ENDIAN: bool = true;
-}
-
-pub struct LittleEndian;
-
-impl Endian for LittleEndian {
-    const OPPOSITE_ENDIAN: bool = false;
-}
-
 pub enum Space<T> {
     Available(T),
     Full(usize),
@@ -59,6 +43,30 @@ pub enum Unicode {
 }
 
 // Start UTF-16LE/BE fast path
+
+pub trait Endian {
+    const OPPOSITE_ENDIAN: bool;
+}
+
+pub struct BigEndian;
+
+impl Endian for BigEndian {
+    #[cfg(target_endian = "little")]
+    const OPPOSITE_ENDIAN: bool = true;
+
+    #[cfg(target_endian = "big")]
+    const OPPOSITE_ENDIAN: bool = false;
+}
+
+pub struct LittleEndian;
+
+impl Endian for LittleEndian {
+    #[cfg(target_endian = "little")]
+    const OPPOSITE_ENDIAN: bool = false;
+
+    #[cfg(target_endian = "big")]
+    const OPPOSITE_ENDIAN: bool = true;
+}
 
 struct UnalignedU16Slice {
     ptr: *const u8,
