@@ -11,12 +11,6 @@ use super::*;
 use handles::*;
 use variant::*;
 
-#[cfg(target_endian = "little")]
-const TARGET_LITTLE_ENDIAN: bool = true;
-
-#[cfg(target_endian = "big")]
-const TARGET_LITTLE_ENDIAN: bool = false;
-
 pub struct Utf16Decoder {
     lead_surrogate: u16, // If non-zero and pending_bmp == false, a pending lead surrogate
     lead_byte: Option<u8>,
@@ -88,7 +82,11 @@ impl Utf16Decoder {
             // This is the fast path. The rest runs only at the
             // start and end for partial sequences.
             if self.lead_byte.is_none() && self.lead_surrogate == 0 {
-                if let Some((read, written)) = dest.copy_utf16_from(&mut source, self.be == TARGET_LITTLE_ENDIAN) {
+                if let Some((read, written)) = if self.be {
+                        dest.copy_utf16_from::<BigEndian>(&mut source)
+                    } else {
+                        dest.copy_utf16_from::<LittleEndian>(&mut source)
+                    } {
                     return (DecoderResult::Malformed(2, 0), read, written);
                 }
             }

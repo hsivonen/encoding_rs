@@ -22,6 +22,22 @@ use ascii::*;
 use utf_8::convert_utf8_to_utf16_up_to_invalid;
 use utf_8::utf8_valid_up_to;
 
+pub trait Endian {
+    const OPPOSITE_ENDIAN: bool;
+}
+
+pub struct BigEndian;
+
+impl Endian for BigEndian {
+    const OPPOSITE_ENDIAN: bool = true;
+}
+
+pub struct LittleEndian;
+
+impl Endian for LittleEndian {
+    const OPPOSITE_ENDIAN: bool = false;
+}
+
 pub enum Space<T> {
     Available(T),
     Full(usize),
@@ -138,7 +154,7 @@ impl UnalignedU16Slice {
 }
 
 #[inline(always)]
-fn copy_unaligned_basic_latin_to_ascii_alu(src: UnalignedU16Slice, dst: &mut [u8], swap_bytes: bool) -> CopyAsciiResult<usize, (u16, usize)> {
+fn copy_unaligned_basic_latin_to_ascii_alu<E: Endian>(src: UnalignedU16Slice, dst: &mut [u8]) -> CopyAsciiResult<usize, (u16, usize)> {
     let len = ::std::cmp::min(src.len(), dst.len());
     let mut i = 0usize;
     loop {
@@ -146,7 +162,7 @@ fn copy_unaligned_basic_latin_to_ascii_alu(src: UnalignedU16Slice, dst: &mut [u8
             return CopyAsciiResult::Stop(len);
         }
         let mut unit = src.at(i);
-        if swap_bytes {
+        if E::OPPOSITE_ENDIAN {
             unit = unit.swap_bytes();
         }
         if unit > 0x7F {
@@ -158,18 +174,18 @@ fn copy_unaligned_basic_latin_to_ascii_alu(src: UnalignedU16Slice, dst: &mut [u8
 }
 
 #[inline(always)]
-fn copy_unaligned_basic_latin_to_ascii(src: UnalignedU16Slice, dst: &mut [u8], swap_bytes: bool) -> CopyAsciiResult<usize, (u16, usize)> {
-    copy_unaligned_basic_latin_to_ascii_alu(src, dst, swap_bytes)
+fn copy_unaligned_basic_latin_to_ascii<E: Endian>(src: UnalignedU16Slice, dst: &mut [u8]) -> CopyAsciiResult<usize, (u16, usize)> {
+    copy_unaligned_basic_latin_to_ascii_alu::<E>(src, dst)
 }
 
 #[inline(always)]
-fn convert_unaligned_utf16_to_utf8(src: UnalignedU16Slice, dst: &mut [u8], swap_bytes: bool) -> (usize, usize, bool) {
+fn convert_unaligned_utf16_to_utf8<E: Endian>(src: UnalignedU16Slice, dst: &mut [u8]) -> (usize, usize, bool) {
     let mut src_pos = 0usize;
     let mut dst_pos = 0usize;
     let src_len = src.len();
     let dst_len_minus_three = dst.len() - 3;
     'outer: loop {
-        let mut non_ascii = match copy_unaligned_basic_latin_to_ascii(src.tail(src_pos), &mut dst[dst_pos..], swap_bytes) {
+        let mut non_ascii = match copy_unaligned_basic_latin_to_ascii::<E>(src.tail(src_pos), &mut dst[dst_pos..]) {
             CopyAsciiResult::GoOn((unit, read_written)) => {
                 src_pos += read_written;
                 dst_pos += read_written;
@@ -205,7 +221,7 @@ fn convert_unaligned_utf16_to_utf8(src: UnalignedU16Slice, dst: &mut [u8], swap_
                 // high surrogate
                 if src_pos < src_len {
                     let mut second = src.at(src_pos);
-                    if swap_bytes {
+                    if E::OPPOSITE_ENDIAN {
                         second = second.swap_bytes();
                     }
                     let second_minus_low_surrogate_start = second.wrapping_sub(0xDC00);
@@ -240,7 +256,7 @@ fn convert_unaligned_utf16_to_utf8(src: UnalignedU16Slice, dst: &mut [u8], swap_
             }
             let mut unit = src.at(src_pos);
             src_pos += 1;
-            if swap_bytes {
+            if E::OPPOSITE_ENDIAN {
                 unit = unit.swap_bytes();
             }
             if unit > 0x7F {
@@ -623,7 +639,7 @@ impl<'a> Utf16Destination<'a> {
         self.pos += written;
     }
     #[inline(always)]
-    pub fn copy_utf16_from(&mut self, source: &mut ByteSource, swap_bytes: bool) -> Option<(usize, usize)> {
+    pub fn copy_utf16_from<E: Endian>(&mut self, source: &mut ByteSource) -> Option<(usize, usize)> {
         let src_remaining = &source.slice[source.pos..];
         let dst_remaining = &mut self.slice[self.pos..];
 
@@ -632,7 +648,7 @@ impl<'a> Utf16Destination<'a> {
             return None;
         }
         let mut last_unit = src_unaligned.at(src_unaligned.len() - 1);
-        if swap_bytes {
+        if E::OPPOSITE_ENDIAN {
             last_unit = last_unit.swap_bytes();
         }
         if super::in_range16(last_unit, 0xD800, 0xDC00) {
@@ -641,7 +657,7 @@ impl<'a> Utf16Destination<'a> {
             // include it.
             src_unaligned.trim_last();
         }
-        if swap_bytes {
+        if E::OPPOSITE_ENDIAN {
             src_unaligned.copy_to_swap_bytes(&mut dst_remaining[..src_unaligned.len()]);
         } else {
             src_unaligned.copy_to(&mut dst_remaining[..src_unaligned.len()]);
@@ -970,7 +986,7 @@ impl<'a> Utf8Destination<'a> {
         self.pos += valid_len;
     }
     #[inline(always)]
-    pub fn copy_utf16_from(&mut self, source: &mut ByteSource, swap_bytes: bool) -> Option<(usize, usize)> {
+    pub fn copy_utf16_from<E: Endian>(&mut self, source: &mut ByteSource) -> Option<(usize, usize)> {
         let src_remaining = &source.slice[source.pos..];
         let dst_remaining = &mut self.slice[self.pos..];
 
@@ -979,7 +995,7 @@ impl<'a> Utf8Destination<'a> {
             return None;
         }
         let mut last_unit = src_unaligned.at(src_unaligned.len() - 1);
-        if swap_bytes {
+        if E::OPPOSITE_ENDIAN {
             last_unit = last_unit.swap_bytes();
         }
         if super::in_range16(last_unit, 0xD800, 0xDC00) {
@@ -988,7 +1004,7 @@ impl<'a> Utf8Destination<'a> {
             // include it.
             src_unaligned.trim_last();
         }
-        let (read, written, had_error) = convert_unaligned_utf16_to_utf8(src_unaligned, dst_remaining, swap_bytes);
+        let (read, written, had_error) = convert_unaligned_utf16_to_utf8::<E>(src_unaligned, dst_remaining);
         source.pos += read * 2;
         self.pos += written;
         if had_error {
