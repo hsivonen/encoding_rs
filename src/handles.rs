@@ -160,7 +160,7 @@ impl UnalignedU16Slice {
                     break;
                 }
                 unsafe {
-                    store16_unaligned(other.as_mut_ptr().offset(offset as isize), simd);
+                    store8_unaligned(other.as_mut_ptr().offset(offset as isize), simd);
                 }
                 offset += SIMD_STRIDE_SIZE / 2;
                 if offset > len_minus_stride {
@@ -174,6 +174,7 @@ impl UnalignedU16Slice {
                 return Some((unit, offset));
             }
             other[offset] = unit;
+            offset += 1;
         }
         None
     }

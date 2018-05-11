@@ -90,10 +90,10 @@ pub fn to_u16_lanes(s: u8x16) -> u16x8 {
     unsafe { ::std::mem::transmute(s) }
 }
 
-#[inline(always)]
-pub fn to_u8_lanes(s: u16x8) -> u8x16 {
-    unsafe { ::std::mem::transmute(s) }
-}
+// #[inline(always)]
+// pub fn to_u8_lanes(s: u16x8) -> u8x16 {
+//     unsafe { ::std::mem::transmute(s) }
+// }
 
 cfg_if! {
     if #[cfg(target_feature = "sse2")] {
