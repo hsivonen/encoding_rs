@@ -1675,7 +1675,7 @@ utf_8_file.write("""
 // Instead, please regenerate using generate-encoding-data.py
 
 /// Bit is 1 if the trail is invalid.
-static UTF8_TRAIL_INVALID: [u8; 256] = [""")
+pub static UTF8_TRAIL_INVALID: [u8; 256] = [""")
 
 for i in range(256):
   combined = 0
