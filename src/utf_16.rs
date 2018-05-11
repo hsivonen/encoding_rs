@@ -83,10 +83,10 @@ impl Utf16Decoder {
             // start and end for partial sequences.
             if self.lead_byte.is_none() && self.lead_surrogate == 0 {
                 if let Some((read, written)) = if self.be {
-                        dest.copy_utf16_from::<BigEndian>(&mut source)
-                    } else {
-                        dest.copy_utf16_from::<LittleEndian>(&mut source)
-                    } {
+                    dest.copy_utf16_from::<BigEndian>(&mut source)
+                } else {
+                    dest.copy_utf16_from::<LittleEndian>(&mut source)
+                } {
                     return (DecoderResult::Malformed(2, 0), read, written);
                 }
             }

@@ -100,7 +100,7 @@ struct UnalignedU16Slice {
 impl UnalignedU16Slice {
     #[inline(always)]
     pub unsafe fn new(ptr: *const u8, len: usize) -> UnalignedU16Slice {
-        UnalignedU16Slice{ ptr, len }
+        UnalignedU16Slice { ptr, len }
     }
 
     #[inline(always)]
@@ -114,7 +114,11 @@ impl UnalignedU16Slice {
         assert!(i < self.len);
         unsafe {
             let mut u: u16 = ::std::mem::uninitialized();
-            ::std::ptr::copy_nonoverlapping(self.ptr.offset((i * 2) as isize), &mut u as *mut u16 as *mut u8, 2);
+            ::std::ptr::copy_nonoverlapping(
+                self.ptr.offset((i * 2) as isize),
+                &mut u as *mut u16 as *mut u8,
+                2,
+            );
             u
         }
     }
@@ -124,9 +128,7 @@ impl UnalignedU16Slice {
     pub fn simd_at(&self, i: usize) -> u16x8 {
         assert!(i + SIMD_STRIDE_SIZE / 2 <= self.len);
         let byte_index = i * 2;
-        unsafe {
-            to_u16_lanes(load16_unaligned(self.ptr.offset(byte_index as isize)))
-        }
+        unsafe { to_u16_lanes(load16_unaligned(self.ptr.offset(byte_index as isize))) }
     }
 
     #[inline(always)]
@@ -139,65 +141,71 @@ impl UnalignedU16Slice {
         // XXX the return value should be restricted not to
         // outlive self.
         assert!(from <= self.len);
-        unsafe {
-            UnalignedU16Slice::new(self.ptr.offset((from * 2) as isize), self.len - from)
-        }
-    }
-
-    #[inline(always)]
-    pub fn copy_to(&self, other: &mut [u16]) {
-        assert_eq!(self.len, other.len());
-        unsafe {
-            ::std::ptr::copy_nonoverlapping(self.ptr, other.as_ptr() as *mut u16 as *mut u8, self.len * 2);
-        }
-    }
-
-    #[inline(always)]
-    fn copy_to_swap_bytes_alu(&self, other: &mut [u16], start: usize) {
-        for i in start..self.len {
-            other[i] = self.at(i).swap_bytes();
-        }
+        unsafe { UnalignedU16Slice::new(self.ptr.offset((from * 2) as isize), self.len - from) }
     }
 
     #[cfg(feature = "simd-accel")]
     #[inline(always)]
-    pub fn copy_to_swap_bytes(&self, other: &mut [u16]) {
-        assert_eq!(self.len, other.len());
-        let start;
-        unsafe {
-            let byte_len = self.len * 2;
-            let simd_len = (byte_len & !SIMD_ALIGNMENT_MASK) / 2;
-            start = simd_len / 2;
-            let mut offset = 0;
-            while offset < simd_len {
-                let s = self.simd_at(offset);
-                store8_unaligned(other.as_mut_ptr().offset(offset as isize), simd_byte_swap(s));
+    pub fn copy_bmp_to<E: Endian>(&self, other: &mut [u16]) -> Option<(u16, usize)> {
+        assert!(self.len <= other.len());
+        let mut offset = 0;
+        if SIMD_STRIDE_SIZE / 2 <= self.len {
+            let len_minus_stride = self.len - SIMD_STRIDE_SIZE / 2;
+            loop {
+                let mut simd = self.simd_at(offset);
+                if E::OPPOSITE_ENDIAN {
+                    simd = simd_byte_swap(simd);
+                }
+                if contains_surrogates(simd) {
+                    break;
+                }
+                unsafe {
+                    store16_unaligned(other.as_mut_ptr().offset(offset as isize), simd);
+                }
                 offset += SIMD_STRIDE_SIZE / 2;
+                if offset > len_minus_stride {
+                    break;
+                }
             }
         }
-        self.copy_to_swap_bytes_alu(other, start)
+        while offset < self.len {
+            let unit = swap_if_opposite_endian::<E>(self.at(offset));
+            if super::in_range16(unit, 0xD800, 0xE000) {
+                return Some((unit, offset));
+            }
+            other[offset] = unit;
+        }
+        None
     }
 
     #[cfg(not(feature = "simd-accel"))]
     #[inline(always)]
-    pub fn copy_to_swap_bytes(&self, other: &mut [u16]) {
-        assert_eq!(self.len, other.len());
-        self.copy_to_swap_bytes_alu(other, 0);
+    fn copy_bmp_to<E: Endian>(&self, other: &mut [u16]) -> Option<(u16, usize)> {
+        assert!(self.len <= other.len());
+        for i in 0..self.len {
+            let unit = swap_if_opposite_endian::<E>(self.at(i));
+            if super::in_range16(unit, 0xD800, 0xE000) {
+                return Some((unit, i));
+            }
+            other[i] = unit;
+        }
+        None
     }
 }
 
 #[inline(always)]
-fn copy_unaligned_basic_latin_to_ascii_alu<E: Endian>(src: UnalignedU16Slice, dst: &mut [u8], offset: usize) -> CopyAsciiResult<usize, (u16, usize)> {
+fn copy_unaligned_basic_latin_to_ascii_alu<E: Endian>(
+    src: UnalignedU16Slice,
+    dst: &mut [u8],
+    offset: usize,
+) -> CopyAsciiResult<usize, (u16, usize)> {
     let len = ::std::cmp::min(src.len(), dst.len());
     let mut i = 0usize;
     loop {
         if i == len {
             return CopyAsciiResult::Stop(i + offset);
         }
-        let mut unit = src.at(i);
-        if E::OPPOSITE_ENDIAN {
-            unit = unit.swap_bytes();
-        }
+        let unit = swap_if_opposite_endian::<E>(src.at(i));
         if unit > 0x7F {
             return CopyAsciiResult::GoOn((unit, i + offset));
         }
@@ -206,15 +214,30 @@ fn copy_unaligned_basic_latin_to_ascii_alu<E: Endian>(src: UnalignedU16Slice, ds
     }
 }
 
+#[inline(always)]
+fn swap_if_opposite_endian<E: Endian>(unit: u16) -> u16 {
+    if E::OPPOSITE_ENDIAN {
+        unit.swap_bytes()
+    } else {
+        unit
+    }
+}
+
 #[cfg(not(feature = "simd-accel"))]
 #[inline(always)]
-fn copy_unaligned_basic_latin_to_ascii<E: Endian>(src: UnalignedU16Slice, dst: &mut [u8]) -> CopyAsciiResult<usize, (u16, usize)> {
+fn copy_unaligned_basic_latin_to_ascii<E: Endian>(
+    src: UnalignedU16Slice,
+    dst: &mut [u8],
+) -> CopyAsciiResult<usize, (u16, usize)> {
     copy_unaligned_basic_latin_to_ascii_alu::<E>(src, dst, 0)
 }
 
 #[cfg(feature = "simd-accel")]
 #[inline(always)]
-fn copy_unaligned_basic_latin_to_ascii<E: Endian>(src: UnalignedU16Slice, dst: &mut [u8]) -> CopyAsciiResult<usize, (u16, usize)> {
+fn copy_unaligned_basic_latin_to_ascii<E: Endian>(
+    src: UnalignedU16Slice,
+    dst: &mut [u8],
+) -> CopyAsciiResult<usize, (u16, usize)> {
     let len = ::std::cmp::min(src.len(), dst.len());
     let mut offset = 0;
     if SIMD_STRIDE_SIZE <= len {
@@ -243,18 +266,24 @@ fn copy_unaligned_basic_latin_to_ascii<E: Endian>(src: UnalignedU16Slice, dst: &
 }
 
 #[inline(always)]
-fn convert_unaligned_utf16_to_utf8<E: Endian>(src: UnalignedU16Slice, dst: &mut [u8]) -> (usize, usize, bool) {
+fn convert_unaligned_utf16_to_utf8<E: Endian>(
+    src: UnalignedU16Slice,
+    dst: &mut [u8],
+) -> (usize, usize, bool) {
     let mut src_pos = 0usize;
     let mut dst_pos = 0usize;
     let src_len = src.len();
     let dst_len_minus_three = dst.len() - 3;
     'outer: loop {
-        let mut non_ascii = match copy_unaligned_basic_latin_to_ascii::<E>(src.tail(src_pos), &mut dst[dst_pos..]) {
+        let mut non_ascii = match copy_unaligned_basic_latin_to_ascii::<E>(
+            src.tail(src_pos),
+            &mut dst[dst_pos..],
+        ) {
             CopyAsciiResult::GoOn((unit, read_written)) => {
                 src_pos += read_written;
                 dst_pos += read_written;
                 unit
-            },
+            }
             CopyAsciiResult::Stop(read_written) => {
                 return (src_pos + read_written, dst_pos + read_written, false)
             }
@@ -284,15 +313,13 @@ fn convert_unaligned_utf16_to_utf8<E: Endian>(src: UnalignedU16Slice, dst: &mut 
             } else if non_ascii_minus_surrogate_start <= (0xDBFF - 0xD800) {
                 // high surrogate
                 if src_pos < src_len {
-                    let mut second = src.at(src_pos);
-                    if E::OPPOSITE_ENDIAN {
-                        second = second.swap_bytes();
-                    }
+                    let second = swap_if_opposite_endian::<E>(src.at(src_pos));
                     let second_minus_low_surrogate_start = second.wrapping_sub(0xDC00);
                     if second_minus_low_surrogate_start <= (0xDFFF - 0xDC00) {
                         // The next code unit is a low surrogate. Advance position.
                         src_pos += 1;
-                        let point = ((non_ascii as u32) << 10) + (second as u32) - (((0xD800u32 << 10) - 0x10000u32) + 0xDC00u32);
+                        let point = ((non_ascii as u32) << 10) + (second as u32)
+                            - (((0xD800u32 << 10) - 0x10000u32) + 0xDC00u32);
 
                         dst[dst_pos] = ((point >> 18) | 0xF0u32) as u8;
                         dst_pos += 1;
@@ -318,11 +345,8 @@ fn convert_unaligned_utf16_to_utf8<E: Endian>(src: UnalignedU16Slice, dst: &mut 
             if dst_pos >= dst_len_minus_three || src_pos == src_len {
                 break 'outer;
             }
-            let mut unit = src.at(src_pos);
+            let unit = swap_if_opposite_endian::<E>(src.at(src_pos));
             src_pos += 1;
-            if E::OPPOSITE_ENDIAN {
-                unit = unit.swap_bytes();
-            }
             if unit > 0x7F {
                 non_ascii = unit;
                 continue 'inner;
@@ -703,40 +727,61 @@ impl<'a> Utf16Destination<'a> {
         self.pos += written;
     }
     #[inline(always)]
-    pub fn copy_utf16_from<E: Endian>(&mut self, source: &mut ByteSource) -> Option<(usize, usize)> {
+    pub fn copy_utf16_from<E: Endian>(
+        &mut self,
+        source: &mut ByteSource,
+    ) -> Option<(usize, usize)> {
         let src_remaining = &source.slice[source.pos..];
         let dst_remaining = &mut self.slice[self.pos..];
 
-        let mut src_unaligned = unsafe { UnalignedU16Slice::new(src_remaining.as_ptr(), ::std::cmp::min(src_remaining.len() / 2, dst_remaining.len())) };
+        let mut src_unaligned = unsafe {
+            UnalignedU16Slice::new(
+                src_remaining.as_ptr(),
+                ::std::cmp::min(src_remaining.len() / 2, dst_remaining.len()),
+            )
+        };
         if src_unaligned.len() == 0 {
             return None;
         }
-        let mut last_unit = src_unaligned.at(src_unaligned.len() - 1);
-        if E::OPPOSITE_ENDIAN {
-            last_unit = last_unit.swap_bytes();
-        }
+        let last_unit = swap_if_opposite_endian::<E>(src_unaligned.at(src_unaligned.len() - 1));
         if super::in_range16(last_unit, 0xD800, 0xDC00) {
             // Last code unit is a high surrogate. It might
             // legitimately form a pair later, so let's not
             // include it.
             src_unaligned.trim_last();
         }
-        if E::OPPOSITE_ENDIAN {
-            src_unaligned.copy_to_swap_bytes(&mut dst_remaining[..src_unaligned.len()]);
-        } else {
-            src_unaligned.copy_to(&mut dst_remaining[..src_unaligned.len()]);
+        let mut offset = 0usize;
+        loop {
+            if let Some((surrogate, bmp_len)) = {
+                let src_left = src_unaligned.tail(offset);
+                let dst_left = &mut dst_remaining[offset..src_unaligned.len()];
+                src_left.copy_bmp_to::<E>(dst_left)
+            } {
+                offset += bmp_len; // surrogate has not been consumed yet
+                let second_pos = offset + 1;
+                if surrogate > 0xDBFF || second_pos == src_unaligned.len() {
+                    // Unpaired surrogate
+                    source.pos += second_pos * 2;
+                    self.pos += offset;
+                    return Some((source.pos, self.pos));
+                }
+                let second = swap_if_opposite_endian::<E>(src_unaligned.at(second_pos));
+                if !super::in_range16(second, 0xDC00, 0xE000) {
+                    // Unpaired surrogate
+                    source.pos += second_pos * 2;
+                    self.pos += offset;
+                    return Some((source.pos, self.pos));
+                }
+                dst_remaining[offset] = surrogate;
+                dst_remaining[second_pos] = second;
+                offset += 2;
+                continue;
+            } else {
+                source.pos += src_unaligned.len() * 2;
+                self.pos += src_unaligned.len();
+                return None;
+            }
         }
-        let written = src_unaligned.len();
-        let valid_up_to = super::mem::utf16_valid_up_to(&dst_remaining[..written]);
-        if valid_up_to != written {
-            let read = valid_up_to * 2 + 2;
-            source.pos += read;
-            self.pos += valid_up_to;
-            return Some((source.pos, self.pos));
-        }
-        source.pos += written * 2;
-        self.pos += written;
-        None
     }
 }
 
@@ -1050,11 +1095,15 @@ impl<'a> Utf8Destination<'a> {
         self.pos += valid_len;
     }
     #[inline(always)]
-    pub fn copy_utf16_from<E: Endian>(&mut self, source: &mut ByteSource) -> Option<(usize, usize)> {
+    pub fn copy_utf16_from<E: Endian>(
+        &mut self,
+        source: &mut ByteSource,
+    ) -> Option<(usize, usize)> {
         let src_remaining = &source.slice[source.pos..];
         let dst_remaining = &mut self.slice[self.pos..];
 
-        let mut src_unaligned = unsafe { UnalignedU16Slice::new(src_remaining.as_ptr(), src_remaining.len() / 2) };
+        let mut src_unaligned =
+            unsafe { UnalignedU16Slice::new(src_remaining.as_ptr(), src_remaining.len() / 2) };
         if src_unaligned.len() == 0 {
             return None;
         }
@@ -1068,7 +1117,8 @@ impl<'a> Utf8Destination<'a> {
             // include it.
             src_unaligned.trim_last();
         }
-        let (read, written, had_error) = convert_unaligned_utf16_to_utf8::<E>(src_unaligned, dst_remaining);
+        let (read, written, had_error) =
+            convert_unaligned_utf16_to_utf8::<E>(src_unaligned, dst_remaining);
         source.pos += read * 2;
         self.pos += written;
         if had_error {
