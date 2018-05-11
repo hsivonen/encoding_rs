@@ -156,11 +156,11 @@ impl UnalignedU16Slice {
                 if E::OPPOSITE_ENDIAN {
                     simd = simd_byte_swap(simd);
                 }
-                if contains_surrogates(simd) {
-                    break;
-                }
                 unsafe {
                     store8_unaligned(other.as_mut_ptr().offset(offset as isize), simd);
+                }
+                if contains_surrogates(simd) {
+                    break;
                 }
                 offset += SIMD_STRIDE_SIZE / 2;
                 if offset > len_minus_stride {
@@ -170,10 +170,10 @@ impl UnalignedU16Slice {
         }
         while offset < self.len {
             let unit = swap_if_opposite_endian::<E>(self.at(offset));
+            other[offset] = unit;
             if super::in_range16(unit, 0xD800, 0xE000) {
                 return Some((unit, offset));
             }
-            other[offset] = unit;
             offset += 1;
         }
         None
@@ -185,10 +185,10 @@ impl UnalignedU16Slice {
         assert!(self.len <= other.len());
         for i in 0..self.len {
             let unit = swap_if_opposite_endian::<E>(self.at(i));
+            other[i] = unit;
             if super::in_range16(unit, 0xD800, 0xE000) {
                 return Some((unit, i));
             }
-            other[i] = unit;
         }
         None
     }
@@ -773,7 +773,7 @@ impl<'a> Utf16Destination<'a> {
                     self.pos += offset;
                     return Some((source.pos, self.pos));
                 }
-                dst_remaining[offset] = surrogate;
+                // `surrogate` was already speculatively written
                 dst_remaining[second_pos] = second;
                 offset += 2;
                 continue;
