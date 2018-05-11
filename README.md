@@ -225,8 +225,10 @@ used in Firefox.
 
 ### 0.8.0
 
-* Changed the minimum supported version of Rust to 1.21.0.
+* Changed the minimum supported version of Rust to 1.21.0 (the breaking change).
 * Added NEON support on ARMv7.
+* SIMD-accelerated x-user-defined to UTF-16 decode.
+* Made UTF-16LE and UTF-16BE decode faster (including SIMD acceleration).
 
 ### 0.7.2
 
