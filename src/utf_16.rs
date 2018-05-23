@@ -29,11 +29,9 @@ impl Utf16Decoder {
     }
 
     pub fn additional_from_state(&self) -> usize {
-        1 + if self.lead_byte.is_some() { 1 } else { 0 } + if self.lead_surrogate == 0 {
-            0
-        } else {
-            2
-        }
+        1
+            + if self.lead_byte.is_some() { 1 } else { 0 }
+            + if self.lead_surrogate == 0 { 0 } else { 2 }
     }
 
     pub fn max_utf16_buffer_length(&self, byte_length: usize) -> Option<usize> {

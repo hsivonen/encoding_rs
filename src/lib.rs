@@ -561,8 +561,14 @@
 //! <tr><th>Encoding</th><th>Code Page</th><th>PUA</th><th>Remarks</th></tr>
 //! </thead>
 //! <tbody>
+//! <tr><td>Shift_JIS</td><td>932</td><td></td><td></td></tr>
+//! <tr><td>GBK</td><td>936</td><td></td><td></td></tr>
+//! <tr><td>EUC-KR</td><td>949</td><td></td><td></td></tr>
+//! <tr><td>Big5</td><td>950</td><td></td><td></td></tr>
 //! <tr><td>IBM866</td><td>866</td><td></td><td></td></tr>
 //! <tr><td>windows-874</td><td>874</td><td>&bullet;</td><td></td></tr>
+//! <tr><td>UTF-16LE</td><td>1200</td><td></td><td></td></tr>
+//! <tr><td>UTF-16BE</td><td>1201</td><td></td><td></td></tr>
 //! <tr><td>windows-1250</td><td>1250</td><td></td><td></td></tr>
 //! <tr><td>windows-1251</td><td>1251</td><td></td><td></td></tr>
 //! <tr><td>windows-1252</td><td>1252</td><td></td><td></td></tr>
@@ -575,6 +581,7 @@
 //! <tr><td>macintosh</td><td>10000</td><td></td><td>1</td></tr>
 //! <tr><td>x-mac-cyrillic</td><td>10017</td><td></td><td>2</td></tr>
 //! <tr><td>KOI8-R</td><td>20866</td><td></td><td></td></tr>
+//! <tr><td>EUC-JP</td><td>20932</td><td></td><td></td></tr>
 //! <tr><td>KOI8-U</td><td>21866</td><td></td><td></td></tr>
 //! <tr><td>ISO-8859-2</td><td>28592</td><td></td><td></td></tr>
 //! <tr><td>ISO-8859-3</td><td>28593</td><td></td><td></td></tr>
@@ -586,6 +593,9 @@
 //! <tr><td>ISO-8859-13</td><td>28603</td><td>&bullet;</td><td></td></tr>
 //! <tr><td>ISO-8859-15</td><td>28605</td><td></td><td></td></tr>
 //! <tr><td>ISO-8859-8-I</td><td>38598</td><td></td><td>5</td></tr>
+//! <tr><td>ISO-2022-JP</td><td>50220</td><td></td><td></td></tr>
+//! <tr><td>gb18030</td><td>54936</td><td></td><td></td></tr>
+//! <tr><td>UTF-8</td><td>65001</td><td></td><td></td></tr>
 //! </tbody>
 //! </table>
 //!
@@ -739,7 +749,7 @@ const NCR_EXTRA: usize = 10; // &#1114111;
 
 const LONGEST_LABEL_LENGTH: usize = 19; // cseucpkdfmtjapanese
 
-/// The initializer for the Big5 encoding.
+/// The initializer for the [Big5](static.BIG5.html) encoding.
 ///
 /// For use only for taking the address of this form when
 /// Rust prohibits the use of the non-`_INIT` form directly,
@@ -758,13 +768,30 @@ pub static BIG5_INIT: Encoding = Encoding {
 
 /// The Big5 encoding.
 ///
+/// This is Big5 with HKSCS with mappings to more recent Unicode assignments
+/// instead of the Private Use Area code points that have been used historically.
+/// It is believed to be able to decode existing Web content in a way that makes
+/// sense.
+///
+/// To avoid form submissions generating data that Web servers don't understand,
+/// the encoder doesn't use the HKSCS byte sequences that precede the unextended
+/// Big5 in the lexical order.
+///
+/// [Index visualization](https://encoding.spec.whatwg.org/big5.html),
+/// [Visualization of BMP coverage](https://encoding.spec.whatwg.org/big5-bmp.html)
+///
+/// This encoding is designed to be suited for decoding the Windows code page 950
+/// and its HKSCS patched "951" variant such that the text makes sense, given
+/// assignments that Unicode has made after those encodings used Private Use
+/// Area characters.
+///
 /// This will change from `static` to `const` if Rust changes
 /// to make the referent of `pub const FOO: &'static Encoding`
 /// unique cross-crate, so don't take the address of this
 /// `static`.
 pub static BIG5: &'static Encoding = &BIG5_INIT;
 
-/// The initializer for the EUC-JP encoding.
+/// The initializer for the [EUC-JP](static.EUC_JP.html) encoding.
 ///
 /// For use only for taking the address of this form when
 /// Rust prohibits the use of the non-`_INIT` form directly,
@@ -783,13 +810,26 @@ pub static EUC_JP_INIT: Encoding = Encoding {
 
 /// The EUC-JP encoding.
 ///
+/// This is the legacy Unix encoding for Japanese.
+///
+/// For compatibility with Web servers that don't expect three-byte sequences
+/// in form submissions, the encoder doesn't generate three-byte sequences.
+/// That is, the JIS X 0212 support is decode-only.
+///
+/// [Index visualization](https://encoding.spec.whatwg.org/euc-jp.html),
+/// [Visualization of BMP coverage](https://encoding.spec.whatwg.org/euc-jp-bmp.html)
+///
+/// This encoding roughly matches the Windows code page 20932. There are error
+/// handling differences and a handful of 2-byte sequences that decode differently.
+/// Additionall, Windows doesn't support 3-byte sequences.
+///
 /// This will change from `static` to `const` if Rust changes
 /// to make the referent of `pub const FOO: &'static Encoding`
 /// unique cross-crate, so don't take the address of this
 /// `static`.
 pub static EUC_JP: &'static Encoding = &EUC_JP_INIT;
 
-/// The initializer for the EUC-KR encoding.
+/// The initializer for the [EUC-KR](static.EUC_KR.html) encoding.
 ///
 /// For use only for taking the address of this form when
 /// Rust prohibits the use of the non-`_INIT` form directly,
@@ -808,13 +848,24 @@ pub static EUC_KR_INIT: Encoding = Encoding {
 
 /// The EUC-KR encoding.
 ///
+/// This is the Korean encoding for Windows. It extends the Unix legacy encoding
+/// for Korean, based on KS X 1001 (which also formed the base of MacKorean on Mac OS
+/// Classic), with all the characters from the Hangul Syllables block of Unicode.
+///
+/// [Index visualization](https://encoding.spec.whatwg.org/euc-kr.html),
+/// [Visualization of BMP coverage](https://encoding.spec.whatwg.org/euc-kr-bmp.html)
+///
+/// This encoding matches the Windows code page 949, except Windows decodes byte 0x80
+/// to U+0080 and some byte sequences that are error per the Encoding Standard to
+/// the question mark or the Private Use Area.
+///
 /// This will change from `static` to `const` if Rust changes
 /// to make the referent of `pub const FOO: &'static Encoding`
 /// unique cross-crate, so don't take the address of this
 /// `static`.
 pub static EUC_KR: &'static Encoding = &EUC_KR_INIT;
 
-/// The initializer for the GBK encoding.
+/// The initializer for the [GBK](static.GBK.html) encoding.
 ///
 /// For use only for taking the address of this form when
 /// Rust prohibits the use of the non-`_INIT` form directly,
@@ -833,13 +884,30 @@ pub static GBK_INIT: Encoding = Encoding {
 
 /// The GBK encoding.
 ///
+/// The decoder for this encoding is the same as the decoder for gb18030.
+/// The encoder side of this encoding is GBK with Windows code page 936 euro
+/// sign behavior. GBK extends GB2312-80 to cover the CJK Unified Ideographs
+/// Unicode block as well as a handful of ideographs from the CJK Unified
+/// Ideographs Extension A and CJK Compatibility Ideographs blocks.
+///
+/// Unlike e.g. in the case of ISO-8859-1 and windows-1252, GBK encoder wasn't
+/// unified with the gb18030 encoder in the Encoding Standard out of concern
+/// that servers that expect GBK form submissions might not be able to handle
+/// the four-byte sequences.
+///
+/// [Index visualization for the two-byte sequences](https://encoding.spec.whatwg.org/gb18030.html),
+/// [Visualization of BMP coverage of the two-byte index](https://encoding.spec.whatwg.org/gb18030-bmp.html)
+///
+/// The encoder of this encoding roughly matches the Windows code page 936.
+/// The decoder side is a superset.
+///
 /// This will change from `static` to `const` if Rust changes
 /// to make the referent of `pub const FOO: &'static Encoding`
 /// unique cross-crate, so don't take the address of this
 /// `static`.
 pub static GBK: &'static Encoding = &GBK_INIT;
 
-/// The initializer for the IBM866 encoding.
+/// The initializer for the [IBM866](static.IBM866.html) encoding.
 ///
 /// For use only for taking the address of this form when
 /// Rust prohibits the use of the non-`_INIT` form directly,
@@ -858,13 +926,22 @@ pub static IBM866_INIT: Encoding = Encoding {
 
 /// The IBM866 encoding.
 ///
+/// This the most notable one of the DOS Cyrillic code pages. It has the same
+/// box drawing characters as code page 437, so it can be used for decoding
+/// DOS-era ASCII + box drawing data.
+///
+/// [Index visualization](https://encoding.spec.whatwg.org/ibm866.html),
+/// [Visualization of BMP coverage](https://encoding.spec.whatwg.org/ibm866-bmp.html)
+///
+/// This encoding matches the Windows code page 866.
+///
 /// This will change from `static` to `const` if Rust changes
 /// to make the referent of `pub const FOO: &'static Encoding`
 /// unique cross-crate, so don't take the address of this
 /// `static`.
 pub static IBM866: &'static Encoding = &IBM866_INIT;
 
-/// The initializer for the ISO-2022-JP encoding.
+/// The initializer for the [ISO-2022-JP](static.ISO_2022_JP.html) encoding.
 ///
 /// For use only for taking the address of this form when
 /// Rust prohibits the use of the non-`_INIT` form directly,
@@ -883,13 +960,24 @@ pub static ISO_2022_JP_INIT: Encoding = Encoding {
 
 /// The ISO-2022-JP encoding.
 ///
+/// This the primary pre-UTF-8 encoding for Japanese email. It uses the ASCII
+/// byte range to encode non-Basic Latin characters. It's the only encoding
+/// supported by this crate whose encoder is stateful.
+///
+/// [Index visualization](https://encoding.spec.whatwg.org/jis0208.html),
+/// [Visualization of BMP coverage](https://encoding.spec.whatwg.org/jis0208-bmp.html)
+///
+/// This encoding roughly matches the Windows code page 50220. Notably, Windows
+/// uses U+30FB in place of the REPLACEMENT CHARACTER and otherwise differs in
+/// error handling.
+///
 /// This will change from `static` to `const` if Rust changes
 /// to make the referent of `pub const FOO: &'static Encoding`
 /// unique cross-crate, so don't take the address of this
 /// `static`.
 pub static ISO_2022_JP: &'static Encoding = &ISO_2022_JP_INIT;
 
-/// The initializer for the ISO-8859-10 encoding.
+/// The initializer for the [ISO-8859-10](static.ISO_8859_10.html) encoding.
 ///
 /// For use only for taking the address of this form when
 /// Rust prohibits the use of the non-`_INIT` form directly,
@@ -908,13 +996,22 @@ pub static ISO_8859_10_INIT: Encoding = Encoding {
 
 /// The ISO-8859-10 encoding.
 ///
+/// This is the Nordic part of the ISO/IEC 8859 encoding family. This encoding
+/// is also known as Latin 6.
+///
+/// [Index visualization](https://encoding.spec.whatwg.org/iso-8859-10.html),
+/// [Visualization of BMP coverage](https://encoding.spec.whatwg.org/iso-8859-10-bmp.html)
+///
+/// The Windows code page number for this encoding is 28600, but kernel32.dll
+/// does not support this encoding.
+///
 /// This will change from `static` to `const` if Rust changes
 /// to make the referent of `pub const FOO: &'static Encoding`
 /// unique cross-crate, so don't take the address of this
 /// `static`.
 pub static ISO_8859_10: &'static Encoding = &ISO_8859_10_INIT;
 
-/// The initializer for the ISO-8859-13 encoding.
+/// The initializer for the [ISO-8859-13](static.ISO_8859_13.html) encoding.
 ///
 /// For use only for taking the address of this form when
 /// Rust prohibits the use of the non-`_INIT` form directly,
@@ -933,13 +1030,22 @@ pub static ISO_8859_13_INIT: Encoding = Encoding {
 
 /// The ISO-8859-13 encoding.
 ///
+/// This is the Baltic part of the ISO/IEC 8859 encoding family. This encoding
+/// is also known as Latin 7.
+///
+/// [Index visualization](https://encoding.spec.whatwg.org/iso-8859-13.html),
+/// [Visualization of BMP coverage](https://encoding.spec.whatwg.org/iso-8859-13-bmp.html)
+///
+/// This encoding matches the Windows code page 28603, except Windows decodes
+/// unassigned code points to the Private Use Area of Unicode.
+///
 /// This will change from `static` to `const` if Rust changes
 /// to make the referent of `pub const FOO: &'static Encoding`
 /// unique cross-crate, so don't take the address of this
 /// `static`.
 pub static ISO_8859_13: &'static Encoding = &ISO_8859_13_INIT;
 
-/// The initializer for the ISO-8859-14 encoding.
+/// The initializer for the [ISO-8859-14](static.ISO_8859_14.html) encoding.
 ///
 /// For use only for taking the address of this form when
 /// Rust prohibits the use of the non-`_INIT` form directly,
@@ -958,13 +1064,22 @@ pub static ISO_8859_14_INIT: Encoding = Encoding {
 
 /// The ISO-8859-14 encoding.
 ///
+/// This is the Celtic part of the ISO/IEC 8859 encoding family. This encoding
+/// is also known as Latin 8.
+///
+/// [Index visualization](https://encoding.spec.whatwg.org/iso-8859-14.html),
+/// [Visualization of BMP coverage](https://encoding.spec.whatwg.org/iso-8859-14-bmp.html)
+///
+/// The Windows code page number for this encoding is 28604, but kernel32.dll
+/// does not support this encoding.
+///
 /// This will change from `static` to `const` if Rust changes
 /// to make the referent of `pub const FOO: &'static Encoding`
 /// unique cross-crate, so don't take the address of this
 /// `static`.
 pub static ISO_8859_14: &'static Encoding = &ISO_8859_14_INIT;
 
-/// The initializer for the ISO-8859-15 encoding.
+/// The initializer for the [ISO-8859-15](static.ISO_8859_15.html) encoding.
 ///
 /// For use only for taking the address of this form when
 /// Rust prohibits the use of the non-`_INIT` form directly,
@@ -983,13 +1098,21 @@ pub static ISO_8859_15_INIT: Encoding = Encoding {
 
 /// The ISO-8859-15 encoding.
 ///
+/// This is the revised Western European part of the ISO/IEC 8859 encoding
+/// family. This encoding is also known as Latin 9.
+///
+/// [Index visualization](https://encoding.spec.whatwg.org/iso-8859-15.html),
+/// [Visualization of BMP coverage](https://encoding.spec.whatwg.org/iso-8859-15-bmp.html)
+///
+/// This encoding matches the Windows code page 28605.
+///
 /// This will change from `static` to `const` if Rust changes
 /// to make the referent of `pub const FOO: &'static Encoding`
 /// unique cross-crate, so don't take the address of this
 /// `static`.
 pub static ISO_8859_15: &'static Encoding = &ISO_8859_15_INIT;
 
-/// The initializer for the ISO-8859-16 encoding.
+/// The initializer for the [ISO-8859-16](static.ISO_8859_16.html) encoding.
 ///
 /// For use only for taking the address of this form when
 /// Rust prohibits the use of the non-`_INIT` form directly,
@@ -1008,13 +1131,22 @@ pub static ISO_8859_16_INIT: Encoding = Encoding {
 
 /// The ISO-8859-16 encoding.
 ///
+/// This is the South-Eastern European part of the ISO/IEC 8859 encoding
+/// family. This encoding is also known as Latin 10.
+///
+/// [Index visualization](https://encoding.spec.whatwg.org/iso-8859-16.html),
+/// [Visualization of BMP coverage](https://encoding.spec.whatwg.org/iso-8859-16-bmp.html)
+///
+/// The Windows code page number for this encoding is 28606, but kernel32.dll
+/// does not support this encoding.
+///
 /// This will change from `static` to `const` if Rust changes
 /// to make the referent of `pub const FOO: &'static Encoding`
 /// unique cross-crate, so don't take the address of this
 /// `static`.
 pub static ISO_8859_16: &'static Encoding = &ISO_8859_16_INIT;
 
-/// The initializer for the ISO-8859-2 encoding.
+/// The initializer for the [ISO-8859-2](static.ISO_8859_2.html) encoding.
 ///
 /// For use only for taking the address of this form when
 /// Rust prohibits the use of the non-`_INIT` form directly,
@@ -1033,13 +1165,20 @@ pub static ISO_8859_2_INIT: Encoding = Encoding {
 
 /// The ISO-8859-2 encoding.
 ///
+/// This is the Central European part of the ISO/IEC 8859 encoding family. This encoding is also known as Latin 2.
+///
+/// [Index visualization](https://encoding.spec.whatwg.org/iso-8859-2.html),
+/// [Visualization of BMP coverage](https://encoding.spec.whatwg.org/iso-8859-2-bmp.html)
+///
+/// This encoding matches the Windows code page 28592.
+///
 /// This will change from `static` to `const` if Rust changes
 /// to make the referent of `pub const FOO: &'static Encoding`
 /// unique cross-crate, so don't take the address of this
 /// `static`.
 pub static ISO_8859_2: &'static Encoding = &ISO_8859_2_INIT;
 
-/// The initializer for the ISO-8859-3 encoding.
+/// The initializer for the [ISO-8859-3](static.ISO_8859_3.html) encoding.
 ///
 /// For use only for taking the address of this form when
 /// Rust prohibits the use of the non-`_INIT` form directly,
@@ -1058,13 +1197,20 @@ pub static ISO_8859_3_INIT: Encoding = Encoding {
 
 /// The ISO-8859-3 encoding.
 ///
+/// This is the South European part of the ISO/IEC 8859 encoding family. This encoding is also known as Latin 3.
+///
+/// [Index visualization](https://encoding.spec.whatwg.org/iso-8859-3.html),
+/// [Visualization of BMP coverage](https://encoding.spec.whatwg.org/iso-8859-3-bmp.html)
+///
+/// This encoding matches the Windows code page 28593.
+///
 /// This will change from `static` to `const` if Rust changes
 /// to make the referent of `pub const FOO: &'static Encoding`
 /// unique cross-crate, so don't take the address of this
 /// `static`.
 pub static ISO_8859_3: &'static Encoding = &ISO_8859_3_INIT;
 
-/// The initializer for the ISO-8859-4 encoding.
+/// The initializer for the [ISO-8859-4](static.ISO_8859_4.html) encoding.
 ///
 /// For use only for taking the address of this form when
 /// Rust prohibits the use of the non-`_INIT` form directly,
@@ -1083,13 +1229,20 @@ pub static ISO_8859_4_INIT: Encoding = Encoding {
 
 /// The ISO-8859-4 encoding.
 ///
+/// This is the North European part of the ISO/IEC 8859 encoding family. This encoding is also known as Latin 4.
+///
+/// [Index visualization](https://encoding.spec.whatwg.org/iso-8859-4.html),
+/// [Visualization of BMP coverage](https://encoding.spec.whatwg.org/iso-8859-4-bmp.html)
+///
+/// This encoding matches the Windows code page 28594.
+///
 /// This will change from `static` to `const` if Rust changes
 /// to make the referent of `pub const FOO: &'static Encoding`
 /// unique cross-crate, so don't take the address of this
 /// `static`.
 pub static ISO_8859_4: &'static Encoding = &ISO_8859_4_INIT;
 
-/// The initializer for the ISO-8859-5 encoding.
+/// The initializer for the [ISO-8859-5](static.ISO_8859_5.html) encoding.
 ///
 /// For use only for taking the address of this form when
 /// Rust prohibits the use of the non-`_INIT` form directly,
@@ -1108,13 +1261,20 @@ pub static ISO_8859_5_INIT: Encoding = Encoding {
 
 /// The ISO-8859-5 encoding.
 ///
+/// This is the Cyrillic part of the ISO/IEC 8859 encoding family.
+///
+/// [Index visualization](https://encoding.spec.whatwg.org/iso-8859-5.html),
+/// [Visualization of BMP coverage](https://encoding.spec.whatwg.org/iso-8859-5-bmp.html)
+///
+/// This encoding matches the Windows code page 28595.
+///
 /// This will change from `static` to `const` if Rust changes
 /// to make the referent of `pub const FOO: &'static Encoding`
 /// unique cross-crate, so don't take the address of this
 /// `static`.
 pub static ISO_8859_5: &'static Encoding = &ISO_8859_5_INIT;
 
-/// The initializer for the ISO-8859-6 encoding.
+/// The initializer for the [ISO-8859-6](static.ISO_8859_6.html) encoding.
 ///
 /// For use only for taking the address of this form when
 /// Rust prohibits the use of the non-`_INIT` form directly,
@@ -1133,13 +1293,21 @@ pub static ISO_8859_6_INIT: Encoding = Encoding {
 
 /// The ISO-8859-6 encoding.
 ///
+/// This is the Arabic part of the ISO/IEC 8859 encoding family.
+///
+/// [Index visualization](https://encoding.spec.whatwg.org/iso-8859-6.html),
+/// [Visualization of BMP coverage](https://encoding.spec.whatwg.org/iso-8859-6-bmp.html)
+///
+/// This encoding matches the Windows code page 28596, except Windows decodes
+/// unassigned code points to the Private Use Area of Unicode.
+///
 /// This will change from `static` to `const` if Rust changes
 /// to make the referent of `pub const FOO: &'static Encoding`
 /// unique cross-crate, so don't take the address of this
 /// `static`.
 pub static ISO_8859_6: &'static Encoding = &ISO_8859_6_INIT;
 
-/// The initializer for the ISO-8859-7 encoding.
+/// The initializer for the [ISO-8859-7](static.ISO_8859_7.html) encoding.
 ///
 /// For use only for taking the address of this form when
 /// Rust prohibits the use of the non-`_INIT` form directly,
@@ -1158,13 +1326,25 @@ pub static ISO_8859_7_INIT: Encoding = Encoding {
 
 /// The ISO-8859-7 encoding.
 ///
+/// This is the Greek part of the ISO/IEC 8859 encoding family.
+///
+/// [Index visualization](https://encoding.spec.whatwg.org/iso-8859-7.html),
+/// [Visualization of BMP coverage](https://encoding.spec.whatwg.org/iso-8859-7-bmp.html)
+///
+/// This encoding roughly matches the Windows code page 28597. Windows decodes
+/// unassigned code points, the currency signs at 0xA4 and 0xA5 as well as
+/// 0xAA, which should be U+037A GREEK YPOGEGRAMMENI, to the Private Use Area
+/// of Unicode. Windows decodes 0xA1 to U+02BD MODIFIER LETTER REVERSED COMMA
+/// instead of U+2018 LEFT SINGLE QUOTATION MARK and 0xA2 to U+02BC MODIFIER
+/// LETTER APOSTROPHE instead of U+2019 RIGHT SINGLE QUOTATION MARK.
+///
 /// This will change from `static` to `const` if Rust changes
 /// to make the referent of `pub const FOO: &'static Encoding`
 /// unique cross-crate, so don't take the address of this
 /// `static`.
 pub static ISO_8859_7: &'static Encoding = &ISO_8859_7_INIT;
 
-/// The initializer for the ISO-8859-8 encoding.
+/// The initializer for the [ISO-8859-8](static.ISO_8859_8.html) encoding.
 ///
 /// For use only for taking the address of this form when
 /// Rust prohibits the use of the non-`_INIT` form directly,
@@ -1183,13 +1363,23 @@ pub static ISO_8859_8_INIT: Encoding = Encoding {
 
 /// The ISO-8859-8 encoding.
 ///
+/// This is the Hebrew part of the ISO/IEC 8859 encoding family in visual order.
+///
+/// [Index visualization](https://encoding.spec.whatwg.org/iso-8859-8.html),
+/// [Visualization of BMP coverage](https://encoding.spec.whatwg.org/iso-8859-8-bmp.html)
+///
+/// This encoding roughly matches the Windows code page 28598. Windows decodes
+/// 0xAF to OVERLINE instead of MACRON and 0xFE and 0xFD to the Private Use
+/// Area instead of LRM and RLM. Windows decodes unassigned code points to
+/// the private use area.
+///
 /// This will change from `static` to `const` if Rust changes
 /// to make the referent of `pub const FOO: &'static Encoding`
 /// unique cross-crate, so don't take the address of this
 /// `static`.
 pub static ISO_8859_8: &'static Encoding = &ISO_8859_8_INIT;
 
-/// The initializer for the ISO-8859-8-I encoding.
+/// The initializer for the [ISO-8859-8-I](static.ISO_8859_8_I.html) encoding.
 ///
 /// For use only for taking the address of this form when
 /// Rust prohibits the use of the non-`_INIT` form directly,
@@ -1208,13 +1398,23 @@ pub static ISO_8859_8_I_INIT: Encoding = Encoding {
 
 /// The ISO-8859-8-I encoding.
 ///
+/// This is the Hebrew part of the ISO/IEC 8859 encoding family in logical order.
+///
+/// [Index visualization](https://encoding.spec.whatwg.org/iso-8859-8.html),
+/// [Visualization of BMP coverage](https://encoding.spec.whatwg.org/iso-8859-8-bmp.html)
+///
+/// This encoding roughly matches the Windows code page 38598. Windows decodes
+/// 0xAF to OVERLINE instead of MACRON and 0xFE and 0xFD to the Private Use
+/// Area instead of LRM and RLM. Windows decodes unassigned code points to
+/// the private use area.
+///
 /// This will change from `static` to `const` if Rust changes
 /// to make the referent of `pub const FOO: &'static Encoding`
 /// unique cross-crate, so don't take the address of this
 /// `static`.
 pub static ISO_8859_8_I: &'static Encoding = &ISO_8859_8_I_INIT;
 
-/// The initializer for the KOI8-R encoding.
+/// The initializer for the [KOI8-R](static.KOI8_R.html) encoding.
 ///
 /// For use only for taking the address of this form when
 /// Rust prohibits the use of the non-`_INIT` form directly,
@@ -1233,13 +1433,20 @@ pub static KOI8_R_INIT: Encoding = Encoding {
 
 /// The KOI8-R encoding.
 ///
+/// This is an encoding for Russian from [RFC 1489](https://tools.ietf.org/html/rfc1489).
+///
+/// [Index visualization](https://encoding.spec.whatwg.org/koi8-r.html),
+/// [Visualization of BMP coverage](https://encoding.spec.whatwg.org/koi8-r-bmp.html)
+///
+/// This encoding matches the Windows code page 20866.
+///
 /// This will change from `static` to `const` if Rust changes
 /// to make the referent of `pub const FOO: &'static Encoding`
 /// unique cross-crate, so don't take the address of this
 /// `static`.
 pub static KOI8_R: &'static Encoding = &KOI8_R_INIT;
 
-/// The initializer for the KOI8-U encoding.
+/// The initializer for the [KOI8-U](static.KOI8_U.html) encoding.
 ///
 /// For use only for taking the address of this form when
 /// Rust prohibits the use of the non-`_INIT` form directly,
@@ -1258,13 +1465,20 @@ pub static KOI8_U_INIT: Encoding = Encoding {
 
 /// The KOI8-U encoding.
 ///
+/// This is an encoding for Ukrainian adapted from KOI8-R.
+///
+/// [Index visualization](https://encoding.spec.whatwg.org/koi8-u.html),
+/// [Visualization of BMP coverage](https://encoding.spec.whatwg.org/koi8-u-bmp.html)
+///
+/// This encoding matches the Windows code page 21866.
+///
 /// This will change from `static` to `const` if Rust changes
 /// to make the referent of `pub const FOO: &'static Encoding`
 /// unique cross-crate, so don't take the address of this
 /// `static`.
 pub static KOI8_U: &'static Encoding = &KOI8_U_INIT;
 
-/// The initializer for the Shift_JIS encoding.
+/// The initializer for the [Shift_JIS](static.SHIFT_JIS.html) encoding.
 ///
 /// For use only for taking the address of this form when
 /// Rust prohibits the use of the non-`_INIT` form directly,
@@ -1283,13 +1497,22 @@ pub static SHIFT_JIS_INIT: Encoding = Encoding {
 
 /// The Shift_JIS encoding.
 ///
+/// This is the Japanese encoding for Windows.
+///
+/// [Index visualization](https://encoding.spec.whatwg.org/shift_jis.html),
+/// [Visualization of BMP coverage](https://encoding.spec.whatwg.org/shift_jis-bmp.html)
+///
+/// This encoding matches the Windows code page 932, except Windows decodes some byte
+/// sequences that are error per the Encoding Standard to the question mark or the
+/// Private Use Area and generally uses U+30FB in place of the REPLACEMENT CHARACTER.
+///
 /// This will change from `static` to `const` if Rust changes
 /// to make the referent of `pub const FOO: &'static Encoding`
 /// unique cross-crate, so don't take the address of this
 /// `static`.
 pub static SHIFT_JIS: &'static Encoding = &SHIFT_JIS_INIT;
 
-/// The initializer for the UTF-16BE encoding.
+/// The initializer for the [UTF-16BE](static.UTF_16BE.html) encoding.
 ///
 /// For use only for taking the address of this form when
 /// Rust prohibits the use of the non-`_INIT` form directly,
@@ -1308,13 +1531,22 @@ pub static UTF_16BE_INIT: Encoding = Encoding {
 
 /// The UTF-16BE encoding.
 ///
+/// This decode-only encoding uses 16-bit code units due to Unicode originally
+/// having been designed as a 16-bit reportoire. In the absence of a byte order
+/// mark the big endian byte order is assumed.
+///
+/// There is no corresponding encoder in this crate or in the Encoding
+/// Standard. The output encoding of this encoding is UTF-8.
+///
+/// This encoding matches the Windows code page 1201.
+///
 /// This will change from `static` to `const` if Rust changes
 /// to make the referent of `pub const FOO: &'static Encoding`
 /// unique cross-crate, so don't take the address of this
 /// `static`.
 pub static UTF_16BE: &'static Encoding = &UTF_16BE_INIT;
 
-/// The initializer for the UTF-16LE encoding.
+/// The initializer for the [UTF-16LE](static.UTF_16LE.html) encoding.
 ///
 /// For use only for taking the address of this form when
 /// Rust prohibits the use of the non-`_INIT` form directly,
@@ -1333,13 +1565,22 @@ pub static UTF_16LE_INIT: Encoding = Encoding {
 
 /// The UTF-16LE encoding.
 ///
+/// This decode-only encoding uses 16-bit code units due to Unicode originally
+/// having been designed as a 16-bit reportoire. In the absence of a byte order
+/// mark the little endian byte order is assumed.
+///
+/// There is no corresponding encoder in this crate or in the Encoding
+/// Standard. The output encoding of this encoding is UTF-8.
+///
+/// This encoding matches the Windows code page 1200.
+///
 /// This will change from `static` to `const` if Rust changes
 /// to make the referent of `pub const FOO: &'static Encoding`
 /// unique cross-crate, so don't take the address of this
 /// `static`.
 pub static UTF_16LE: &'static Encoding = &UTF_16LE_INIT;
 
-/// The initializer for the UTF-8 encoding.
+/// The initializer for the [UTF-8](static.UTF_8.html) encoding.
 ///
 /// For use only for taking the address of this form when
 /// Rust prohibits the use of the non-`_INIT` form directly,
@@ -1358,13 +1599,19 @@ pub static UTF_8_INIT: Encoding = Encoding {
 
 /// The UTF-8 encoding.
 ///
+/// This is the encoding that should be used for all new development it can
+/// represent all of Unicode.
+///
+/// This encoding matches the Windows code page 65001, except Windows differs
+/// in the number of errors generated for some erroneous byte sequences.
+///
 /// This will change from `static` to `const` if Rust changes
 /// to make the referent of `pub const FOO: &'static Encoding`
 /// unique cross-crate, so don't take the address of this
 /// `static`.
 pub static UTF_8: &'static Encoding = &UTF_8_INIT;
 
-/// The initializer for the gb18030 encoding.
+/// The initializer for the [gb18030](static.GB18030.html) encoding.
 ///
 /// For use only for taking the address of this form when
 /// Rust prohibits the use of the non-`_INIT` form directly,
@@ -1383,13 +1630,23 @@ pub static GB18030_INIT: Encoding = Encoding {
 
 /// The gb18030 encoding.
 ///
+/// This encoding matches GB18030-2005 except the two-byte sequence 0xA3 0xA0
+/// maps to U+3000 for compatibility with existing Web content. As a result,
+/// this encoding can represent all of Unicode except for the private-use
+/// character U+E5E5.
+///
+/// [Index visualization for the two-byte sequences](https://encoding.spec.whatwg.org/gb18030.html),
+/// [Visualization of BMP coverage of the two-byte index](https://encoding.spec.whatwg.org/gb18030-bmp.html)
+///
+/// This encoding matches the Windows code page 54936.
+///
 /// This will change from `static` to `const` if Rust changes
 /// to make the referent of `pub const FOO: &'static Encoding`
 /// unique cross-crate, so don't take the address of this
 /// `static`.
 pub static GB18030: &'static Encoding = &GB18030_INIT;
 
-/// The initializer for the macintosh encoding.
+/// The initializer for the [macintosh](static.MACINTOSH.html) encoding.
 ///
 /// For use only for taking the address of this form when
 /// Rust prohibits the use of the non-`_INIT` form directly,
@@ -1408,13 +1665,21 @@ pub static MACINTOSH_INIT: Encoding = Encoding {
 
 /// The macintosh encoding.
 ///
+/// This is the MacRoman encoding from Mac OS Classic.
+///
+/// [Index visualization](https://encoding.spec.whatwg.org/macintosh.html),
+/// [Visualization of BMP coverage](https://encoding.spec.whatwg.org/macintosh-bmp.html)
+///
+/// This encoding matches the Windows code page 10000, except Windows decodes
+/// 0xBD to U+2126 OHM SIGN instead of U+03A9 GREEK CAPITAL LETTER OMEGA.
+///
 /// This will change from `static` to `const` if Rust changes
 /// to make the referent of `pub const FOO: &'static Encoding`
 /// unique cross-crate, so don't take the address of this
 /// `static`.
 pub static MACINTOSH: &'static Encoding = &MACINTOSH_INIT;
 
-/// The initializer for the replacement encoding.
+/// The initializer for the [replacement](static.REPLACEMENT.html) encoding.
 ///
 /// For use only for taking the address of this form when
 /// Rust prohibits the use of the non-`_INIT` form directly,
@@ -1433,13 +1698,24 @@ pub static REPLACEMENT_INIT: Encoding = Encoding {
 
 /// The replacement encoding.
 ///
+/// This decode-only encoding decodes all non-zero-length streams to a single
+/// REPLACEMENT CHARACTER. Its purpose is to avoid the use of an
+/// ASCII-compatible fallback encoding (typically windows-1252) for some
+/// encodings that are no longer supported by the Web Platform and that
+/// would be dangerous to treat as ASCII-compatible.
+///
+/// There is no corresponding encoder. The output encoding of this encoding
+/// is UTF-8.
+///
+/// This encoding does not have a Windows code page number.
+///
 /// This will change from `static` to `const` if Rust changes
 /// to make the referent of `pub const FOO: &'static Encoding`
 /// unique cross-crate, so don't take the address of this
 /// `static`.
 pub static REPLACEMENT: &'static Encoding = &REPLACEMENT_INIT;
 
-/// The initializer for the windows-1250 encoding.
+/// The initializer for the [windows-1250](static.WINDOWS_1250.html) encoding.
 ///
 /// For use only for taking the address of this form when
 /// Rust prohibits the use of the non-`_INIT` form directly,
@@ -1458,13 +1734,20 @@ pub static WINDOWS_1250_INIT: Encoding = Encoding {
 
 /// The windows-1250 encoding.
 ///
+/// This is the Central European encoding for Windows.
+///
+/// [Index visualization](https://encoding.spec.whatwg.org/windows-1250.html),
+/// [Visualization of BMP coverage](https://encoding.spec.whatwg.org/windows-1250-bmp.html)
+///
+/// This encoding matches the Windows code page 1250.
+///
 /// This will change from `static` to `const` if Rust changes
 /// to make the referent of `pub const FOO: &'static Encoding`
 /// unique cross-crate, so don't take the address of this
 /// `static`.
 pub static WINDOWS_1250: &'static Encoding = &WINDOWS_1250_INIT;
 
-/// The initializer for the windows-1251 encoding.
+/// The initializer for the [windows-1251](static.WINDOWS_1251.html) encoding.
 ///
 /// For use only for taking the address of this form when
 /// Rust prohibits the use of the non-`_INIT` form directly,
@@ -1483,13 +1766,20 @@ pub static WINDOWS_1251_INIT: Encoding = Encoding {
 
 /// The windows-1251 encoding.
 ///
+/// This is the Cyrillic encoding for Windows.
+///
+/// [Index visualization](https://encoding.spec.whatwg.org/windows-1251.html),
+/// [Visualization of BMP coverage](https://encoding.spec.whatwg.org/windows-1251-bmp.html)
+///
+/// This encoding matches the Windows code page 1251.
+///
 /// This will change from `static` to `const` if Rust changes
 /// to make the referent of `pub const FOO: &'static Encoding`
 /// unique cross-crate, so don't take the address of this
 /// `static`.
 pub static WINDOWS_1251: &'static Encoding = &WINDOWS_1251_INIT;
 
-/// The initializer for the windows-1252 encoding.
+/// The initializer for the [windows-1252](static.WINDOWS_1252.html) encoding.
 ///
 /// For use only for taking the address of this form when
 /// Rust prohibits the use of the non-`_INIT` form directly,
@@ -1508,13 +1798,21 @@ pub static WINDOWS_1252_INIT: Encoding = Encoding {
 
 /// The windows-1252 encoding.
 ///
+/// This is the Western encoding for Windows. It is an extension of ISO-8859-1,
+/// which is known as Latin 1.
+///
+/// [Index visualization](https://encoding.spec.whatwg.org/windows-1252.html),
+/// [Visualization of BMP coverage](https://encoding.spec.whatwg.org/windows-1252-bmp.html)
+///
+/// This encoding matches the Windows code page 1252.
+///
 /// This will change from `static` to `const` if Rust changes
 /// to make the referent of `pub const FOO: &'static Encoding`
 /// unique cross-crate, so don't take the address of this
 /// `static`.
 pub static WINDOWS_1252: &'static Encoding = &WINDOWS_1252_INIT;
 
-/// The initializer for the windows-1253 encoding.
+/// The initializer for the [windows-1253](static.WINDOWS_1253.html) encoding.
 ///
 /// For use only for taking the address of this form when
 /// Rust prohibits the use of the non-`_INIT` form directly,
@@ -1533,13 +1831,22 @@ pub static WINDOWS_1253_INIT: Encoding = Encoding {
 
 /// The windows-1253 encoding.
 ///
+/// This is the Greek encoding for Windows. It is mostly an extension of
+/// ISO-8859-7, but U+0386 is mapped to a different byte.
+///
+/// [Index visualization](https://encoding.spec.whatwg.org/windows-1253.html),
+/// [Visualization of BMP coverage](https://encoding.spec.whatwg.org/windows-1253-bmp.html)
+///
+/// This encoding matches the Windows code page 1253, except Windows decodes
+/// unassigned code points to the Private Use Area of Unicode.
+///
 /// This will change from `static` to `const` if Rust changes
 /// to make the referent of `pub const FOO: &'static Encoding`
 /// unique cross-crate, so don't take the address of this
 /// `static`.
 pub static WINDOWS_1253: &'static Encoding = &WINDOWS_1253_INIT;
 
-/// The initializer for the windows-1254 encoding.
+/// The initializer for the [windows-1254](static.WINDOWS_1254.html) encoding.
 ///
 /// For use only for taking the address of this form when
 /// Rust prohibits the use of the non-`_INIT` form directly,
@@ -1558,13 +1865,21 @@ pub static WINDOWS_1254_INIT: Encoding = Encoding {
 
 /// The windows-1254 encoding.
 ///
+/// This is the Turkish encoding for Windows. It is an extension of ISO-8859-9,
+/// which is known as Latin 5.
+///
+/// [Index visualization](https://encoding.spec.whatwg.org/windows-1254.html),
+/// [Visualization of BMP coverage](https://encoding.spec.whatwg.org/windows-1254-bmp.html)
+///
+/// This encoding matches the Windows code page 1254.
+///
 /// This will change from `static` to `const` if Rust changes
 /// to make the referent of `pub const FOO: &'static Encoding`
 /// unique cross-crate, so don't take the address of this
 /// `static`.
 pub static WINDOWS_1254: &'static Encoding = &WINDOWS_1254_INIT;
 
-/// The initializer for the windows-1255 encoding.
+/// The initializer for the [windows-1255](static.WINDOWS_1255.html) encoding.
 ///
 /// For use only for taking the address of this form when
 /// Rust prohibits the use of the non-`_INIT` form directly,
@@ -1583,13 +1898,22 @@ pub static WINDOWS_1255_INIT: Encoding = Encoding {
 
 /// The windows-1255 encoding.
 ///
+/// This is the Hebrew encoding for Windows. It is an extension of ISO-8859-8-I,
+/// except for a currency sign swap.
+///
+/// [Index visualization](https://encoding.spec.whatwg.org/windows-1255.html),
+/// [Visualization of BMP coverage](https://encoding.spec.whatwg.org/windows-1255-bmp.html)
+///
+/// This encoding matches the Windows code page 1255, except Windows decodes
+/// unassigned code points to the Private Use Area of Unicode.
+///
 /// This will change from `static` to `const` if Rust changes
 /// to make the referent of `pub const FOO: &'static Encoding`
 /// unique cross-crate, so don't take the address of this
 /// `static`.
 pub static WINDOWS_1255: &'static Encoding = &WINDOWS_1255_INIT;
 
-/// The initializer for the windows-1256 encoding.
+/// The initializer for the [windows-1256](static.WINDOWS_1256.html) encoding.
 ///
 /// For use only for taking the address of this form when
 /// Rust prohibits the use of the non-`_INIT` form directly,
@@ -1608,13 +1932,20 @@ pub static WINDOWS_1256_INIT: Encoding = Encoding {
 
 /// The windows-1256 encoding.
 ///
+/// This is the Arabic encoding for Windows.
+///
+/// [Index visualization](https://encoding.spec.whatwg.org/windows-1256.html),
+/// [Visualization of BMP coverage](https://encoding.spec.whatwg.org/windows-1256-bmp.html)
+///
+/// This encoding matches the Windows code page 1256.
+///
 /// This will change from `static` to `const` if Rust changes
 /// to make the referent of `pub const FOO: &'static Encoding`
 /// unique cross-crate, so don't take the address of this
 /// `static`.
 pub static WINDOWS_1256: &'static Encoding = &WINDOWS_1256_INIT;
 
-/// The initializer for the windows-1257 encoding.
+/// The initializer for the [windows-1257](static.WINDOWS_1257.html) encoding.
 ///
 /// For use only for taking the address of this form when
 /// Rust prohibits the use of the non-`_INIT` form directly,
@@ -1633,13 +1964,21 @@ pub static WINDOWS_1257_INIT: Encoding = Encoding {
 
 /// The windows-1257 encoding.
 ///
+/// This is the Baltic encoding for Windows.
+///
+/// [Index visualization](https://encoding.spec.whatwg.org/windows-1257.html),
+/// [Visualization of BMP coverage](https://encoding.spec.whatwg.org/windows-1257-bmp.html)
+///
+/// This encoding matches the Windows code page 1257, except Windows decodes
+/// unassigned code points to the Private Use Area of Unicode.
+///
 /// This will change from `static` to `const` if Rust changes
 /// to make the referent of `pub const FOO: &'static Encoding`
 /// unique cross-crate, so don't take the address of this
 /// `static`.
 pub static WINDOWS_1257: &'static Encoding = &WINDOWS_1257_INIT;
 
-/// The initializer for the windows-1258 encoding.
+/// The initializer for the [windows-1258](static.WINDOWS_1258.html) encoding.
 ///
 /// For use only for taking the address of this form when
 /// Rust prohibits the use of the non-`_INIT` form directly,
@@ -1658,13 +1997,25 @@ pub static WINDOWS_1258_INIT: Encoding = Encoding {
 
 /// The windows-1258 encoding.
 ///
+/// This is the Vietnamese encoding for Windows.
+///
+/// [Index visualization](https://encoding.spec.whatwg.org/windows-1258.html),
+/// [Visualization of BMP coverage](https://encoding.spec.whatwg.org/windows-1258-bmp.html)
+///
+/// This encoding matches the Windows code page 1258 when used in the
+/// non-normalizing mode. Unlike with the other single-byte encodings, the
+/// result of decoding is not necessarily in Normalization Form C. On the
+/// other hand, input in the Normalization Form C is not encoded without
+/// replacement. In general, it's a bad idea to encode to encodings other
+/// than UTF-8, but this encoding is especially hazardous to encode to.
+///
 /// This will change from `static` to `const` if Rust changes
 /// to make the referent of `pub const FOO: &'static Encoding`
 /// unique cross-crate, so don't take the address of this
 /// `static`.
 pub static WINDOWS_1258: &'static Encoding = &WINDOWS_1258_INIT;
 
-/// The initializer for the windows-874 encoding.
+/// The initializer for the [windows-874](static.WINDOWS_874.html) encoding.
 ///
 /// For use only for taking the address of this form when
 /// Rust prohibits the use of the non-`_INIT` form directly,
@@ -1683,13 +2034,21 @@ pub static WINDOWS_874_INIT: Encoding = Encoding {
 
 /// The windows-874 encoding.
 ///
+/// This is the Thai encoding for Windows. It is an extension of TIS-620 / ISO-8859-11.
+///
+/// [Index visualization](https://encoding.spec.whatwg.org/windows-874.html),
+/// [Visualization of BMP coverage](https://encoding.spec.whatwg.org/windows-874-bmp.html)
+///
+/// This encoding matches the Windows code page 874, except Windows decodes
+/// unassigned code points to the Private Use Area of Unicode.
+///
 /// This will change from `static` to `const` if Rust changes
 /// to make the referent of `pub const FOO: &'static Encoding`
 /// unique cross-crate, so don't take the address of this
 /// `static`.
 pub static WINDOWS_874: &'static Encoding = &WINDOWS_874_INIT;
 
-/// The initializer for the x-mac-cyrillic encoding.
+/// The initializer for the [x-mac-cyrillic](static.X_MAC_CYRILLIC.html) encoding.
 ///
 /// For use only for taking the address of this form when
 /// Rust prohibits the use of the non-`_INIT` form directly,
@@ -1708,13 +2067,20 @@ pub static X_MAC_CYRILLIC_INIT: Encoding = Encoding {
 
 /// The x-mac-cyrillic encoding.
 ///
+/// This is the MacUkrainian encoding from Mac OS Classic.
+///
+/// [Index visualization](https://encoding.spec.whatwg.org/x-mac-cyrillic.html),
+/// [Visualization of BMP coverage](https://encoding.spec.whatwg.org/x-mac-cyrillic-bmp.html)
+///
+/// This encoding matches the Windows code page 10017.
+///
 /// This will change from `static` to `const` if Rust changes
 /// to make the referent of `pub const FOO: &'static Encoding`
 /// unique cross-crate, so don't take the address of this
 /// `static`.
 pub static X_MAC_CYRILLIC: &'static Encoding = &X_MAC_CYRILLIC_INIT;
 
-/// The initializer for the x-user-defined encoding.
+/// The initializer for the [x-user-defined](static.X_USER_DEFINED.html) encoding.
 ///
 /// For use only for taking the address of this form when
 /// Rust prohibits the use of the non-`_INIT` form directly,
@@ -1732,6 +2098,13 @@ pub static X_USER_DEFINED_INIT: Encoding = Encoding {
 };
 
 /// The x-user-defined encoding.
+///
+/// This encoding offsets the non-ASCII bytes by `0xF700` thereby decoding
+/// them to the Private Use Area of Unicode. It was used for loading binary
+/// data into a JavaScript string using `XMLHttpRequest` before XHR supported
+/// the `"arraybuffer"` response type.
+///
+/// This encoding does not have a Windows code page number.
 ///
 /// This will change from `static` to `const` if Rust changes
 /// to make the referent of `pub const FOO: &'static Encoding`
@@ -3347,7 +3720,8 @@ impl Decoder {
             | DecoderLifeCycle::AtUtf8Start
             | DecoderLifeCycle::AtUtf16LeStart
             | DecoderLifeCycle::AtUtf16BeStart => {
-                return self.variant
+                return self
+                    .variant
                     .max_utf8_buffer_length_without_replacement(byte_length)
             }
             DecoderLifeCycle::AtStart => {
@@ -3362,7 +3736,8 @@ impl Decoder {
                             // No need to consider the internal state of the underlying decoder,
                             // because it is at start, because no data has reached it yet.
                             return Some(utf_bom);
-                        } else if let Some(non_bom) = self.variant
+                        } else if let Some(non_bom) = self
+                            .variant
                             .max_utf8_buffer_length_without_replacement(byte_length)
                         {
                             return Some(std::cmp::max(utf_bom, non_bom));

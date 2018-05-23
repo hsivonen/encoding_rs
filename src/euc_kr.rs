@@ -205,7 +205,8 @@ fn ksx1001_encode_misc(bmp: u16) -> Option<(usize, usize)> {
             return Some((0x81 + 0x25, 0xA1 + pos));
         }
     }
-    if in_inclusive_range16(bmp, 0x2015, 0x266D) || in_inclusive_range16(bmp, 0x321C, 0x33D8)
+    if in_inclusive_range16(bmp, 0x2015, 0x266D)
+        || in_inclusive_range16(bmp, 0x321C, 0x33D8)
         || in_inclusive_range16(bmp, 0xFF3C, 0xFFE5)
         || in_inclusive_range16(bmp, 0x00A1, 0x00F7)
         || in_inclusive_range16(bmp, 0x02C7, 0x02DD)

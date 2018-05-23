@@ -195,9 +195,8 @@ macro_rules! by_unit_check_simd {
                     }
                     let mut simd_accu = $splat;
                     while offset <= len_minus_stride {
-                        simd_accu = simd_accu | unsafe {
-                            *(src.offset(offset as isize) as *const $simd_ty)
-                        };
+                        simd_accu = simd_accu
+                            | unsafe { *(src.offset(offset as isize) as *const $simd_ty) };
                         offset += SIMD_STRIDE_SIZE / unit_size;
                     }
                     if !$func(simd_accu) {
@@ -1279,7 +1278,9 @@ pub fn is_char_bidi(c: char) -> bool {
         // Above Arabic Extended-A and below Arabic Presentation Forms
         if in_inclusive_range32(code_point, 0x200F, 0x2067) {
             // In the range that contains the RTL controls
-            return code_point == 0x200F || code_point == 0x202B || code_point == 0x202E
+            return code_point == 0x200F
+                || code_point == 0x202B
+                || code_point == 0x202E
                 || code_point == 0x2067;
         }
         return false;
@@ -1514,7 +1515,8 @@ pub fn convert_str_to_utf16(src: &str, dst: &mut [u16]) -> usize {
                 // Three-byte
                 let second = bytes[read + 1];
                 let third = bytes[read + 2];
-                let point = (((byte as u32) & 0xFu32) << 12) | ((second as u32 & 0x3Fu32) << 6)
+                let point = (((byte as u32) & 0xFu32) << 12)
+                    | ((second as u32 & 0x3Fu32) << 6)
                     | (third as u32 & 0x3Fu32);
                 dst[written] = point as u16;
                 read += 3;
@@ -1524,7 +1526,8 @@ pub fn convert_str_to_utf16(src: &str, dst: &mut [u16]) -> usize {
                 let second = bytes[read + 1];
                 let third = bytes[read + 2];
                 let fourth = bytes[read + 3];
-                let point = (((byte as u32) & 0x7u32) << 18) | ((second as u32 & 0x3Fu32) << 12)
+                let point = (((byte as u32) & 0x7u32) << 18)
+                    | ((second as u32 & 0x3Fu32) << 12)
                     | ((third as u32 & 0x3Fu32) << 6)
                     | (fourth as u32 & 0x3Fu32);
                 dst[written] = (0xD7C0 + (point >> 10)) as u16;

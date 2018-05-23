@@ -372,7 +372,8 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
                 {
                     break 'outer;
                 }
-                let point = (((byte as u32) & 0xFu32) << 12) | ((second as u32 & 0x3Fu32) << 6)
+                let point = (((byte as u32) & 0xFu32) << 12)
+                    | ((second as u32 & 0x3Fu32) << 6)
                     | (third as u32 & 0x3Fu32);
                 dst[written] = point as u16;
                 read = new_read;
@@ -393,7 +394,8 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
                 {
                     break 'outer;
                 }
-                let point = (((byte as u32) & 0xFu32) << 12) | ((second as u32 & 0x3Fu32) << 6)
+                let point = (((byte as u32) & 0xFu32) << 12)
+                    | ((second as u32 & 0x3Fu32) << 6)
                     | (third as u32 & 0x3Fu32);
                 dst[written] = point as u16;
                 read = new_read;
@@ -414,7 +416,8 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
                 {
                     break 'outer;
                 }
-                let point = (((byte as u32) & 0xFu32) << 12) | ((second as u32 & 0x3Fu32) << 6)
+                let point = (((byte as u32) & 0xFu32) << 12)
+                    | ((second as u32 & 0x3Fu32) << 6)
                     | (third as u32 & 0x3Fu32);
                 dst[written] = point as u16;
                 read = new_read;

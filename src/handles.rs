@@ -1477,12 +1477,14 @@ impl<'a> Utf8Source<'a> {
             return unsafe { ::std::mem::transmute(point) };
         }
         if unit < 0xF0u32 {
-            let point = ((unit & 0xFu32) << 12) | ((self.slice[self.pos + 1] as u32 & 0x3Fu32) << 6)
+            let point = ((unit & 0xFu32) << 12)
+                | ((self.slice[self.pos + 1] as u32 & 0x3Fu32) << 6)
                 | (self.slice[self.pos + 2] as u32 & 0x3Fu32);
             self.pos += 3;
             return unsafe { ::std::mem::transmute(point) };
         }
-        let point = ((unit & 0x7u32) << 18) | ((self.slice[self.pos + 1] as u32 & 0x3Fu32) << 12)
+        let point = ((unit & 0x7u32) << 18)
+            | ((self.slice[self.pos + 1] as u32 & 0x3Fu32) << 12)
             | ((self.slice[self.pos + 2] as u32 & 0x3Fu32) << 6)
             | (self.slice[self.pos + 3] as u32 & 0x3Fu32);
         self.pos += 4;

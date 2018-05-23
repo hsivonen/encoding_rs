@@ -286,7 +286,8 @@ impl EucJpEncoder {
                         let lead = (pointer / 94) + 0xA1;
                         let trail = (pointer % 94) + 0xA1;
                         handle.write_two(lead as u8, trail as u8)
-                    } else if in_inclusive_range16(bmp, 0xFA0E, 0xFA2D) || bmp == 0xF929
+                    } else if in_inclusive_range16(bmp, 0xFA0E, 0xFA2D)
+                        || bmp == 0xF929
                         || bmp == 0xF9DC
                     {
                         // Guaranteed to be found in IBM_KANJI
