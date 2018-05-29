@@ -2038,7 +2038,7 @@ pub static BIG5_LOW_BITS: [u16; 18840] = [
     0x7980, 0x5857, 0x799D, 0x7B39, 0x793C, 0x79A9, 0x6E2A, 0x7126, 0x3EA8, 0x79C6, 0x910D, 0x79D4,
 ];
 
-#[cfg(not(feature = "no-static-ideograph-encoder-tables"))]
+#[cfg(feature = "less-slow-big5-hanzi-encode")]
 static BIG5_LEVEL1_HANZI_CODE_POINTS: [u16; 5406] = [
     0x4E00, 0x4E01, 0x4E03, 0x4E08, 0x4E09, 0x4E0A, 0x4E0B, 0x4E0D, 0x4E10, 0x4E11, 0x4E14, 0x4E15,
     0x4E16, 0x4E18, 0x4E19, 0x4E1E, 0x4E1F, 0x4E26, 0x4E2B, 0x4E2D, 0x4E30, 0x4E32, 0x4E38, 0x4E39,
@@ -2493,7 +2493,7 @@ static BIG5_LEVEL1_HANZI_CODE_POINTS: [u16; 5406] = [
     0x9F8D, 0x9F90, 0x9F94, 0x9F9C, 0x9FB0, 0x9FB1,
 ];
 
-#[cfg(not(feature = "no-static-ideograph-encoder-tables"))]
+#[cfg(feature = "less-slow-big5-hanzi-encode")]
 static BIG5_LEVEL1_HANZI_BYTES: [[u8; 2]; 5406] = [
     [0xA4, 0x40],
     [0xA4, 0x42],
@@ -8513,7 +8513,7 @@ pub static JIS0208_RANGE_TRIPLES: [u16; 54] = [
     0x29DC, 0x000A, 0x2170, 0x29E6, 0x000A, 0x2160,
 ];
 
-#[cfg(not(feature = "no-static-ideograph-encoder-tables"))]
+#[cfg(feature = "less-slow-kanji-encode")]
 static JIS0208_LEVEL1_KANJI_CODE_POINTS: [u16; 2965] = [
     0x4E00, 0x4E01, 0x4E03, 0x4E07, 0x4E08, 0x4E09, 0x4E0A, 0x4E0B, 0x4E0D, 0x4E0E, 0x4E11, 0x4E14,
     0x4E16, 0x4E18, 0x4E19, 0x4E1E, 0x4E21, 0x4E26, 0x4E2D, 0x4E32, 0x4E38, 0x4E39, 0x4E3B, 0x4E43,
@@ -8765,7 +8765,7 @@ static JIS0208_LEVEL1_KANJI_CODE_POINTS: [u16; 2965] = [
     0x9F8D,
 ];
 
-#[cfg(not(feature = "no-static-ideograph-encoder-tables"))]
+#[cfg(feature = "less-slow-kanji-encode")]
 static JIS0208_LEVEL1_KANJI_SHIFT_JIS_BYTES: [[u8; 2]; 2965] = [
     [0x88, 0xEA],
     [0x92, 0x9A],
@@ -14484,7 +14484,7 @@ pub static GB18030_RANGE_OFFSETS: [u16; 206] = [
     0xFF5F, 0xFFE6,
 ];
 
-#[cfg(not(feature = "no-static-ideograph-encoder-tables"))]
+#[cfg(feature = "less-slow-gb-hanzi-encode")]
 static GB2312_LEVEL1_HANZI_CODE_POINTS: [u16; 3755] = [
     0x4E00, 0x4E01, 0x4E03, 0x4E07, 0x4E08, 0x4E09, 0x4E0A, 0x4E0B, 0x4E0D, 0x4E0E, 0x4E11, 0x4E13,
     0x4E14, 0x4E16, 0x4E18, 0x4E19, 0x4E1A, 0x4E1B, 0x4E1C, 0x4E1D, 0x4E22, 0x4E24, 0x4E25, 0x4E27,
@@ -14801,7 +14801,7 @@ static GB2312_LEVEL1_HANZI_CODE_POINTS: [u16; 3755] = [
     0x9F0E, 0x9F13, 0x9F20, 0x9F3B, 0x9F50, 0x9F7F, 0x9F84, 0x9F8B, 0x9F99, 0x9F9A, 0x9F9F,
 ];
 
-#[cfg(not(feature = "no-static-ideograph-encoder-tables"))]
+#[cfg(feature = "less-slow-gb-hanzi-encode")]
 static GB2312_LEVEL1_HANZI_BYTES: [[u8; 2]; 3755] = [
     [0xD2, 0xBB],
     [0xB6, 0xA1],
@@ -18714,7 +18714,7 @@ pub fn gb2312_other_encode(bmp: u16) -> Option<u16> {
     )
 }
 
-#[cfg(feature = "no-static-ideograph-encoder-tables")]
+#[cfg(not(feature = "less-slow-gb-hanzi-encode"))]
 #[inline(always)]
 pub fn gb2312_level1_hanzi_encode(bmp: u16) -> Option<(u8, u8)> {
     position(&GB2312_HANZI[..(94 * (0xD8 - 0xB0) - 5)], bmp).map(|hanzi_pointer| {
@@ -18724,7 +18724,7 @@ pub fn gb2312_level1_hanzi_encode(bmp: u16) -> Option<(u8, u8)> {
     })
 }
 
-#[cfg(not(feature = "no-static-ideograph-encoder-tables"))]
+#[cfg(feature = "less-slow-gb-hanzi-encode")]
 #[inline(always)]
 pub fn gb2312_level1_hanzi_encode(bmp: u16) -> Option<(u8, u8)> {
     match GB2312_LEVEL1_HANZI_CODE_POINTS.binary_search(&bmp) {
@@ -18760,7 +18760,7 @@ pub fn ksx1001_other_encode(bmp: u16) -> Option<u16> {
     )
 }
 
-#[cfg(feature = "no-static-ideograph-encoder-tables")]
+#[cfg(not(feature = "less-slow-kanji-encode"))]
 #[inline(always)]
 pub fn jis0208_level1_kanji_shift_jis_encode(bmp: u16) -> Option<(u8, u8)> {
     position(&JIS0208_LEVEL1_KANJI[..], bmp).map(|kanji_pointer| {
@@ -18773,7 +18773,7 @@ pub fn jis0208_level1_kanji_shift_jis_encode(bmp: u16) -> Option<(u8, u8)> {
     })
 }
 
-#[cfg(not(feature = "no-static-ideograph-encoder-tables"))]
+#[cfg(feature = "less-slow-kanji-encode")]
 #[inline(always)]
 pub fn jis0208_level1_kanji_shift_jis_encode(bmp: u16) -> Option<(u8, u8)> {
     match JIS0208_LEVEL1_KANJI_CODE_POINTS.binary_search(&bmp) {
@@ -18785,7 +18785,7 @@ pub fn jis0208_level1_kanji_shift_jis_encode(bmp: u16) -> Option<(u8, u8)> {
     }
 }
 
-#[cfg(feature = "no-static-ideograph-encoder-tables")]
+#[cfg(not(feature = "less-slow-kanji-encode"))]
 #[inline(always)]
 pub fn jis0208_level1_kanji_euc_jp_encode(bmp: u16) -> Option<(u8, u8)> {
     position(&JIS0208_LEVEL1_KANJI[..], bmp).map(|kanji_pointer| {
@@ -18795,7 +18795,7 @@ pub fn jis0208_level1_kanji_euc_jp_encode(bmp: u16) -> Option<(u8, u8)> {
     })
 }
 
-#[cfg(not(feature = "no-static-ideograph-encoder-tables"))]
+#[cfg(feature = "less-slow-kanji-encode")]
 #[inline(always)]
 pub fn jis0208_level1_kanji_euc_jp_encode(bmp: u16) -> Option<(u8, u8)> {
     jis0208_level1_kanji_shift_jis_encode(bmp).map(|(shift_jis_lead, shift_jis_trail)| {
@@ -18820,7 +18820,7 @@ pub fn jis0208_level1_kanji_euc_jp_encode(bmp: u16) -> Option<(u8, u8)> {
     })
 }
 
-#[cfg(feature = "no-static-ideograph-encoder-tables")]
+#[cfg(not(feature = "less-slow-kanji-encode"))]
 #[inline(always)]
 pub fn jis0208_level1_kanji_iso_2022_jp_encode(bmp: u16) -> Option<(u8, u8)> {
     position(&JIS0208_LEVEL1_KANJI[..], bmp).map(|kanji_pointer| {
@@ -18830,7 +18830,7 @@ pub fn jis0208_level1_kanji_iso_2022_jp_encode(bmp: u16) -> Option<(u8, u8)> {
     })
 }
 
-#[cfg(not(feature = "no-static-ideograph-encoder-tables"))]
+#[cfg(feature = "less-slow-kanji-encode")]
 #[inline(always)]
 pub fn jis0208_level1_kanji_iso_2022_jp_encode(bmp: u16) -> Option<(u8, u8)> {
     jis0208_level1_kanji_shift_jis_encode(bmp).map(|(shift_jis_lead, shift_jis_trail)| {
@@ -18987,7 +18987,7 @@ pub fn big5_astral_encode(low_bits: u16) -> Option<usize> {
     }
 }
 
-#[cfg(feature = "no-static-ideograph-encoder-tables")]
+#[cfg(not(feature = "less-slow-big5-hanzi-encode"))]
 #[inline(always)]
 pub fn big5_level1_hanzi_encode(bmp: u16) -> Option<(u8, u8)> {
     if super::in_inclusive_range16(bmp, 0x4E00, 0x9FB1) {
@@ -19025,7 +19025,7 @@ pub fn big5_level1_hanzi_encode(bmp: u16) -> Option<(u8, u8)> {
     None
 }
 
-#[cfg(not(feature = "no-static-ideograph-encoder-tables"))]
+#[cfg(feature = "less-slow-big5-hanzi-encode")]
 #[inline(always)]
 pub fn big5_level1_hanzi_encode(bmp: u16) -> Option<(u8, u8)> {
     if super::in_inclusive_range16(bmp, 0x4E00, 0x9FB1) {

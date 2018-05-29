@@ -51,10 +51,10 @@ def static_u16_table(name, data):
 
   ''')
 
-def static_u16_table_from_indexable(name, data, item):
-  data_file.write('''#[cfg(not(feature = "no-static-ideograph-encoder-tables"))]
+def static_u16_table_from_indexable(name, data, item, feature):
+  data_file.write('''#[cfg(feature = "%s")]
 static %s: [u16; %d] = [
-  ''' % (name, len(data)))
+  ''' % (feature, name, len(data)))
 
   for i in xrange(len(data)):
     data_file.write('0x%04X,\n' % data[i][item])
@@ -63,10 +63,10 @@ static %s: [u16; %d] = [
 
   ''')
 
-def static_u8_pair_table_from_indexable(name, data, item):
-  data_file.write('''#[cfg(not(feature = "no-static-ideograph-encoder-tables"))]
+def static_u8_pair_table_from_indexable(name, data, item, feature):
+  data_file.write('''#[cfg(feature = "%s")]
 static %s: [[u8; 2]; %d] = [
-  ''' % (name, len(data)))
+  ''' % (feature, name, len(data)))
 
   for i in xrange(len(data)):
     data_file.write('[0x%02X, 0x%02X],\n' % data[i][item])
@@ -408,8 +408,8 @@ level1_hanzi_pairs.append((0x5188, (0xC8, 0xA2)))
 level1_hanzi_pairs.append((0x9FB1, (0xC8, 0xA3)))
 level1_hanzi_pairs.sort(key=lambda x: x[0])
 
-static_u16_table_from_indexable("BIG5_LEVEL1_HANZI_CODE_POINTS", level1_hanzi_pairs, 0)
-static_u8_pair_table_from_indexable("BIG5_LEVEL1_HANZI_BYTES", level1_hanzi_pairs, 1)
+static_u16_table_from_indexable("BIG5_LEVEL1_HANZI_CODE_POINTS", level1_hanzi_pairs, 0, "less-slow-big5-hanzi-encode")
+static_u8_pair_table_from_indexable("BIG5_LEVEL1_HANZI_BYTES", level1_hanzi_pairs, 1, "less-slow-big5-hanzi-encode")
 
 # JIS0208
 
@@ -550,8 +550,8 @@ for i in xrange(len(level1_kanji_index)):
   level1_kanji_pairs.append((level1_kanji_index[i], (lead, trail)))
 level1_kanji_pairs.sort(key=lambda x: x[0])
 
-static_u16_table_from_indexable("JIS0208_LEVEL1_KANJI_CODE_POINTS", level1_kanji_pairs, 0)
-static_u8_pair_table_from_indexable("JIS0208_LEVEL1_KANJI_SHIFT_JIS_BYTES", level1_kanji_pairs, 1)
+static_u16_table_from_indexable("JIS0208_LEVEL1_KANJI_CODE_POINTS", level1_kanji_pairs, 0, "less-slow-kanji-encode")
+static_u8_pair_table_from_indexable("JIS0208_LEVEL1_KANJI_SHIFT_JIS_BYTES", level1_kanji_pairs, 1, "less-slow-kanji-encode")
 
 # ISO-2022-JP half-width katakana
 
@@ -927,8 +927,8 @@ for i in xrange(len(level1_hanzi_index)):
   level1_hanzi_pairs.append((level1_hanzi_index[i], (hanzi_lead, hanzi_trail)))
 level1_hanzi_pairs.sort(key=lambda x: x[0])
 
-static_u16_table_from_indexable("GB2312_LEVEL1_HANZI_CODE_POINTS", level1_hanzi_pairs, 0)
-static_u8_pair_table_from_indexable("GB2312_LEVEL1_HANZI_BYTES", level1_hanzi_pairs, 1)
+static_u16_table_from_indexable("GB2312_LEVEL1_HANZI_CODE_POINTS", level1_hanzi_pairs, 0, "less-slow-gb-hanzi-encode")
+static_u8_pair_table_from_indexable("GB2312_LEVEL1_HANZI_BYTES", level1_hanzi_pairs, 1, "less-slow-gb-hanzi-encode")
 
 data_file.write('''#[inline(always)]
 fn map_with_ranges(haystack: &[u16], other: &[u16], needle: u16) -> u16 {
@@ -1058,7 +1058,7 @@ pub fn gb2312_other_encode(bmp: u16) -> Option<u16> {
                              bmp)
 }
 
-#[cfg(feature = "no-static-ideograph-encoder-tables")]
+#[cfg(not(feature = "less-slow-gb-hanzi-encode"))]
 #[inline(always)]
 pub fn gb2312_level1_hanzi_encode(bmp: u16) -> Option<(u8, u8)> {
     position(&GB2312_HANZI[..(94 * (0xD8 - 0xB0) - 5)], bmp).map(|hanzi_pointer| {
@@ -1068,7 +1068,7 @@ pub fn gb2312_level1_hanzi_encode(bmp: u16) -> Option<(u8, u8)> {
     })
 }
 
-#[cfg(not(feature = "no-static-ideograph-encoder-tables"))]
+#[cfg(feature = "less-slow-gb-hanzi-encode")]
 #[inline(always)]
 pub fn gb2312_level1_hanzi_encode(bmp: u16) -> Option<(u8, u8)> {
     match GB2312_LEVEL1_HANZI_CODE_POINTS.binary_search(&bmp) {
@@ -1100,7 +1100,7 @@ pub fn ksx1001_other_encode(bmp: u16) -> Option<u16> {
                              bmp)
 }
 
-#[cfg(feature = "no-static-ideograph-encoder-tables")]
+#[cfg(not(feature = "less-slow-kanji-encode"))]
 #[inline(always)]
 pub fn jis0208_level1_kanji_shift_jis_encode(bmp: u16) -> Option<(u8, u8)> {
     position(&JIS0208_LEVEL1_KANJI[..], bmp).map(|kanji_pointer| {
@@ -1121,7 +1121,7 @@ pub fn jis0208_level1_kanji_shift_jis_encode(bmp: u16) -> Option<(u8, u8)> {
     })
 }
 
-#[cfg(not(feature = "no-static-ideograph-encoder-tables"))]
+#[cfg(feature = "less-slow-kanji-encode")]
 #[inline(always)]
 pub fn jis0208_level1_kanji_shift_jis_encode(bmp: u16) -> Option<(u8, u8)> {
     match JIS0208_LEVEL1_KANJI_CODE_POINTS.binary_search(&bmp) {
@@ -1133,7 +1133,7 @@ pub fn jis0208_level1_kanji_shift_jis_encode(bmp: u16) -> Option<(u8, u8)> {
     }
 }
 
-#[cfg(feature = "no-static-ideograph-encoder-tables")]
+#[cfg(not(feature = "less-slow-kanji-encode"))]
 #[inline(always)]
 pub fn jis0208_level1_kanji_euc_jp_encode(bmp: u16) -> Option<(u8, u8)> {
     position(&JIS0208_LEVEL1_KANJI[..], bmp).map(|kanji_pointer| {
@@ -1143,7 +1143,7 @@ pub fn jis0208_level1_kanji_euc_jp_encode(bmp: u16) -> Option<(u8, u8)> {
     })
 }
 
-#[cfg(not(feature = "no-static-ideograph-encoder-tables"))]
+#[cfg(feature = "less-slow-kanji-encode")]
 #[inline(always)]
 pub fn jis0208_level1_kanji_euc_jp_encode(bmp: u16) -> Option<(u8, u8)> {
     jis0208_level1_kanji_shift_jis_encode(bmp).map(|(shift_jis_lead, shift_jis_trail)| {
@@ -1168,7 +1168,7 @@ pub fn jis0208_level1_kanji_euc_jp_encode(bmp: u16) -> Option<(u8, u8)> {
     })
 }
 
-#[cfg(feature = "no-static-ideograph-encoder-tables")]
+#[cfg(not(feature = "less-slow-kanji-encode"))]
 #[inline(always)]
 pub fn jis0208_level1_kanji_iso_2022_jp_encode(bmp: u16) -> Option<(u8, u8)> {
     position(&JIS0208_LEVEL1_KANJI[..], bmp).map(|kanji_pointer| {
@@ -1178,7 +1178,7 @@ pub fn jis0208_level1_kanji_iso_2022_jp_encode(bmp: u16) -> Option<(u8, u8)> {
     })
 }
 
-#[cfg(not(feature = "no-static-ideograph-encoder-tables"))]
+#[cfg(feature = "less-slow-kanji-encode")]
 #[inline(always)]
 pub fn jis0208_level1_kanji_iso_2022_jp_encode(bmp: u16) -> Option<(u8, u8)> {
     jis0208_level1_kanji_shift_jis_encode(bmp).map(|(shift_jis_lead, shift_jis_trail)| {
@@ -1335,7 +1335,7 @@ pub fn big5_astral_encode(low_bits: u16) -> Option<usize> {
     }
 }
 
-#[cfg(feature = "no-static-ideograph-encoder-tables")]
+#[cfg(not(feature = "less-slow-big5-hanzi-encode"))]
 #[inline(always)]
 pub fn big5_level1_hanzi_encode(bmp: u16) -> Option<(u8, u8)> {
     if super::in_inclusive_range16(bmp, 0x4E00, 0x9FB1) {
@@ -1373,7 +1373,7 @@ pub fn big5_level1_hanzi_encode(bmp: u16) -> Option<(u8, u8)> {
     None
 }
 
-#[cfg(not(feature = "no-static-ideograph-encoder-tables"))]
+#[cfg(feature = "less-slow-big5-hanzi-encode")]
 #[inline(always)]
 pub fn big5_level1_hanzi_encode(bmp: u16) -> Option<(u8, u8)> {
     if super::in_inclusive_range16(bmp, 0x4E00, 0x9FB1) {

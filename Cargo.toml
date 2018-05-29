@@ -16,14 +16,14 @@ travis-ci = { repository = "hsivonen/encoding_rs" }
 
 [features]
 simd-accel = ["simd"]
-no-static-ideograph-encoder-tables = []
-# parallel-utf8 = ["rayon"]
+less-slow-kanji-encode = []
+less-slow-big5-hanzi-encode = []
+less-slow-gb-hanzi-encode = []
 
 [dependencies]
 cfg-if = "0.1.0"
 simd = { version = "0.2.2", optional = true }
 serde = { version = "1.0", optional = true }
-# rayon = { version = "0.8.0", optional = true }
 
 [dev-dependencies]
 serde_derive = "1.0"

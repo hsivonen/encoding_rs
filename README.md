@@ -122,16 +122,29 @@ struct fields using [Serde][1].
 
 [1]: https://serde.rs/
 
-### `no-static-ideograph-encoder-tables`
+### `less-slow-kanji-encode`
 
-Makes the binary size smaller at the expense of ideograph _encode_ speed for
-Chinese and Japanese legacy encodings. (Does _not_ affect decode speed.)
+Makes JIS X 0208 Level 1 Kanji (the most common Kanji in Shift_JIS, EUC-JP and
+ISO-2022-JP) encode less slow (binary search instead of linear search) at the
+expense of binary size. (Does _not_ affect decode speed.)
 
-The speed resulting from enabling this feature is believed to be acceptable
-for Web browser-exposed encoder use cases. However, the result is likely
-unacceptable for other applications that need to produce output in Chinese or
-Japanese legacy encodings. (But applications really should always be using
-UTF-8 for output.)
+Not used by Firefox.
+
+### `less-slow-gb-hanzi-encode`
+
+Makes GB2312 Level 1 Hanzi (the most common Hanzi in gb18030 and GBK) encode
+less slow (binary search instead of linear search) at the expense of binary
+size. (Does _not_ affect decode speed.)
+
+Not used by Firefox.
+
+### `less-slow-big5-hanzi-encode`
+
+Makes Big5 Level 1 Hanzi (the most common Hanzi in Big5) encode less slow
+(binary search instead of linear search) at the expense of binary size. (Does
+_not_ affect decode speed.)
+
+Not used by Firefox.
 
 ## Performance goals
 
@@ -147,20 +160,19 @@ encodings should not be optimized for speed at the expense of code size as long
 as form submission and URL parsing in Gecko don't become noticeably too slow
 in real-world use.
 
-Currently, by default, encoding_rs builds with limited encoder-specific
-accelation tables for GB2312 Level 1 Hanzi, Big5 Level 1 Hanzi and JIS X
-0208 Level 1 Kanji. These tables use binary search and strike a balance
-between not having encoder-specific tables at all (doing linear search
-over the decode-optimized tables) and having larger directly-indexable
-encoder-side tables. It is not clear that anyone wants this in-between
-approach, and it may be changed in the future.
-
-In the interest of binary size, Firefox builds with the
-`no-static-ideograph-encoder-tables` cargo feature, which omits
-the encoder-specific tables and performs linear search over the
-decode-optimized tables. With realistic work loads, this seemed fast enough
+In the interest of binary size, by default, encoding_rs does not have any
+encode-specific data tables. Therefore, encoders search the decode-optimized
+data tables. This is a linear search in most cases. As a result, encode to
+legacy encodings varies from slow to extremely slow relative to other
+libraries. Still, with realistic work loads, this seemed fast enough
 not to be user-visibly slow on Raspberry Pi 3 (which stood in for a phone
 for testing) in the Web-exposed encoder use cases.
+
+See the cargo features above for optionally making Kanji and Hanzi legacy
+encode a bit less slow.
+
+Actually fast options for legacy encode may be added in the future, but there
+do not appear to be pressing use cases.
 
 A framework for measuring performance is [available separately][2].
 
