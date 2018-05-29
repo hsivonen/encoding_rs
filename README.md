@@ -222,7 +222,7 @@ used in Firefox.
 - [x] Make lookups by label or name use binary search that searches from the
       end of the label/name to the start.
 - [x] Make labels with non-ASCII bytes fail fast.
-- [ ] Parallelize UTF-8 validation using [Rayon](https://github.com/nikomatsakis/rayon).
+- [ ] ~Parallelize UTF-8 validation using [Rayon](https://github.com/nikomatsakis/rayon).~
 - [x] Provide an XPCOM/MFBT-flavored C++ API.
 - [ ] Investigate accelerating single-byte encode with a single fast-tracked
       range per encoding.
@@ -232,15 +232,21 @@ used in Firefox.
 - [x] Investigate the use of NEON on 32-bit ARM.
 - [ ] Investigate Björn Höhrmann's lookup table acceleration for UTF-8 as
       adapted to Rust in rust-encoding.
+- [ ] Add actually fast CJK encode options.
 
 ## Release Notes
 
 ### 0.8.0
 
-* Changed the minimum supported version of Rust to 1.21.0 (the breaking change).
+* Changed the minimum supported version of Rust to 1.21.0 (semver breaking
+  change).
+* Flipped around the defaults vs. optional features for controlling the size
+  vs. speed trade-off for Kanji and Hanzi legacy encode (semver breaking
+  change).
 * Added NEON support on ARMv7.
 * SIMD-accelerated x-user-defined to UTF-16 decode.
-* Made UTF-16LE and UTF-16BE decode faster (including SIMD acceleration).
+* Made UTF-16LE and UTF-16BE decode a lot faster (including SIMD
+  acceleration).
 
 ### 0.7.2
 
