@@ -406,62 +406,57 @@ macro_rules! latin1_simd_check_align {
     ) => {
         #[inline(always)]
         pub unsafe fn $name(src: *const $src_unit, dst: *mut $dst_unit, len: usize) {
+            let unit_size = ::std::mem::size_of::<$src_unit>();
             let mut offset = 0usize;
             if SIMD_STRIDE_SIZE <= len {
+                let mut until_alignment = ((SIMD_STRIDE_SIZE - ((src as usize) & SIMD_ALIGNMENT_MASK))
+                    & SIMD_ALIGNMENT_MASK) / unit_size;
+                while until_alignment != 0 {
+                    *(dst.offset(offset as isize)) = *(src.offset(offset as isize)) as $dst_unit;
+                    offset += 1;
+                    until_alignment -= 1;
+                }
                 let len_minus_stride = len - SIMD_STRIDE_SIZE;
-                // XXX Should we first process one stride unconditionally as unaligned to
-                // avoid the cost of the branchiness below if the first stride fails anyway?
-                // XXX Should we just use unaligned SSE2 access unconditionally? It seems that
-                // on Haswell, it would make sense to just use unaligned and not bother
-                // checking. Need to benchmark older architectures before deciding.
-                let dst_masked = (dst as usize) & SIMD_ALIGNMENT_MASK;
-                if ((src as usize) & SIMD_ALIGNMENT_MASK) == 0 {
-                    if dst_masked == 0 {
-                        loop {
-                            $stride_both_aligned(
-                                src.offset(offset as isize),
-                                dst.offset(offset as isize),
-                            );
-                            offset += SIMD_STRIDE_SIZE;
-                            if offset > len_minus_stride {
-                                break;
-                            }
-                        }
-                    } else {
-                        loop {
-                            $stride_src_aligned(
-                                src.offset(offset as isize),
-                                dst.offset(offset as isize),
-                            );
-                            offset += SIMD_STRIDE_SIZE;
-                            if offset > len_minus_stride {
-                                break;
-                            }
-                        }
+                let len_minus_stride_times_two = len_minus_stride - SIMD_STRIDE_SIZE;
+                if (dst.offset(offset as isize) as usize) & SIMD_ALIGNMENT_MASK == 0 {
+                    while offset <= len_minus_stride_times_two {
+                        $stride_both_aligned(
+                            src.offset(offset as isize),
+                            dst.offset(offset as isize),
+                        );
+                        offset += SIMD_STRIDE_SIZE;
+                        $stride_both_aligned(
+                            src.offset(offset as isize),
+                            dst.offset(offset as isize),
+                        );
+                        offset += SIMD_STRIDE_SIZE;
+                    }
+                    if offset <= len_minus_stride {
+                        $stride_both_aligned(
+                            src.offset(offset as isize),
+                            dst.offset(offset as isize),
+                        );
+                        offset += SIMD_STRIDE_SIZE;
                     }
                 } else {
-                    if dst_masked == 0 {
-                        loop {
-                            $stride_dst_aligned(
-                                src.offset(offset as isize),
-                                dst.offset(offset as isize),
-                            );
-                            offset += SIMD_STRIDE_SIZE;
-                            if offset > len_minus_stride {
-                                break;
-                            }
-                        }
-                    } else {
-                        loop {
-                            $stride_neither_aligned(
-                                src.offset(offset as isize),
-                                dst.offset(offset as isize),
-                            );
-                            offset += SIMD_STRIDE_SIZE;
-                            if offset > len_minus_stride {
-                                break;
-                            }
-                        }
+                    while offset <= len_minus_stride_times_two {
+                        $stride_src_aligned(
+                            src.offset(offset as isize),
+                            dst.offset(offset as isize),
+                        );
+                        offset += SIMD_STRIDE_SIZE;
+                        $stride_src_aligned(
+                            src.offset(offset as isize),
+                            dst.offset(offset as isize),
+                        );
+                        offset += SIMD_STRIDE_SIZE;
+                    }
+                    if offset <= len_minus_stride {
+                        $stride_src_aligned(
+                            src.offset(offset as isize),
+                            dst.offset(offset as isize),
+                        );
+                        offset += SIMD_STRIDE_SIZE;
                     }
                 }
             }
