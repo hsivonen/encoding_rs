@@ -316,7 +316,7 @@ macro_rules! ascii_simd_check_align {
             let mut offset = 0usize;
             if SIMD_STRIDE_SIZE <= len {
                 let len_minus_stride = len - SIMD_STRIDE_SIZE;
-                // XXX Should we first process one stride unconditinoally as unaligned to
+                // XXX Should we first process one stride unconditionally as unaligned to
                 // avoid the cost of the branchiness below if the first stride fails anyway?
                 // XXX Should we just use unaligned SSE2 access unconditionally? It seems that
                 // on Haswell, it would make sense to just use unaligned and not bother
@@ -409,7 +409,7 @@ macro_rules! latin1_simd_check_align {
             let mut offset = 0usize;
             if SIMD_STRIDE_SIZE <= len {
                 let len_minus_stride = len - SIMD_STRIDE_SIZE;
-                // XXX Should we first process one stride unconditinoally as unaligned to
+                // XXX Should we first process one stride unconditionally as unaligned to
                 // avoid the cost of the branchiness below if the first stride fails anyway?
                 // XXX Should we just use unaligned SSE2 access unconditionally? It seems that
                 // on Haswell, it would make sense to just use unaligned and not bother
