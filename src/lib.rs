@@ -8,7 +8,7 @@
 // except according to those terms.
 
 #![cfg_attr(feature = "cargo-clippy", allow(doc_markdown, inline_always, new_ret_no_self))]
-#![doc(html_root_url = "https://docs.rs/encoding_rs/0.7.2")]
+#![doc(html_root_url = "https://docs.rs/encoding_rs/0.8.0")]
 
 //! encoding_rs is a Gecko-oriented Free Software / Open Source implementation
 //! of the [Encoding Standard](https://encoding.spec.whatwg.org/) in Rust.
@@ -609,6 +609,10 @@
 //! 4. Windows decodes 0xAF to OVERLINE instead of MACRON and 0xFE and 0xFD to PUA instead
 //!    of LRM and RLM.
 //! 5. Remarks from the previous item apply.
+//!
+//! The differences between this crate and Windows in the case of multibyte encodings
+//! are not yet fully documented here. The lack of remarks above should not be taken
+//! as indication of lack of differences.
 //!
 //! # Notable Differences from IANA Naming
 //!

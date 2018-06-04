@@ -223,6 +223,7 @@ used in Firefox.
       end of the label/name to the start.
 - [x] Make labels with non-ASCII bytes fail fast.
 - [ ] ~Parallelize UTF-8 validation using [Rayon](https://github.com/nikomatsakis/rayon).~
+      (This turned out to be a pessimization in the ASCII case due to memory bandwidth reasons.)
 - [x] Provide an XPCOM/MFBT-flavored C++ API.
 - [ ] Investigate accelerating single-byte encode with a single fast-tracked
       range per encoding.
