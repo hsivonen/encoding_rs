@@ -408,7 +408,7 @@ macro_rules! latin1_simd_check_align {
         pub unsafe fn $name(src: *const $src_unit, dst: *mut $dst_unit, len: usize) {
             let unit_size = ::std::mem::size_of::<$src_unit>();
             let mut offset = 0usize;
-            if SIMD_STRIDE_SIZE <= len {
+            if SIMD_STRIDE_SIZE * 2 <= len {
                 let mut until_alignment = ((SIMD_STRIDE_SIZE - ((src as usize) & SIMD_ALIGNMENT_MASK))
                     & SIMD_ALIGNMENT_MASK) / unit_size;
                 while until_alignment != 0 {
