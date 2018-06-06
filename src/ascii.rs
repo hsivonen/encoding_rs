@@ -419,7 +419,7 @@ macro_rules! latin1_simd_check_align {
                 let len_minus_stride = len - SIMD_STRIDE_SIZE;
                 let len_minus_stride_times_two = len_minus_stride - SIMD_STRIDE_SIZE;
                 if (dst.offset(offset as isize) as usize) & SIMD_ALIGNMENT_MASK == 0 {
-                    while offset <= len_minus_stride_times_two {
+                    while offset < len_minus_stride_times_two {
                         $stride_both_aligned(
                             src.offset(offset as isize),
                             dst.offset(offset as isize),
@@ -431,7 +431,7 @@ macro_rules! latin1_simd_check_align {
                         );
                         offset += SIMD_STRIDE_SIZE;
                     }
-                    if offset <= len_minus_stride {
+                    if offset < len_minus_stride {
                         $stride_both_aligned(
                             src.offset(offset as isize),
                             dst.offset(offset as isize),
@@ -439,7 +439,7 @@ macro_rules! latin1_simd_check_align {
                         offset += SIMD_STRIDE_SIZE;
                     }
                 } else {
-                    while offset <= len_minus_stride_times_two {
+                    while offset < len_minus_stride_times_two {
                         $stride_src_aligned(
                             src.offset(offset as isize),
                             dst.offset(offset as isize),
@@ -451,7 +451,7 @@ macro_rules! latin1_simd_check_align {
                         );
                         offset += SIMD_STRIDE_SIZE;
                     }
-                    if offset <= len_minus_stride {
+                    if offset < len_minus_stride {
                         $stride_src_aligned(
                             src.offset(offset as isize),
                             dst.offset(offset as isize),
