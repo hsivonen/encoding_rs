@@ -394,6 +394,82 @@ macro_rules! ascii_simd_check_align {
 }
 
 #[allow(unused_macros)]
+macro_rules! latin1_simd_check_align {
+    (
+        $name:ident,
+        $src_unit:ty,
+        $dst_unit:ty,
+        $stride_both_aligned:ident,
+        $stride_src_aligned:ident,
+        $stride_dst_aligned:ident,
+        $stride_neither_aligned:ident
+    ) => {
+        #[inline(always)]
+        pub unsafe fn $name(src: *const $src_unit, dst: *mut $dst_unit, len: usize) {
+            let mut offset = 0usize;
+            if SIMD_STRIDE_SIZE <= len {
+                let len_minus_stride = len - SIMD_STRIDE_SIZE;
+                let dst_masked = (dst as usize) & SIMD_ALIGNMENT_MASK;
+                if ((src as usize) & SIMD_ALIGNMENT_MASK) == 0 {
+                    if dst_masked == 0 {
+                        loop {
+                            $stride_both_aligned(
+                                src.offset(offset as isize),
+                                dst.offset(offset as isize),
+                            );
+                            offset += SIMD_STRIDE_SIZE;
+                            if offset > len_minus_stride {
+                                break;
+                            }
+                        }
+                    } else {
+                        loop {
+                            $stride_src_aligned(
+                                src.offset(offset as isize),
+                                dst.offset(offset as isize),
+                            );
+                            offset += SIMD_STRIDE_SIZE;
+                            if offset > len_minus_stride {
+                                break;
+                            }
+                        }
+                    }
+                } else {
+                    if dst_masked == 0 {
+                        loop {
+                            $stride_dst_aligned(
+                                src.offset(offset as isize),
+                                dst.offset(offset as isize),
+                            );
+                            offset += SIMD_STRIDE_SIZE;
+                            if offset > len_minus_stride {
+                                break;
+                            }
+                        }
+                    } else {
+                        loop {
+                            $stride_neither_aligned(
+                                src.offset(offset as isize),
+                                dst.offset(offset as isize),
+                            );
+                            offset += SIMD_STRIDE_SIZE;
+                            if offset > len_minus_stride {
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+            while offset < len {
+                let code_unit = *(src.offset(offset as isize));
+                *(dst.offset(offset as isize)) = code_unit as $dst_unit;
+                offset += 1;
+            }
+        }
+    };
+}
+
+#[allow(unused_macros)]
 macro_rules! latin1_simd_check_align_unrolled {
     (
         $name:ident,
@@ -646,7 +722,7 @@ cfg_if! {
         ascii_simd_unalign!(basic_latin_to_ascii, u16, u8, basic_latin_to_ascii_stride_neither_aligned);
         latin1_simd_unalign!(unpack_latin1, u8, u16, unpack_stride_neither_aligned);
         latin1_simd_unalign!(pack_latin1, u16, u8, pack_stride_neither_aligned);
-    } else if #[cfg(all(feature = "simd-accel", any(target_feature = "sse2", all(target_endian = "little", target_feature = "neon"))))] {
+    } else if #[cfg(all(feature = "simd-accel", target_endian = "little", target_feature = "neon"))] {
         // SIMD with different instructions for aligned and unaligned loads and stores.
         //
         // Newer microarchitectures are not supposed to have a performance difference between
@@ -683,6 +759,45 @@ cfg_if! {
         pack_simd_stride!(pack_stride_src_aligned, load8_aligned, store16_unaligned);
         pack_simd_stride!(pack_stride_dst_aligned, load8_unaligned, store16_aligned);
         pack_simd_stride!(pack_stride_neither_aligned, load8_unaligned, store16_unaligned);
+
+        ascii_simd_check_align!(ascii_to_ascii, u8, u8, ascii_to_ascii_stride_both_aligned, ascii_to_ascii_stride_src_aligned, ascii_to_ascii_stride_dst_aligned, ascii_to_ascii_stride_neither_aligned);
+        ascii_simd_check_align!(ascii_to_basic_latin, u8, u16, ascii_to_basic_latin_stride_both_aligned, ascii_to_basic_latin_stride_src_aligned, ascii_to_basic_latin_stride_dst_aligned, ascii_to_basic_latin_stride_neither_aligned);
+        ascii_simd_check_align!(basic_latin_to_ascii, u16, u8, basic_latin_to_ascii_stride_both_aligned, basic_latin_to_ascii_stride_src_aligned, basic_latin_to_ascii_stride_dst_aligned, basic_latin_to_ascii_stride_neither_aligned);
+        latin1_simd_check_align!(unpack_latin1, u8, u16, unpack_stride_both_aligned, unpack_stride_src_aligned, unpack_stride_dst_aligned, unpack_stride_neither_aligned);
+        latin1_simd_check_align!(pack_latin1, u16, u8, pack_stride_both_aligned, pack_stride_src_aligned, pack_stride_dst_aligned, pack_stride_neither_aligned);
+    } else if #[cfg(all(feature = "simd-accel", target_feature = "sse2"))] {
+        // SIMD with different instructions for aligned and unaligned loads and stores.
+        //
+        // Newer microarchitectures are not supposed to have a performance difference between
+        // aligned and unaligned SSE2 loads and stores when the address is actually aligned,
+        // but the benchmark results I see don't agree.
+
+        pub const SIMD_STRIDE_SIZE: usize = 16;
+
+        pub const MAX_STRIDE_SIZE: usize = 16;
+
+        pub const SIMD_ALIGNMENT_MASK: usize = 15;
+
+        ascii_to_ascii_simd_stride!(ascii_to_ascii_stride_both_aligned, load16_aligned, store16_aligned);
+        ascii_to_ascii_simd_stride!(ascii_to_ascii_stride_src_aligned, load16_aligned, store16_unaligned);
+        ascii_to_ascii_simd_stride!(ascii_to_ascii_stride_dst_aligned, load16_unaligned, store16_aligned);
+        ascii_to_ascii_simd_stride!(ascii_to_ascii_stride_neither_aligned, load16_unaligned, store16_unaligned);
+
+        ascii_to_basic_latin_simd_stride!(ascii_to_basic_latin_stride_both_aligned, load16_aligned, store8_aligned);
+        ascii_to_basic_latin_simd_stride!(ascii_to_basic_latin_stride_src_aligned, load16_aligned, store8_unaligned);
+        ascii_to_basic_latin_simd_stride!(ascii_to_basic_latin_stride_dst_aligned, load16_unaligned, store8_aligned);
+        ascii_to_basic_latin_simd_stride!(ascii_to_basic_latin_stride_neither_aligned, load16_unaligned, store8_unaligned);
+
+        unpack_simd_stride!(unpack_stride_both_aligned, load16_aligned, store8_aligned);
+        unpack_simd_stride!(unpack_stride_src_aligned, load16_aligned, store8_unaligned);
+
+        basic_latin_to_ascii_simd_stride!(basic_latin_to_ascii_stride_both_aligned, load8_aligned, store16_aligned);
+        basic_latin_to_ascii_simd_stride!(basic_latin_to_ascii_stride_src_aligned, load8_aligned, store16_unaligned);
+        basic_latin_to_ascii_simd_stride!(basic_latin_to_ascii_stride_dst_aligned, load8_unaligned, store16_aligned);
+        basic_latin_to_ascii_simd_stride!(basic_latin_to_ascii_stride_neither_aligned, load8_unaligned, store16_unaligned);
+
+        pack_simd_stride!(pack_stride_both_aligned, load8_aligned, store16_aligned);
+        pack_simd_stride!(pack_stride_src_aligned, load8_aligned, store16_unaligned);
 
         ascii_simd_check_align!(ascii_to_ascii, u8, u8, ascii_to_ascii_stride_both_aligned, ascii_to_ascii_stride_src_aligned, ascii_to_ascii_stride_dst_aligned, ascii_to_ascii_stride_neither_aligned);
         ascii_simd_check_align!(ascii_to_basic_latin, u8, u16, ascii_to_basic_latin_stride_both_aligned, ascii_to_basic_latin_stride_src_aligned, ascii_to_basic_latin_stride_dst_aligned, ascii_to_basic_latin_stride_neither_aligned);
