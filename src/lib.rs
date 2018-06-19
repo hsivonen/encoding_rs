@@ -229,7 +229,11 @@
 //! by other means. (Due to the Web focus, patches to add UTF-7 are unwelcome
 //! in encoding_rs itself.) Also, despite the browser focus, the hope is that
 //! non-browser applications that wish to consume Web content or submit Web
-//! forms in a Web-compatible way will find encoding_rs useful.
+//! forms in a Web-compatible way will find encoding_rs useful. While
+//! encoding_rs does not try to match Windows behavior, many of the encodings
+//! are close enough to legacy encodings implemented by Windows that
+//! applications that need to consume data in legacy Windows encodins may
+//! find encoding_rs useful.
 //!
 //! # Streaming & Non-Streaming; Rust & C/C++
 //!
