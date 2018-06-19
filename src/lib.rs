@@ -220,11 +220,9 @@
 //! multiplication operations.
 //!
 //! Additionally, performance is a non-goal for the ASCII-incompatible
-//! ISO-2022-JP and UTF-16 encodings, which are rarely used on the Web. For
-//! clarity, this means that performance is a non-goal for UTF-16 as used on
-//! the wire as an interchange encoding (UTF-16 on the `[u8]` side of the API).
-//! Good performance for UTF-16 used as an in-RAM Unicode representation
-//! (UTF-16 the `[u16]` side of the API) is a goal.
+//! ISO-2022-JP encoding, which are rarely used on the Web. Instead of
+//! performance, the decoder for ISO-2022-JP optimizes for ease/clarity
+//! of implementation.
 //!
 //! Despite the focus on the Web, encoding_rs may well be useful for decoding
 //! email, although you'll need to implement UTF-7 decoding and label handling
