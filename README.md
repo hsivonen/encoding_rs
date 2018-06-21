@@ -237,6 +237,10 @@ used in Firefox.
 
 ## Release Notes
 
+### 0.8.3
+
+* Removed an `#[inline(never)]` annotation that was not meant for release.
+
 ### 0.8.2
 
 * Made non-ASCII UTF-16 to UTF-8 encode faster by manually omitting bound

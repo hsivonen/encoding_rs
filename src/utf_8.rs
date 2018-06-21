@@ -627,7 +627,6 @@ impl Utf8Encoder {
     }
 
     #[cfg_attr(feature = "cargo-clippy", allow(never_loop))]
-    #[inline(never)]
     pub fn encode_from_utf16_raw(
         &mut self,
         src: &[u16],
