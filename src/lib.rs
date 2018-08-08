@@ -36,6 +36,13 @@
 //! The [repository is on GitHub](https://github.com/hsivonen/encoding_rs). The
 //! [crate is available on crates.io](https://crates.io/crates/encoding_rs).
 //!
+//! # Integration with `std::io`
+//!
+//! This crate doesn't implement traits from `std::io`. However, for the case of
+//! wrapping a `std::io::Read` in a decoder that implements `std::io::Read` and
+//! presents the data from the wrapped `std::io::Read` as UTF-8 is addressed by
+//! the [`encoding_rs_io`](https://docs.rs/encoding_rs_io/) crate.
+//!
 //! # Examples
 //!
 //! Example programs:

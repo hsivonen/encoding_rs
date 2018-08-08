@@ -68,6 +68,13 @@ Additionally, `encoding_rs::mem` does the following:
 * Converts ASCII to UTF-16 up to the first non-ASCII byte.
 * Converts UTF-16 to ASCII up to the first non-Basic Latin code unit.
 
+## Integration with `std::io`
+
+Notably, the above feature list doesn't include the capability to wrap
+a `std::io::Read`, decode it into UTF-8 and presenting the result via
+`std::io::Read`. The [`encoding_rs_io`](https://crates.io/crates/encoding_rs_io)
+crate provides that capability.
+
 ## Licensing
 
 Please see the file named
