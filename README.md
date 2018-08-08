@@ -249,6 +249,11 @@ used in Firefox.
 * If debug assertions are enabled but fuzzing isn't enabled, lossy conversions
   to Latin1 in the `mem` module assert that the input is in the range
   U+0000...U+00FF (inclusive).
+* In the `mem` module provide conversions from Latin1 and UTF-16 to UTF-8
+  that can deal with insufficient output space. The idea is to use them
+  first with an allocation rounded up to jemalloc bucket size and do the
+  worst-case allocation only if the jemalloc rounding up was insufficient
+  as the first guess.
 
 ### 0.8.4
 
