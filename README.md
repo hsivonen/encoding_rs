@@ -244,6 +244,12 @@ used in Firefox.
 
 ## Release Notes
 
+### 0.8.5
+
+* If debug assertions are enabled but fuzzing isn't enabled, lossy conversions
+  to Latin1 in the `mem` module assert that the input is in the range
+  U+0000...U+00FF (inclusive).
+
 ### 0.8.4
 
 * Fix SSE2-specific, `simd-accel`-specific memory corruption introduced in
