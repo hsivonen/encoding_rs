@@ -244,6 +244,11 @@ used in Firefox.
 
 ## Release Notes
 
+### 0.8.6
+
+* Temporarily removed the debug assertion added in version 0.8.5 from
+  `convert_utf16_to_latin1_lossy`.
+
 ### 0.8.5
 
 * If debug assertions are enabled but fuzzing isn't enabled, lossy conversions

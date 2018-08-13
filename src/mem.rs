@@ -1880,12 +1880,12 @@ pub fn convert_utf8_to_latin1_lossy(src: &[u8], dst: &mut [u8]) -> usize {
 /// represents the value of each code point as the unsigned byte value of
 /// each output byte.
 ///
-/// If the input does not fulfill the condition stated above, this function
-/// panics if debug assertions are enabled (and fuzzing isn't) and otherwise
-/// does something that is memory-safe without any promises about any
-/// properties of the output. In particular, callers shouldn't assume the
-/// output to be the same across crate versions or CPU architectures and
-/// should not assume that non-ASCII input can't map to ASCII output.
+/// If the input does not fulfill the condition stated above, does something
+/// that is memory-safe without any promises about any properties of the
+/// output and will probably assert in debug builds in future versions.
+/// In particular, callers shouldn't assume the output to be the same across
+/// crate versions or CPU architectures and should not assume that non-ASCII
+/// input can't map to ASCII output.
 ///
 /// The length of the destination buffer must be at least the length of the
 /// source buffer.
@@ -1896,15 +1896,15 @@ pub fn convert_utf8_to_latin1_lossy(src: &[u8], dst: &mut [u8]) -> usize {
 ///
 /// Panics if the destination buffer is shorter than stated above.
 ///
-/// If debug assertions are enabled (and not fuzzing) and the input is
-/// not in the range U+0000 to U+00FF, inclusive.
+/// (Probably in future versions if debug assertions are enabled (and not
+/// fuzzing) and the input is not in the range U+0000 to U+00FF, inclusive.)
 #[inline]
 pub fn convert_utf16_to_latin1_lossy(src: &[u16], dst: &mut [u8]) {
     assert!(
         dst.len() >= src.len(),
         "Destination must not be shorter than the source."
     );
-    non_fuzz_debug_assert!(is_utf16_latin1(src));
+    // non_fuzz_debug_assert!(is_utf16_latin1(src));
     unsafe {
         pack_latin1(src.as_ptr(), dst.as_mut_ptr(), src.len());
     }
@@ -2316,7 +2316,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
+    // #[should_panic]
     fn test_convert_utf16_to_latin1_lossy_panics() {
         let mut dst = [0u8; 16];
         let _ = convert_utf16_to_latin1_lossy(&[0x0100u16], &mut dst[..]);
