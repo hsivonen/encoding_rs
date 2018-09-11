@@ -660,7 +660,7 @@
 //! for discussion about the UTF-16 family.
 
 #![cfg_attr(
-    feature = "simd-accel", feature(cfg_target_feature, platform_intrinsics, core_intrinsics)
+    feature = "simd-accel", feature(core_intrinsics)
 )]
 
 #[macro_use]
@@ -676,7 +676,8 @@ extern crate cfg_if;
         )
     )
 )]
-extern crate simd;
+#[macro_use(shuffle)]
+extern crate packed_simd;
 
 #[cfg(feature = "serde")]
 extern crate serde;

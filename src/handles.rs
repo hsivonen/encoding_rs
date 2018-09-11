@@ -38,7 +38,7 @@ use simd_funcs::*;
         )
     )
 )]
-use simd::u16x8;
+use packed_simd::u16x8;
 
 use super::DecoderResult;
 use super::EncoderResult;

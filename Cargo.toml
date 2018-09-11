@@ -15,14 +15,14 @@ categories = ["text-processing", "encoding", "web-programming", "email"]
 travis-ci = { repository = "hsivonen/encoding_rs" }
 
 [features]
-simd-accel = ["simd"]
+simd-accel = ["packed_simd", "packed_simd/into_bits"]
 less-slow-kanji-encode = []
 less-slow-big5-hanzi-encode = []
 less-slow-gb-hanzi-encode = []
 
 [dependencies]
 cfg-if = "0.1.0"
-simd = { version = "0.2.2", optional = true }
+packed_simd = { version = "0.2.0", optional = true }
 serde = { version = "1.0", optional = true }
 
 [dev-dependencies]
