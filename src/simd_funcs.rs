@@ -139,7 +139,7 @@ cfg_if! {
         #[inline(always)]
         pub fn simd_is_ascii(s: u8x16) -> bool {
             unsafe {
-                vmaxvq_u8(s) < 0x80
+                vmaxvq_u8(uint8x16_t::from_bits(s)) < 0x80
             }
         }
     } else {
@@ -167,7 +167,7 @@ cfg_if! {
         #[inline(always)]
         pub fn simd_is_str_latin1(s: u8x16) -> bool {
             unsafe {
-                vmaxvq_u8(s) < 0xC4
+                vmaxvq_u8(uint8x16_t::from_bits(s)) < 0xC4
             }
         }
     } else {
@@ -184,14 +184,14 @@ cfg_if! {
         #[inline(always)]
         pub fn simd_is_basic_latin(s: u16x8) -> bool {
             unsafe {
-                vmaxvq_u16(s) < 0x80
+                vmaxvq_u16(uint16x8_t::from_bits(s)) < 0x80
             }
         }
 
         #[inline(always)]
         pub fn simd_is_latin1(s: u16x8) -> bool {
             unsafe {
-                vmaxvq_u16(s) < 0x100
+                vmaxvq_u16(uint16x8_t::from_bits(s)) < 0x100
             }
         }
     } else {
@@ -224,7 +224,7 @@ cfg_if! {
         macro_rules! aarch64_return_false_if_below_hebrew {
             ($s:ident) => ({
                 unsafe {
-                    if vmaxvq_u16($s) < 0x0590 {
+                    if vmaxvq_u16(uint16x8_t::from_bits($s)) < 0x0590 {
                         return false;
                     }
                 }

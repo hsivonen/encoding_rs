@@ -660,7 +660,7 @@
 //! for discussion about the UTF-16 family.
 
 #![cfg_attr(
-    feature = "simd-accel", feature(core_intrinsics)
+    feature = "simd-accel", feature(stdsimd, core_intrinsics)
 )]
 
 #[macro_use]
