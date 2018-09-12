@@ -15,7 +15,7 @@ categories = ["text-processing", "encoding", "web-programming", "email"]
 travis-ci = { repository = "hsivonen/encoding_rs" }
 
 [features]
-simd-accel = ["packed_simd", "packed_simd/into_bits"]
+simd-accel = ["packed_simd", "packed_simd/into_bits", "packed_simd/coresimd"]
 less-slow-kanji-encode = []
 less-slow-big5-hanzi-encode = []
 less-slow-gb-hanzi-encode = []
