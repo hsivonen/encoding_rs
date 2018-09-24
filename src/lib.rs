@@ -932,7 +932,7 @@ pub static GBK: &'static Encoding = &GBK_INIT;
 /// items.
 pub static IBM866_INIT: Encoding = Encoding {
     name: "IBM866",
-    variant: VariantEncoding::SingleByte(data::IBM866_DATA),
+    variant: VariantEncoding::SingleByte(data::IBM866_DATA, 0, 0, 0),
 };
 
 /// The IBM866 encoding.
@@ -1002,7 +1002,7 @@ pub static ISO_2022_JP: &'static Encoding = &ISO_2022_JP_INIT;
 /// items.
 pub static ISO_8859_10_INIT: Encoding = Encoding {
     name: "ISO-8859-10",
-    variant: VariantEncoding::SingleByte(data::ISO_8859_10_DATA),
+    variant: VariantEncoding::SingleByte(data::ISO_8859_10_DATA, 0, 0, 0),
 };
 
 /// The ISO-8859-10 encoding.
@@ -1036,7 +1036,7 @@ pub static ISO_8859_10: &'static Encoding = &ISO_8859_10_INIT;
 /// items.
 pub static ISO_8859_13_INIT: Encoding = Encoding {
     name: "ISO-8859-13",
-    variant: VariantEncoding::SingleByte(data::ISO_8859_13_DATA),
+    variant: VariantEncoding::SingleByte(data::ISO_8859_13_DATA, 0, 0, 0),
 };
 
 /// The ISO-8859-13 encoding.
@@ -1070,7 +1070,7 @@ pub static ISO_8859_13: &'static Encoding = &ISO_8859_13_INIT;
 /// items.
 pub static ISO_8859_14_INIT: Encoding = Encoding {
     name: "ISO-8859-14",
-    variant: VariantEncoding::SingleByte(data::ISO_8859_14_DATA),
+    variant: VariantEncoding::SingleByte(data::ISO_8859_14_DATA, 0, 0, 0),
 };
 
 /// The ISO-8859-14 encoding.
@@ -1104,7 +1104,7 @@ pub static ISO_8859_14: &'static Encoding = &ISO_8859_14_INIT;
 /// items.
 pub static ISO_8859_15_INIT: Encoding = Encoding {
     name: "ISO-8859-15",
-    variant: VariantEncoding::SingleByte(data::ISO_8859_15_DATA),
+    variant: VariantEncoding::SingleByte(data::ISO_8859_15_DATA, 0, 0, 0),
 };
 
 /// The ISO-8859-15 encoding.
@@ -1137,7 +1137,7 @@ pub static ISO_8859_15: &'static Encoding = &ISO_8859_15_INIT;
 /// items.
 pub static ISO_8859_16_INIT: Encoding = Encoding {
     name: "ISO-8859-16",
-    variant: VariantEncoding::SingleByte(data::ISO_8859_16_DATA),
+    variant: VariantEncoding::SingleByte(data::ISO_8859_16_DATA, 0, 0, 0),
 };
 
 /// The ISO-8859-16 encoding.
@@ -1171,7 +1171,7 @@ pub static ISO_8859_16: &'static Encoding = &ISO_8859_16_INIT;
 /// items.
 pub static ISO_8859_2_INIT: Encoding = Encoding {
     name: "ISO-8859-2",
-    variant: VariantEncoding::SingleByte(data::ISO_8859_2_DATA),
+    variant: VariantEncoding::SingleByte(data::ISO_8859_2_DATA, 0, 0, 0),
 };
 
 /// The ISO-8859-2 encoding.
@@ -1203,7 +1203,7 @@ pub static ISO_8859_2: &'static Encoding = &ISO_8859_2_INIT;
 /// items.
 pub static ISO_8859_3_INIT: Encoding = Encoding {
     name: "ISO-8859-3",
-    variant: VariantEncoding::SingleByte(data::ISO_8859_3_DATA),
+    variant: VariantEncoding::SingleByte(data::ISO_8859_3_DATA, 0, 0, 0),
 };
 
 /// The ISO-8859-3 encoding.
@@ -1235,7 +1235,7 @@ pub static ISO_8859_3: &'static Encoding = &ISO_8859_3_INIT;
 /// items.
 pub static ISO_8859_4_INIT: Encoding = Encoding {
     name: "ISO-8859-4",
-    variant: VariantEncoding::SingleByte(data::ISO_8859_4_DATA),
+    variant: VariantEncoding::SingleByte(data::ISO_8859_4_DATA, 0, 0, 0),
 };
 
 /// The ISO-8859-4 encoding.
@@ -1267,7 +1267,7 @@ pub static ISO_8859_4: &'static Encoding = &ISO_8859_4_INIT;
 /// items.
 pub static ISO_8859_5_INIT: Encoding = Encoding {
     name: "ISO-8859-5",
-    variant: VariantEncoding::SingleByte(data::ISO_8859_5_DATA),
+    variant: VariantEncoding::SingleByte(data::ISO_8859_5_DATA, 0, 0, 0),
 };
 
 /// The ISO-8859-5 encoding.
@@ -1299,7 +1299,7 @@ pub static ISO_8859_5: &'static Encoding = &ISO_8859_5_INIT;
 /// items.
 pub static ISO_8859_6_INIT: Encoding = Encoding {
     name: "ISO-8859-6",
-    variant: VariantEncoding::SingleByte(data::ISO_8859_6_DATA),
+    variant: VariantEncoding::SingleByte(data::ISO_8859_6_DATA, 0, 0, 0),
 };
 
 /// The ISO-8859-6 encoding.
@@ -1332,7 +1332,7 @@ pub static ISO_8859_6: &'static Encoding = &ISO_8859_6_INIT;
 /// items.
 pub static ISO_8859_7_INIT: Encoding = Encoding {
     name: "ISO-8859-7",
-    variant: VariantEncoding::SingleByte(data::ISO_8859_7_DATA),
+    variant: VariantEncoding::SingleByte(data::ISO_8859_7_DATA, 0, 0, 0),
 };
 
 /// The ISO-8859-7 encoding.
@@ -1369,7 +1369,7 @@ pub static ISO_8859_7: &'static Encoding = &ISO_8859_7_INIT;
 /// items.
 pub static ISO_8859_8_INIT: Encoding = Encoding {
     name: "ISO-8859-8",
-    variant: VariantEncoding::SingleByte(data::ISO_8859_8_DATA),
+    variant: VariantEncoding::SingleByte(data::ISO_8859_8_DATA, 0, 0, 0),
 };
 
 /// The ISO-8859-8 encoding.
@@ -1404,7 +1404,7 @@ pub static ISO_8859_8: &'static Encoding = &ISO_8859_8_INIT;
 /// items.
 pub static ISO_8859_8_I_INIT: Encoding = Encoding {
     name: "ISO-8859-8-I",
-    variant: VariantEncoding::SingleByte(data::ISO_8859_8_DATA),
+    variant: VariantEncoding::SingleByte(data::ISO_8859_8_DATA, 0, 0, 0),
 };
 
 /// The ISO-8859-8-I encoding.
@@ -1439,7 +1439,7 @@ pub static ISO_8859_8_I: &'static Encoding = &ISO_8859_8_I_INIT;
 /// items.
 pub static KOI8_R_INIT: Encoding = Encoding {
     name: "KOI8-R",
-    variant: VariantEncoding::SingleByte(data::KOI8_R_DATA),
+    variant: VariantEncoding::SingleByte(data::KOI8_R_DATA, 0, 0, 0),
 };
 
 /// The KOI8-R encoding.
@@ -1471,7 +1471,7 @@ pub static KOI8_R: &'static Encoding = &KOI8_R_INIT;
 /// items.
 pub static KOI8_U_INIT: Encoding = Encoding {
     name: "KOI8-U",
-    variant: VariantEncoding::SingleByte(data::KOI8_U_DATA),
+    variant: VariantEncoding::SingleByte(data::KOI8_U_DATA, 0, 0, 0),
 };
 
 /// The KOI8-U encoding.
@@ -1671,7 +1671,7 @@ pub static GB18030: &'static Encoding = &GB18030_INIT;
 /// items.
 pub static MACINTOSH_INIT: Encoding = Encoding {
     name: "macintosh",
-    variant: VariantEncoding::SingleByte(data::MACINTOSH_DATA),
+    variant: VariantEncoding::SingleByte(data::MACINTOSH_DATA, 0, 0, 0),
 };
 
 /// The macintosh encoding.
@@ -1740,7 +1740,7 @@ pub static REPLACEMENT: &'static Encoding = &REPLACEMENT_INIT;
 /// items.
 pub static WINDOWS_1250_INIT: Encoding = Encoding {
     name: "windows-1250",
-    variant: VariantEncoding::SingleByte(data::WINDOWS_1250_DATA),
+    variant: VariantEncoding::SingleByte(data::WINDOWS_1250_DATA, 0, 0, 0),
 };
 
 /// The windows-1250 encoding.
@@ -1772,7 +1772,7 @@ pub static WINDOWS_1250: &'static Encoding = &WINDOWS_1250_INIT;
 /// items.
 pub static WINDOWS_1251_INIT: Encoding = Encoding {
     name: "windows-1251",
-    variant: VariantEncoding::SingleByte(data::WINDOWS_1251_DATA),
+    variant: VariantEncoding::SingleByte(data::WINDOWS_1251_DATA, 0, 0, 0),
 };
 
 /// The windows-1251 encoding.
@@ -1804,7 +1804,7 @@ pub static WINDOWS_1251: &'static Encoding = &WINDOWS_1251_INIT;
 /// items.
 pub static WINDOWS_1252_INIT: Encoding = Encoding {
     name: "windows-1252",
-    variant: VariantEncoding::SingleByte(data::WINDOWS_1252_DATA),
+    variant: VariantEncoding::SingleByte(data::WINDOWS_1252_DATA, 0, 0, 0),
 };
 
 /// The windows-1252 encoding.
@@ -1837,7 +1837,7 @@ pub static WINDOWS_1252: &'static Encoding = &WINDOWS_1252_INIT;
 /// items.
 pub static WINDOWS_1253_INIT: Encoding = Encoding {
     name: "windows-1253",
-    variant: VariantEncoding::SingleByte(data::WINDOWS_1253_DATA),
+    variant: VariantEncoding::SingleByte(data::WINDOWS_1253_DATA, 0, 0, 0),
 };
 
 /// The windows-1253 encoding.
@@ -1871,7 +1871,7 @@ pub static WINDOWS_1253: &'static Encoding = &WINDOWS_1253_INIT;
 /// items.
 pub static WINDOWS_1254_INIT: Encoding = Encoding {
     name: "windows-1254",
-    variant: VariantEncoding::SingleByte(data::WINDOWS_1254_DATA),
+    variant: VariantEncoding::SingleByte(data::WINDOWS_1254_DATA, 0, 0, 0),
 };
 
 /// The windows-1254 encoding.
@@ -1904,7 +1904,7 @@ pub static WINDOWS_1254: &'static Encoding = &WINDOWS_1254_INIT;
 /// items.
 pub static WINDOWS_1255_INIT: Encoding = Encoding {
     name: "windows-1255",
-    variant: VariantEncoding::SingleByte(data::WINDOWS_1255_DATA),
+    variant: VariantEncoding::SingleByte(data::WINDOWS_1255_DATA, 0, 0, 0),
 };
 
 /// The windows-1255 encoding.
@@ -1938,7 +1938,7 @@ pub static WINDOWS_1255: &'static Encoding = &WINDOWS_1255_INIT;
 /// items.
 pub static WINDOWS_1256_INIT: Encoding = Encoding {
     name: "windows-1256",
-    variant: VariantEncoding::SingleByte(data::WINDOWS_1256_DATA),
+    variant: VariantEncoding::SingleByte(data::WINDOWS_1256_DATA, 0, 0, 0),
 };
 
 /// The windows-1256 encoding.
@@ -1970,7 +1970,7 @@ pub static WINDOWS_1256: &'static Encoding = &WINDOWS_1256_INIT;
 /// items.
 pub static WINDOWS_1257_INIT: Encoding = Encoding {
     name: "windows-1257",
-    variant: VariantEncoding::SingleByte(data::WINDOWS_1257_DATA),
+    variant: VariantEncoding::SingleByte(data::WINDOWS_1257_DATA, 0, 0, 0),
 };
 
 /// The windows-1257 encoding.
@@ -2003,7 +2003,7 @@ pub static WINDOWS_1257: &'static Encoding = &WINDOWS_1257_INIT;
 /// items.
 pub static WINDOWS_1258_INIT: Encoding = Encoding {
     name: "windows-1258",
-    variant: VariantEncoding::SingleByte(data::WINDOWS_1258_DATA),
+    variant: VariantEncoding::SingleByte(data::WINDOWS_1258_DATA, 0, 0, 0),
 };
 
 /// The windows-1258 encoding.
@@ -2040,7 +2040,7 @@ pub static WINDOWS_1258: &'static Encoding = &WINDOWS_1258_INIT;
 /// items.
 pub static WINDOWS_874_INIT: Encoding = Encoding {
     name: "windows-874",
-    variant: VariantEncoding::SingleByte(data::WINDOWS_874_DATA),
+    variant: VariantEncoding::SingleByte(data::WINDOWS_874_DATA, 0, 0, 0),
 };
 
 /// The windows-874 encoding.
@@ -2073,7 +2073,7 @@ pub static WINDOWS_874: &'static Encoding = &WINDOWS_874_INIT;
 /// items.
 pub static X_MAC_CYRILLIC_INIT: Encoding = Encoding {
     name: "x-mac-cyrillic",
-    variant: VariantEncoding::SingleByte(data::X_MAC_CYRILLIC_DATA),
+    variant: VariantEncoding::SingleByte(data::X_MAC_CYRILLIC_DATA, 0, 0, 0),
 };
 
 /// The x-mac-cyrillic encoding.

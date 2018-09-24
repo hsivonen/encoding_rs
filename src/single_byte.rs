@@ -233,7 +233,13 @@ pub struct SingleByteEncoder {
 }
 
 impl SingleByteEncoder {
-    pub fn new(encoding: &'static Encoding, data: &'static [u16; 128]) -> Encoder {
+    pub fn new(
+        encoding: &'static Encoding,
+        data: &'static [u16; 128],
+        run_bmp_offset: u16,
+        run_byte_offset: u8,
+        run_length: u8,
+    ) -> Encoder {
         Encoder::new(
             encoding,
             VariantEncoder::SingleByte(SingleByteEncoder { table: data }),
