@@ -9,6 +9,7 @@
 
 use super::*;
 use ascii::*;
+use data::position;
 use handles::*;
 use variant::*;
 
@@ -230,6 +231,9 @@ impl SingleByteDecoder {
 
 pub struct SingleByteEncoder {
     table: &'static [u16; 128],
+    run_bmp_offset: usize,
+    run_byte_offset: usize,
+    run_length: usize,
 }
 
 impl SingleByteEncoder {
@@ -242,7 +246,12 @@ impl SingleByteEncoder {
     ) -> Encoder {
         Encoder::new(
             encoding,
-            VariantEncoder::SingleByte(SingleByteEncoder { table: data }),
+            VariantEncoder::SingleByte(SingleByteEncoder {
+                table: data,
+                run_bmp_offset: run_bmp_offset as usize,
+                run_byte_offset: run_byte_offset as usize,
+                run_length: run_length as usize,
+            }),
         )
     }
 
@@ -260,54 +269,67 @@ impl SingleByteEncoder {
         Some(byte_length)
     }
 
+    #[inline(always)]
     fn encode_u16(&self, code_unit: u16) -> Option<u8> {
-        // We search the quadrants in reverse order, but we search forward
-        // within each quadrant. For Windows and ISO encodings, this is
-        // generally faster than just searching the whole table backwards.
-        // (Exceptions: English, German, Czech.) This order is also OK for
-        // KOI encodings. For IBM and Mac encodings, this order is bad,
-        // but we don't really need to optimize for those encodings anyway.
+        // First, we see if the code unit falls into a run of consecutive
+        // code units that can be mapped by offset. This is very efficient
+        // for most non-Latin encodings as well as Latin1-ish encodings.
+        //
+        // For encodings that don't fit this pattern, the run (which may
+        // have the length of just one) just establishes the starting point
+        // for the next rule.
+        //
+        // Next, we do a forward linear search in the part of the index
+        // after the run. Even in non-Latin1-ish Latin encodings (except
+        // macintosh), the lower case letters are here.
+        //
+        // Next, we search the third quadrant up to the start of the run
+        // (upper case letters in Latin encodings except macintosh, in
+        // Greek and in KOI encodings) and then the second quadrant,
+        // except if the run stared before the third quadrant, we search
+        // the second quadrant up to the run.
+        //
+        // Last, we search the first quadrant, which has unused controls
+        // or punctuation in most encodings. This is bad for macintosh
+        // and IBM866, but those are rare.
 
-        // In Windows and ISO encodings, the fourth quadrant holds most of the
-        // lower-case letters for bicameral scripts as well as the Hebrew
-        // letters. There are some Thai letters and combining marks as well as
-        // Thai numerals here. (In KOI8-R, the upper-case letters are here.)
-        for i in 96..128 {
-            if self.table[i] == code_unit {
-                return Some((i + 128) as u8);
+        // Run of consecutive units
+        let unit_as_usize = code_unit as usize;
+        let offset = unit_as_usize.wrapping_sub(self.run_bmp_offset);
+        if offset < self.run_length {
+            return Some((128 + self.run_byte_offset + offset) as u8);
+        }
+
+        // Search after the run
+        let tail_start = self.run_byte_offset + self.run_length;
+        if let Some(pos) = position(&self.table[tail_start..], code_unit) {
+            return Some((128 + tail_start + pos) as u8);
+        }
+
+        if self.run_byte_offset >= 64 {
+            // Search third quadrant before the run
+            if let Some(pos) = position(&self.table[64..self.run_byte_offset], code_unit) {
+                return Some(((128 + 64) + pos) as u8);
+            }
+
+            // Search second quadrant
+            if let Some(pos) = position(&self.table[32..64], code_unit) {
+                return Some(((128 + 32) + pos) as u8);
+            }
+        } else {
+            // windows-1252, windows-874, ISO-8859-15 and ISO-8859-5
+
+            // Search second quadrant before the run
+            if let Some(pos) = position(&self.table[32..self.run_byte_offset], code_unit) {
+                return Some(((128 + 32) + pos) as u8);
             }
         }
 
-        // In Windows and ISO encodings, the third quadrant holds most of the
-        // upper-case letters for bicameral scripts as well as most of the
-        // Arabic letters. Searching this quadrant first would be better for
-        // Arabic. There are a number of Thai letters and combining marks here.
-        // (In KOI8-R, the lower-case letters are here.)
-        for i in 64..96 {
-            if self.table[i] == code_unit {
-                return Some((i + 128) as u8);
-            }
+        // Search first quadrant
+        if let Some(pos) = position(&self.table[..32], code_unit) {
+            return Some((128 + pos) as u8);
         }
 
-        // In Windows and ISO encodings, the second quadrant hold most of the
-        // Thai letters. In other scripts, there tends to be symbols here.
-        // Even though the two quadrants above are relevant for Thai, for Thai
-        // it would likely be optimal to search this quadrant first. :-(
-        for i in 32..64 {
-            if self.table[i] == code_unit {
-                return Some((i + 128) as u8);
-            }
-        }
-
-        // The first quadrant is useless in ISO encodings. In Windows encodings,
-        // there is useful punctuation here that might warrant searching
-        // before the symbols in the second quadrant, but the second quadrant
-        // is searched before this one for the benefit of Thai.
-        for i in 0..32 {
-            if self.table[i] == code_unit {
-                return Some((i + 128) as u8);
-            }
-        }
         None
     }
 
