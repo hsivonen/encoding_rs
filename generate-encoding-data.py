@@ -1237,6 +1237,35 @@ pub fn jis0208_kanji_shift_jis_encode(bmp: u16) -> Option<(u8, u8)> {
     Some((pair[0], pair[1]))
 }
 
+#[inline(always)]
+fn shift_jis_to_euc_jp(tuple: (u8, u8)) -> (u8, u8) {
+    let (shift_jis_lead, shift_jis_trail) = tuple;
+    let mut lead = shift_jis_lead as usize;
+    if shift_jis_lead >= 0xA0 {
+        lead -= 0xC1 - 0x81;
+    }
+    // The next line would overflow u8. Letting it go over allows us to
+    // subtract fewer times.
+    lead <<= 1;
+    // Bring it back to u8 range
+    lead -= 0x61;
+    let trail = if shift_jis_trail >= 0x9F {
+        lead += 1;
+        shift_jis_trail + (0xA1 - 0x9F)
+    } else if shift_jis_trail < 0x7F {
+        shift_jis_trail + (0xA1 - 0x40)
+    } else {
+        shift_jis_trail + (0xA1 - 0x41)
+    };
+    (lead as u8, trail)
+}
+
+#[cfg(feature = "fast-kanji-encode")]
+#[inline(always)]
+pub fn jis0208_kanji_euc_jp_encode(bmp: u16) -> Option<(u8, u8)> {
+    jis0208_kanji_shift_jis_encode(bmp).map(shift_jis_to_euc_jp)
+}
+
 #[cfg(not(feature = "less-slow-kanji-encode"))]
 #[inline(always)]
 pub fn jis0208_level1_kanji_shift_jis_encode(bmp: u16) -> Option<(u8, u8)> {
@@ -1283,26 +1312,7 @@ pub fn jis0208_level1_kanji_euc_jp_encode(bmp: u16) -> Option<(u8, u8)> {
 #[cfg(feature = "less-slow-kanji-encode")]
 #[inline(always)]
 pub fn jis0208_level1_kanji_euc_jp_encode(bmp: u16) -> Option<(u8, u8)> {
-    jis0208_level1_kanji_shift_jis_encode(bmp).map(|(shift_jis_lead, shift_jis_trail)| {
-        let mut lead = shift_jis_lead as usize;
-        if shift_jis_lead >= 0xA0 {
-            lead -= 0xC1 - 0x81;
-        }
-        // The next line would overflow u8. Letting it go over allows us to
-        // subtract fewer times.
-        lead <<= 1;
-        // Bring it back to u8 range
-        lead -= 0x61;
-        let trail = if shift_jis_trail >= 0x9F {
-            lead += 1;
-            shift_jis_trail + (0xA1 - 0x9F)
-        } else if shift_jis_trail < 0x7F {
-            shift_jis_trail + (0xA1 - 0x40)
-        } else {
-            shift_jis_trail + (0xA1 - 0x41)
-        };
-        (lead as u8, trail)
-    })
+    jis0208_level1_kanji_shift_jis_encode(bmp).map(shift_jis_to_euc_jp)
 }
 
 #[cfg(not(feature = "less-slow-kanji-encode"))]
