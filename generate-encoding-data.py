@@ -846,8 +846,8 @@ static_u16_table("KSX1001_OTHER_UNSORTED_OFFSETS", offsets[:-1])
 hangul_bytes = [None] * (0xD7A4 - 0xAC00)
 for row in xrange(73):
   for column in xrange(190):
-    i = column + (row * 190)
-    code_point = index[i]
+    pointer = column + (row * 190)
+    code_point = index[pointer]
     if code_point and code_point >= 0xAC00 and code_point <= 0xD7A3:
       hangul_lead = 0x81 + row
       hangul_trail = 0x41 + column
@@ -1057,6 +1057,19 @@ level1_hanzi_pairs.sort(key=lambda x: x[0])
 static_u16_table_from_indexable("GB2312_LEVEL1_HANZI_CODE_POINTS", level1_hanzi_pairs, 0, "gb-hanzi-encode")
 static_u8_pair_table_from_indexable("GB2312_LEVEL1_HANZI_BYTES", level1_hanzi_pairs, 1, "gb-hanzi-encode")
 
+# Fast Hanzi encoder table
+hanzi_bytes = [None] * (0x9FA7 - 0x4E00)
+for row in xrange(126):
+  for column in xrange(190):
+    pointer = column + (row * 190)
+    code_point = index[pointer]
+    if code_point and code_point >= 0x4E00 and code_point <= 0x9FA6:
+      hanzi_lead = 0x81 + row
+      hanzi_trail = column + (0x40 if column < 0x3F else 0x41)
+      hanzi_bytes[code_point - 0x4E00] = (hanzi_lead, hanzi_trail)
+
+static_u8_pair_table("GBK_HANZI_BYTES", hanzi_bytes, "fast-gb-hanzi-encode")
+
 data_file.write('''#[inline(always)]
 fn map_with_ranges(haystack: &[u16], other: &[u16], needle: u16) -> u16 {
     debug_assert_eq!(haystack.len(), other.len());
@@ -1112,6 +1125,7 @@ pub fn gbk_top_ideograph_decode(pointer: u16) -> u16 {
     )
 }
 
+#[cfg(not(feature = "fast-gb-hanzi-encode"))]
 #[inline(always)]
 pub fn gbk_top_ideograph_encode(bmp: u16) -> u16 {
     map_with_ranges(
@@ -1130,6 +1144,7 @@ pub fn gbk_left_ideograph_decode(pointer: u16) -> u16 {
     )
 }
 
+#[cfg(not(feature = "fast-gb-hanzi-encode"))]
 #[inline(always)]
 pub fn gbk_left_ideograph_encode(bmp: u16) -> u16 {
     map_with_ranges(
@@ -1220,7 +1235,17 @@ pub fn gb2312_other_encode(bmp: u16) -> Option<u16> {
     )
 }
 
-#[cfg(not(feature = "less-slow-gb-hanzi-encode"))]
+#[cfg(feature = "fast-gb-hanzi-encode")]
+#[inline(always)]
+pub fn gbk_hanzi_encode(bmp_minus_start: u16) -> (u8, u8) {
+    let pair = &GBK_HANZI_BYTES[bmp_minus_start as usize];
+    (pair[0], pair[1])
+}
+
+#[cfg(not(any(
+    feature = "less-slow-gb-hanzi-encode",
+    feature = "fast-gb-hanzi-encode")
+))]
 #[inline(always)]
 pub fn gb2312_level1_hanzi_encode(bmp: u16) -> Option<(u8, u8)> {
     position(&GB2312_HANZI[..(94 * (0xD8 - 0xB0) - 5)], bmp).map(|hanzi_pointer| {
@@ -1230,7 +1255,10 @@ pub fn gb2312_level1_hanzi_encode(bmp: u16) -> Option<(u8, u8)> {
     })
 }
 
-#[cfg(feature = "less-slow-gb-hanzi-encode")]
+#[cfg(all(
+    feature = "less-slow-gb-hanzi-encode",
+    not(feature = "fast-gb-hanzi-encode")
+))]
 #[inline(always)]
 pub fn gb2312_level1_hanzi_encode(bmp: u16) -> Option<(u8, u8)> {
     match GB2312_LEVEL1_HANZI_CODE_POINTS.binary_search(&bmp) {
@@ -1242,6 +1270,7 @@ pub fn gb2312_level1_hanzi_encode(bmp: u16) -> Option<(u8, u8)> {
     }
 }
 
+#[cfg(not(feature = "fast-gb-hanzi-encode"))]
 #[inline(always)]
 pub fn gb2312_level2_hanzi_encode(bmp: u16) -> Option<usize> {
     // TODO: optimize
