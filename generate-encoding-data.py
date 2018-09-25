@@ -51,9 +51,6 @@ def static_u16_table(name, data):
 
   ''')
 
-def longest_run_for_single_byte(name):
-  return (0, 0, 0)
-
 def static_u16_table_from_indexable(name, data, item, feature):
   data_file.write('''#[cfg(feature = "%s")]
 static %s: [u16; %d] = [
@@ -170,6 +167,46 @@ encoding_by_alias_code_page = {
   51949: "EUC-KR",
 }
 
+# The position in the index (0 is the first index entry,
+# i.e. byte value 0x80) that starts the longest run of
+# consecutive code points. Must not be in the first
+# quadrant. If the character to be encoded is not in this
+# run, the part of the index after the run is searched
+# forward. Then the part of the index from 32 to the start
+# of the run. The first quadrant is searched last.
+#
+# If there is no obviously most useful longest run,
+# the index here is just used to affect the search order.
+start_of_longest_run_in_single_byte = {
+  "IBM866": 96, # 0 would be longest, but we don't want to start in the first quadrant
+  "windows-874": 33,
+  "windows-1250": 92,
+  "windows-1251": 64,
+  "windows-1252": 32,
+  "windows-1253": 83,
+  "windows-1254": 95,
+  "windows-1255": 96,
+  "windows-1256": 65,
+  "windows-1257": 95, # not actually longest
+  "windows-1258": 95, # not actually longest
+  "macintosh": 106, # useless
+  "x-mac-cyrillic": 96,
+  "KOI8-R": 64, # not actually longest
+  "KOI8-U": 64, # not actually longest
+  "ISO-8859-2": 95, # not actually longest
+  "ISO-8859-3": 95, # not actually longest
+  "ISO-8859-4": 95, # not actually longest
+  "ISO-8859-5": 46,
+  "ISO-8859-6": 65,
+  "ISO-8859-7": 83,
+  "ISO-8859-8": 96,
+  "ISO-8859-10": 90, # not actually longest
+  "ISO-8859-13": 95, # not actually longest
+  "ISO-8859-14": 95,
+  "ISO-8859-15": 63,
+  "ISO-8859-16": 95, # not actually longest
+}
+
 #
 
 for group in data:
@@ -203,6 +240,25 @@ for label in labels:
   if len(label.label) > longest_label_length:
     longest_label_length = len(label.label)
     longest_label = label.label
+
+def longest_run_for_single_byte(name):
+  if name == u"ISO-8859-8-I":
+    name = u"ISO-8859-8"
+  index = indexes[name.lower()]
+  run_byte_offset = start_of_longest_run_in_single_byte[name]
+  run_bmp_offset = index[run_byte_offset]
+  previous_code_point = run_bmp_offset
+  run_length = 1
+  while True:
+    i = run_byte_offset + run_length
+    if i == len(index):
+      break
+    code_point = index[i]
+    if previous_code_point + 1 != code_point:
+      break
+    previous_code_point = code_point
+    run_length += 1
+  return (run_bmp_offset, run_byte_offset, run_length)
 
 def is_single_byte(name):
   for encoding in single_byte:
@@ -246,7 +302,7 @@ for name in preferred:
   variant = None
   if is_single_byte(name):
     (run_bmp_offset, run_byte_offset, run_length) = longest_run_for_single_byte(name)
-    variant = "SingleByte(data::%s_DATA, %d, %d, %d)" % (to_constant_name(u"iso-8859-8" if name == u"ISO-8859-8-I" else name), run_bmp_offset, run_byte_offset, run_length)
+    variant = "SingleByte(data::%s_DATA, 0x%04X, %d, %d)" % (to_constant_name(u"iso-8859-8" if name == u"ISO-8859-8-I" else name), run_bmp_offset, run_byte_offset, run_length)
   else:
     variant = to_camel_name(name)
 
