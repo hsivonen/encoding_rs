@@ -81,7 +81,10 @@ static %s: [[u8; 2]; %d] = [
   ''' % (feature, name, len(data)))
 
   for i in xrange(len(data)):
-    data_file.write('[0x%02X, 0x%02X],\n' % data[i])
+    pair = data[i]
+    if not pair:
+      pair = (0, 0)
+    data_file.write('[0x%02X, 0x%02X],\n' % pair)
 
   data_file.write('''];
 
@@ -642,6 +645,18 @@ level1_kanji_pairs.sort(key=lambda x: x[0])
 
 static_u16_table_from_indexable("JIS0208_LEVEL1_KANJI_CODE_POINTS", level1_kanji_pairs, 0, "less-slow-kanji-encode")
 static_u8_pair_table_from_indexable("JIS0208_LEVEL1_KANJI_SHIFT_JIS_BYTES", level1_kanji_pairs, 1, "less-slow-kanji-encode")
+
+# Fast encoder table for Kanji
+kanji_bytes = [None] * (0x9FA1 - 0x4E00)
+for pointer in xrange(len(index)):
+  code_point = index[pointer]
+  if code_point and code_point >= 0x4E00 and code_point <= 0x9FA0:
+    (lead, trail) = divmod(pointer, 188)
+    lead += 0x81 if lead < 0x1F else 0xC1
+    trail += 0x40 if trail < 0x3F else 0x41
+    kanji_bytes[code_point - 0x4E00] = (lead, trail)
+
+static_u8_pair_table("JIS0208_KANJI_BYTES", kanji_bytes, "fast-kanji-encode")
 
 # ISO-2022-JP half-width katakana
 
@@ -1210,6 +1225,16 @@ pub fn ksx1001_other_encode(bmp: u16) -> Option<u16> {
     map_with_unsorted_ranges(&KSX1001_OTHER_UNSORTED_OFFSETS[..],
                              &KSX1001_OTHER_POINTERS[..],
                              bmp)
+}
+
+#[cfg(feature = "fast-kanji-encode")]
+#[inline(always)]
+pub fn jis0208_kanji_shift_jis_encode(bmp: u16) -> Option<(u8, u8)> {
+    let pair = &JIS0208_KANJI_BYTES[bmp as usize - 0x4E00];
+    if pair[0] == 0 && pair[1] == 0 {
+        return None;
+    }
+    Some((pair[0], pair[1]))
 }
 
 #[cfg(not(feature = "less-slow-kanji-encode"))]
