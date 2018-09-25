@@ -492,7 +492,6 @@ impl SingleByteEncoder {
 
 #[cfg(test)]
 mod tests {
-    use super::super::data::*;
     use super::super::testing::*;
     use super::super::*;
 
@@ -631,64 +630,64 @@ mod tests {
 
     #[test]
     fn test_single_byte_decode() {
-        decode_single_byte(IBM866, IBM866_DATA);
-        decode_single_byte(ISO_8859_10, ISO_8859_10_DATA);
-        decode_single_byte(ISO_8859_13, ISO_8859_13_DATA);
-        decode_single_byte(ISO_8859_14, ISO_8859_14_DATA);
-        decode_single_byte(ISO_8859_15, ISO_8859_15_DATA);
-        decode_single_byte(ISO_8859_16, ISO_8859_16_DATA);
-        decode_single_byte(ISO_8859_2, ISO_8859_2_DATA);
-        decode_single_byte(ISO_8859_3, ISO_8859_3_DATA);
-        decode_single_byte(ISO_8859_4, ISO_8859_4_DATA);
-        decode_single_byte(ISO_8859_5, ISO_8859_5_DATA);
-        decode_single_byte(ISO_8859_6, ISO_8859_6_DATA);
-        decode_single_byte(ISO_8859_7, ISO_8859_7_DATA);
-        decode_single_byte(ISO_8859_8, ISO_8859_8_DATA);
-        decode_single_byte(KOI8_R, KOI8_R_DATA);
-        decode_single_byte(KOI8_U, KOI8_U_DATA);
-        decode_single_byte(MACINTOSH, MACINTOSH_DATA);
-        decode_single_byte(WINDOWS_1250, WINDOWS_1250_DATA);
-        decode_single_byte(WINDOWS_1251, WINDOWS_1251_DATA);
-        decode_single_byte(WINDOWS_1252, WINDOWS_1252_DATA);
-        decode_single_byte(WINDOWS_1253, WINDOWS_1253_DATA);
-        decode_single_byte(WINDOWS_1254, WINDOWS_1254_DATA);
-        decode_single_byte(WINDOWS_1255, WINDOWS_1255_DATA);
-        decode_single_byte(WINDOWS_1256, WINDOWS_1256_DATA);
-        decode_single_byte(WINDOWS_1257, WINDOWS_1257_DATA);
-        decode_single_byte(WINDOWS_1258, WINDOWS_1258_DATA);
-        decode_single_byte(WINDOWS_874, WINDOWS_874_DATA);
-        decode_single_byte(X_MAC_CYRILLIC, X_MAC_CYRILLIC_DATA);
+        decode_single_byte(IBM866, &data::SINGLE_BYTE_DATA.ibm866);
+        decode_single_byte(ISO_8859_10, &data::SINGLE_BYTE_DATA.iso_8859_10);
+        decode_single_byte(ISO_8859_13, &data::SINGLE_BYTE_DATA.iso_8859_13);
+        decode_single_byte(ISO_8859_14, &data::SINGLE_BYTE_DATA.iso_8859_14);
+        decode_single_byte(ISO_8859_15, &data::SINGLE_BYTE_DATA.iso_8859_15);
+        decode_single_byte(ISO_8859_16, &data::SINGLE_BYTE_DATA.iso_8859_16);
+        decode_single_byte(ISO_8859_2, &data::SINGLE_BYTE_DATA.iso_8859_2);
+        decode_single_byte(ISO_8859_3, &data::SINGLE_BYTE_DATA.iso_8859_3);
+        decode_single_byte(ISO_8859_4, &data::SINGLE_BYTE_DATA.iso_8859_4);
+        decode_single_byte(ISO_8859_5, &data::SINGLE_BYTE_DATA.iso_8859_5);
+        decode_single_byte(ISO_8859_6, &data::SINGLE_BYTE_DATA.iso_8859_6);
+        decode_single_byte(ISO_8859_7, &data::SINGLE_BYTE_DATA.iso_8859_7);
+        decode_single_byte(ISO_8859_8, &data::SINGLE_BYTE_DATA.iso_8859_8);
+        decode_single_byte(KOI8_R, &data::SINGLE_BYTE_DATA.koi8_r);
+        decode_single_byte(KOI8_U, &data::SINGLE_BYTE_DATA.koi8_u);
+        decode_single_byte(MACINTOSH, &data::SINGLE_BYTE_DATA.macintosh);
+        decode_single_byte(WINDOWS_1250, &data::SINGLE_BYTE_DATA.windows_1250);
+        decode_single_byte(WINDOWS_1251, &data::SINGLE_BYTE_DATA.windows_1251);
+        decode_single_byte(WINDOWS_1252, &data::SINGLE_BYTE_DATA.windows_1252);
+        decode_single_byte(WINDOWS_1253, &data::SINGLE_BYTE_DATA.windows_1253);
+        decode_single_byte(WINDOWS_1254, &data::SINGLE_BYTE_DATA.windows_1254);
+        decode_single_byte(WINDOWS_1255, &data::SINGLE_BYTE_DATA.windows_1255);
+        decode_single_byte(WINDOWS_1256, &data::SINGLE_BYTE_DATA.windows_1256);
+        decode_single_byte(WINDOWS_1257, &data::SINGLE_BYTE_DATA.windows_1257);
+        decode_single_byte(WINDOWS_1258, &data::SINGLE_BYTE_DATA.windows_1258);
+        decode_single_byte(WINDOWS_874, &data::SINGLE_BYTE_DATA.windows_874);
+        decode_single_byte(X_MAC_CYRILLIC, &data::SINGLE_BYTE_DATA.x_mac_cyrillic);
     }
 
     #[test]
     fn test_single_byte_encode() {
-        encode_single_byte(IBM866, IBM866_DATA);
-        encode_single_byte(ISO_8859_10, ISO_8859_10_DATA);
-        encode_single_byte(ISO_8859_13, ISO_8859_13_DATA);
-        encode_single_byte(ISO_8859_14, ISO_8859_14_DATA);
-        encode_single_byte(ISO_8859_15, ISO_8859_15_DATA);
-        encode_single_byte(ISO_8859_16, ISO_8859_16_DATA);
-        encode_single_byte(ISO_8859_2, ISO_8859_2_DATA);
-        encode_single_byte(ISO_8859_3, ISO_8859_3_DATA);
-        encode_single_byte(ISO_8859_4, ISO_8859_4_DATA);
-        encode_single_byte(ISO_8859_5, ISO_8859_5_DATA);
-        encode_single_byte(ISO_8859_6, ISO_8859_6_DATA);
-        encode_single_byte(ISO_8859_7, ISO_8859_7_DATA);
-        encode_single_byte(ISO_8859_8, ISO_8859_8_DATA);
-        encode_single_byte(KOI8_R, KOI8_R_DATA);
-        encode_single_byte(KOI8_U, KOI8_U_DATA);
-        encode_single_byte(MACINTOSH, MACINTOSH_DATA);
-        encode_single_byte(WINDOWS_1250, WINDOWS_1250_DATA);
-        encode_single_byte(WINDOWS_1251, WINDOWS_1251_DATA);
-        encode_single_byte(WINDOWS_1252, WINDOWS_1252_DATA);
-        encode_single_byte(WINDOWS_1253, WINDOWS_1253_DATA);
-        encode_single_byte(WINDOWS_1254, WINDOWS_1254_DATA);
-        encode_single_byte(WINDOWS_1255, WINDOWS_1255_DATA);
-        encode_single_byte(WINDOWS_1256, WINDOWS_1256_DATA);
-        encode_single_byte(WINDOWS_1257, WINDOWS_1257_DATA);
-        encode_single_byte(WINDOWS_1258, WINDOWS_1258_DATA);
-        encode_single_byte(WINDOWS_874, WINDOWS_874_DATA);
-        encode_single_byte(X_MAC_CYRILLIC, X_MAC_CYRILLIC_DATA);
+        encode_single_byte(IBM866, &data::SINGLE_BYTE_DATA.ibm866);
+        encode_single_byte(ISO_8859_10, &data::SINGLE_BYTE_DATA.iso_8859_10);
+        encode_single_byte(ISO_8859_13, &data::SINGLE_BYTE_DATA.iso_8859_13);
+        encode_single_byte(ISO_8859_14, &data::SINGLE_BYTE_DATA.iso_8859_14);
+        encode_single_byte(ISO_8859_15, &data::SINGLE_BYTE_DATA.iso_8859_15);
+        encode_single_byte(ISO_8859_16, &data::SINGLE_BYTE_DATA.iso_8859_16);
+        encode_single_byte(ISO_8859_2, &data::SINGLE_BYTE_DATA.iso_8859_2);
+        encode_single_byte(ISO_8859_3, &data::SINGLE_BYTE_DATA.iso_8859_3);
+        encode_single_byte(ISO_8859_4, &data::SINGLE_BYTE_DATA.iso_8859_4);
+        encode_single_byte(ISO_8859_5, &data::SINGLE_BYTE_DATA.iso_8859_5);
+        encode_single_byte(ISO_8859_6, &data::SINGLE_BYTE_DATA.iso_8859_6);
+        encode_single_byte(ISO_8859_7, &data::SINGLE_BYTE_DATA.iso_8859_7);
+        encode_single_byte(ISO_8859_8, &data::SINGLE_BYTE_DATA.iso_8859_8);
+        encode_single_byte(KOI8_R, &data::SINGLE_BYTE_DATA.koi8_r);
+        encode_single_byte(KOI8_U, &data::SINGLE_BYTE_DATA.koi8_u);
+        encode_single_byte(MACINTOSH, &data::SINGLE_BYTE_DATA.macintosh);
+        encode_single_byte(WINDOWS_1250, &data::SINGLE_BYTE_DATA.windows_1250);
+        encode_single_byte(WINDOWS_1251, &data::SINGLE_BYTE_DATA.windows_1251);
+        encode_single_byte(WINDOWS_1252, &data::SINGLE_BYTE_DATA.windows_1252);
+        encode_single_byte(WINDOWS_1253, &data::SINGLE_BYTE_DATA.windows_1253);
+        encode_single_byte(WINDOWS_1254, &data::SINGLE_BYTE_DATA.windows_1254);
+        encode_single_byte(WINDOWS_1255, &data::SINGLE_BYTE_DATA.windows_1255);
+        encode_single_byte(WINDOWS_1256, &data::SINGLE_BYTE_DATA.windows_1256);
+        encode_single_byte(WINDOWS_1257, &data::SINGLE_BYTE_DATA.windows_1257);
+        encode_single_byte(WINDOWS_1258, &data::SINGLE_BYTE_DATA.windows_1258);
+        encode_single_byte(WINDOWS_874, &data::SINGLE_BYTE_DATA.windows_874);
+        encode_single_byte(X_MAC_CYRILLIC, &data::SINGLE_BYTE_DATA.x_mac_cyrillic);
     }
     // END GENERATED CODE
 

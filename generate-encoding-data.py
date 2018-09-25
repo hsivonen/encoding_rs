@@ -302,7 +302,7 @@ for name in preferred:
   variant = None
   if is_single_byte(name):
     (run_bmp_offset, run_byte_offset, run_length) = longest_run_for_single_byte(name)
-    variant = "SingleByte(data::%s_DATA, 0x%04X, %d, %d)" % (to_constant_name(u"iso-8859-8" if name == u"ISO-8859-8-I" else name), run_bmp_offset, run_byte_offset, run_length)
+    variant = "SingleByte(&data::SINGLE_BYTE_DATA.%s, 0x%04X, %d, %d)" % (to_snake_name(u"iso-8859-8" if name == u"ISO-8859-8-I" else name), run_bmp_offset, run_byte_offset, run_length)
   else:
     variant = to_camel_name(name)
 
@@ -396,6 +396,8 @@ data_file.write('''// Copyright 2015-2016 Mozilla Foundation. See the COPYRIGHT
 // THIS IS A GENERATED FILE. PLEASE DO NOT EDIT.
 // Instead, please regenerate using generate-encoding-data.py
 
+#[repr(align(64))] // Align to cache lines
+pub struct SingleByteData {
 ''')
 
 # Single-byte
@@ -405,13 +407,29 @@ for encoding in single_byte:
   if name == u"ISO-8859-8-I":
     continue
 
-  data_file.write('''pub const %s_DATA: &'static [u16; 128] = &[
-''' % to_constant_name(name))
+  data_file.write('''    pub %s: [u16; 128],
+''' % to_snake_name(name))
+
+data_file.write('''}
+
+pub static SINGLE_BYTE_DATA: SingleByteData = SingleByteData {
+''')
+
+for encoding in single_byte:
+  name = encoding["name"]
+  if name == u"ISO-8859-8-I":
+    continue
+
+  data_file.write('''    %s: [
+''' % to_snake_name(name))
 
   for code_point in indexes[name.lower()]:
     data_file.write('0x%04X,\n' % null_to_zero(code_point))
 
-  data_file.write('''];
+  data_file.write('''],
+''')
+
+data_file.write('''};
 
 ''')
 
@@ -1713,7 +1731,7 @@ for name in preferred:
     continue;
   if is_single_byte(name):
     single_byte_file.write("""
-        decode_single_byte(%s, %s_DATA);""" % (to_constant_name(name), to_constant_name(name)))
+        decode_single_byte(%s, &data::SINGLE_BYTE_DATA.%s);""" % (to_constant_name(name), to_snake_name(name)))
 
 single_byte_file.write("""
     }
@@ -1726,7 +1744,7 @@ for name in preferred:
     continue;
   if is_single_byte(name):
     single_byte_file.write("""
-        encode_single_byte(%s, %s_DATA);""" % (to_constant_name(name), to_constant_name(name)))
+        encode_single_byte(%s, &data::SINGLE_BYTE_DATA.%s);""" % (to_constant_name(name), to_snake_name(name)))
 
 
 single_byte_file.write("""
