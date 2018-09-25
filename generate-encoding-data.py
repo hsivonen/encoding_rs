@@ -654,6 +654,9 @@ for pointer in xrange(len(index)):
     (lead, trail) = divmod(pointer, 188)
     lead += 0x81 if lead < 0x1F else 0xC1
     trail += 0x40 if trail < 0x3F else 0x41
+    # unset the high bit of lead if IBM Kanji
+    if pointer >= 8272:
+      lead = lead & 0x7F
     kanji_bytes[code_point - 0x4E00] = (lead, trail)
 
 static_u8_pair_table("JIS0208_KANJI_BYTES", kanji_bytes, "fast-kanji-encode")
@@ -1231,10 +1234,13 @@ pub fn ksx1001_other_encode(bmp: u16) -> Option<u16> {
 #[inline(always)]
 pub fn jis0208_kanji_shift_jis_encode(bmp: u16) -> Option<(u8, u8)> {
     let pair = &JIS0208_KANJI_BYTES[bmp as usize - 0x4E00];
-    if pair[0] == 0 && pair[1] == 0 {
+    let lead = pair[0];
+    let trail = pair[1];
+    if lead == 0 && trail == 0 {
         return None;
     }
-    Some((pair[0], pair[1]))
+    // Always set the high bit on lead. (It's zero for IBM Kanji.)
+    Some((lead | 0x80, trail))
 }
 
 #[inline(always)]
@@ -1263,7 +1269,19 @@ fn shift_jis_to_euc_jp(tuple: (u8, u8)) -> (u8, u8) {
 #[cfg(feature = "fast-kanji-encode")]
 #[inline(always)]
 pub fn jis0208_kanji_euc_jp_encode(bmp: u16) -> Option<(u8, u8)> {
-    jis0208_kanji_shift_jis_encode(bmp).map(shift_jis_to_euc_jp)
+    let pair = &JIS0208_KANJI_BYTES[bmp as usize - 0x4E00];
+    let lead = pair[0];
+    let trail = pair[1];
+    if lead == 0 && trail == 0 {
+        return None;
+    }
+    if lead & 0x80 == 0 {
+        let pos = position(&IBM_KANJI[..], bmp).unwrap();
+        let lead = (pos / 94) + 0xF9;
+        let trail = (pos % 94) + 0xA1;
+        return Some((lead as u8, trail as u8));
+    }
+    Some(shift_jis_to_euc_jp((lead, trail)))
 }
 
 #[cfg(not(feature = "less-slow-kanji-encode"))]

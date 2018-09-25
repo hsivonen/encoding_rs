@@ -220,13 +220,7 @@ impl EucJpDecoder {
 #[cfg(feature = "fast-kanji-encode")]
 #[inline(always)]
 fn encode_kanji(bmp: u16) -> Option<(u8, u8)> {
-    if let Some(pos) = position(&IBM_KANJI[..], bmp) {
-        let lead = (pos / 94) + 0xF9;
-        let trail = (pos % 94) + 0xA1;
-        Some((lead as u8, trail as u8))
-    } else {
-        jis0208_kanji_euc_jp_encode(bmp)
-    }
+    jis0208_kanji_euc_jp_encode(bmp)
 }
 
 #[cfg(not(feature = "fast-kanji-encode"))]
