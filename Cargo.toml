@@ -19,6 +19,7 @@ simd-accel = ["simd"]
 less-slow-kanji-encode = []
 less-slow-big5-hanzi-encode = []
 less-slow-gb-hanzi-encode = []
+fast-hangul-encode = []
 
 [dependencies]
 cfg-if = "0.1.0"

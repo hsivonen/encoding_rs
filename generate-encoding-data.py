@@ -75,6 +75,18 @@ static %s: [[u8; 2]; %d] = [
 
   ''')
 
+def static_u8_pair_table(name, data, feature):
+  data_file.write('''#[cfg(feature = "%s")]
+static %s: [[u8; 2]; %d] = [
+  ''' % (feature, name, len(data)))
+
+  for i in xrange(len(data)):
+    data_file.write('[0x%02X, 0x%02X],\n' % data[i])
+
+  data_file.write('''];
+
+  ''')
+
 preferred = []
 
 dom = []
@@ -806,6 +818,19 @@ static_u16_table("KSX1001_OTHER_POINTERS", pointers)
 # is unmapped, so we don't want to look at it.
 static_u16_table("KSX1001_OTHER_UNSORTED_OFFSETS", offsets[:-1])
 
+# Fast Hangul encode
+hangul_bytes = [None] * (0xD7A4 - 0xAC00)
+for row in xrange(73):
+  for column in xrange(190):
+    i = column + (row * 190)
+    code_point = index[i]
+    if code_point and code_point >= 0xAC00 and code_point <= 0xD7A3:
+      hangul_lead = 0x81 + row
+      hangul_trail = 0x41 + column
+      hangul_bytes[code_point - 0xAC00] = (hangul_lead, hangul_trail)
+
+static_u8_pair_table("CP949_HANGUL_BYTES", hangul_bytes, "fast-hangul-encode")
+
 # JIS 0212
 
 index = indexes["jis0212"]
@@ -1088,24 +1113,33 @@ pub fn cp949_top_hangul_decode(pointer: u16) -> u16 {
 }
 
 #[inline(always)]
-pub fn cp949_top_hangul_encode(bmp: u16) -> u16 {
-    map_with_ranges(&CP949_TOP_HANGUL_OFFSETS[..],
-                    &CP949_TOP_HANGUL_POINTERS[..],
-                    bmp)
-}
-
-#[inline(always)]
 pub fn cp949_left_hangul_decode(pointer: u16) -> u16 {
     map_with_ranges(&CP949_LEFT_HANGUL_POINTERS[..],
                     &CP949_LEFT_HANGUL_OFFSETS[..],
                     pointer)
 }
 
+#[cfg(not(feature = "fast-hangul-encode"))]
+#[inline(always)]
+pub fn cp949_top_hangul_encode(bmp: u16) -> u16 {
+    map_with_ranges(&CP949_TOP_HANGUL_OFFSETS[..],
+                    &CP949_TOP_HANGUL_POINTERS[..],
+                    bmp)
+}
+
+#[cfg(not(feature = "fast-hangul-encode"))]
 #[inline(always)]
 pub fn cp949_left_hangul_encode(bmp: u16) -> u16 {
     map_with_ranges(&CP949_LEFT_HANGUL_OFFSETS[..],
                     &CP949_LEFT_HANGUL_POINTERS[..],
                     bmp)
+}
+
+#[cfg(feature = "fast-hangul-encode")]
+#[inline(always)]
+pub fn cp949_hangul_encode(bmp_minus_start: u16) -> (usize, usize) {
+    let pair = &CP949_HANGUL_BYTES[bmp_minus_start as usize];
+    (pair[0] as usize, pair[1] as usize)
 }
 
 #[inline(always)]
