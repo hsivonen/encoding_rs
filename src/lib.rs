@@ -7,7 +7,10 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-#![cfg_attr(feature = "cargo-clippy", allow(doc_markdown, inline_always, new_ret_no_self))]
+#![cfg_attr(
+    feature = "cargo-clippy",
+    allow(doc_markdown, inline_always, new_ret_no_self)
+)]
 #![doc(html_root_url = "https://docs.rs/encoding_rs/0.8.9")]
 
 //! encoding_rs is a Gecko-oriented Free Software / Open Source implementation
@@ -660,22 +663,21 @@
 //! for discussion about the UTF-16 family.
 
 #![cfg_attr(
-    feature = "simd-accel", feature(cfg_target_feature, platform_intrinsics, core_intrinsics)
+    feature = "simd-accel",
+    feature(cfg_target_feature, platform_intrinsics, core_intrinsics)
 )]
 
 #[macro_use]
 extern crate cfg_if;
 
-#[cfg(
-    all(
-        feature = "simd-accel",
-        any(
-            target_feature = "sse2",
-            all(target_endian = "little", target_arch = "aarch64"),
-            all(target_endian = "little", target_feature = "neon")
-        )
+#[cfg(all(
+    feature = "simd-accel",
+    any(
+        target_feature = "sse2",
+        all(target_endian = "little", target_arch = "aarch64"),
+        all(target_endian = "little", target_feature = "neon")
     )
-)]
+))]
 extern crate simd;
 
 #[cfg(feature = "serde")]
@@ -692,25 +694,21 @@ extern crate serde_json;
 #[macro_use]
 mod macros;
 
-#[cfg(
-    all(
-        feature = "simd-accel",
-        any(
-            target_feature = "sse2",
-            all(target_endian = "little", target_arch = "aarch64"),
-            all(target_endian = "little", target_feature = "neon")
-        )
+#[cfg(all(
+    feature = "simd-accel",
+    any(
+        target_feature = "sse2",
+        all(target_endian = "little", target_arch = "aarch64"),
+        all(target_endian = "little", target_feature = "neon")
     )
-)]
+))]
 mod simd_funcs;
 
-#[cfg(
-    any(
-        all(feature = "simd-accel", target_feature = "sse2"),
-        all(target_endian = "little", target_arch = "aarch64"),
-        all(target_endian = "little", target_arch = "arm")
-    )
-)]
+#[cfg(any(
+    all(feature = "simd-accel", target_feature = "sse2"),
+    all(target_endian = "little", target_arch = "aarch64"),
+    all(target_endian = "little", target_arch = "arm")
+))]
 mod utf_8_core;
 
 #[cfg(test)]
@@ -3202,7 +3200,7 @@ impl Encoding {
                 valid_up_to,
                 encoder.max_buffer_length_from_utf8_if_no_unmappables(string.len() - valid_up_to),
             )).unwrap()
-                .next_power_of_two(),
+            .next_power_of_two(),
         );
         unsafe {
             vec.set_len(valid_up_to);
@@ -5294,8 +5292,7 @@ mod tests {
             UTF_8
                 .decode_without_bom_handling_and_without_replacement(
                     b"\xEF\xBB\xBF\xE2\x82\xAC\x80\xC3\xA4"
-                )
-                .is_none()
+                ).is_none()
         );
     }
 

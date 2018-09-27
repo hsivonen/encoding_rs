@@ -61,19 +61,23 @@ impl Gb18030Decoder {
 
     fn extra_from_state(&self, byte_length: usize) -> Option<usize> {
         byte_length.checked_add(
-            self.pending.count() + match self.first {
-                None => 0,
-                Some(_) => 1,
-            } + match self.second {
-                None => 0,
-                Some(_) => 1,
-            } + match self.third {
-                None => 0,
-                Some(_) => 1,
-            } + match self.pending_ascii {
-                None => 0,
-                Some(_) => 1,
-            },
+            self.pending.count()
+                + match self.first {
+                    None => 0,
+                    Some(_) => 1,
+                }
+                + match self.second {
+                    None => 0,
+                    Some(_) => 1,
+                }
+                + match self.third {
+                    None => 0,
+                    Some(_) => 1,
+                }
+                + match self.pending_ascii {
+                    None => 0,
+                    Some(_) => 1,
+                },
         )
     }
 
