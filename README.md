@@ -187,15 +187,15 @@ A framework for measuring performance is [available separately][2].
 ## Rust Version Compatibility
 
 It is a goal to support the latest stable Rust, the latest nightly Rust and
-the version of Rust that's used for Firefox Nightly (currently 1.25.0).
+the version of Rust that's used for Firefox Nightly (currently 1.29.0).
 These are tested on Travis.
 
 Additionally, beta and the oldest known to work Rust version (currently
-1.21.0) are tested on Travis. The oldest Rust known to work is tested as
+1.25.0) are tested on Travis. The oldest Rust known to work is tested as
 a canary so that when the oldest known to work no longer works, the change
 can be documented here. At this time, there is no firm commitment to support
 a version older than what's required by Firefox. The oldest supported Rust
-is expected to move forward rapidly when `stdsimd` can replace the `simd`
+is expected to move forward rapidly when `packed_simd` can replace the `simd`
 crate without performance regression.
 
 ## Compatibility with rust-encoding
@@ -242,6 +242,11 @@ used in Firefox.
 - [ ] Add actually fast CJK encode options.
 
 ## Release Notes
+
+### 0.9.0
+
+* Changed minimum Rust requirement to 1.25.0 (for `#[repr(align())]`). (Semver
+  breaking change.)
 
 ### 0.8.9
 
