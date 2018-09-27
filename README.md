@@ -231,7 +231,7 @@ used in Firefox.
 - [ ] ~Parallelize UTF-8 validation using [Rayon](https://github.com/nikomatsakis/rayon).~
       (This turned out to be a pessimization in the ASCII case due to memory bandwidth reasons.)
 - [x] Provide an XPCOM/MFBT-flavored C++ API.
-- [ ] Investigate accelerating single-byte encode with a single fast-tracked
+- [x] Investigate accelerating single-byte encode with a single fast-tracked
       range per encoding.
 - [x] Replace uconv with encoding_rs in Gecko.
 - [x] Implement the rust-encoding API in terms of encoding_rs.
