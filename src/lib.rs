@@ -3112,7 +3112,8 @@ impl Encoding {
                 checked_add(
                     valid_up_to,
                     decoder.max_utf8_buffer_length_without_replacement(bytes.len() - valid_up_to),
-                ).unwrap(),
+                )
+                .unwrap(),
             );
             unsafe {
                 let vec = string.as_mut_vec();
@@ -3199,7 +3200,8 @@ impl Encoding {
             (checked_add(
                 valid_up_to,
                 encoder.max_buffer_length_from_utf8_if_no_unmappables(string.len() - valid_up_to),
-            )).unwrap()
+            ))
+            .unwrap()
             .next_power_of_two(),
         );
         unsafe {
@@ -5292,7 +5294,8 @@ mod tests {
             UTF_8
                 .decode_without_bom_handling_and_without_replacement(
                     b"\xEF\xBB\xBF\xE2\x82\xAC\x80\xC3\xA4"
-                ).is_none()
+                )
+                .is_none()
         );
     }
 
