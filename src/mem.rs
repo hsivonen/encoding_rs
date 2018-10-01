@@ -669,11 +669,13 @@ pub fn is_utf16_latin1(buffer: &[u16]) -> bool {
 /// that trigger right-to-left processing.
 ///
 /// The check is done on a Unicode block basis without regard to assigned
-/// vs. unassigned code points in the block. Additionally, the four
-/// RIGHT-TO-LEFT FOO controls in General Punctuation are checked for.
-/// Control characters that are technically bidi controls but do not cause
-/// right-to-left behavior without the presence of right-to-left characters
-/// or right-to-left controls are not checked for.
+/// vs. unassigned code points in the block. Hebrew presentation forms in
+/// the Alphabetic Presentation Forms block are treated as if they formed
+/// a block on their own (i.e. it treated as right-to-left). Additionally,
+/// the four RIGHT-TO-LEFT FOO controls in General Punctuation are checked
+/// for. Control characters that are technically bidi controls but do not
+/// cause right-to-left behavior without the presence of right-to-left
+/// characters or right-to-left controls are not checked for.
 ///
 /// Returns `true` if the input is invalid UTF-8 or the input contains an
 /// RTL character. Returns `false` if the input is valid UTF-8 and contains
@@ -699,8 +701,8 @@ pub fn is_utf8_bidi(buffer: &[u8]) -> bool {
     // U+202E: E2 80 AE
     // U+2067: E2 81 A7
     //
-    // U+FB4F: EF AD 8F
-    // U+FB50: EF AD 90
+    // U+FB1C: EF AC 9C
+    // U+FB1D: EF AC 9D
     // U+FDFF: EF B7 BF
     // U+FE00: EF B8 80
     //
@@ -797,9 +799,9 @@ pub fn is_utf8_bidi(buffer: &[u8]) -> bool {
                             {
                                 return true;
                             }
-                            if in_inclusive_range8(second, 0xAD, 0xB7) {
-                                if second == 0xAD {
-                                    if third > 0x8F {
+                            if in_inclusive_range8(second, 0xAC, 0xB7) {
+                                if second == 0xAC {
+                                    if third > 0x9C {
                                         return true;
                                     }
                                 } else {
@@ -1013,9 +1015,9 @@ pub fn is_utf8_bidi(buffer: &[u8]) -> bool {
                     {
                         return true;
                     }
-                    if in_inclusive_range8(second, 0xAD, 0xB7) {
-                        if second == 0xAD {
-                            if third > 0x8F {
+                    if in_inclusive_range8(second, 0xAC, 0xB7) {
+                        if second == 0xAC {
+                            if third > 0x9C {
                                 return true;
                             }
                         } else {
@@ -1083,11 +1085,13 @@ pub fn is_utf8_bidi(buffer: &[u8]) -> bool {
 /// right-to-left processing.
 ///
 /// The check is done on a Unicode block basis without regard to assigned
-/// vs. unassigned code points in the block. Additionally, the four
-/// RIGHT-TO-LEFT FOO controls in General Punctuation are checked for.
-/// Control characters that are technically bidi controls but do not cause
-/// right-to-left behavior without the presence of right-to-left characters
-/// or right-to-left controls are not checked for.
+/// vs. unassigned code points in the block. Hebrew presentation forms in
+/// the Alphabetic Presentation Forms block are treated as if they formed
+/// a block on their own (i.e. it treated as right-to-left). Additionally,
+/// the four RIGHT-TO-LEFT FOO controls in General Punctuation are checked
+/// for. Control characters that are technically bidi controls but do not
+/// cause right-to-left behavior without the presence of right-to-left
+/// characters or right-to-left controls are not checked for.
 #[inline]
 pub fn is_str_bidi(buffer: &str) -> bool {
     // U+058F: D6 8F
@@ -1100,8 +1104,8 @@ pub fn is_str_bidi(buffer: &str) -> bool {
     // U+202E: E2 80 AE
     // U+2067: E2 81 A7
     //
-    // U+FB4F: EF AD 8F
-    // U+FB50: EF AD 90
+    // U+FB1C: EF AC 9C
+    // U+FB1D: EF AC 9D
     // U+FDFF: EF B7 BF
     // U+FE00: EF B8 80
     //
@@ -1178,10 +1182,10 @@ pub fn is_str_bidi(buffer: &str) -> bool {
                             }
                         } else {
                             debug_assert_eq!(byte, 0xEF);
-                            if in_inclusive_range8(second, 0xAD, 0xB7) {
-                                if second == 0xAD {
+                            if in_inclusive_range8(second, 0xAC, 0xB7) {
+                                if second == 0xAC {
                                     let third = bytes[read + 2];
-                                    if third > 0x8F {
+                                    if third > 0x9C {
                                         return true;
                                     }
                                 } else {
@@ -1230,11 +1234,13 @@ pub fn is_str_bidi(buffer: &str) -> bool {
 /// right-to-left processing.
 ///
 /// The check is done on a Unicode block basis without regard to assigned
-/// vs. unassigned code points in the block. Additionally, the four
-/// RIGHT-TO-LEFT FOO controls in General Punctuation are checked for.
-/// Control characters that are technically bidi controls but do not cause
-/// right-to-left behavior without the presence of right-to-left characters
-/// or right-to-left controls are not checked for.
+/// vs. unassigned code points in the block. Hebrew presentation forms in
+/// the Alphabetic Presentation Forms block are treated as if they formed
+/// a block on their own (i.e. it treated as right-to-left). Additionally,
+/// the four RIGHT-TO-LEFT FOO controls in General Punctuation are checked
+/// for. Control characters that are technically bidi controls but do not
+/// cause right-to-left behavior without the presence of right-to-left
+/// characters or right-to-left controls are not checked for.
 ///
 /// Returns `true` if the input contains an RTL character or an unpaired
 /// high surrogate that could be the high half of an RTL character.
@@ -1248,11 +1254,13 @@ pub fn is_utf16_bidi(buffer: &[u16]) -> bool {
 /// Checks whether a code point triggers right-to-left processing.
 ///
 /// The check is done on a Unicode block basis without regard to assigned
-/// vs. unassigned code points in the block. Additionally, the four
-/// RIGHT-TO-LEFT FOO controls in General Punctuation are checked for.
-/// Control characters that are technically bidi controls but do not cause
-/// right-to-left behavior without the presence of right-to-left characters
-/// or right-to-left controls are not checked for.
+/// vs. unassigned code points in the block. Hebrew presentation forms in
+/// the Alphabetic Presentation Forms block are treated as if they formed
+/// a block on their own (i.e. it treated as right-to-left). Additionally,
+/// the four RIGHT-TO-LEFT FOO controls in General Punctuation are checked
+/// for. Control characters that are technically bidi controls but do not
+/// cause right-to-left behavior without the presence of right-to-left
+/// characters or right-to-left controls are not checked for.
 #[inline(always)]
 pub fn is_char_bidi(c: char) -> bool {
     // Controls:
@@ -1278,8 +1286,8 @@ pub fn is_char_bidi(c: char) -> bool {
         // Below Hebrew
         return false;
     }
-    if in_range32(code_point, 0x0900, 0xFB50) {
-        // Above Arabic Extended-A and below Arabic Presentation Forms
+    if in_range32(code_point, 0x0900, 0xFB1D) {
+        // Above Arabic Extended-A and below Hebrew presentation forms
         if in_inclusive_range32(code_point, 0x200F, 0x2067) {
             // In the range that contains the RTL controls
             return code_point == 0x200F
@@ -1312,11 +1320,13 @@ pub fn is_char_bidi(c: char) -> bool {
 /// Checks whether a UTF-16 code unit triggers right-to-left processing.
 ///
 /// The check is done on a Unicode block basis without regard to assigned
-/// vs. unassigned code points in the block. Additionally, the four
-/// RIGHT-TO-LEFT FOO controls in General Punctuation are checked for.
-/// Control characters that are technically bidi controls but do not cause
-/// right-to-left behavior without the presence of right-to-left characters
-/// or right-to-left controls are not checked for.
+/// vs. unassigned code points in the block. Hebrew presentation forms in
+/// the Alphabetic Presentation Forms block are treated as if they formed
+/// a block on their own (i.e. it treated as right-to-left). Additionally,
+/// the four RIGHT-TO-LEFT FOO controls in General Punctuation are checked
+/// for. Control characters that are technically bidi controls but do not
+/// cause right-to-left behavior without the presence of right-to-left
+/// characters or right-to-left controls are not checked for.
 ///
 /// Since supplementary-plane right-to-left blocks are identifiable from the
 /// high surrogate without examining the low surrogate, this function returns
@@ -1338,8 +1348,8 @@ pub fn is_utf16_code_unit_bidi(u: u16) -> bool {
         }
         return false;
     }
-    if in_range16(u, 0xD83C, 0xFB50) {
-        // Between astral RTL high surrogates and Arabic Presentation Forms
+    if in_range16(u, 0xD83C, 0xFB1D) {
+        // Between astral RTL high surrogates and Hebrew presentation forms
         // (Emoji is here)
         return false;
     }
@@ -2398,6 +2408,7 @@ mod tests {
         assert!(is_utf16_code_unit_bidi(0x0590));
         assert!(is_utf16_code_unit_bidi(0x08FF));
         assert!(is_utf16_code_unit_bidi(0x061C));
+        assert!(is_utf16_code_unit_bidi(0xFB1D));
         assert!(is_utf16_code_unit_bidi(0xFB50));
         assert!(is_utf16_code_unit_bidi(0xFDFF));
         assert!(is_utf16_code_unit_bidi(0xFE70));
@@ -2540,6 +2551,10 @@ mod tests {
         ]));
         assert!(is_utf16_bidi(&[
             0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69, 0x061C, 0x62, 0x63, 0x64, 0x65, 0x66,
+            0x67, 0x68, 0x69,
+        ]));
+        assert!(is_utf16_bidi(&[
+            0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69, 0xFB1D, 0x62, 0x63, 0x64, 0x65, 0x66,
             0x67, 0x68, 0x69,
         ]));
         assert!(is_utf16_bidi(&[
@@ -2840,6 +2855,13 @@ mod tests {
         );
         assert_eq!(
             check_utf16_for_latin1_and_bidi(&[
+                0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69, 0xFB1D, 0x62, 0x63, 0x64, 0x65,
+                0x66, 0x67, 0x68, 0x69,
+            ]),
+            Latin1Bidi::Bidi
+        );
+        assert_eq!(
+            check_utf16_for_latin1_and_bidi(&[
                 0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69, 0xFB50, 0x62, 0x63, 0x64, 0x65,
                 0x66, 0x67, 0x68, 0x69,
             ]),
@@ -2936,7 +2958,7 @@ mod tests {
     pub fn reference_is_char_bidi(c: char) -> bool {
         match c {
             '\u{0590}'...'\u{08FF}'
-            | '\u{FB50}'...'\u{FDFF}'
+            | '\u{FB1D}'...'\u{FDFF}'
             | '\u{FE70}'...'\u{FEFF}'
             | '\u{10800}'...'\u{10FFF}'
             | '\u{1E800}'...'\u{1EFFF}'
@@ -2952,7 +2974,7 @@ mod tests {
     pub fn reference_is_utf16_code_unit_bidi(u: u16) -> bool {
         match u {
             0x0590...0x08FF
-            | 0xFB50...0xFDFF
+            | 0xFB1D...0xFDFF
             | 0xFE70...0xFEFF
             | 0xD802
             | 0xD803
