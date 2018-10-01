@@ -510,6 +510,21 @@ level1_hanzi_pairs.sort(key=lambda x: x[0])
 static_u16_table_from_indexable("BIG5_LEVEL1_HANZI_CODE_POINTS", level1_hanzi_pairs, 0, "big5-hanzi-encode")
 static_u8_pair_table_from_indexable("BIG5_LEVEL1_HANZI_BYTES", level1_hanzi_pairs, 1, "big5-hanzi-encode")
 
+# Fast Unified Ideograph encode
+big5_unified_ideograph_bytes = [None] * (0x9FCC - 0x4E00)
+for row in xrange(0x7E - 0x20):
+  for column in xrange(157):
+    pointer = 5024 + column + (row * 157)
+    code_point = index[pointer]
+    if code_point and code_point >= 0x4E00 and code_point <= 0x9FCB:
+      unified_offset = code_point - 0x4E00
+      unified_lead = 0xA1 + row
+      unified_trail = (0x40 if column < 0x3F else 0x62) + column
+      if code_point == 0x5341 or code_point == 0x5345 or not big5_unified_ideograph_bytes[unified_offset]:
+        big5_unified_ideograph_bytes[unified_offset] = (unified_lead, unified_trail)
+
+static_u8_pair_table("BIG5_UNIFIED_IDEOGRAPH_BYTES", big5_unified_ideograph_bytes, "fast-big5-hanzi-encode")
+
 # JIS0208
 
 index = indexes["jis0208"]
