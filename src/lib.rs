@@ -664,7 +664,7 @@
 
 #![cfg_attr(
     feature = "simd-accel",
-    feature(cfg_target_feature, platform_intrinsics, core_intrinsics)
+    feature(platform_intrinsics, core_intrinsics)
 )]
 
 #[macro_use]

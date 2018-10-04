@@ -191,7 +191,7 @@ the version of Rust that's used for Firefox Nightly (currently 1.29.0).
 These are tested on Travis.
 
 Additionally, beta and the oldest known to work Rust version (currently
-1.25.0) are tested on Travis. The oldest Rust known to work is tested as
+1.29.0) are tested on Travis. The oldest Rust known to work is tested as
 a canary so that when the oldest known to work no longer works, the change
 can be documented here. At this time, there is no firm commitment to support
 a version older than what's required by Firefox. The oldest supported Rust
@@ -245,7 +245,8 @@ used in Firefox.
 
 ### 0.9.0
 
-* Changed minimum Rust requirement to 1.25.0 (for `#[repr(align())]`). (Semver
+* Changed minimum Rust requirement to 1.29.0 (for ability to refer to
+  the interior of a `static` when defining another `static`). (Semver
   breaking change.)
 
 ### 0.8.9
