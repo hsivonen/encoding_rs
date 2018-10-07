@@ -243,6 +243,11 @@ used in Firefox.
 
 ## Release Notes
 
+### 0.8.10
+
+* Disabled a unit test that tests a panic condition when the assertion
+  being tested is disabled.
+
 ### 0.8.9
 
 * Made `--features simd-accel` work with stable-channel compiler to
