@@ -2321,6 +2321,7 @@ mod tests {
         assert_eq!(dst, reference);
     }
 
+    #[cfg(all(debug_assertions, not(fuzzing)))]
     #[test]
     #[should_panic]
     fn test_convert_utf8_to_latin1_lossy_panics() {
