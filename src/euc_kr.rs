@@ -223,12 +223,12 @@ fn ksx1001_encode_misc(bmp: u16) -> Option<(usize, usize)> {
 
 #[cfg(not(feature = "fast-hangul-encode"))]
 #[inline(always)]
-fn ksx1001_encode_hangul(bmp: u16, _: u16) -> (usize, usize) {
+fn ksx1001_encode_hangul(bmp: u16, _: u16) -> (u8, u8) {
     match KSX1001_HANGUL.binary_search(&bmp) {
         Ok(ksx_hangul_pointer) => {
             let ksx_hangul_lead = (ksx_hangul_pointer / 94) + (0x81 + 0x2F);
             let ksx_hangul_trail = (ksx_hangul_pointer % 94) + 0xA1;
-            (ksx_hangul_lead, ksx_hangul_trail)
+            (ksx_hangul_lead as u8, ksx_hangul_trail as u8)
         }
         Err(_) => {
             let (lead, cp949_trail) = if bmp < 0xC8A5 {
@@ -236,13 +236,13 @@ fn ksx1001_encode_hangul(bmp: u16, _: u16) -> (usize, usize) {
                 let top_pointer = cp949_top_hangul_encode(bmp) as usize;
                 let top_lead = (top_pointer / (190 - 12)) + 0x81;
                 let top_trail = top_pointer % (190 - 12);
-                (top_lead, top_trail)
+                (top_lead as u8, top_trail as u8)
             } else {
                 // To the left of KS X 1001
                 let left_pointer = cp949_left_hangul_encode(bmp) as usize;
                 let left_lead = (left_pointer / (190 - 94 - 12)) + (0x81 + 0x20);
                 let left_trail = left_pointer % (190 - 94 - 12);
-                (left_lead, left_trail)
+                (left_lead as u8, left_trail as u8)
             };
             let offset = if cp949_trail >= (0x40 - 12) {
                 0x41 + 12
@@ -251,14 +251,14 @@ fn ksx1001_encode_hangul(bmp: u16, _: u16) -> (usize, usize) {
             } else {
                 0x41
             };
-            (lead, cp949_trail + offset)
+            (lead as u8, (cp949_trail + offset) as u8)
         }
     }
 }
 
 #[cfg(feature = "fast-hangul-encode")]
 #[inline(always)]
-fn ksx1001_encode_hangul(_: u16, bmp_minus_hangul_start: u16) -> (usize, usize) {
+fn ksx1001_encode_hangul(_: u16, bmp_minus_hangul_start: u16) -> (u8, u8) {
     cp949_hangul_encode(bmp_minus_hangul_start)
 }
 
@@ -299,7 +299,7 @@ impl EucKrEncoder {
                     if let Some(hanja_pointer) = position(&KSX1001_HANJA[..], bmp) {
                         let hanja_lead = (hanja_pointer / 94) + (0x81 + 0x49);
                         let hanja_trail = (hanja_pointer % 94) + 0xA1;
-                        (hanja_lead, hanja_trail)
+                        (hanja_lead as u8, hanja_trail as u8)
                     } else {
                         return (
                             EncoderResult::unmappable_from_bmp(bmp),
@@ -315,7 +315,7 @@ impl EucKrEncoder {
                     );
                 }
             } else if let Some((lead, trail)) = ksx1001_encode_misc(bmp) {
-                (lead, trail)
+                (lead as u8, trail as u8)
             } else {
                 return (
                     EncoderResult::unmappable_from_bmp(bmp),
@@ -323,7 +323,7 @@ impl EucKrEncoder {
                     handle.written(),
                 );
             };
-            handle.write_two(lead as u8, trail as u8)
+            handle.write_two(lead, trail)
         },
         bmp,
         self,

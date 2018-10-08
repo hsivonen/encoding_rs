@@ -92666,9 +92666,9 @@ pub fn cp949_left_hangul_encode(bmp: u16) -> u16 {
 
 #[cfg(feature = "fast-hangul-encode")]
 #[inline(always)]
-pub fn cp949_hangul_encode(bmp_minus_start: u16) -> (usize, usize) {
+pub fn cp949_hangul_encode(bmp_minus_start: u16) -> (u8, u8) {
     let pair = &CP949_HANGUL_BYTES[bmp_minus_start as usize];
-    (pair[0] as usize, pair[1] as usize)
+    (pair[0], pair[1])
 }
 
 #[inline(always)]
