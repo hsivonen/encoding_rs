@@ -239,7 +239,7 @@ used in Firefox.
 - [x] Investigate the use of NEON on 32-bit ARM.
 - [ ] Investigate Björn Höhrmann's lookup table acceleration for UTF-8 as
       adapted to Rust in rust-encoding.
-- [ ] Add actually fast CJK encode options.
+- [x] Add actually fast CJK encode options.
 
 ## Release Notes
 

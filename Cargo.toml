@@ -22,6 +22,7 @@ less-slow-gb-hanzi-encode = []
 fast-hangul-encode = []
 fast-kanji-encode = []
 fast-gb-hanzi-encode = []
+fast-big5-hanzi-encode = []
 
 [dependencies]
 cfg-if = "0.1.0"

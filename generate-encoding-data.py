@@ -1596,7 +1596,7 @@ pub fn big5_astral_encode(low_bits: u16) -> Option<usize> {
     }
 }
 
-#[cfg(not(feature = "less-slow-big5-hanzi-encode"))]
+#[cfg(not(any(feature = "less-slow-big5-hanzi-encode", feature = "fast-big5-hanzi-encode")))]
 #[inline(always)]
 pub fn big5_level1_hanzi_encode(bmp: u16) -> Option<(u8, u8)> {
     if super::in_inclusive_range16(bmp, 0x4E00, 0x9FB1) {
@@ -1634,7 +1634,7 @@ pub fn big5_level1_hanzi_encode(bmp: u16) -> Option<(u8, u8)> {
     None
 }
 
-#[cfg(feature = "less-slow-big5-hanzi-encode")]
+#[cfg(all(feature = "less-slow-big5-hanzi-encode", not(feature = "fast-big5-hanzi-encode")))]
 #[inline(always)]
 pub fn big5_level1_hanzi_encode(bmp: u16) -> Option<(u8, u8)> {
     if super::in_inclusive_range16(bmp, 0x4E00, 0x9FB1) {
@@ -1650,11 +1650,29 @@ pub fn big5_level1_hanzi_encode(bmp: u16) -> Option<(u8, u8)> {
     }
 }
 
+#[cfg(feature = "fast-big5-hanzi-encode")]
+#[inline(always)]
+pub fn big5_level1_hanzi_encode(bmp: u16) -> Option<(u8, u8)> {
+    let bmp_minus_ideograph_start = (bmp as usize).wrapping_sub(0x4E00);
+    if bmp_minus_ideograph_start < BIG5_UNIFIED_IDEOGRAPH_BYTES.len() {
+        let pair = &BIG5_UNIFIED_IDEOGRAPH_BYTES[bmp_minus_ideograph_start];
+        let lead = pair[0];
+        let trail = pair[1];
+        if lead == 0 && trail == 0 {
+            return None;
+        }
+        Some((lead, trail))
+    } else {
+        None
+    }
+}
+
 #[inline(always)]
 pub fn big5_box_encode(bmp: u16) -> Option<usize> {
     position(&BIG5_LOW_BITS[(18963 - 942)..(18992 - 942)], bmp).map(|x| x + 18963)
 }
 
+#[cfg(not(feature = "fast-big5-hanzi-encode"))]
 #[inline(always)]
 pub fn big5_other_encode(bmp: u16) -> Option<usize> {
     if 0x4491 == bmp {
@@ -1667,6 +1685,37 @@ pub fn big5_other_encode(bmp: u16) -> Option<usize> {
         return Some(pos + 10896);
     }
     if let Some(pos) = position(&BIG5_LOW_BITS[(11254 - 942)..(18963 - 942)], bmp) {
+        return Some(pos + 11254);
+    }
+    let mut i = 18996 - 942;
+    while i < BIG5_LOW_BITS.len() {
+        if BIG5_LOW_BITS[i] == bmp && !big5_is_astral(i) {
+            return Some(i + 942);
+        }
+        i += 1;
+    }
+    None
+}
+
+#[cfg(feature = "fast-big5-hanzi-encode")]
+#[inline(always)]
+pub fn big5_other_encode(bmp: u16) -> Option<usize> {
+    if 0x4491 == bmp {
+        return Some(11209);
+    }
+    if 0xFA0D == bmp {
+        return Some(14598);
+    }
+    if 0xFA0C == bmp {
+        return Some(11314);
+    }
+    if let Some(pos) = position(&BIG5_LOW_BITS[(5024 - 942)..(5466 - 942)], bmp) {
+        return Some(pos + 5024);
+    }
+    if let Some(pos) = position(&BIG5_LOW_BITS[(10896 - 942)..(11205 - 942)], bmp) {
+        return Some(pos + 10896);
+    }
+    if let Some(pos) = position(&BIG5_LOW_BITS[(11254 - 942)..(11304 - 942)], bmp) {
         return Some(pos + 11254);
     }
     let mut i = 18996 - 942;
