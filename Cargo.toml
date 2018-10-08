@@ -24,6 +24,11 @@ fast-hanja-encode = []
 fast-kanji-encode = []
 fast-gb-hanzi-encode = []
 fast-big5-hanzi-encode = []
+fast-legacy-encode = ["fast-hangul-encode",
+                      "fast-hanja-encode",
+                      "fast-kanji-encode",
+                      "fast-gb-hanzi-encode",
+                      "fast-big5-hanzi-encode"]
 
 [dependencies]
 cfg-if = "0.1.0"
