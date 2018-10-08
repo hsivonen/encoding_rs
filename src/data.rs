@@ -7,7 +7,7 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-// THIS IS A GENERATED FILE. PLEASE DO NOT EDIT.
+// BEGIN GENERATED CODE. PLEASE DO NOT EDIT.
 // Instead, please regenerate using generate-encoding-data.py
 
 #[repr(align(64))] // Align to cache lines
@@ -92539,6 +92539,8 @@ static GBK_HANZI_BYTES: [[u8; 2]; 20903] = [
     [0xFD, 0x9B],
     [0x00, 0x00],
 ];
+
+// END GENERATED CODE
 
 #[inline(always)]
 fn map_with_ranges(haystack: &[u16], other: &[u16], needle: u16) -> u16 {
