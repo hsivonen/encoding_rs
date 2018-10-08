@@ -851,18 +851,27 @@ static_u16_table("KSX1001_OTHER_POINTERS", pointers)
 # is unmapped, so we don't want to look at it.
 static_u16_table("KSX1001_OTHER_UNSORTED_OFFSETS", offsets[:-1])
 
-# Fast Hangul encode
+# Fast Hangul and Hanja encode
 hangul_bytes = [None] * (0xD7A4 - 0xAC00)
-for row in xrange(73):
+hanja_unified_bytes = [None] * (0x9F9D - 0x4E00)
+hanja_compatibility_bytes = [None] * (0xFA0C - 0xF900)
+for row in xrange(0x7D):
   for column in xrange(190):
     pointer = column + (row * 190)
     code_point = index[pointer]
-    if code_point and code_point >= 0xAC00 and code_point <= 0xD7A3:
-      hangul_lead = 0x81 + row
-      hangul_trail = 0x41 + column
-      hangul_bytes[code_point - 0xAC00] = (hangul_lead, hangul_trail)
+    if code_point:
+      lead = 0x81 + row
+      trail = 0x41 + column
+      if code_point >= 0xAC00 and code_point < 0xD7A4:
+        hangul_bytes[code_point - 0xAC00] = (lead, trail)
+      elif code_point >= 0x4E00 and code_point < 0x9F9D:
+        hanja_unified_bytes[code_point - 0x4E00] = (lead, trail)
+      elif code_point >= 0xF900 and code_point < 0xFA0C:
+        hanja_compatibility_bytes[code_point - 0xF900] = (lead, trail)
 
 static_u8_pair_table("CP949_HANGUL_BYTES", hangul_bytes, "fast-hangul-encode")
+static_u8_pair_table("KSX1001_UNIFIED_HANJA_BYTES", hanja_unified_bytes, "fast-hanja-encode")
+static_u8_pair_table("KSX1001_COMPATIBILITY_HANJA_BYTES", hanja_compatibility_bytes, "fast-hanja-encode")
 
 # JIS 0212
 

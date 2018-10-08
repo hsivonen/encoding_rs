@@ -262,6 +262,28 @@ fn ksx1001_encode_hangul(_: u16, bmp_minus_hangul_start: u16) -> (u8, u8) {
     cp949_hangul_encode(bmp_minus_hangul_start)
 }
 
+#[cfg(not(feature = "fast-hanja-encode"))]
+#[inline(always)]
+fn ksx1001_encode_hanja(bmp: u16) -> Option<(u8, u8)> {
+    if let Some(hanja_pointer) = position(&KSX1001_HANJA[..], bmp) {
+        let hanja_lead = (hanja_pointer / 94) + (0x81 + 0x49);
+        let hanja_trail = (hanja_pointer % 94) + 0xA1;
+        Some((hanja_lead as u8, hanja_trail as u8))
+    } else {
+        None
+    }
+}
+
+#[cfg(feature = "fast-hanja-encode")]
+#[inline(always)]
+fn ksx1001_encode_hanja(bmp: u16) -> Option<(u8, u8)> {
+    if bmp < 0xF900 {
+        ksx1001_unified_hangul_encode(bmp)
+    } else {
+        Some(ksx1001_compatibility_hangul_encode(bmp))
+    }
+}
+
 pub struct EucKrEncoder;
 
 impl EucKrEncoder {
@@ -296,10 +318,8 @@ impl EucKrEncoder {
                 // Narrow the range further to Unified and
                 // Compatibility ranges of Hanja.
                 if in_range16(bmp, 0x4E00, 0x9F9D) || in_range16(bmp, 0xF900, 0xFA0C) {
-                    if let Some(hanja_pointer) = position(&KSX1001_HANJA[..], bmp) {
-                        let hanja_lead = (hanja_pointer / 94) + (0x81 + 0x49);
-                        let hanja_trail = (hanja_pointer % 94) + 0xA1;
-                        (hanja_lead as u8, hanja_trail as u8)
+                    if let Some((hanja_lead, hanja_trail)) = ksx1001_encode_hanja(bmp) {
+                        (hanja_lead, hanja_trail)
                     } else {
                         return (
                             EncoderResult::unmappable_from_bmp(bmp),
