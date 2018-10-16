@@ -2846,6 +2846,20 @@ impl Encoding {
         !(self == REPLACEMENT || self == UTF_16BE || self == UTF_16LE || self == ISO_2022_JP)
     }
 
+    /// Checks whether this encoding maps one byte to one Basic Multilingual
+    /// Plane code point (i.e. byte length equals decoded UTF-16 length) and
+    /// vice versa (for mappable characters).
+    ///
+    /// `true` iff this encoding is on the list of [Legacy single-byte
+    /// encodings](https://encoding.spec.whatwg.org/#legacy-single-byte-encodings)
+    /// in the spec or x-user-defined.
+    ///
+    /// Available via the C wrapper.
+    #[inline]
+    pub fn is_single_byte(&'static self) -> bool {
+        self.variant.is_single_byte()
+    }
+
     /// Checks whether the bytes 0x00...0x7F map mostly to the characters
     /// U+0000...U+007F and vice versa.
     #[inline]
@@ -5635,4 +5649,48 @@ mod tests {
         assert_eq!(debincoded, demo);
     }
 
+    #[test]
+    fn test_is_single_byte() {
+        assert!(!BIG5.is_single_byte());
+        assert!(!EUC_JP.is_single_byte());
+        assert!(!EUC_KR.is_single_byte());
+        assert!(!GB18030.is_single_byte());
+        assert!(!GBK.is_single_byte());
+        assert!(!REPLACEMENT.is_single_byte());
+        assert!(!SHIFT_JIS.is_single_byte());
+        assert!(!UTF_8.is_single_byte());
+        assert!(!UTF_16BE.is_single_byte());
+        assert!(!UTF_16LE.is_single_byte());
+        assert!(!ISO_2022_JP.is_single_byte());
+
+        assert!(IBM866.is_single_byte());
+        assert!(ISO_8859_2.is_single_byte());
+        assert!(ISO_8859_3.is_single_byte());
+        assert!(ISO_8859_4.is_single_byte());
+        assert!(ISO_8859_5.is_single_byte());
+        assert!(ISO_8859_6.is_single_byte());
+        assert!(ISO_8859_7.is_single_byte());
+        assert!(ISO_8859_8.is_single_byte());
+        assert!(ISO_8859_10.is_single_byte());
+        assert!(ISO_8859_13.is_single_byte());
+        assert!(ISO_8859_14.is_single_byte());
+        assert!(ISO_8859_15.is_single_byte());
+        assert!(ISO_8859_16.is_single_byte());
+        assert!(ISO_8859_8_I.is_single_byte());
+        assert!(KOI8_R.is_single_byte());
+        assert!(KOI8_U.is_single_byte());
+        assert!(MACINTOSH.is_single_byte());
+        assert!(WINDOWS_874.is_single_byte());
+        assert!(WINDOWS_1250.is_single_byte());
+        assert!(WINDOWS_1251.is_single_byte());
+        assert!(WINDOWS_1252.is_single_byte());
+        assert!(WINDOWS_1253.is_single_byte());
+        assert!(WINDOWS_1254.is_single_byte());
+        assert!(WINDOWS_1255.is_single_byte());
+        assert!(WINDOWS_1256.is_single_byte());
+        assert!(WINDOWS_1257.is_single_byte());
+        assert!(WINDOWS_1258.is_single_byte());
+        assert!(X_MAC_CYRILLIC.is_single_byte());
+        assert!(X_USER_DEFINED.is_single_byte());
+    }
 }
