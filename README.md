@@ -187,15 +187,15 @@ A framework for measuring performance is [available separately][2].
 ## Rust Version Compatibility
 
 It is a goal to support the latest stable Rust, the latest nightly Rust and
-the version of Rust that's used for Firefox Nightly (currently 1.25.0).
+the version of Rust that's used for Firefox Nightly (currently 1.29.0).
 These are tested on Travis.
 
 Additionally, beta and the oldest known to work Rust version (currently
-1.21.0) are tested on Travis. The oldest Rust known to work is tested as
+1.29.0) are tested on Travis. The oldest Rust known to work is tested as
 a canary so that when the oldest known to work no longer works, the change
 can be documented here. At this time, there is no firm commitment to support
 a version older than what's required by Firefox. The oldest supported Rust
-is expected to move forward rapidly when `stdsimd` can replace the `simd`
+is expected to move forward rapidly when `packed_simd` can replace the `simd`
 crate without performance regression.
 
 ## Compatibility with rust-encoding
@@ -231,7 +231,7 @@ used in Firefox.
 - [ ] ~Parallelize UTF-8 validation using [Rayon](https://github.com/nikomatsakis/rayon).~
       (This turned out to be a pessimization in the ASCII case due to memory bandwidth reasons.)
 - [x] Provide an XPCOM/MFBT-flavored C++ API.
-- [ ] Investigate accelerating single-byte encode with a single fast-tracked
+- [x] Investigate accelerating single-byte encode with a single fast-tracked
       range per encoding.
 - [x] Replace uconv with encoding_rs in Gecko.
 - [x] Implement the rust-encoding API in terms of encoding_rs.
@@ -239,14 +239,22 @@ used in Firefox.
 - [x] Investigate the use of NEON on 32-bit ARM.
 - [ ] Investigate Björn Höhrmann's lookup table acceleration for UTF-8 as
       adapted to Rust in rust-encoding.
-- [ ] Add actually fast CJK encode options.
+- [x] Add actually fast CJK encode options.
 
 ## Release Notes
 
+<<<<<<< HEAD
 ### 0.8.10
 
 * Disabled a unit test that tests a panic condition when the assertion
   being tested is disabled.
+=======
+### 0.9.0
+
+* Changed minimum Rust requirement to 1.29.0 (for ability to refer to
+  the interior of a `static` when defining another `static`). (Semver
+  breaking change.)
+>>>>>>> fastcjkencode
 
 ### 0.8.9
 

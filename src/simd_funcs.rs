@@ -286,7 +286,7 @@ pub fn is_u16x8_bidi(s: u16x8) -> bool {
         | s.eq(u16x8::splat(0x202B))
         | s.eq(u16x8::splat(0x202E))
         | s.eq(u16x8::splat(0x2067)))
-        .any()
+    .any()
 }
 
 #[inline(always)]

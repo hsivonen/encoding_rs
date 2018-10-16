@@ -138,7 +138,10 @@ pub fn utf8_valid_up_to(bytes: &[u8]) -> usize {
     }
 }
 
-#[cfg_attr(feature = "cargo-clippy", allow(never_loop, cyclomatic_complexity))]
+#[cfg_attr(
+    feature = "cargo-clippy",
+    allow(never_loop, cyclomatic_complexity)
+)]
 pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usize, usize) {
     // This algorithm differs from the UTF-8 validation algorithm, but making
     // this one consistent with that one makes this slower for reasons I don't
@@ -683,7 +686,8 @@ impl Utf8Encoder {
                         unsafe {
                             *(dst.get_unchecked_mut(written)) = (unit >> 12) as u8 | 0xE0u8;
                             written += 1;
-                            *(dst.get_unchecked_mut(written)) = ((unit & 0xFC0) >> 6) as u8 | 0x80u8;
+                            *(dst.get_unchecked_mut(written)) =
+                                ((unit & 0xFC0) >> 6) as u8 | 0x80u8;
                             written += 1;
                             *(dst.get_unchecked_mut(written)) = (unit & 0x3F) as u8 | 0x80u8;
                             written += 1;
@@ -709,7 +713,8 @@ impl Utf8Encoder {
                         }
                         let second = src[read];
                         let second_minus_low_surrogate_start = second.wrapping_sub(0xDC00);
-                        if unsafe { likely(second_minus_low_surrogate_start <= (0xDFFF - 0xDC00)) } {
+                        if unsafe { likely(second_minus_low_surrogate_start <= (0xDFFF - 0xDC00)) }
+                        {
                             // The next code unit is a low surrogate. Advance position.
                             read += 1;
                             let astral = ((unit as u32) << 10) + second as u32
@@ -717,11 +722,14 @@ impl Utf8Encoder {
                             unsafe {
                                 *(dst.get_unchecked_mut(written)) = (astral >> 18) as u8 | 0xF0u8;
                                 written += 1;
-                                *(dst.get_unchecked_mut(written)) = ((astral & 0x3F000u32) >> 12) as u8 | 0x80u8;
+                                *(dst.get_unchecked_mut(written)) =
+                                    ((astral & 0x3F000u32) >> 12) as u8 | 0x80u8;
                                 written += 1;
-                                *(dst.get_unchecked_mut(written)) = ((astral & 0xFC0u32) >> 6) as u8 | 0x80u8;
+                                *(dst.get_unchecked_mut(written)) =
+                                    ((astral & 0xFC0u32) >> 6) as u8 | 0x80u8;
                                 written += 1;
-                                *(dst.get_unchecked_mut(written)) = (astral & 0x3Fu32) as u8 | 0x80u8;
+                                *(dst.get_unchecked_mut(written)) =
+                                    (astral & 0x3Fu32) as u8 | 0x80u8;
                                 written += 1;
                             }
                             break;

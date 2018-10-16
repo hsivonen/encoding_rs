@@ -84,7 +84,8 @@ macro_rules! by_unit_check_alu {
                 }
                 let src = buffer.as_ptr();
                 let mut until_alignment = ((ALU_ALIGNMENT - ((src as usize) & ALU_ALIGNMENT_MASK))
-                    & ALU_ALIGNMENT_MASK) / unit_size;
+                    & ALU_ALIGNMENT_MASK)
+                    / unit_size;
                 if until_alignment + ALU_ALIGNMENT / unit_size <= len {
                     if until_alignment != 0 {
                         accu |= buffer[offset] as usize;
@@ -103,18 +104,23 @@ macro_rules! by_unit_check_alu {
                     if offset + (4 * (ALU_ALIGNMENT / unit_size)) <= len {
                         let len_minus_unroll = len - (4 * (ALU_ALIGNMENT / unit_size));
                         loop {
-                            let unroll_accu = unsafe {
-                                *(src.offset(offset as isize) as *const usize)
-                            } | unsafe {
-                                *(src.offset((offset + (ALU_ALIGNMENT / unit_size)) as isize)
-                                    as *const usize)
-                            } | unsafe {
-                                *(src.offset((offset + (2 * (ALU_ALIGNMENT / unit_size))) as isize)
-                                    as *const usize)
-                            } | unsafe {
-                                *(src.offset((offset + (3 * (ALU_ALIGNMENT / unit_size))) as isize)
-                                    as *const usize)
-                            };
+                            let unroll_accu =
+                                unsafe { *(src.offset(offset as isize) as *const usize) }
+                                    | unsafe {
+                                        *(src
+                                            .offset((offset + (ALU_ALIGNMENT / unit_size)) as isize)
+                                            as *const usize)
+                                    }
+                                    | unsafe {
+                                        *(src.offset(
+                                            (offset + (2 * (ALU_ALIGNMENT / unit_size))) as isize,
+                                        ) as *const usize)
+                                    }
+                                    | unsafe {
+                                        *(src.offset(
+                                            (offset + (3 * (ALU_ALIGNMENT / unit_size))) as isize,
+                                        ) as *const usize)
+                                    };
                             if unroll_accu & $mask != 0 {
                                 return false;
                             }
@@ -154,8 +160,10 @@ macro_rules! by_unit_check_simd {
                     return false;
                 }
                 let src = buffer.as_ptr();
-                let mut until_alignment = ((SIMD_ALIGNMENT - ((src as usize) & SIMD_ALIGNMENT_MASK))
-                    & SIMD_ALIGNMENT_MASK) / unit_size;
+                let mut until_alignment = ((SIMD_ALIGNMENT
+                    - ((src as usize) & SIMD_ALIGNMENT_MASK))
+                    & SIMD_ALIGNMENT_MASK)
+                    / unit_size;
                 if until_alignment + SIMD_STRIDE_SIZE / unit_size <= len {
                     if until_alignment != 0 {
                         accu |= buffer[offset] as usize;
@@ -174,20 +182,25 @@ macro_rules! by_unit_check_simd {
                     if offset + (4 * (SIMD_STRIDE_SIZE / unit_size)) <= len {
                         let len_minus_unroll = len - (4 * (SIMD_STRIDE_SIZE / unit_size));
                         loop {
-                            let unroll_accu = unsafe {
-                                *(src.offset(offset as isize) as *const $simd_ty)
-                            } | unsafe {
-                                *(src.offset((offset + (SIMD_STRIDE_SIZE / unit_size)) as isize)
-                                    as *const $simd_ty)
-                            } | unsafe {
-                                *(src.offset(
-                                    (offset + (2 * (SIMD_STRIDE_SIZE / unit_size))) as isize,
-                                ) as *const $simd_ty)
-                            } | unsafe {
-                                *(src.offset(
-                                    (offset + (3 * (SIMD_STRIDE_SIZE / unit_size))) as isize,
-                                ) as *const $simd_ty)
-                            };
+                            let unroll_accu =
+                                unsafe { *(src.offset(offset as isize) as *const $simd_ty) }
+                                    | unsafe {
+                                        *(src.offset(
+                                            (offset + (SIMD_STRIDE_SIZE / unit_size)) as isize,
+                                        ) as *const $simd_ty)
+                                    }
+                                    | unsafe {
+                                        *(src.offset(
+                                            (offset + (2 * (SIMD_STRIDE_SIZE / unit_size)))
+                                                as isize,
+                                        ) as *const $simd_ty)
+                                    }
+                                    | unsafe {
+                                        *(src.offset(
+                                            (offset + (3 * (SIMD_STRIDE_SIZE / unit_size)))
+                                                as isize,
+                                        ) as *const $simd_ty)
+                                    };
                             if !$func(unroll_accu) {
                                 return false;
                             }

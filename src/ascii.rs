@@ -21,16 +21,14 @@
 // on Raspberry Pi 3 measurements. The UTF-16 and UTF-8 ALU cases take
 // different approaches based on benchmarking on Raspberry Pi 3.
 
-#[cfg(
-    all(
-        feature = "simd-accel",
-        any(
-            target_feature = "sse2",
-            all(target_endian = "little", target_arch = "aarch64"),
-            all(target_endian = "little", target_feature = "neon")
-        )
+#[cfg(all(
+    feature = "simd-accel",
+    any(
+        target_feature = "sse2",
+        all(target_endian = "little", target_arch = "aarch64"),
+        all(target_endian = "little", target_feature = "neon")
     )
-)]
+))]
 use simd_funcs::*;
 
 // `as` truncates, so works on 32-bit, too.
@@ -69,83 +67,90 @@ macro_rules! ascii_alu {
     ($name:ident,
      $src_unit:ty,
      $dst_unit:ty,
-     $stride_fn:ident) => (
-    #[cfg_attr(feature = "cargo-clippy", allow(never_loop))]
-    #[inline(always)]
-    pub unsafe fn $name(src: *const $src_unit, dst: *mut $dst_unit, len: usize) -> Option<($src_unit, usize)> {
-        let mut offset = 0usize;
-        // This loop is only broken out of as a `goto` forward
-        loop {
-            let mut until_alignment = {
-                // Check if the other unit aligns if we move the narrower unit
-                // to alignment.
-                //               if ::std::mem::size_of::<$src_unit>() == ::std::mem::size_of::<$dst_unit>() {
-                // ascii_to_ascii
-                let src_alignment = (src as usize) & ALU_ALIGNMENT_MASK;
-                let dst_alignment = (dst as usize) & ALU_ALIGNMENT_MASK;
-                if src_alignment != dst_alignment {
-                    break;
-                }
-                (ALU_ALIGNMENT - src_alignment) & ALU_ALIGNMENT_MASK
-                //               } else if ::std::mem::size_of::<$src_unit>() < ::std::mem::size_of::<$dst_unit>() {
-                // ascii_to_basic_latin
-                //                   let src_until_alignment = (ALIGNMENT - ((src as usize) & ALIGNMENT_MASK)) & ALIGNMENT_MASK;
-                //                   if (dst.offset(src_until_alignment as isize) as usize) & ALIGNMENT_MASK != 0 {
-                //                       break;
-                //                   }
-                //                   src_until_alignment
-                //               } else {
-                // basic_latin_to_ascii
-                //                   let dst_until_alignment = (ALIGNMENT - ((dst as usize) & ALIGNMENT_MASK)) & ALIGNMENT_MASK;
-                //                   if (src.offset(dst_until_alignment as isize) as usize) & ALIGNMENT_MASK != 0 {
-                //                       break;
-                //                   }
-                //                   dst_until_alignment
-                //               }
-            };
-            if until_alignment + ALU_STRIDE_SIZE <= len {
-                // Moving pointers to alignment seems to be a pessimization on
-                // x86_64 for operations that have UTF-16 as the internal
-                // Unicode representation. However, since it seems to be a win
-                // on ARM (tested ARMv7 code running on ARMv8 [rpi3]), except
-                // mixed results when encoding from UTF-16 and since x86 and
-                // x86_64 should be using SSE2 in due course, keeping the move
-                // to alignment here. It would be good to test on more ARM CPUs
-                // and on real MIPS and POWER hardware.
-                while until_alignment != 0 {
-                    let code_unit = *(src.offset(offset as isize));
-                    if code_unit > 127 {
-                        return Some((code_unit, offset));
-                    }
-                    *(dst.offset(offset as isize)) = code_unit as $dst_unit;
-                    offset += 1;
-                    until_alignment -= 1;
-                }
-                let len_minus_stride = len - ALU_STRIDE_SIZE;
-                loop {
-                    if let Some(num_ascii) = $stride_fn(src.offset(offset as isize) as *const usize,
-                                   dst.offset(offset as isize) as *mut usize) {
-                        offset += num_ascii;
-                        return Some((*(src.offset(offset as isize)), offset));
-                    }
-                    offset += ALU_STRIDE_SIZE;
-                    if offset > len_minus_stride {
+     $stride_fn:ident) => {
+        #[cfg_attr(feature = "cargo-clippy", allow(never_loop))]
+        #[inline(always)]
+        pub unsafe fn $name(
+            src: *const $src_unit,
+            dst: *mut $dst_unit,
+            len: usize,
+        ) -> Option<($src_unit, usize)> {
+            let mut offset = 0usize;
+            // This loop is only broken out of as a `goto` forward
+            loop {
+                let mut until_alignment = {
+                    // Check if the other unit aligns if we move the narrower unit
+                    // to alignment.
+                    //               if ::std::mem::size_of::<$src_unit>() == ::std::mem::size_of::<$dst_unit>() {
+                    // ascii_to_ascii
+                    let src_alignment = (src as usize) & ALU_ALIGNMENT_MASK;
+                    let dst_alignment = (dst as usize) & ALU_ALIGNMENT_MASK;
+                    if src_alignment != dst_alignment {
                         break;
                     }
+                    (ALU_ALIGNMENT - src_alignment) & ALU_ALIGNMENT_MASK
+                    //               } else if ::std::mem::size_of::<$src_unit>() < ::std::mem::size_of::<$dst_unit>() {
+                    // ascii_to_basic_latin
+                    //                   let src_until_alignment = (ALIGNMENT - ((src as usize) & ALIGNMENT_MASK)) & ALIGNMENT_MASK;
+                    //                   if (dst.offset(src_until_alignment as isize) as usize) & ALIGNMENT_MASK != 0 {
+                    //                       break;
+                    //                   }
+                    //                   src_until_alignment
+                    //               } else {
+                    // basic_latin_to_ascii
+                    //                   let dst_until_alignment = (ALIGNMENT - ((dst as usize) & ALIGNMENT_MASK)) & ALIGNMENT_MASK;
+                    //                   if (src.offset(dst_until_alignment as isize) as usize) & ALIGNMENT_MASK != 0 {
+                    //                       break;
+                    //                   }
+                    //                   dst_until_alignment
+                    //               }
+                };
+                if until_alignment + ALU_STRIDE_SIZE <= len {
+                    // Moving pointers to alignment seems to be a pessimization on
+                    // x86_64 for operations that have UTF-16 as the internal
+                    // Unicode representation. However, since it seems to be a win
+                    // on ARM (tested ARMv7 code running on ARMv8 [rpi3]), except
+                    // mixed results when encoding from UTF-16 and since x86 and
+                    // x86_64 should be using SSE2 in due course, keeping the move
+                    // to alignment here. It would be good to test on more ARM CPUs
+                    // and on real MIPS and POWER hardware.
+                    while until_alignment != 0 {
+                        let code_unit = *(src.offset(offset as isize));
+                        if code_unit > 127 {
+                            return Some((code_unit, offset));
+                        }
+                        *(dst.offset(offset as isize)) = code_unit as $dst_unit;
+                        offset += 1;
+                        until_alignment -= 1;
+                    }
+                    let len_minus_stride = len - ALU_STRIDE_SIZE;
+                    loop {
+                        if let Some(num_ascii) = $stride_fn(
+                            src.offset(offset as isize) as *const usize,
+                            dst.offset(offset as isize) as *mut usize,
+                        ) {
+                            offset += num_ascii;
+                            return Some((*(src.offset(offset as isize)), offset));
+                        }
+                        offset += ALU_STRIDE_SIZE;
+                        if offset > len_minus_stride {
+                            break;
+                        }
+                    }
                 }
+                break;
             }
-            break;
-        }
-        while offset < len {
-            let code_unit = *(src.offset(offset as isize));
-            if code_unit > 127 {
-                return Some((code_unit, offset));
+            while offset < len {
+                let code_unit = *(src.offset(offset as isize));
+                if code_unit > 127 {
+                    return Some((code_unit, offset));
+                }
+                *(dst.offset(offset as isize)) = code_unit as $dst_unit;
+                offset += 1;
             }
-            *(dst.offset(offset as isize)) = code_unit as $dst_unit;
-            offset += 1;
+            None
         }
-        None
-    });
+    };
 }
 
 #[allow(unused_macros)]
@@ -153,83 +158,98 @@ macro_rules! basic_latin_alu {
     ($name:ident,
      $src_unit:ty,
      $dst_unit:ty,
-     $stride_fn:ident) => (
-    #[cfg_attr(feature = "cargo-clippy", allow(never_loop))]
-    #[inline(always)]
-    pub unsafe fn $name(src: *const $src_unit, dst: *mut $dst_unit, len: usize) -> Option<($src_unit, usize)> {
-        let mut offset = 0usize;
-        // This loop is only broken out of as a `goto` forward
-        loop {
-            let mut until_alignment = {
-                // Check if the other unit aligns if we move the narrower unit
-                // to alignment.
-                //               if ::std::mem::size_of::<$src_unit>() == ::std::mem::size_of::<$dst_unit>() {
-                // ascii_to_ascii
-                //                   let src_alignment = (src as usize) & ALIGNMENT_MASK;
-                //                   let dst_alignment = (dst as usize) & ALIGNMENT_MASK;
-                //                   if src_alignment != dst_alignment {
-                //                       break;
-                //                   }
-                //                   (ALIGNMENT - src_alignment) & ALIGNMENT_MASK
-                //               } else
-                if ::std::mem::size_of::<$src_unit>() < ::std::mem::size_of::<$dst_unit>() {
-                    // ascii_to_basic_latin
-                    let src_until_alignment = (ALU_ALIGNMENT - ((src as usize) & ALU_ALIGNMENT_MASK)) & ALU_ALIGNMENT_MASK;
-                    if (dst.offset(src_until_alignment as isize) as usize) & ALU_ALIGNMENT_MASK != 0 {
-                        break;
+     $stride_fn:ident) => {
+        #[cfg_attr(feature = "cargo-clippy", allow(never_loop))]
+        #[inline(always)]
+        pub unsafe fn $name(
+            src: *const $src_unit,
+            dst: *mut $dst_unit,
+            len: usize,
+        ) -> Option<($src_unit, usize)> {
+            let mut offset = 0usize;
+            // This loop is only broken out of as a `goto` forward
+            loop {
+                let mut until_alignment = {
+                    // Check if the other unit aligns if we move the narrower unit
+                    // to alignment.
+                    //               if ::std::mem::size_of::<$src_unit>() == ::std::mem::size_of::<$dst_unit>() {
+                    // ascii_to_ascii
+                    //                   let src_alignment = (src as usize) & ALIGNMENT_MASK;
+                    //                   let dst_alignment = (dst as usize) & ALIGNMENT_MASK;
+                    //                   if src_alignment != dst_alignment {
+                    //                       break;
+                    //                   }
+                    //                   (ALIGNMENT - src_alignment) & ALIGNMENT_MASK
+                    //               } else
+                    if ::std::mem::size_of::<$src_unit>() < ::std::mem::size_of::<$dst_unit>() {
+                        // ascii_to_basic_latin
+                        let src_until_alignment = (ALU_ALIGNMENT
+                            - ((src as usize) & ALU_ALIGNMENT_MASK))
+                            & ALU_ALIGNMENT_MASK;
+                        if (dst.offset(src_until_alignment as isize) as usize) & ALU_ALIGNMENT_MASK
+                            != 0
+                        {
+                            break;
+                        }
+                        src_until_alignment
+                    } else {
+                        // basic_latin_to_ascii
+                        let dst_until_alignment = (ALU_ALIGNMENT
+                            - ((dst as usize) & ALU_ALIGNMENT_MASK))
+                            & ALU_ALIGNMENT_MASK;
+                        if (src.offset(dst_until_alignment as isize) as usize) & ALU_ALIGNMENT_MASK
+                            != 0
+                        {
+                            break;
+                        }
+                        dst_until_alignment
                     }
-                    src_until_alignment
-                } else {
-                    // basic_latin_to_ascii
-                    let dst_until_alignment = (ALU_ALIGNMENT - ((dst as usize) & ALU_ALIGNMENT_MASK)) & ALU_ALIGNMENT_MASK;
-                    if (src.offset(dst_until_alignment as isize) as usize) & ALU_ALIGNMENT_MASK != 0 {
-                        break;
+                };
+                if until_alignment + ALU_STRIDE_SIZE <= len {
+                    // Moving pointers to alignment seems to be a pessimization on
+                    // x86_64 for operations that have UTF-16 as the internal
+                    // Unicode representation. However, since it seems to be a win
+                    // on ARM (tested ARMv7 code running on ARMv8 [rpi3]), except
+                    // mixed results when encoding from UTF-16 and since x86 and
+                    // x86_64 should be using SSE2 in due course, keeping the move
+                    // to alignment here. It would be good to test on more ARM CPUs
+                    // and on real MIPS and POWER hardware.
+                    while until_alignment != 0 {
+                        let code_unit = *(src.offset(offset as isize));
+                        if code_unit > 127 {
+                            return Some((code_unit, offset));
+                        }
+                        *(dst.offset(offset as isize)) = code_unit as $dst_unit;
+                        offset += 1;
+                        until_alignment -= 1;
                     }
-                    dst_until_alignment
+                    let len_minus_stride = len - ALU_STRIDE_SIZE;
+                    loop {
+                        if !$stride_fn(
+                            src.offset(offset as isize) as *const usize,
+                            dst.offset(offset as isize) as *mut usize,
+                        ) {
+                            break;
+                        }
+                        offset += ALU_STRIDE_SIZE;
+                        if offset > len_minus_stride {
+                            break;
+                        }
+                    }
                 }
-            };
-            if until_alignment + ALU_STRIDE_SIZE <= len {
-                // Moving pointers to alignment seems to be a pessimization on
-                // x86_64 for operations that have UTF-16 as the internal
-                // Unicode representation. However, since it seems to be a win
-                // on ARM (tested ARMv7 code running on ARMv8 [rpi3]), except
-                // mixed results when encoding from UTF-16 and since x86 and
-                // x86_64 should be using SSE2 in due course, keeping the move
-                // to alignment here. It would be good to test on more ARM CPUs
-                // and on real MIPS and POWER hardware.
-                while until_alignment != 0 {
-                    let code_unit = *(src.offset(offset as isize));
-                    if code_unit > 127 {
-                        return Some((code_unit, offset));
-                    }
-                    *(dst.offset(offset as isize)) = code_unit as $dst_unit;
-                    offset += 1;
-                    until_alignment -= 1;
-                }
-                let len_minus_stride = len - ALU_STRIDE_SIZE;
-                loop {
-                    if !$stride_fn(src.offset(offset as isize) as *const usize,
-                                   dst.offset(offset as isize) as *mut usize) {
-                        break;
-                    }
-                    offset += ALU_STRIDE_SIZE;
-                    if offset > len_minus_stride {
-                        break;
-                    }
-                }
+                break;
             }
-            break;
-        }
-        while offset < len {
-            let code_unit = *(src.offset(offset as isize));
-            if code_unit > 127 {
-                return Some((code_unit, offset));
+            while offset < len {
+                let code_unit = *(src.offset(offset as isize));
+                if code_unit > 127 {
+                    return Some((code_unit, offset));
+                }
+                *(dst.offset(offset as isize)) = code_unit as $dst_unit;
+                offset += 1;
             }
-            *(dst.offset(offset as isize)) = code_unit as $dst_unit;
-            offset += 1;
+            None
         }
-        None
-    });
+    };
 }
 
 #[allow(unused_macros)]
@@ -485,8 +505,10 @@ macro_rules! latin1_simd_check_align_unrolled {
             let unit_size = ::std::mem::size_of::<$src_unit>();
             let mut offset = 0usize;
             if SIMD_STRIDE_SIZE <= len {
-                let mut until_alignment = ((SIMD_STRIDE_SIZE - ((src as usize) & SIMD_ALIGNMENT_MASK))
-                    & SIMD_ALIGNMENT_MASK) / unit_size;
+                let mut until_alignment = ((SIMD_STRIDE_SIZE
+                    - ((src as usize) & SIMD_ALIGNMENT_MASK))
+                    & SIMD_ALIGNMENT_MASK)
+                    / unit_size;
                 while until_alignment != 0 {
                     *(dst.offset(offset as isize)) = *(src.offset(offset as isize)) as $dst_unit;
                     offset += 1;
@@ -530,10 +552,7 @@ macro_rules! latin1_simd_check_align_unrolled {
                     }
                 }
                 if offset < len_minus_stride {
-                    $stride_src_aligned(
-                        src.offset(offset as isize),
-                        dst.offset(offset as isize),
-                    );
+                    $stride_src_aligned(src.offset(offset as isize), dst.offset(offset as isize));
                     offset += SIMD_STRIDE_SIZE;
                 }
             }

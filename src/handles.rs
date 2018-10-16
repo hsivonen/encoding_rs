@@ -16,28 +16,24 @@
 //! the plan is to replace the internals with unsafe code that omits the
 //! bound check at the read/write time.
 
-#[cfg(
-    all(
-        feature = "simd-accel",
-        any(
-            target_feature = "sse2",
-            all(target_endian = "little", target_arch = "aarch64"),
-            all(target_endian = "little", target_feature = "neon")
-        )
+#[cfg(all(
+    feature = "simd-accel",
+    any(
+        target_feature = "sse2",
+        all(target_endian = "little", target_arch = "aarch64"),
+        all(target_endian = "little", target_feature = "neon")
     )
-)]
+))]
 use simd_funcs::*;
 
-#[cfg(
-    all(
-        feature = "simd-accel",
-        any(
-            target_feature = "sse2",
-            all(target_endian = "little", target_arch = "aarch64"),
-            all(target_endian = "little", target_feature = "neon")
-        )
+#[cfg(all(
+    feature = "simd-accel",
+    any(
+        target_feature = "sse2",
+        all(target_endian = "little", target_arch = "aarch64"),
+        all(target_endian = "little", target_feature = "neon")
     )
-)]
+))]
 use simd::u16x8;
 
 use super::DecoderResult;
