@@ -356,6 +356,32 @@ impl Iso2022JpDecoder {
     );
 }
 
+#[cfg(feature = "fast-kanji-encode")]
+#[inline(always)]
+fn is_kanji_mapped(bmp: u16) -> bool {
+    // Use the shift_jis variant, because we don't care about the
+    // byte values here.
+    jis0208_kanji_shift_jis_encode(bmp).is_some()
+}
+
+#[cfg(not(feature = "fast-kanji-encode"))]
+#[inline(always)]
+fn is_kanji_mapped(bmp: u16) -> bool {
+    if 0x4EDD == bmp {
+        true
+    } else if let Some(_) = jis0208_level1_kanji_shift_jis_encode(bmp) {
+        // Use the shift_jis variant, because we don't care about the
+        // byte values here.
+        true
+    } else if let Some(_) = jis0208_level2_and_additional_kanji_encode(bmp) {
+        true
+    } else if let Some(_) = position(&IBM_KANJI[..], bmp) {
+        true
+    } else {
+        false
+    }
+}
+
 #[cfg_attr(
     feature = "cargo-clippy",
     allow(if_let_redundant_pattern_matching, if_same_then_else)
@@ -368,19 +394,7 @@ fn is_mapped_for_two_byte_encode(bmp: u16) -> bool {
     if bmp_minus_hiragana < 0x53 {
         true
     } else if in_inclusive_range16(bmp, 0x4E00, 0x9FA0) {
-        if 0x4EDD == bmp {
-            true
-        } else if let Some(_) = jis0208_level1_kanji_shift_jis_encode(bmp) {
-            // Use the shift_jis variant, because we don't care about the
-            // byte values here.
-            true
-        } else if let Some(_) = jis0208_level2_and_additional_kanji_encode(bmp) {
-            true
-        } else if let Some(_) = position(&IBM_KANJI[..], bmp) {
-            true
-        } else {
-            false
-        }
+        is_kanji_mapped(bmp)
     } else {
         let bmp_minus_katakana = bmp.wrapping_sub(0x30A1);
         if bmp_minus_katakana < 0x56 {
@@ -406,6 +420,33 @@ fn is_mapped_for_two_byte_encode(bmp: u16) -> bool {
                 false
             }
         }
+    }
+}
+
+#[cfg(feature = "fast-kanji-encode")]
+#[inline(always)]
+fn encode_kanji(bmp: u16) -> Option<(u8, u8)> {
+    jis0208_kanji_iso_2022_jp_encode(bmp)
+}
+
+#[cfg(not(feature = "fast-kanji-encode"))]
+#[inline(always)]
+fn encode_kanji(bmp: u16) -> Option<(u8, u8)> {
+    if 0x4EDD == bmp {
+        // Ideograph on the symbol row!
+        Some((0x21, 0xB8 - 0x80))
+    } else if let Some((lead, trail)) = jis0208_level1_kanji_iso_2022_jp_encode(bmp) {
+        Some((lead, trail))
+    } else if let Some(pos) = jis0208_level2_and_additional_kanji_encode(bmp) {
+        let lead = (pos / 94) + (0xD0 - 0x80);
+        let trail = (pos % 94) + 0x21;
+        Some((lead as u8, trail as u8))
+    } else if let Some(pos) = position(&IBM_KANJI[..], bmp) {
+        let lead = (pos / 94) + (0xF9 - 0x80);
+        let trail = (pos % 94) + 0x21;
+        Some((lead as u8, trail as u8))
+    } else {
+        None
     }
 }
 
@@ -608,24 +649,8 @@ impl Iso2022JpEncoder {
                         handle.write_two(0x24, 0x21 + bmp_minus_hiragana as u8);
                         continue;
                     } else if in_inclusive_range16(bmp, 0x4E00, 0x9FA0) {
-                        if 0x4EDD == bmp {
-                            // Ideograph on the symbol row!
-                            handle.write_two(0x21, 0xB8 - 0x80);
-                            continue;
-                        } else if let Some((lead, trail)) =
-                            jis0208_level1_kanji_iso_2022_jp_encode(bmp)
-                        {
+                        if let Some((lead, trail)) = encode_kanji(bmp) {
                             handle.write_two(lead, trail);
-                            continue;
-                        } else if let Some(pos) = jis0208_level2_and_additional_kanji_encode(bmp) {
-                            let lead = (pos / 94) + (0xD0 - 0x80);
-                            let trail = (pos % 94) + 0x21;
-                            handle.write_two(lead as u8, trail as u8);
-                            continue;
-                        } else if let Some(pos) = position(&IBM_KANJI[..], bmp) {
-                            let lead = (pos / 94) + (0xF9 - 0x80);
-                            let trail = (pos % 94) + 0x21;
-                            handle.write_two(lead as u8, trail as u8);
                             continue;
                         } else {
                             self.state = Iso2022JpEncoderState::Ascii;

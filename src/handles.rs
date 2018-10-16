@@ -34,6 +34,7 @@ use simd_funcs::*;
         all(target_endian = "little", target_feature = "neon")
     )
 ))]
+
 use packed_simd::u16x8;
 
 use super::DecoderResult;
@@ -267,6 +268,9 @@ fn convert_unaligned_utf16_to_utf8<E: Endian>(
     src: UnalignedU16Slice,
     dst: &mut [u8],
 ) -> (usize, usize, bool) {
+    if dst.len() < 4 {
+        return (0, 0, false);
+    }
     let mut src_pos = 0usize;
     let mut dst_pos = 0usize;
     let src_len = src.len();

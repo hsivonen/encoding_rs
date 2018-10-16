@@ -167,6 +167,35 @@ impl ShiftJisDecoder {
         false);
 }
 
+#[cfg(feature = "fast-kanji-encode")]
+#[inline(always)]
+fn encode_kanji(bmp: u16) -> Option<(u8, u8)> {
+    jis0208_kanji_shift_jis_encode(bmp)
+}
+
+#[cfg(not(feature = "fast-kanji-encode"))]
+#[inline(always)]
+fn encode_kanji(bmp: u16) -> Option<(u8, u8)> {
+    if let Some((lead, trail)) = jis0208_level1_kanji_shift_jis_encode(bmp) {
+        return Some((lead, trail));
+    }
+    let pointer = if 0x4EDD == bmp {
+        // Ideograph on the symbol row!
+        23
+    } else if let Some(pos) = jis0208_level2_and_additional_kanji_encode(bmp) {
+        4418 + pos
+    } else if let Some(pos) = position(&IBM_KANJI[..], bmp) {
+        10744 + pos
+    } else {
+        return None;
+    };
+    let lead = pointer / 188;
+    let lead_offset = if lead < 0x1F { 0x81usize } else { 0xC1usize };
+    let trail = pointer % 188;
+    let trail_offset = if trail < 0x3F { 0x40usize } else { 0x41usize };
+    Some(((lead + lead_offset) as u8, (trail + trail_offset) as u8))
+}
+
 pub struct ShiftJisEncoder;
 
 impl ShiftJisEncoder {
@@ -195,28 +224,14 @@ impl ShiftJisEncoder {
             if bmp_minus_hiragana < 0x53 {
                 handle.write_two(0x82, 0x9F + bmp_minus_hiragana as u8)
             } else if in_inclusive_range16(bmp, 0x4E00, 0x9FA0) {
-                if let Some((lead, trail)) = jis0208_level1_kanji_shift_jis_encode(bmp) {
+                if let Some((lead, trail)) = encode_kanji(bmp) {
                     handle.write_two(lead, trail)
                 } else {
-                    let pointer = if 0x4EDD == bmp {
-                        // Ideograph on the symbol row!
-                        23
-                    } else if let Some(pos) = jis0208_level2_and_additional_kanji_encode(bmp) {
-                        4418 + pos
-                    } else if let Some(pos) = position(&IBM_KANJI[..], bmp) {
-                        10744 + pos
-                    } else {
-                        return (
-                            EncoderResult::unmappable_from_bmp(bmp),
-                            source.consumed(),
-                            handle.written(),
-                        );
-                    };
-                    let lead = pointer / 188;
-                    let lead_offset = if lead < 0x1F { 0x81usize } else { 0xC1usize };
-                    let trail = pointer % 188;
-                    let trail_offset = if trail < 0x3F { 0x40usize } else { 0x41usize };
-                    handle.write_two((lead + lead_offset) as u8, (trail + trail_offset) as u8)
+                    return (
+                        EncoderResult::unmappable_from_bmp(bmp),
+                        source.consumed(),
+                        handle.written(),
+                    );
                 }
             } else {
                 let bmp_minus_katakana = bmp.wrapping_sub(0x30A1);
