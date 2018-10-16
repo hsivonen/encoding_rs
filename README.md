@@ -361,9 +361,9 @@ used in Firefox.
   The change was performance-neutral for non-Latin1-ish Latin legacy
   encodings, improved Latin1-ish and Arabic legacy encode speed
   somewhat (new speed is 2.4x the old speed for German, 2.3x for
-  Arabic, 1.7x for Portuguese and 1.4x for French) and non-Latin1,
-  non-Arabic legacy single-byte encode a lot (7.2x for Thai, 6x for
-  Greek, 5x for Russian, 4x for Hebrew).
+  Arabic, 1.7x for Portuguese and 1.4x for French) and improved
+  non-Latin1, non-Arabic legacy single-byte encode a lot (7.2x for
+  Thai, 6x for Greek, 5x for Russian, 4x for Hebrew).
 * Added compile-time options for fast CJK legacy encode options (at
   the cost of binary size (up to 176 KB) and run-time memory usage).
   These options still retain the overall code structure instead of
