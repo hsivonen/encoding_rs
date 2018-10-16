@@ -313,6 +313,19 @@ encoding_rs is
 written with the assuption that Firefox would need it, but it is not currently
 used in Firefox.
 
+## Regenerating Generated Code
+
+To regenerate the generated code:
+
+ * Have Python 2 installed.
+ * Clone [`https://github.com/hsivonen/encoding_c`](https://github.com/hsivonen/encoding_c)
+   next to the `encoding_rs` directory.
+ * Clone [`https://github.com/whatwg/encoding`](https://github.com/whatwg/encoding)
+   next to the `encoding_rs` directory.
+ * Checkout revision `f381389` of the `encoding` repo.
+ * With the `encoding_rs` directory as the working directory, run
+   `python generate-encoding-data.py`.
+
 ## Roadmap
 
 - [x] Design the low-level API.

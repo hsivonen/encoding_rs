@@ -12,6 +12,15 @@
 import json
 import subprocess
 import sys
+import os.path
+
+if (not os.path.isfile("../encoding/encodings.json")) or (not os.path.isfile("../encoding/indexes.json")):
+  sys.stderr.write("This script needs a clone of https://github.com/whatwg/encoding/ (preferably at revision f381389) next to the encoding_rs directory.\n");
+  sys.exit(-1)
+
+if not os.path.isfile("../encoding_c/src/lib.rs"):
+  sys.stderr.write("This script also writes the generated parts of the encoding_c crate and needs a clone of https://github.com/hsivonen/encoding_c next to the encoding_rs directory.\n");
+  sys.exit(-1)
 
 def cmp_from_end(one, other):
   c = cmp(len(one), len(other))
@@ -297,11 +306,11 @@ def read_non_generated(path):
 
   generated_begin_index = full.find(generated_begin)
   if generated_begin_index < 0:
-    print "Can't find generated code start marker in %s. Exiting." % path
+    sys.stderr.write("Can't find generated code start marker in %s. Exiting.\n" % path)
     sys.exit(-1)
   generated_end_index = full.find(generated_end)
   if generated_end_index < 0:
-    print "Can't find generated code end marker in %s. Exiting." % path
+    sys.stderr.write("Can't find generated code end marker in %s. Exiting.\n" % path)
     sys.exit(-1)
 
   return (full[0:generated_begin_index + len(generated_begin)],
