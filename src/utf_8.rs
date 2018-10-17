@@ -727,8 +727,7 @@ impl Utf8Encoder {
                                 *(dst.get_unchecked_mut(written)) =
                                     ((astral & 0xFC0u32) >> 6) as u8 | 0x80u8;
                                 written += 1;
-                                *(dst.get_unchecked_mut(written)) =
-                                    (astral & 0x3F) as u8 | 0x80u8;
+                                *(dst.get_unchecked_mut(written)) = (astral & 0x3F) as u8 | 0x80u8;
                                 written += 1;
                             }
                             break;

@@ -105,23 +105,18 @@ macro_rules! by_unit_check_alu {
                     if offset + (4 * (ALU_ALIGNMENT / unit_size)) <= len {
                         let len_minus_unroll = len - (4 * (ALU_ALIGNMENT / unit_size));
                         loop {
-                            let unroll_accu =
-                                unsafe { *(src.add(offset) as *const usize) }
-                                    | unsafe {
-                                        *(src
-                                            .add(offset + (ALU_ALIGNMENT / unit_size))
-                                            as *const usize)
-                                    }
-                                    | unsafe {
-                                        *(src.add(
-                                            offset + (2 * (ALU_ALIGNMENT / unit_size))
-                                        ) as *const usize)
-                                    }
-                                    | unsafe {
-                                        *(src.add(
-                                            offset + (3 * (ALU_ALIGNMENT / unit_size))
-                                        ) as *const usize)
-                                    };
+                            let unroll_accu = unsafe { *(src.add(offset) as *const usize) }
+                                | unsafe {
+                                    *(src.add(offset + (ALU_ALIGNMENT / unit_size)) as *const usize)
+                                }
+                                | unsafe {
+                                    *(src.add(offset + (2 * (ALU_ALIGNMENT / unit_size)))
+                                        as *const usize)
+                                }
+                                | unsafe {
+                                    *(src.add(offset + (3 * (ALU_ALIGNMENT / unit_size)))
+                                        as *const usize)
+                                };
                             if unroll_accu & $mask != 0 {
                                 return false;
                             }
@@ -183,23 +178,19 @@ macro_rules! by_unit_check_simd {
                     if offset + (4 * (SIMD_STRIDE_SIZE / unit_size)) <= len {
                         let len_minus_unroll = len - (4 * (SIMD_STRIDE_SIZE / unit_size));
                         loop {
-                            let unroll_accu =
-                                unsafe { *(src.add(offset) as *const $simd_ty) }
-                                    | unsafe {
-                                        *(src.add(
-                                            offset + (SIMD_STRIDE_SIZE / unit_size)
-                                        ) as *const $simd_ty)
-                                    }
-                                    | unsafe {
-                                        *(src.add(
-                                            offset + (2 * (SIMD_STRIDE_SIZE / unit_size))
-                                        ) as *const $simd_ty)
-                                    }
-                                    | unsafe {
-                                        *(src.add(
-                                            offset + (3 * (SIMD_STRIDE_SIZE / unit_size))
-                                        ) as *const $simd_ty)
-                                    };
+                            let unroll_accu = unsafe { *(src.add(offset) as *const $simd_ty) }
+                                | unsafe {
+                                    *(src.add(offset + (SIMD_STRIDE_SIZE / unit_size))
+                                        as *const $simd_ty)
+                                }
+                                | unsafe {
+                                    *(src.add(offset + (2 * (SIMD_STRIDE_SIZE / unit_size)))
+                                        as *const $simd_ty)
+                                }
+                                | unsafe {
+                                    *(src.add(offset + (3 * (SIMD_STRIDE_SIZE / unit_size)))
+                                        as *const $simd_ty)
+                                };
                             if !$func(unroll_accu) {
                                 return false;
                             }
@@ -211,8 +202,7 @@ macro_rules! by_unit_check_simd {
                     }
                     let mut simd_accu = $splat;
                     while offset <= len_minus_stride {
-                        simd_accu = simd_accu
-                            | unsafe { *(src.add(offset) as *const $simd_ty) };
+                        simd_accu = simd_accu | unsafe { *(src.add(offset) as *const $simd_ty) };
                         offset += SIMD_STRIDE_SIZE / unit_size;
                     }
                     if !$func(simd_accu) {
@@ -695,7 +685,10 @@ pub fn is_utf16_latin1(buffer: &[u16]) -> bool {
 /// Returns `true` if the input is invalid UTF-8 or the input contains an
 /// RTL character. Returns `false` if the input is valid UTF-8 and contains
 /// no RTL characters.
-#[cfg_attr(feature = "cargo-clippy", allow(clippy::collapsible_if, clippy::cyclomatic_complexity))]
+#[cfg_attr(
+    feature = "cargo-clippy",
+    allow(clippy::collapsible_if, clippy::cyclomatic_complexity)
+)]
 #[inline]
 pub fn is_utf8_bidi(buffer: &[u8]) -> bool {
     // As of rustc 1.25.0-nightly (73ac5d6a8 2018-01-11), this is faster

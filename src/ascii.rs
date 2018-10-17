@@ -68,7 +68,10 @@ macro_rules! ascii_alu {
      $src_unit:ty,
      $dst_unit:ty,
      $stride_fn:ident) => {
-        #[cfg_attr(feature = "cargo-clippy", allow(clippy::never_loop,clippy::cast_ptr_alignment))]
+        #[cfg_attr(
+            feature = "cargo-clippy",
+            allow(clippy::never_loop, clippy::cast_ptr_alignment)
+        )]
         #[inline(always)]
         pub unsafe fn $name(
             src: *const $src_unit,
@@ -159,7 +162,14 @@ macro_rules! basic_latin_alu {
      $src_unit:ty,
      $dst_unit:ty,
      $stride_fn:ident) => {
-        #[cfg_attr(feature = "cargo-clippy", allow(clippy::never_loop, clippy::cast_ptr_alignment, clippy::cast_lossless))]
+        #[cfg_attr(
+            feature = "cargo-clippy",
+            allow(
+                clippy::never_loop,
+                clippy::cast_ptr_alignment,
+                clippy::cast_lossless
+            )
+        )]
         #[inline(always)]
         pub unsafe fn $name(
             src: *const $src_unit,
@@ -186,9 +196,7 @@ macro_rules! basic_latin_alu {
                         let src_until_alignment = (ALU_ALIGNMENT
                             - ((src as usize) & ALU_ALIGNMENT_MASK))
                             & ALU_ALIGNMENT_MASK;
-                        if (dst.add(src_until_alignment) as usize) & ALU_ALIGNMENT_MASK
-                            != 0
-                        {
+                        if (dst.add(src_until_alignment) as usize) & ALU_ALIGNMENT_MASK != 0 {
                             break;
                         }
                         src_until_alignment
@@ -197,9 +205,7 @@ macro_rules! basic_latin_alu {
                         let dst_until_alignment = (ALU_ALIGNMENT
                             - ((dst as usize) & ALU_ALIGNMENT_MASK))
                             & ALU_ALIGNMENT_MASK;
-                        if (src.add(dst_until_alignment) as usize) & ALU_ALIGNMENT_MASK
-                            != 0
-                        {
+                        if (src.add(dst_until_alignment) as usize) & ALU_ALIGNMENT_MASK != 0 {
                             break;
                         }
                         dst_until_alignment
@@ -255,7 +261,14 @@ macro_rules! basic_latin_alu {
 #[allow(unused_macros)]
 macro_rules! latin1_alu {
     ($name:ident, $src_unit:ty, $dst_unit:ty, $stride_fn:ident) => {
-        #[cfg_attr(feature = "cargo-clippy", allow(clippy::never_loop,clippy::cast_ptr_alignment, clippy::cast_lossless))]
+        #[cfg_attr(
+            feature = "cargo-clippy",
+            allow(
+                clippy::never_loop,
+                clippy::cast_ptr_alignment,
+                clippy::cast_lossless
+            )
+        )]
         #[inline(always)]
         pub unsafe fn $name(src: *const $src_unit, dst: *mut $dst_unit, len: usize) {
             let mut offset = 0usize;
@@ -267,9 +280,7 @@ macro_rules! latin1_alu {
                         let src_until_alignment = (ALU_ALIGNMENT
                             - ((src as usize) & ALU_ALIGNMENT_MASK))
                             & ALU_ALIGNMENT_MASK;
-                        if (dst.add(src_until_alignment) as usize) & ALU_ALIGNMENT_MASK
-                            != 0
-                        {
+                        if (dst.add(src_until_alignment) as usize) & ALU_ALIGNMENT_MASK != 0 {
                             break;
                         }
                         src_until_alignment
@@ -278,9 +289,7 @@ macro_rules! latin1_alu {
                         let dst_until_alignment = (ALU_ALIGNMENT
                             - ((dst as usize) & ALU_ALIGNMENT_MASK))
                             & ALU_ALIGNMENT_MASK;
-                        if (src.add(dst_until_alignment) as usize) & ALU_ALIGNMENT_MASK
-                            != 0
-                        {
+                        if (src.add(dst_until_alignment) as usize) & ALU_ALIGNMENT_MASK != 0 {
                             break;
                         }
                         dst_until_alignment
@@ -345,10 +354,7 @@ macro_rules! ascii_simd_check_align {
                 if ((src as usize) & SIMD_ALIGNMENT_MASK) == 0 {
                     if dst_masked == 0 {
                         loop {
-                            if !$stride_both_aligned(
-                                src.add(offset),
-                                dst.add(offset),
-                            ) {
+                            if !$stride_both_aligned(src.add(offset), dst.add(offset)) {
                                 break;
                             }
                             offset += SIMD_STRIDE_SIZE;
@@ -358,10 +364,7 @@ macro_rules! ascii_simd_check_align {
                         }
                     } else {
                         loop {
-                            if !$stride_src_aligned(
-                                src.add(offset),
-                                dst.add(offset),
-                            ) {
+                            if !$stride_src_aligned(src.add(offset), dst.add(offset)) {
                                 break;
                             }
                             offset += SIMD_STRIDE_SIZE;
@@ -373,10 +376,7 @@ macro_rules! ascii_simd_check_align {
                 } else {
                     if dst_masked == 0 {
                         loop {
-                            if !$stride_dst_aligned(
-                                src.add(offset),
-                                dst.add(offset),
-                            ) {
+                            if !$stride_dst_aligned(src.add(offset), dst.add(offset)) {
                                 break;
                             }
                             offset += SIMD_STRIDE_SIZE;
@@ -386,10 +386,7 @@ macro_rules! ascii_simd_check_align {
                         }
                     } else {
                         loop {
-                            if !$stride_neither_aligned(
-                                src.add(offset),
-                                dst.add(offset),
-                            ) {
+                            if !$stride_neither_aligned(src.add(offset), dst.add(offset)) {
                                 break;
                             }
                             offset += SIMD_STRIDE_SIZE;
@@ -433,10 +430,7 @@ macro_rules! latin1_simd_check_align {
                 if ((src as usize) & SIMD_ALIGNMENT_MASK) == 0 {
                     if dst_masked == 0 {
                         loop {
-                            $stride_both_aligned(
-                                src.add(offset),
-                                dst.add(offset),
-                            );
+                            $stride_both_aligned(src.add(offset), dst.add(offset));
                             offset += SIMD_STRIDE_SIZE;
                             if offset > len_minus_stride {
                                 break;
@@ -444,10 +438,7 @@ macro_rules! latin1_simd_check_align {
                         }
                     } else {
                         loop {
-                            $stride_src_aligned(
-                                src.add(offset),
-                                dst.add(offset),
-                            );
+                            $stride_src_aligned(src.add(offset), dst.add(offset));
                             offset += SIMD_STRIDE_SIZE;
                             if offset > len_minus_stride {
                                 break;
@@ -457,10 +448,7 @@ macro_rules! latin1_simd_check_align {
                 } else {
                     if dst_masked == 0 {
                         loop {
-                            $stride_dst_aligned(
-                                src.add(offset),
-                                dst.add(offset),
-                            );
+                            $stride_dst_aligned(src.add(offset), dst.add(offset));
                             offset += SIMD_STRIDE_SIZE;
                             if offset > len_minus_stride {
                                 break;
@@ -468,10 +456,7 @@ macro_rules! latin1_simd_check_align {
                         }
                     } else {
                         loop {
-                            $stride_neither_aligned(
-                                src.add(offset),
-                                dst.add(offset),
-                            );
+                            $stride_neither_aligned(src.add(offset), dst.add(offset));
                             offset += SIMD_STRIDE_SIZE;
                             if offset > len_minus_stride {
                                 break;
@@ -519,15 +504,9 @@ macro_rules! latin1_simd_check_align_unrolled {
                     let len_minus_stride_times_two = len_minus_stride - SIMD_STRIDE_SIZE;
                     if (dst.add(offset) as usize) & SIMD_ALIGNMENT_MASK == 0 {
                         loop {
-                            $stride_both_aligned(
-                                src.add(offset),
-                                dst.add(offset),
-                            );
+                            $stride_both_aligned(src.add(offset), dst.add(offset));
                             offset += SIMD_STRIDE_SIZE;
-                            $stride_both_aligned(
-                                src.add(offset),
-                                dst.add(offset),
-                            );
+                            $stride_both_aligned(src.add(offset), dst.add(offset));
                             offset += SIMD_STRIDE_SIZE;
                             if offset > len_minus_stride_times_two {
                                 break;
@@ -535,15 +514,9 @@ macro_rules! latin1_simd_check_align_unrolled {
                         }
                     } else {
                         loop {
-                            $stride_src_aligned(
-                                src.add(offset),
-                                dst.add(offset),
-                            );
+                            $stride_src_aligned(src.add(offset), dst.add(offset));
                             offset += SIMD_STRIDE_SIZE;
-                            $stride_src_aligned(
-                                src.add(offset),
-                                dst.add(offset),
-                            );
+                            $stride_src_aligned(src.add(offset), dst.add(offset));
                             offset += SIMD_STRIDE_SIZE;
                             if offset > len_minus_stride_times_two {
                                 break;
@@ -591,10 +564,7 @@ macro_rules! ascii_simd_unalign {
             if SIMD_STRIDE_SIZE <= len {
                 let len_minus_stride = len - SIMD_STRIDE_SIZE;
                 loop {
-                    if !$stride_neither_aligned(
-                        src.add(offset),
-                        dst.add(offset),
-                    ) {
+                    if !$stride_neither_aligned(src.add(offset), dst.add(offset)) {
                         break;
                     }
                     offset += SIMD_STRIDE_SIZE;
@@ -625,10 +595,7 @@ macro_rules! latin1_simd_unalign {
             if SIMD_STRIDE_SIZE <= len {
                 let len_minus_stride = len - SIMD_STRIDE_SIZE;
                 loop {
-                    $stride_neither_aligned(
-                        src.add(offset),
-                        dst.add(offset),
-                    );
+                    $stride_neither_aligned(src.add(offset), dst.add(offset));
                     offset += SIMD_STRIDE_SIZE;
                     if offset > len_minus_stride {
                         break;

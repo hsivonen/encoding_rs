@@ -111,11 +111,7 @@ impl UnalignedU16Slice {
         assert!(i < self.len);
         unsafe {
             let mut u: u16 = ::std::mem::uninitialized();
-            ::std::ptr::copy_nonoverlapping(
-                self.ptr.add(i * 2),
-                &mut u as *mut u16 as *mut u8,
-                2,
-            );
+            ::std::ptr::copy_nonoverlapping(self.ptr.add(i * 2), &mut u as *mut u16 as *mut u8, 2);
             u
         }
     }
@@ -989,7 +985,8 @@ impl<'a> Utf8Destination<'a> {
     #[inline(always)]
     pub fn write_surrogate_pair(&mut self, high: u16, low: u16) {
         self.write_astral(
-            (u32::from(high) << 10) + u32::from(low) - (((0xD800u32 << 10) - 0x10000u32) + 0xDC00u32),
+            (u32::from(high) << 10) + u32::from(low)
+                - (((0xD800u32 << 10) - 0x10000u32) + 0xDC00u32),
         );
     }
     #[inline(always)]
@@ -1175,7 +1172,8 @@ impl<'a> Utf16Source<'a> {
                     self.pos += 1;
                     return unsafe {
                         ::std::char::from_u32_unchecked(
-                            (u32::from(unit) << 10) + u32::from(second) - (((0xD800u32 << 10) - 0x10000u32) + 0xDC00u32),
+                            (u32::from(unit) << 10) + u32::from(second)
+                                - (((0xD800u32 << 10) - 0x10000u32) + 0xDC00u32),
                         )
                     };
                 }
@@ -1472,7 +1470,8 @@ impl<'a> Utf8Source<'a> {
             return char::from(unit);
         }
         if unit < 0xE0 {
-            let point = ((u32::from(unit) & 0x1F) << 6) | (u32::from(self.slice[self.pos + 1]) & 0x3F);
+            let point =
+                ((u32::from(unit) & 0x1F) << 6) | (u32::from(self.slice[self.pos + 1]) & 0x3F);
             self.pos += 2;
             return unsafe { ::std::char::from_u32_unchecked(point) };
         }
@@ -1516,7 +1515,9 @@ impl<'a> Utf8Source<'a> {
             | ((u32::from(self.slice[self.pos + 2]) & 0x3F) << 6)
             | (u32::from(self.slice[self.pos + 3]) & 0x3F);
         self.pos += 4;
-        Unicode::NonAscii(NonAscii::Astral(unsafe { ::std::char::from_u32_unchecked(point) }))
+        Unicode::NonAscii(NonAscii::Astral(unsafe {
+            ::std::char::from_u32_unchecked(point)
+        }))
     }
     #[inline(always)]
     fn unread(&mut self) -> usize {
