@@ -3044,11 +3044,11 @@ mod tests {
     #[test]
     fn test_is_char_bidi_thoroughly() {
         for i in 0..0xD800u32 {
-            let c: char = std::char::from_u32(i).unwrap();
+            let c: char = ::std::char::from_u32(i).unwrap();
             assert_eq!(is_char_bidi(c), reference_is_char_bidi(c));
         }
         for i in 0xE000..0x110000u32 {
-            let c: char = std::char::from_u32(i).unwrap();
+            let c: char = ::std::char::from_u32(i).unwrap();
             assert_eq!(is_char_bidi(c), reference_is_char_bidi(c));
         }
     }
@@ -3068,14 +3068,14 @@ mod tests {
     fn test_is_str_bidi_thoroughly() {
         let mut buf = [0; 4];
         for i in 0..0xD800u32 {
-            let c: char = std::char::from_u32(i).unwrap();
+            let c: char = ::std::char::from_u32(i).unwrap();
             assert_eq!(
                 is_str_bidi(c.encode_utf8(&mut buf[..])),
                 reference_is_char_bidi(c)
             );
         }
         for i in 0xE000..0x110000u32 {
-            let c: char = std::char::from_u32(i).unwrap();
+            let c: char = ::std::char::from_u32(i).unwrap();
             assert_eq!(
                 is_str_bidi(c.encode_utf8(&mut buf[..])),
                 reference_is_char_bidi(c)
@@ -3087,7 +3087,7 @@ mod tests {
     fn test_is_utf8_bidi_thoroughly() {
         let mut buf = [0; 8];
         for i in 0..0xD800u32 {
-            let c: char = std::char::from_u32(i).unwrap();
+            let c: char = ::std::char::from_u32(i).unwrap();
             let expect = reference_is_char_bidi(c);
             {
                 let len = {
@@ -3105,7 +3105,7 @@ mod tests {
             assert_eq!(is_utf8_bidi(&buf[..]), expect);
         }
         for i in 0xE000..0x110000u32 {
-            let c: char = std::char::from_u32(i).unwrap();
+            let c: char = ::std::char::from_u32(i).unwrap();
             let expect = reference_is_char_bidi(c);
             {
                 let len = {
