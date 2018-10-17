@@ -65,11 +65,12 @@ pub enum Latin1Bidi {
 
 // `as` truncates, so works on 32-bit, too.
 #[allow(dead_code)]
-const LATIN1_MASK: usize = 0xFF00FF00_FF00FF00u64 as usize;
+const LATIN1_MASK: usize = 0xFF00_FF00_FF00_FF00u64 as usize;
 
 #[allow(unused_macros)]
 macro_rules! by_unit_check_alu {
     ($name:ident, $unit:ty, $bound:expr, $mask:ident) => {
+        #[cfg_attr(feature = "cargo-clippy", allow(clippy::cast_ptr_alignment))]
         #[inline(always)]
         fn $name(buffer: &[$unit]) -> bool {
             let mut offset = 0usize;
@@ -105,20 +106,20 @@ macro_rules! by_unit_check_alu {
                         let len_minus_unroll = len - (4 * (ALU_ALIGNMENT / unit_size));
                         loop {
                             let unroll_accu =
-                                unsafe { *(src.offset(offset as isize) as *const usize) }
+                                unsafe { *(src.add(offset) as *const usize) }
                                     | unsafe {
                                         *(src
-                                            .offset((offset + (ALU_ALIGNMENT / unit_size)) as isize)
+                                            .add(offset + (ALU_ALIGNMENT / unit_size))
                                             as *const usize)
                                     }
                                     | unsafe {
-                                        *(src.offset(
-                                            (offset + (2 * (ALU_ALIGNMENT / unit_size))) as isize,
+                                        *(src.add(
+                                            offset + (2 * (ALU_ALIGNMENT / unit_size))
                                         ) as *const usize)
                                     }
                                     | unsafe {
-                                        *(src.offset(
-                                            (offset + (3 * (ALU_ALIGNMENT / unit_size))) as isize,
+                                        *(src.add(
+                                            offset + (3 * (ALU_ALIGNMENT / unit_size))
                                         ) as *const usize)
                                     };
                             if unroll_accu & $mask != 0 {
@@ -131,7 +132,7 @@ macro_rules! by_unit_check_alu {
                         }
                     }
                     while offset <= len_minus_stride {
-                        accu |= unsafe { *(src.offset(offset as isize) as *const usize) };
+                        accu |= unsafe { *(src.add(offset) as *const usize) };
                         offset += ALU_ALIGNMENT / unit_size;
                     }
                 }
@@ -183,22 +184,20 @@ macro_rules! by_unit_check_simd {
                         let len_minus_unroll = len - (4 * (SIMD_STRIDE_SIZE / unit_size));
                         loop {
                             let unroll_accu =
-                                unsafe { *(src.offset(offset as isize) as *const $simd_ty) }
+                                unsafe { *(src.add(offset) as *const $simd_ty) }
                                     | unsafe {
-                                        *(src.offset(
-                                            (offset + (SIMD_STRIDE_SIZE / unit_size)) as isize,
+                                        *(src.add(
+                                            offset + (SIMD_STRIDE_SIZE / unit_size)
                                         ) as *const $simd_ty)
                                     }
                                     | unsafe {
-                                        *(src.offset(
-                                            (offset + (2 * (SIMD_STRIDE_SIZE / unit_size)))
-                                                as isize,
+                                        *(src.add(
+                                            offset + (2 * (SIMD_STRIDE_SIZE / unit_size))
                                         ) as *const $simd_ty)
                                     }
                                     | unsafe {
-                                        *(src.offset(
-                                            (offset + (3 * (SIMD_STRIDE_SIZE / unit_size)))
-                                                as isize,
+                                        *(src.add(
+                                            offset + (3 * (SIMD_STRIDE_SIZE / unit_size))
                                         ) as *const $simd_ty)
                                     };
                             if !$func(unroll_accu) {
@@ -213,7 +212,7 @@ macro_rules! by_unit_check_simd {
                     let mut simd_accu = $splat;
                     while offset <= len_minus_stride {
                         simd_accu = simd_accu
-                            | unsafe { *(src.offset(offset as isize) as *const $simd_ty) };
+                            | unsafe { *(src.add(offset) as *const $simd_ty) };
                         offset += SIMD_STRIDE_SIZE / unit_size;
                     }
                     if !$func(simd_accu) {
@@ -254,7 +253,7 @@ cfg_if!{
             let len = buffer.len();
             let mut offset = 0usize;
             'outer: loop {
-                let until_alignment = ((SIMD_ALIGNMENT - ((unsafe { src.offset(offset as isize) } as usize) & SIMD_ALIGNMENT_MASK)) &
+                let until_alignment = ((SIMD_ALIGNMENT - ((unsafe { src.add(offset) } as usize) & SIMD_ALIGNMENT_MASK)) &
                                         SIMD_ALIGNMENT_MASK) / unit_size;
                 if until_alignment == 0 {
                     if offset + SIMD_STRIDE_SIZE / unit_size > len {
@@ -279,7 +278,7 @@ cfg_if!{
                 let len_minus_stride = len - SIMD_STRIDE_SIZE / unit_size;
                 'inner: loop {
                     let offset_plus_stride = offset + SIMD_STRIDE_SIZE / unit_size;
-                    if contains_surrogates(unsafe { *(src.offset(offset as isize) as *const u16x8) }) {
+                    if contains_surrogates(unsafe { *(src.add(offset) as *const u16x8) }) {
                         if offset_plus_stride == len {
                             break 'outer;
                         }
@@ -317,6 +316,7 @@ cfg_if!{
 
 /// The second return value is true iff the last code unit of the slice was
 /// reached and turned out to be a low surrogate that is part of a valid pair.
+#[cfg_attr(feature = "cargo-clippy", allow(clippy::collapsible_if))]
 #[inline(always)]
 fn utf16_valid_up_to_alu(buffer: &[u16]) -> (usize, bool) {
     let len = buffer.len();
@@ -381,7 +381,7 @@ cfg_if!{
                     }
                     let len_minus_stride = len - SIMD_STRIDE_SIZE;
                     loop {
-                        if !simd_is_str_latin1(unsafe { *(src.offset(offset as isize) as *const u8x16) }) {
+                        if !simd_is_str_latin1(unsafe { *(src.add(offset) as *const u8x16) }) {
                             // TODO: Ensure this compiles away when inlined into `is_str_latin1()`.
                             while bytes[offset] & 0xC0 == 0x80 {
                                 offset += 1;
@@ -469,7 +469,7 @@ cfg_if!{
                     }
                     let len_minus_stride = len - (SIMD_STRIDE_SIZE / 2);
                     loop {
-                        if is_u16x8_bidi(unsafe { *(src.offset(offset as isize) as *const u16x8) }) {
+                        if is_u16x8_bidi(unsafe { *(src.add(offset) as *const u16x8) }) {
                             return true;
                         }
                         offset += SIMD_STRIDE_SIZE / 2;
@@ -524,7 +524,7 @@ cfg_if!{
                     }
                     let len_minus_stride = len - (SIMD_STRIDE_SIZE / 2);
                     loop {
-                        let mut s = unsafe { *(src.offset(offset as isize) as *const u16x8) };
+                        let mut s = unsafe { *(src.add(offset) as *const u16x8) };
                         if !simd_is_latin1(s) {
                             loop {
                                 if is_u16x8_bidi(s) {
@@ -539,7 +539,7 @@ cfg_if!{
                                     }
                                     return Latin1Bidi::LeftToRight;
                                 }
-                                s = unsafe { *(src.offset(offset as isize) as *const u16x8) };
+                                s = unsafe { *(src.add(offset) as *const u16x8) };
                             }
                         }
                         offset += SIMD_STRIDE_SIZE / 2;
@@ -571,6 +571,7 @@ cfg_if!{
             }
         }
     } else {
+        #[cfg_attr(feature = "cargo-clippy", allow(clippy::cast_ptr_alignment))]
         #[inline(always)]
         fn check_utf16_for_latin1_and_bidi_impl(buffer: &[u16]) -> Latin1Bidi {
             let mut offset = 0usize;
@@ -592,7 +593,7 @@ cfg_if!{
                     }
                     let len_minus_stride = len - ALU_ALIGNMENT / 2;
                     loop {
-                        if unsafe { *(src.offset(offset as isize) as *const usize) } & LATIN1_MASK != 0 {
+                        if unsafe { *(src.add(offset) as *const usize) } & LATIN1_MASK != 0 {
                             if is_utf16_bidi_impl(&buffer[offset..]) {
                                 return Latin1Bidi::Bidi;
                             }
@@ -694,6 +695,7 @@ pub fn is_utf16_latin1(buffer: &[u16]) -> bool {
 /// Returns `true` if the input is invalid UTF-8 or the input contains an
 /// RTL character. Returns `false` if the input is valid UTF-8 and contains
 /// no RTL characters.
+#[cfg_attr(feature = "cargo-clippy", allow(clippy::collapsible_if, clippy::cyclomatic_complexity))]
 #[inline]
 pub fn is_utf8_bidi(buffer: &[u8]) -> bool {
     // As of rustc 1.25.0-nightly (73ac5d6a8 2018-01-11), this is faster
@@ -1115,6 +1117,7 @@ pub fn is_utf8_bidi(buffer: &[u8]) -> bool {
 /// cause right-to-left behavior without the presence of right-to-left
 /// characters or right-to-left controls are not checked for. As a special
 /// case, U+FEFF is excluded from Arabic Presentation Forms-B.
+#[cfg_attr(feature = "cargo-clippy", allow(clippy::collapsible_if))]
 #[inline]
 pub fn is_str_bidi(buffer: &str) -> bool {
     // U+058F: D6 8F
@@ -1312,7 +1315,7 @@ pub fn is_char_bidi(c: char) -> bool {
     // https://www.unicode.org/roadmaps/smp/
     // U+10800...U+10FFF (Lead surrogate U+D802 or U+D803)
     // U+1E800...U+1EFFF (Lead surrogate U+D83A or U+D83B)
-    let code_point = c as u32;
+    let code_point = u32::from(c);
     if code_point < 0x0590 {
         // Below Hebrew
         return false;
@@ -1470,8 +1473,9 @@ pub fn check_utf16_for_latin1_and_bidi(buffer: &[u16]) -> Latin1Bidi {
 /// Panics if the destination buffer is shorter than stated above.
 #[inline]
 pub fn convert_utf8_to_utf16(src: &[u8], dst: &mut [u16]) -> usize {
-    // TODO: Can the + 1 be eliminated?
-    assert!(dst.len() >= src.len() + 1);
+    // TODO: Can the requirement for dst to be at least one unit longer
+    // be eliminated?
+    assert!(dst.len() > src.len());
     let mut decoder = Utf8Decoder::new_inner();
     let mut total_read = 0usize;
     let mut total_written = 0usize;
@@ -1541,13 +1545,13 @@ pub fn convert_str_to_utf16(src: &str, dst: &mut [u16]) -> usize {
                 if byte >= 0x80 {
                     // Two-byte
                     let second = bytes[read + 1];
-                    let point = (((byte as u32) & 0x1Fu32) << 6) | (second as u32 & 0x3Fu32);
-                    dst[written] = point as u16;
+                    let point = ((u16::from(byte) & 0x1F) << 6) | (u16::from(second) & 0x3F);
+                    dst[written] = point;
                     read += 2;
                     written += 1;
                 } else {
                     // ASCII: write and go back to SIMD.
-                    dst[written] = byte as u16;
+                    dst[written] = u16::from(byte);
                     read += 1;
                     written += 1;
                     // Intuitively, we should go back to the outer loop only
@@ -1561,10 +1565,10 @@ pub fn convert_str_to_utf16(src: &str, dst: &mut [u16]) -> usize {
                 // Three-byte
                 let second = bytes[read + 1];
                 let third = bytes[read + 2];
-                let point = (((byte as u32) & 0xFu32) << 12)
-                    | ((second as u32 & 0x3Fu32) << 6)
-                    | (third as u32 & 0x3Fu32);
-                dst[written] = point as u16;
+                let point = ((u16::from(byte) & 0xF) << 12)
+                    | ((u16::from(second) & 0x3F) << 6)
+                    | (u16::from(third) & 0x3F);
+                dst[written] = point;
                 read += 3;
                 written += 1;
             } else {
@@ -1572,10 +1576,10 @@ pub fn convert_str_to_utf16(src: &str, dst: &mut [u16]) -> usize {
                 let second = bytes[read + 1];
                 let third = bytes[read + 2];
                 let fourth = bytes[read + 3];
-                let point = (((byte as u32) & 0x7u32) << 18)
-                    | ((second as u32 & 0x3Fu32) << 12)
-                    | ((third as u32 & 0x3Fu32) << 6)
-                    | (fourth as u32 & 0x3Fu32);
+                let point = ((u32::from(byte) & 0x7) << 18)
+                    | ((u32::from(second) & 0x3F) << 12)
+                    | ((u32::from(third) & 0x3F) << 6)
+                    | (u32::from(fourth) & 0x3F);
                 dst[written] = (0xD7C0 + (point >> 10)) as u16;
                 dst[written + 1] = (0xDC00 + (point & 0x3FF)) as u16;
                 read += 4;
@@ -1640,7 +1644,7 @@ pub fn convert_utf16_to_utf8_partial(src: &[u16], dst: &mut [u8]) -> (usize, usi
 /// a `&mut str`, use `convert_utf16_to_str()` instead of this function.
 #[inline]
 pub fn convert_utf16_to_utf8(src: &[u16], dst: &mut [u8]) -> usize {
-    assert!(dst.len() >= src.len() * 3 + 1);
+    assert!(dst.len() > src.len() * 3);
     let (read, written) = convert_utf16_to_utf8_partial(src, dst);
     debug_assert_eq!(read, src.len());
     written
@@ -1661,7 +1665,7 @@ pub fn convert_utf16_to_utf8(src: &[u16], dst: &mut [u8]) -> usize {
 /// replaced with the REPLACEMENT CHARACTER.
 #[inline]
 pub fn convert_utf16_to_str_partial(src: &[u16], dst: &mut str) -> (usize, usize) {
-    let bytes: &mut [u8] = unsafe { ::std::mem::transmute(dst) };
+    let bytes: &mut [u8] = unsafe { dst.as_bytes_mut() };
     let (read, written) = convert_utf16_to_utf8_partial(src, bytes);
     let len = bytes.len();
     let mut trail = written;
@@ -1691,7 +1695,7 @@ pub fn convert_utf16_to_str_partial(src: &[u16], dst: &mut str) -> (usize, usize
 /// Panics if the destination buffer is shorter than stated above.
 #[inline]
 pub fn convert_utf16_to_str(src: &[u16], dst: &mut str) -> usize {
-    assert!(dst.len() >= src.len() * 3 + 1);
+    assert!(dst.len() > src.len() * 3);
     let (read, written) = convert_utf16_to_str_partial(src, dst);
     debug_assert_eq!(read, src.len());
     written
@@ -1751,8 +1755,8 @@ pub fn convert_latin1_to_utf8_partial(src: &[u8], dst: &mut [u8]) -> (usize, usi
         let min_left = ::std::cmp::min(src_left, dst_left);
         if let Some((non_ascii, consumed)) = unsafe {
             ascii_to_ascii(
-                src_ptr.offset(total_read as isize),
-                dst_ptr.offset(total_written as isize),
+                src_ptr.add(total_read),
+                dst_ptr.add(total_written),
                 min_left,
             )
         } {
@@ -1764,10 +1768,9 @@ pub fn convert_latin1_to_utf8_partial(src: &[u8], dst: &mut [u8]) -> (usize, usi
 
             total_read += 1; // consume `non_ascii`
 
-            let code_point = non_ascii as u32;
-            dst[total_written] = ((code_point >> 6) | 0xC0u32) as u8;
+            dst[total_written] = (non_ascii >> 6) | 0xC0;
             total_written += 1;
-            dst[total_written] = ((code_point as u32 & 0x3Fu32) | 0x80u32) as u8;
+            dst[total_written] = (non_ascii & 0x3F) | 0x80;
             total_written += 1;
             continue;
         }
@@ -1814,7 +1817,7 @@ pub fn convert_latin1_to_utf8(src: &[u8], dst: &mut [u8]) -> usize {
 /// If the output isn't large enough, not all input is consumed.
 #[inline]
 pub fn convert_latin1_to_str_partial(src: &[u8], dst: &mut str) -> (usize, usize) {
-    let bytes: &mut [u8] = unsafe { ::std::mem::transmute(dst) };
+    let bytes: &mut [u8] = unsafe { dst.as_bytes_mut() };
     let (read, written) = convert_latin1_to_utf8_partial(src, bytes);
     let len = bytes.len();
     let mut trail = written;
@@ -1893,8 +1896,8 @@ pub fn convert_utf8_to_latin1_lossy(src: &[u8], dst: &mut [u8]) -> usize {
         let src_left = src_len - total_read;
         if let Some((non_ascii, consumed)) = unsafe {
             ascii_to_ascii(
-                src_ptr.offset(total_read as isize),
-                dst_ptr.offset(total_written as isize),
+                src_ptr.add(total_read),
+                dst_ptr.add(total_written),
                 src_left,
             )
         } {
@@ -1908,8 +1911,7 @@ pub fn convert_utf8_to_latin1_lossy(src: &[u8], dst: &mut [u8]) -> usize {
             let trail = src[total_read];
             total_read += 1;
 
-            dst[total_written] =
-                (((non_ascii as u32 & 0x1Fu32) << 6) | (trail as u32 & 0x3Fu32)) as u8;
+            dst[total_written] = ((non_ascii & 0x1F) << 6) | (trail & 0x3F);
             total_written += 1;
             continue;
         }
@@ -3049,11 +3051,11 @@ mod tests {
     #[test]
     fn test_is_char_bidi_thoroughly() {
         for i in 0..0xD800u32 {
-            let c: char = unsafe { ::std::mem::transmute(i) };
+            let c: char = std::char::from_u32(i).unwrap();
             assert_eq!(is_char_bidi(c), reference_is_char_bidi(c));
         }
         for i in 0xE000..0x110000u32 {
-            let c: char = unsafe { ::std::mem::transmute(i) };
+            let c: char = std::char::from_u32(i).unwrap();
             assert_eq!(is_char_bidi(c), reference_is_char_bidi(c));
         }
     }
@@ -3073,14 +3075,14 @@ mod tests {
     fn test_is_str_bidi_thoroughly() {
         let mut buf = [0; 4];
         for i in 0..0xD800u32 {
-            let c: char = unsafe { ::std::mem::transmute(i) };
+            let c: char = std::char::from_u32(i).unwrap();
             assert_eq!(
                 is_str_bidi(c.encode_utf8(&mut buf[..])),
                 reference_is_char_bidi(c)
             );
         }
         for i in 0xE000..0x110000u32 {
-            let c: char = unsafe { ::std::mem::transmute(i) };
+            let c: char = std::char::from_u32(i).unwrap();
             assert_eq!(
                 is_str_bidi(c.encode_utf8(&mut buf[..])),
                 reference_is_char_bidi(c)
@@ -3092,7 +3094,7 @@ mod tests {
     fn test_is_utf8_bidi_thoroughly() {
         let mut buf = [0; 8];
         for i in 0..0xD800u32 {
-            let c: char = unsafe { ::std::mem::transmute(i) };
+            let c: char = std::char::from_u32(i).unwrap();
             let expect = reference_is_char_bidi(c);
             {
                 let len = {
@@ -3110,7 +3112,7 @@ mod tests {
             assert_eq!(is_utf8_bidi(&buf[..]), expect);
         }
         for i in 0xE000..0x110000u32 {
-            let c: char = unsafe { ::std::mem::transmute(i) };
+            let c: char = std::char::from_u32(i).unwrap();
             let expect = reference_is_char_bidi(c);
             {
                 let len = {

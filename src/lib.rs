@@ -9,7 +9,11 @@
 
 #![cfg_attr(
     feature = "cargo-clippy",
-    allow(doc_markdown, inline_always, new_ret_no_self)
+    allow(
+        clippy::doc_markdown,
+        clippy::inline_always,
+        clippy::new_ret_no_self
+    )
 )]
 #![doc(html_root_url = "https://docs.rs/encoding_rs/0.8.10")]
 
@@ -85,10 +89,7 @@
 //! // Very short output buffer to demonstrate the output buffer getting full.
 //! // Normally, you'd use something like `[0u8; 2048]`.
 //! let mut buffer_bytes = [0u8; 8];
-//! // Rust doesn't allow us to stack-allocate a `mut str` without `unsafe`.
-//! let mut buffer: &mut str = unsafe {
-//!     std::mem::transmute(&mut buffer_bytes[..])
-//! };
+//! let mut buffer: &mut str = std::str::from_utf8_mut(&mut buffer_bytes[..]).unwrap();
 //!
 //! // How many bytes in the buffer currently hold significant data.
 //! let mut bytes_in_buffer = 0usize;
@@ -3014,7 +3015,7 @@ impl Encoding {
                 ascii_valid_up_to(bytes)
             };
             if valid_up_to == bytes.len() {
-                let str: &str = unsafe { std::mem::transmute(bytes) };
+                let str: &str = unsafe { std::str::from_utf8_unchecked(bytes) };
                 return (Cow::Borrowed(str), false);
             }
             let decoder = self.new_decoder_without_bom_handling();
@@ -3106,7 +3107,7 @@ impl Encoding {
         if self == UTF_8 {
             let valid_up_to = utf8_valid_up_to(bytes);
             if valid_up_to == bytes.len() {
-                let str: &str = unsafe { std::mem::transmute(bytes) };
+                let str: &str = unsafe { std::str::from_utf8_unchecked(bytes) };
                 return Some(Cow::Borrowed(str));
             }
             return None;
@@ -3118,7 +3119,7 @@ impl Encoding {
                 ascii_valid_up_to(bytes)
             };
             if valid_up_to == bytes.len() {
-                let str: &str = unsafe { std::mem::transmute(bytes) };
+                let str: &str = unsafe { std::str::from_utf8_unchecked(bytes) };
                 return Some(Cow::Borrowed(str));
             }
             let decoder = self.new_decoder_without_bom_handling();
@@ -3408,7 +3409,7 @@ impl<'de> Deserialize<'de> for &'static Encoding {
 }
 
 /// Tracks the life cycle of a decoder from BOM sniffing to conversion to end.
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Copy, Clone)]
 enum DecoderLifeCycle {
     /// The decoder has seen no input yet.
     AtStart,
@@ -3437,6 +3438,7 @@ enum DecoderLifeCycle {
 }
 
 /// Communicate the BOM handling mode.
+#[derive(Debug, Copy, Clone)]
 enum BomHandling {
     /// Don't handle the BOM
     Off,
@@ -3901,7 +3903,7 @@ impl Decoder {
         dst: &mut str,
         last: bool,
     ) -> (CoderResult, usize, usize, bool) {
-        let bytes: &mut [u8] = unsafe { std::mem::transmute(dst) };
+        let bytes: &mut [u8] = unsafe { dst.as_bytes_mut() };
         let (result, read, written, replaced) = self.decode_to_utf8(src, bytes, last);
         let len = bytes.len();
         let mut trail = written;
@@ -3991,7 +3993,7 @@ impl Decoder {
         dst: &mut str,
         last: bool,
     ) -> (DecoderResult, usize, usize) {
-        let bytes: &mut [u8] = unsafe { std::mem::transmute(dst) };
+        let bytes: &mut [u8] = unsafe { dst.as_bytes_mut() };
         let (result, read, written) = self.decode_to_utf8_without_replacement(src, bytes, last);
         let len = bytes.len();
         let mut trail = written;
@@ -4231,7 +4233,7 @@ pub enum EncoderResult {
 
 impl EncoderResult {
     fn unmappable_from_bmp(bmp: u16) -> EncoderResult {
-        EncoderResult::Unmappable(::std::char::from_u32(bmp as u32).unwrap())
+        EncoderResult::Unmappable(::std::char::from_u32(u32::from(bmp)).unwrap())
     }
 }
 
@@ -4702,13 +4704,13 @@ fn write_ncr(unmappable: char, dst: &mut [u8]) -> usize {
     // len is the number of decimal digits needed to represent unmappable plus
     // 3 (the length of "&#" and ";").
     let mut number = unmappable as u32;
-    let len = if number >= 1000000u32 {
+    let len = if number >= 1_000_000u32 {
         10usize
-    } else if number >= 100000u32 {
+    } else if number >= 100_000u32 {
         9usize
-    } else if number >= 10000u32 {
+    } else if number >= 10_000u32 {
         8usize
-    } else if number >= 1000u32 {
+    } else if number >= 1_000u32 {
         7usize
     } else if number >= 100u32 {
         6usize

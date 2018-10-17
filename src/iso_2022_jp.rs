@@ -107,7 +107,7 @@ impl Iso2022JpDecoder {
                             }
                             Iso2022JpDecoderState::Katakana => {
                                 destination_handle
-                                    .write_upper_bmp(self.lead as u16 - 0x21u16 + 0xFF61u16);
+                                    .write_upper_bmp(u16::from(self.lead) - 0x21u16 + 0xFF61u16);
                                 self.lead = 0x0u8;
                             }
                             Iso2022JpDecoderState::LeadByte => {
@@ -183,7 +183,7 @@ impl Iso2022JpDecoder {
                     }
                     self.output_flag = false;
                     if b >= 0x21u8 && b <= 0x5Fu8 {
-                        destination_handle.write_upper_bmp(b as u16 - 0x21u16 + 0xFF61u16);
+                        destination_handle.write_upper_bmp(u16::from(b) - 0x21u16 + 0xFF61u16);
                         continue;
                     }
                     return (
@@ -231,11 +231,11 @@ impl Iso2022JpDecoder {
                     // and Katakana (10% acconding to Lunde).
                     if jis0208_lead_minus_offset == 0x03 && trail_minus_offset < 0x53 {
                         // Hiragana
-                        handle.write_upper_bmp(0x3041 + trail_minus_offset as u16);
+                        handle.write_upper_bmp(0x3041 + u16::from(trail_minus_offset));
                         continue;
                     } else if jis0208_lead_minus_offset == 0x04 && trail_minus_offset < 0x56 {
                         // Katakana
-                        handle.write_upper_bmp(0x30A1 + trail_minus_offset as u16);
+                        handle.write_upper_bmp(0x30A1 + u16::from(trail_minus_offset));
                         continue;
                     } else if trail_minus_offset > (0xFE - 0xA1) {
                         return (
@@ -365,6 +365,13 @@ fn is_kanji_mapped(bmp: u16) -> bool {
 }
 
 #[cfg(not(feature = "fast-kanji-encode"))]
+#[cfg_attr(
+    feature = "cargo-clippy",
+    allow(
+        clippy::if_let_redundant_pattern_matching,
+        clippy::if_same_then_else
+    )
+)]
 #[inline(always)]
 fn is_kanji_mapped(bmp: u16) -> bool {
     if 0x4EDD == bmp {
@@ -384,7 +391,10 @@ fn is_kanji_mapped(bmp: u16) -> bool {
 
 #[cfg_attr(
     feature = "cargo-clippy",
-    allow(if_let_redundant_pattern_matching, if_same_then_else)
+    allow(
+        clippy::if_let_redundant_pattern_matching,
+        clippy::if_same_then_else
+    )
 )]
 fn is_mapped_for_two_byte_encode(bmp: u16) -> bool {
     // The code below uses else after return to

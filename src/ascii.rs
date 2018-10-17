@@ -33,11 +33,11 @@ use simd_funcs::*;
 
 // `as` truncates, so works on 32-bit, too.
 #[allow(dead_code)]
-pub const ASCII_MASK: usize = 0x80808080_80808080u64 as usize;
+pub const ASCII_MASK: usize = 0x8080_8080_8080_8080u64 as usize;
 
 // `as` truncates, so works on 32-bit, too.
 #[allow(dead_code)]
-pub const BASIC_LATIN_MASK: usize = 0xFF80FF80_FF80FF80u64 as usize;
+pub const BASIC_LATIN_MASK: usize = 0xFF80_FF80_FF80_FF80u64 as usize;
 
 #[allow(unused_macros)]
 macro_rules! ascii_naive {
@@ -51,11 +51,11 @@ macro_rules! ascii_naive {
             // Yes, manually omitting the bound check here matters
             // a lot for perf.
             for i in 0..len {
-                let code_unit = *(src.offset(i as isize));
+                let code_unit = *(src.add(i));
                 if code_unit > 127 {
                     return Some((code_unit, i));
                 }
-                *(dst.offset(i as isize)) = code_unit as $dst_unit;
+                *(dst.add(i)) = code_unit as $dst_unit;
             }
             return None;
         }
@@ -68,7 +68,7 @@ macro_rules! ascii_alu {
      $src_unit:ty,
      $dst_unit:ty,
      $stride_fn:ident) => {
-        #[cfg_attr(feature = "cargo-clippy", allow(never_loop))]
+        #[cfg_attr(feature = "cargo-clippy", allow(clippy::never_loop,clippy::cast_ptr_alignment))]
         #[inline(always)]
         pub unsafe fn $name(
             src: *const $src_unit,
@@ -92,14 +92,14 @@ macro_rules! ascii_alu {
                     //               } else if ::std::mem::size_of::<$src_unit>() < ::std::mem::size_of::<$dst_unit>() {
                     // ascii_to_basic_latin
                     //                   let src_until_alignment = (ALIGNMENT - ((src as usize) & ALIGNMENT_MASK)) & ALIGNMENT_MASK;
-                    //                   if (dst.offset(src_until_alignment as isize) as usize) & ALIGNMENT_MASK != 0 {
+                    //                   if (dst.add(src_until_alignment) as usize) & ALIGNMENT_MASK != 0 {
                     //                       break;
                     //                   }
                     //                   src_until_alignment
                     //               } else {
                     // basic_latin_to_ascii
                     //                   let dst_until_alignment = (ALIGNMENT - ((dst as usize) & ALIGNMENT_MASK)) & ALIGNMENT_MASK;
-                    //                   if (src.offset(dst_until_alignment as isize) as usize) & ALIGNMENT_MASK != 0 {
+                    //                   if (src.add(dst_until_alignment) as usize) & ALIGNMENT_MASK != 0 {
                     //                       break;
                     //                   }
                     //                   dst_until_alignment
@@ -115,22 +115,22 @@ macro_rules! ascii_alu {
                     // to alignment here. It would be good to test on more ARM CPUs
                     // and on real MIPS and POWER hardware.
                     while until_alignment != 0 {
-                        let code_unit = *(src.offset(offset as isize));
+                        let code_unit = *(src.add(offset));
                         if code_unit > 127 {
                             return Some((code_unit, offset));
                         }
-                        *(dst.offset(offset as isize)) = code_unit as $dst_unit;
+                        *(dst.add(offset)) = code_unit as $dst_unit;
                         offset += 1;
                         until_alignment -= 1;
                     }
                     let len_minus_stride = len - ALU_STRIDE_SIZE;
                     loop {
                         if let Some(num_ascii) = $stride_fn(
-                            src.offset(offset as isize) as *const usize,
-                            dst.offset(offset as isize) as *mut usize,
+                            src.add(offset) as *const usize,
+                            dst.add(offset) as *mut usize,
                         ) {
                             offset += num_ascii;
-                            return Some((*(src.offset(offset as isize)), offset));
+                            return Some((*(src.add(offset)), offset));
                         }
                         offset += ALU_STRIDE_SIZE;
                         if offset > len_minus_stride {
@@ -141,11 +141,11 @@ macro_rules! ascii_alu {
                 break;
             }
             while offset < len {
-                let code_unit = *(src.offset(offset as isize));
+                let code_unit = *(src.add(offset));
                 if code_unit > 127 {
                     return Some((code_unit, offset));
                 }
-                *(dst.offset(offset as isize)) = code_unit as $dst_unit;
+                *(dst.add(offset)) = code_unit as $dst_unit;
                 offset += 1;
             }
             None
@@ -159,7 +159,7 @@ macro_rules! basic_latin_alu {
      $src_unit:ty,
      $dst_unit:ty,
      $stride_fn:ident) => {
-        #[cfg_attr(feature = "cargo-clippy", allow(never_loop))]
+        #[cfg_attr(feature = "cargo-clippy", allow(clippy::never_loop, clippy::cast_ptr_alignment, clippy::cast_lossless))]
         #[inline(always)]
         pub unsafe fn $name(
             src: *const $src_unit,
@@ -186,7 +186,7 @@ macro_rules! basic_latin_alu {
                         let src_until_alignment = (ALU_ALIGNMENT
                             - ((src as usize) & ALU_ALIGNMENT_MASK))
                             & ALU_ALIGNMENT_MASK;
-                        if (dst.offset(src_until_alignment as isize) as usize) & ALU_ALIGNMENT_MASK
+                        if (dst.add(src_until_alignment) as usize) & ALU_ALIGNMENT_MASK
                             != 0
                         {
                             break;
@@ -197,7 +197,7 @@ macro_rules! basic_latin_alu {
                         let dst_until_alignment = (ALU_ALIGNMENT
                             - ((dst as usize) & ALU_ALIGNMENT_MASK))
                             & ALU_ALIGNMENT_MASK;
-                        if (src.offset(dst_until_alignment as isize) as usize) & ALU_ALIGNMENT_MASK
+                        if (src.add(dst_until_alignment) as usize) & ALU_ALIGNMENT_MASK
                             != 0
                         {
                             break;
@@ -215,19 +215,19 @@ macro_rules! basic_latin_alu {
                     // to alignment here. It would be good to test on more ARM CPUs
                     // and on real MIPS and POWER hardware.
                     while until_alignment != 0 {
-                        let code_unit = *(src.offset(offset as isize));
+                        let code_unit = *(src.add(offset));
                         if code_unit > 127 {
                             return Some((code_unit, offset));
                         }
-                        *(dst.offset(offset as isize)) = code_unit as $dst_unit;
+                        *(dst.add(offset)) = code_unit as $dst_unit;
                         offset += 1;
                         until_alignment -= 1;
                     }
                     let len_minus_stride = len - ALU_STRIDE_SIZE;
                     loop {
                         if !$stride_fn(
-                            src.offset(offset as isize) as *const usize,
-                            dst.offset(offset as isize) as *mut usize,
+                            src.add(offset) as *const usize,
+                            dst.add(offset) as *mut usize,
                         ) {
                             break;
                         }
@@ -240,11 +240,11 @@ macro_rules! basic_latin_alu {
                 break;
             }
             while offset < len {
-                let code_unit = *(src.offset(offset as isize));
+                let code_unit = *(src.add(offset));
                 if code_unit > 127 {
                     return Some((code_unit, offset));
                 }
-                *(dst.offset(offset as isize)) = code_unit as $dst_unit;
+                *(dst.add(offset)) = code_unit as $dst_unit;
                 offset += 1;
             }
             None
@@ -255,7 +255,7 @@ macro_rules! basic_latin_alu {
 #[allow(unused_macros)]
 macro_rules! latin1_alu {
     ($name:ident, $src_unit:ty, $dst_unit:ty, $stride_fn:ident) => {
-        #[cfg_attr(feature = "cargo-clippy", allow(never_loop))]
+        #[cfg_attr(feature = "cargo-clippy", allow(clippy::never_loop,clippy::cast_ptr_alignment, clippy::cast_lossless))]
         #[inline(always)]
         pub unsafe fn $name(src: *const $src_unit, dst: *mut $dst_unit, len: usize) {
             let mut offset = 0usize;
@@ -267,7 +267,7 @@ macro_rules! latin1_alu {
                         let src_until_alignment = (ALU_ALIGNMENT
                             - ((src as usize) & ALU_ALIGNMENT_MASK))
                             & ALU_ALIGNMENT_MASK;
-                        if (dst.offset(src_until_alignment as isize) as usize) & ALU_ALIGNMENT_MASK
+                        if (dst.add(src_until_alignment) as usize) & ALU_ALIGNMENT_MASK
                             != 0
                         {
                             break;
@@ -278,7 +278,7 @@ macro_rules! latin1_alu {
                         let dst_until_alignment = (ALU_ALIGNMENT
                             - ((dst as usize) & ALU_ALIGNMENT_MASK))
                             & ALU_ALIGNMENT_MASK;
-                        if (src.offset(dst_until_alignment as isize) as usize) & ALU_ALIGNMENT_MASK
+                        if (src.add(dst_until_alignment) as usize) & ALU_ALIGNMENT_MASK
                             != 0
                         {
                             break;
@@ -288,16 +288,16 @@ macro_rules! latin1_alu {
                 };
                 if until_alignment + ALU_STRIDE_SIZE <= len {
                     while until_alignment != 0 {
-                        let code_unit = *(src.offset(offset as isize));
-                        *(dst.offset(offset as isize)) = code_unit as $dst_unit;
+                        let code_unit = *(src.add(offset));
+                        *(dst.add(offset)) = code_unit as $dst_unit;
                         offset += 1;
                         until_alignment -= 1;
                     }
                     let len_minus_stride = len - ALU_STRIDE_SIZE;
                     loop {
                         $stride_fn(
-                            src.offset(offset as isize) as *const usize,
-                            dst.offset(offset as isize) as *mut usize,
+                            src.add(offset) as *const usize,
+                            dst.add(offset) as *mut usize,
                         );
                         offset += ALU_STRIDE_SIZE;
                         if offset > len_minus_stride {
@@ -308,8 +308,8 @@ macro_rules! latin1_alu {
                 break;
             }
             while offset < len {
-                let code_unit = *(src.offset(offset as isize));
-                *(dst.offset(offset as isize)) = code_unit as $dst_unit;
+                let code_unit = *(src.add(offset));
+                *(dst.add(offset)) = code_unit as $dst_unit;
                 offset += 1;
             }
         }
@@ -346,8 +346,8 @@ macro_rules! ascii_simd_check_align {
                     if dst_masked == 0 {
                         loop {
                             if !$stride_both_aligned(
-                                src.offset(offset as isize),
-                                dst.offset(offset as isize),
+                                src.add(offset),
+                                dst.add(offset),
                             ) {
                                 break;
                             }
@@ -359,8 +359,8 @@ macro_rules! ascii_simd_check_align {
                     } else {
                         loop {
                             if !$stride_src_aligned(
-                                src.offset(offset as isize),
-                                dst.offset(offset as isize),
+                                src.add(offset),
+                                dst.add(offset),
                             ) {
                                 break;
                             }
@@ -374,8 +374,8 @@ macro_rules! ascii_simd_check_align {
                     if dst_masked == 0 {
                         loop {
                             if !$stride_dst_aligned(
-                                src.offset(offset as isize),
-                                dst.offset(offset as isize),
+                                src.add(offset),
+                                dst.add(offset),
                             ) {
                                 break;
                             }
@@ -387,8 +387,8 @@ macro_rules! ascii_simd_check_align {
                     } else {
                         loop {
                             if !$stride_neither_aligned(
-                                src.offset(offset as isize),
-                                dst.offset(offset as isize),
+                                src.add(offset),
+                                dst.add(offset),
                             ) {
                                 break;
                             }
@@ -401,11 +401,11 @@ macro_rules! ascii_simd_check_align {
                 }
             }
             while offset < len {
-                let code_unit = *(src.offset(offset as isize));
+                let code_unit = *(src.add(offset));
                 if code_unit > 127 {
                     return Some((code_unit, offset));
                 }
-                *(dst.offset(offset as isize)) = code_unit as $dst_unit;
+                *(dst.add(offset)) = code_unit as $dst_unit;
                 offset += 1;
             }
             None
@@ -434,8 +434,8 @@ macro_rules! latin1_simd_check_align {
                     if dst_masked == 0 {
                         loop {
                             $stride_both_aligned(
-                                src.offset(offset as isize),
-                                dst.offset(offset as isize),
+                                src.add(offset),
+                                dst.add(offset),
                             );
                             offset += SIMD_STRIDE_SIZE;
                             if offset > len_minus_stride {
@@ -445,8 +445,8 @@ macro_rules! latin1_simd_check_align {
                     } else {
                         loop {
                             $stride_src_aligned(
-                                src.offset(offset as isize),
-                                dst.offset(offset as isize),
+                                src.add(offset),
+                                dst.add(offset),
                             );
                             offset += SIMD_STRIDE_SIZE;
                             if offset > len_minus_stride {
@@ -458,8 +458,8 @@ macro_rules! latin1_simd_check_align {
                     if dst_masked == 0 {
                         loop {
                             $stride_dst_aligned(
-                                src.offset(offset as isize),
-                                dst.offset(offset as isize),
+                                src.add(offset),
+                                dst.add(offset),
                             );
                             offset += SIMD_STRIDE_SIZE;
                             if offset > len_minus_stride {
@@ -469,8 +469,8 @@ macro_rules! latin1_simd_check_align {
                     } else {
                         loop {
                             $stride_neither_aligned(
-                                src.offset(offset as isize),
-                                dst.offset(offset as isize),
+                                src.add(offset),
+                                dst.add(offset),
                             );
                             offset += SIMD_STRIDE_SIZE;
                             if offset > len_minus_stride {
@@ -481,8 +481,8 @@ macro_rules! latin1_simd_check_align {
                 }
             }
             while offset < len {
-                let code_unit = *(src.offset(offset as isize));
-                *(dst.offset(offset as isize)) = code_unit as $dst_unit;
+                let code_unit = *(src.add(offset));
+                *(dst.add(offset)) = code_unit as $dst_unit;
                 offset += 1;
             }
         }
@@ -510,23 +510,23 @@ macro_rules! latin1_simd_check_align_unrolled {
                     & SIMD_ALIGNMENT_MASK)
                     / unit_size;
                 while until_alignment != 0 {
-                    *(dst.offset(offset as isize)) = *(src.offset(offset as isize)) as $dst_unit;
+                    *(dst.add(offset)) = *(src.add(offset)) as $dst_unit;
                     offset += 1;
                     until_alignment -= 1;
                 }
                 let len_minus_stride = len - SIMD_STRIDE_SIZE;
                 if offset + SIMD_STRIDE_SIZE * 2 <= len {
                     let len_minus_stride_times_two = len_minus_stride - SIMD_STRIDE_SIZE;
-                    if (dst.offset(offset as isize) as usize) & SIMD_ALIGNMENT_MASK == 0 {
+                    if (dst.add(offset) as usize) & SIMD_ALIGNMENT_MASK == 0 {
                         loop {
                             $stride_both_aligned(
-                                src.offset(offset as isize),
-                                dst.offset(offset as isize),
+                                src.add(offset),
+                                dst.add(offset),
                             );
                             offset += SIMD_STRIDE_SIZE;
                             $stride_both_aligned(
-                                src.offset(offset as isize),
-                                dst.offset(offset as isize),
+                                src.add(offset),
+                                dst.add(offset),
                             );
                             offset += SIMD_STRIDE_SIZE;
                             if offset > len_minus_stride_times_two {
@@ -536,13 +536,13 @@ macro_rules! latin1_simd_check_align_unrolled {
                     } else {
                         loop {
                             $stride_src_aligned(
-                                src.offset(offset as isize),
-                                dst.offset(offset as isize),
+                                src.add(offset),
+                                dst.add(offset),
                             );
                             offset += SIMD_STRIDE_SIZE;
                             $stride_src_aligned(
-                                src.offset(offset as isize),
-                                dst.offset(offset as isize),
+                                src.add(offset),
+                                dst.add(offset),
                             );
                             offset += SIMD_STRIDE_SIZE;
                             if offset > len_minus_stride_times_two {
@@ -552,12 +552,12 @@ macro_rules! latin1_simd_check_align_unrolled {
                     }
                 }
                 if offset < len_minus_stride {
-                    $stride_src_aligned(src.offset(offset as isize), dst.offset(offset as isize));
+                    $stride_src_aligned(src.add(offset), dst.add(offset));
                     offset += SIMD_STRIDE_SIZE;
                 }
             }
             while offset < len {
-                let code_unit = *(src.offset(offset as isize));
+                let code_unit = *(src.add(offset));
                 // On x86_64, this loop autovectorizes but in the pack
                 // case there are instructions whose purpose is to make sure
                 // each u16 in the vector is truncated before packing. However,
@@ -571,7 +571,7 @@ macro_rules! latin1_simd_check_align_unrolled {
                 // the high half of each u16. As far as I can tell, the
                 // optimization assumes that doing a SIMD read past the end of
                 // the array is OK.
-                *(dst.offset(offset as isize)) = code_unit as $dst_unit;
+                *(dst.add(offset)) = code_unit as $dst_unit;
                 offset += 1;
             }
         }
@@ -592,8 +592,8 @@ macro_rules! ascii_simd_unalign {
                 let len_minus_stride = len - SIMD_STRIDE_SIZE;
                 loop {
                     if !$stride_neither_aligned(
-                        src.offset(offset as isize),
-                        dst.offset(offset as isize),
+                        src.add(offset),
+                        dst.add(offset),
                     ) {
                         break;
                     }
@@ -604,11 +604,11 @@ macro_rules! ascii_simd_unalign {
                 }
             }
             while offset < len {
-                let code_unit = *(src.offset(offset as isize));
+                let code_unit = *(src.add(offset));
                 if code_unit > 127 {
                     return Some((code_unit, offset));
                 }
-                *(dst.offset(offset as isize)) = code_unit as $dst_unit;
+                *(dst.add(offset)) = code_unit as $dst_unit;
                 offset += 1;
             }
             None
@@ -626,8 +626,8 @@ macro_rules! latin1_simd_unalign {
                 let len_minus_stride = len - SIMD_STRIDE_SIZE;
                 loop {
                     $stride_neither_aligned(
-                        src.offset(offset as isize),
-                        dst.offset(offset as isize),
+                        src.add(offset),
+                        dst.add(offset),
                     );
                     offset += SIMD_STRIDE_SIZE;
                     if offset > len_minus_stride {
@@ -636,8 +636,8 @@ macro_rules! latin1_simd_unalign {
                 }
             }
             while offset < len {
-                let code_unit = *(src.offset(offset as isize));
-                *(dst.offset(offset as isize)) = code_unit as $dst_unit;
+                let code_unit = *(src.add(offset));
+                *(dst.add(offset)) = code_unit as $dst_unit;
                 offset += 1;
             }
         }
@@ -670,7 +670,7 @@ macro_rules! ascii_to_basic_latin_simd_stride {
             }
             let (first, second) = simd_unpack(simd);
             $store(dst, first);
-            $store(dst.offset(8), second);
+            $store(dst.add(8), second);
             true
         }
     };
@@ -684,7 +684,7 @@ macro_rules! unpack_simd_stride {
             let simd = $load(src);
             let (first, second) = simd_unpack(simd);
             $store(dst, first);
-            $store(dst.offset(8), second);
+            $store(dst.add(8), second);
         }
     };
 }
@@ -695,7 +695,7 @@ macro_rules! basic_latin_to_ascii_simd_stride {
         #[inline(always)]
         pub unsafe fn $name(src: *const u16, dst: *mut u8) -> bool {
             let first = $load(src);
-            let second = $load(src.offset(8));
+            let second = $load(src.add(8));
             if simd_is_basic_latin(first | second) {
                 $store(dst, simd_pack(first, second));
                 true
@@ -712,7 +712,7 @@ macro_rules! pack_simd_stride {
         #[inline(always)]
         pub unsafe fn $name(src: *const u16, dst: *mut u8) {
             let first = $load(src);
-            let second = $load(src.offset(8));
+            let second = $load(src.add(8));
             $store(dst, simd_pack(first, second));
         }
     };
@@ -836,48 +836,48 @@ cfg_if! {
 
         #[inline(always)]
         unsafe fn unpack_alu(word: usize, second_word: usize, dst: *mut usize) {
-            let first = ((0x00000000_FF000000usize & word) << 24) |
-                        ((0x00000000_00FF0000usize & word) << 16) |
-                        ((0x00000000_0000FF00usize & word) << 8) |
-                        (0x00000000_000000FFusize & word);
-            let second = ((0xFF000000_00000000usize & word) >> 8) |
-                         ((0x00FF0000_00000000usize & word) >> 16) |
-                         ((0x0000FF00_00000000usize & word) >> 24) |
-                         ((0x000000FF_00000000usize & word) >> 32);
-            let third = ((0x00000000_FF000000usize & second_word) << 24) |
-                        ((0x00000000_00FF0000usize & second_word) << 16) |
-                        ((0x00000000_0000FF00usize & second_word) << 8) |
-                        (0x00000000_000000FFusize & second_word);
-            let fourth = ((0xFF000000_00000000usize & second_word) >> 8) |
-                         ((0x00FF0000_00000000usize & second_word) >> 16) |
-                         ((0x0000FF00_00000000usize & second_word) >> 24) |
-                         ((0x000000FF_00000000usize & second_word) >> 32);
+            let first = ((0x0000_0000_FF00_0000usize & word) << 24) |
+                        ((0x0000_0000_00FF_0000usize & word) << 16) |
+                        ((0x0000_0000_0000_FF00usize & word) << 8) |
+                        (0x0000_0000_0000_00FFusize & word);
+            let second = ((0xFF00_0000_0000_0000usize & word) >> 8) |
+                         ((0x00FF_0000_0000_0000usize & word) >> 16) |
+                         ((0x0000_FF00_0000_0000usize & word) >> 24) |
+                         ((0x0000_00FF_0000_0000usize & word) >> 32);
+            let third = ((0x0000_0000_FF00_0000usize & second_word) << 24) |
+                        ((0x0000_0000_00FF_0000usize & second_word) << 16) |
+                        ((0x0000_0000_0000_FF00usize & second_word) << 8) |
+                        (0x0000_0000_0000_00FFusize & second_word);
+            let fourth = ((0xFF00_0000_0000_0000usize & second_word) >> 8) |
+                         ((0x00FF_0000_0000_0000usize & second_word) >> 16) |
+                         ((0x0000_FF00_0000_0000usize & second_word) >> 24) |
+                         ((0x0000_00FF_0000_0000usize & second_word) >> 32);
             *dst = first;
-            *(dst.offset(1)) = second;
-            *(dst.offset(2)) = third;
-            *(dst.offset(3)) = fourth;
+            *(dst.add(1)) = second;
+            *(dst.add(2)) = third;
+            *(dst.add(3)) = fourth;
         }
 
         #[inline(always)]
         unsafe fn pack_alu(first: usize, second: usize, third: usize, fourth: usize, dst: *mut usize) {
-            let word = ((0x00FF0000_00000000usize & second) << 8) |
-                       ((0x000000FF_00000000usize & second) << 16) |
-                       ((0x00000000_00FF0000usize & second) << 24) |
-                       ((0x00000000_000000FFusize & second) << 32) |
-                       ((0x00FF0000_00000000usize & first) >> 24) |
-                       ((0x000000FF_00000000usize & first) >> 16) |
-                       ((0x00000000_00FF0000usize & first) >> 8) |
-                       (0x00000000_000000FFusize & first);
-            let second_word = ((0x00FF0000_00000000usize & fourth) << 8) |
-                              ((0x000000FF_00000000usize & fourth) << 16) |
-                              ((0x00000000_00FF0000usize & fourth) << 24) |
-                              ((0x00000000_000000FFusize & fourth) << 32) |
-                              ((0x00FF0000_00000000usize & third) >> 24) |
-                              ((0x000000FF_00000000usize & third) >> 16) |
-                              ((0x00000000_00FF0000usize & third) >> 8) |
-                              (0x00000000_000000FFusize & third);
+            let word = ((0x00FF_0000_0000_0000usize & second) << 8) |
+                       ((0x0000_00FF_0000_0000usize & second) << 16) |
+                       ((0x0000_0000_00FF_0000usize & second) << 24) |
+                       ((0x0000_0000_0000_00FFusize & second) << 32) |
+                       ((0x00FF_0000_0000_0000usize & first) >> 24) |
+                       ((0x0000_00FF_0000_0000usize & first) >> 16) |
+                       ((0x0000_0000_00FF_0000usize & first) >> 8) |
+                       (0x0000_0000_0000_00FFusize & first);
+            let second_word = ((0x00FF_0000_0000_0000usize & fourth) << 8) |
+                              ((0x0000_00FF_0000_0000usize & fourth) << 16) |
+                              ((0x0000_0000_00FF_0000usize & fourth) << 24) |
+                              ((0x0000_0000_0000_00FFusize & fourth) << 32) |
+                              ((0x00FF_0000_0000_0000usize & third) >> 24) |
+                              ((0x0000_00FF_0000_0000usize & third) >> 16) |
+                              ((0x0000_0000_00FF_0000usize & third) >> 8) |
+                              (0x0000_0000_0000_00FFusize & third);
             *dst = word;
-            *(dst.offset(1)) = second_word;
+            *(dst.add(1)) = second_word;
         }
     } else if #[cfg(all(target_endian = "little", target_pointer_width = "32"))] {
         // Aligned ALU word, little-endian, 32-bit
@@ -892,32 +892,32 @@ cfg_if! {
 
         #[inline(always)]
         unsafe fn unpack_alu(word: usize, second_word: usize, dst: *mut usize) {
-            let first = ((0x0000FF00usize & word) << 8) |
-                        (0x000000FFusize & word);
-            let second = ((0xFF000000usize & word) >> 8) |
-                         ((0x00FF0000usize & word) >> 16);
-            let third = ((0x0000FF00usize & second_word) << 8) |
-                        (0x000000FFusize & second_word);
-            let fourth = ((0xFF000000usize & second_word) >> 8) |
-                         ((0x00FF0000usize & second_word) >> 16);
+            let first = ((0x0000_FF00usize & word) << 8) |
+                        (0x0000_00FFusize & word);
+            let second = ((0xFF00_0000usize & word) >> 8) |
+                         ((0x00FF_0000usize & word) >> 16);
+            let third = ((0x0000_FF00usize & second_word) << 8) |
+                        (0x0000_00FFusize & second_word);
+            let fourth = ((0xFF00_0000usize & second_word) >> 8) |
+                         ((0x00FF_0000usize & second_word) >> 16);
             *dst = first;
-            *(dst.offset(1)) = second;
-            *(dst.offset(2)) = third;
-            *(dst.offset(3)) = fourth;
+            *(dst.add(1)) = second;
+            *(dst.add(2)) = third;
+            *(dst.add(3)) = fourth;
         }
 
         #[inline(always)]
         unsafe fn pack_alu(first: usize, second: usize, third: usize, fourth: usize, dst: *mut usize) {
-            let word = ((0x00FF0000usize & second) << 8) |
-                       ((0x000000FFusize & second) << 16) |
-                       ((0x00FF0000usize & first) >> 8) |
-                       (0x000000FFusize & first);
-            let second_word = ((0x00FF0000usize & fourth) << 8) |
-                              ((0x000000FFusize & fourth) << 16) |
-                              ((0x00FF0000usize & third) >> 8) |
-                              (0x000000FFusize & third);
+            let word = ((0x00FF_0000usize & second) << 8) |
+                       ((0x0000_00FFusize & second) << 16) |
+                       ((0x00FF_0000usize & first) >> 8) |
+                       (0x0000_00FFusize & first);
+            let second_word = ((0x00FF_0000usize & fourth) << 8) |
+                              ((0x0000_00FFusize & fourth) << 16) |
+                              ((0x00FF_0000usize & third) >> 8) |
+                              (0x0000_00FFusize & third);
             *dst = word;
-            *(dst.offset(1)) = second_word;
+            *(dst.add(1)) = second_word;
         }
     } else if #[cfg(all(target_endian = "big", target_pointer_width = "64"))] {
         // Aligned ALU word, big-endian, 64-bit
@@ -932,26 +932,26 @@ cfg_if! {
 
         #[inline(always)]
         unsafe fn unpack_alu(word: usize, second_word: usize, dst: *mut usize) {
-            let first = ((0xFF000000_00000000usize & word) >> 8) |
-                         ((0x00FF0000_00000000usize & word) >> 16) |
-                         ((0x0000FF00_00000000usize & word) >> 24) |
-                         ((0x000000FF_00000000usize & word) >> 32);
-            let second = ((0x00000000_FF000000usize & word) << 24) |
-                        ((0x00000000_00FF0000usize & word) << 16) |
-                        ((0x00000000_0000FF00usize & word) << 8) |
-                        (0x00000000_000000FFusize & word);
-            let third = ((0xFF000000_00000000usize & second_word) >> 8) |
-                         ((0x00FF0000_00000000usize & second_word) >> 16) |
-                         ((0x0000FF00_00000000usize & second_word) >> 24) |
-                         ((0x000000FF_00000000usize & second_word) >> 32);
-            let fourth = ((0x00000000_FF000000usize & second_word) << 24) |
-                        ((0x00000000_00FF0000usize & second_word) << 16) |
-                        ((0x00000000_0000FF00usize & second_word) << 8) |
-                        (0x00000000_000000FFusize & second_word);
+            let first = ((0xFF00_0000_0000_0000usize & word) >> 8) |
+                         ((0x00FF_0000_0000_0000usize & word) >> 16) |
+                         ((0x0000_FF00_0000_0000usize & word) >> 24) |
+                         ((0x0000_00FF_0000_0000usize & word) >> 32);
+            let second = ((0x0000_0000_FF00_0000usize & word) << 24) |
+                        ((0x0000_0000_00FF_0000usize & word) << 16) |
+                        ((0x0000_0000_0000_FF00usize & word) << 8) |
+                        (0x0000_0000_0000_00FFusize & word);
+            let third = ((0xFF00_0000_0000_0000usize & second_word) >> 8) |
+                         ((0x00FF_0000_0000_0000usize & second_word) >> 16) |
+                         ((0x0000_FF00_0000_0000usize & second_word) >> 24) |
+                         ((0x0000_00FF_0000_0000usize & second_word) >> 32);
+            let fourth = ((0x0000_0000_FF00_0000usize & second_word) << 24) |
+                        ((0x0000_0000_00FF_0000usize & second_word) << 16) |
+                        ((0x0000_0000_0000_FF00usize & second_word) << 8) |
+                        (0x0000_0000_0000_00FFusize & second_word);
             *dst = first;
-            *(dst.offset(1)) = second;
-            *(dst.offset(2)) = third;
-            *(dst.offset(3)) = fourth;
+            *(dst.add(1)) = second;
+            *(dst.add(2)) = third;
+            *(dst.add(3)) = fourth;
         }
 
         #[inline(always)]
@@ -973,7 +973,7 @@ cfg_if! {
                               ((0x00000000_00FF0000usize & fourth) >> 8) |
                               (0x00000000_000000FFusize &  fourth);
             *dst = word;
-            *(dst.offset(1)) = second_word;
+            *(dst.add(1)) = second_word;
         }
     } else if #[cfg(all(target_endian = "big", target_pointer_width = "32"))] {
         // Aligned ALU word, big-endian, 32-bit
@@ -988,32 +988,32 @@ cfg_if! {
 
         #[inline(always)]
         unsafe fn unpack_alu(word: usize, second_word: usize, dst: *mut usize) {
-            let first = ((0xFF000000usize & word) >> 8) |
-                         ((0x00FF0000usize & word) >> 16);
-            let second = ((0x0000FF00usize & word) << 8) |
-                        (0x000000FFusize & word);
-            let third = ((0xFF000000usize & second_word) >> 8) |
-                         ((0x00FF0000usize & second_word) >> 16);
-            let fourth = ((0x0000FF00usize & second_word) << 8) |
-                        (0x000000FFusize & second_word);
+            let first = ((0xFF00_0000usize & word) >> 8) |
+                         ((0x00FF_0000usize & word) >> 16);
+            let second = ((0x0000_FF00usize & word) << 8) |
+                        (0x0000_00FFusize & word);
+            let third = ((0xFF00_0000usize & second_word) >> 8) |
+                         ((0x00FF_0000usize & second_word) >> 16);
+            let fourth = ((0x0000_FF00usize & second_word) << 8) |
+                        (0x0000_00FFusize & second_word);
             *dst = first;
-            *(dst.offset(1)) = second;
-            *(dst.offset(2)) = third;
-            *(dst.offset(3)) = fourth;
+            *(dst.add(1)) = second;
+            *(dst.add(2)) = third;
+            *(dst.add(3)) = fourth;
         }
 
         #[inline(always)]
         unsafe fn pack_alu(first: usize, second: usize, third: usize, fourth: usize, dst: *mut usize) {
-            let word = ((0x00FF0000usize & first) << 8) |
-                       ((0x000000FFusize & first) << 16) |
-                       ((0x00FF0000usize & second) >> 8) |
-                       (0x000000FFusize & second);
-            let second_word = ((0x00FF0000usize & third) << 8) |
-                              ((0x000000FFusize & third) << 16) |
-                              ((0x00FF0000usize & fourth) >> 8) |
-                              (0x000000FFusize & fourth);
+            let word = ((0x00FF_0000usize & first) << 8) |
+                       ((0x0000_00FFusize & first) << 16) |
+                       ((0x00FF_0000usize & second) >> 8) |
+                       (0x0000_00FFusize & second);
+            let second_word = ((0x00FF_0000usize & third) << 8) |
+                              ((0x0000_00FFusize & third) << 16) |
+                              ((0x00FF_0000usize & fourth) >> 8) |
+                              (0x0000_00FFusize & fourth);
             *dst = word;
-            *(dst.offset(1)) = second_word;
+            *(dst.add(1)) = second_word;
         }
     } else {
         ascii_naive!(ascii_to_ascii, u8, u8);
@@ -1048,7 +1048,7 @@ cfg_if! {
             if SIMD_STRIDE_SIZE <= len {
                 let len_minus_stride = len - SIMD_STRIDE_SIZE;
                 loop {
-                    let simd = unsafe { load16_unaligned(src.offset(offset as isize)) };
+                    let simd = unsafe { load16_unaligned(src.add(offset)) };
                     if !simd_is_ascii(simd) {
                         break;
                     }
@@ -1082,11 +1082,11 @@ cfg_if! {
                 // checking. Need to benchmark older architectures before deciding.
                 if ((src as usize) & SIMD_ALIGNMENT_MASK) == 0 {
                     loop {
-                        let simd = unsafe { load16_aligned(src.offset(offset as isize)) };
+                        let simd = unsafe { load16_aligned(src.add(offset)) };
                         let mask = mask_ascii(simd);
                         if mask != 0 {
                             offset += mask.trailing_zeros() as usize;
-                            let non_ascii = unsafe { *src.offset(offset as isize) };
+                            let non_ascii = unsafe { *src.add(offset) };
                             return Some((non_ascii, offset));
                         }
                         offset += SIMD_STRIDE_SIZE;
@@ -1096,11 +1096,11 @@ cfg_if! {
                     }
                 } else {
                     loop {
-                        let simd = unsafe { load16_unaligned(src.offset(offset as isize)) };
+                        let simd = unsafe { load16_unaligned(src.add(offset)) };
                         let mask = mask_ascii(simd);
                         if mask != 0 {
                             offset += mask.trailing_zeros() as usize;
-                            let non_ascii = unsafe { *src.offset(offset as isize) };
+                            let non_ascii = unsafe { *src.add(offset) };
                             return Some((non_ascii, offset));
                         }
                         offset += SIMD_STRIDE_SIZE;
@@ -1148,10 +1148,11 @@ cfg_if! {
         #[inline(always)]
         unsafe fn validate_ascii_stride(src: *const usize) -> Option<usize> {
             let word = *src;
-            let second_word = *(src.offset(1));
+            let second_word = *(src.add(1));
             find_non_ascii(word, second_word)
         }
 
+        #[cfg_attr(feature = "cargo-clippy", allow(clippy::cast_ptr_alignment))]
         #[inline(always)]
         pub fn validate_ascii(slice: &[u8]) -> Option<(u8, usize)> {
             let src = slice.as_ptr();
@@ -1169,10 +1170,10 @@ cfg_if! {
                 }
                 let len_minus_stride = len - ALU_STRIDE_SIZE;
                 loop {
-                    let ptr = unsafe { src.offset(offset as isize) as *const usize };
+                    let ptr = unsafe { src.add(offset) as *const usize };
                     if let Some(num_ascii) = unsafe { validate_ascii_stride(ptr) } {
                         offset += num_ascii;
-                        return Some((unsafe { *(src.offset(offset as isize)) }, offset));
+                        return Some((unsafe { *(src.add(offset)) }, offset));
                     }
                     offset += ALU_STRIDE_SIZE;
                     if offset > len_minus_stride {
@@ -1210,23 +1211,23 @@ cfg_if! {
         #[inline(always)]
         unsafe fn unpack_latin1_stride_alu(src: *const usize, dst: *mut usize) {
             let word = *src;
-            let second_word = *(src.offset(1));
+            let second_word = *(src.add(1));
             unpack_alu(word, second_word, dst);
         }
 
         #[inline(always)]
         unsafe fn pack_latin1_stride_alu(src: *const usize, dst: *mut usize) {
             let first = *src;
-            let second = *(src.offset(1));
-            let third = *(src.offset(2));
-            let fourth = *(src.offset(3));
+            let second = *(src.add(1));
+            let third = *(src.add(2));
+            let fourth = *(src.add(3));
             pack_alu(first, second, third, fourth, dst);
         }
 
         #[inline(always)]
         unsafe fn ascii_to_basic_latin_stride_alu(src: *const usize, dst: *mut usize) -> bool {
             let word = *src;
-            let second_word = *(src.offset(1));
+            let second_word = *(src.add(1));
             // Check if the words contains non-ASCII
             if (word & ASCII_MASK) | (second_word & ASCII_MASK) != 0 {
                 return false;
@@ -1238,9 +1239,9 @@ cfg_if! {
         #[inline(always)]
         unsafe fn basic_latin_to_ascii_stride_alu(src: *const usize, dst: *mut usize) -> bool {
             let first = *src;
-            let second = *(src.offset(1));
-            let third = *(src.offset(2));
-            let fourth = *(src.offset(3));
+            let second = *(src.add(1));
+            let third = *(src.add(2));
+            let fourth = *(src.add(3));
             if (first & BASIC_LATIN_MASK) | (second & BASIC_LATIN_MASK) | (third & BASIC_LATIN_MASK) | (fourth & BASIC_LATIN_MASK) != 0 {
                 return false;
             }
@@ -1251,9 +1252,9 @@ cfg_if! {
         #[inline(always)]
         unsafe fn ascii_to_ascii_stride(src: *const usize, dst: *mut usize) -> Option<usize> {
             let word = *src;
-            let second_word = *(src.offset(1));
+            let second_word = *(src.add(1));
             *dst = word;
-            *(dst.offset(1)) = second_word;
+            *(dst.add(1)) = second_word;
             find_non_ascii(word, second_word)
         }
 
