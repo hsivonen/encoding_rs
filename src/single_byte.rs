@@ -155,8 +155,8 @@ impl SingleByteDecoder {
         'outermost: loop {
             match unsafe {
                 ascii_to_basic_latin(
-                    src.as_ptr().offset(converted as isize),
-                    dst.as_mut_ptr().offset(converted as isize),
+                    src.as_ptr().add(converted),
+                    dst.as_mut_ptr().add(converted),
                     length - converted,
                 )
             } {
@@ -208,7 +208,7 @@ impl SingleByteDecoder {
                             // byte unconditionally instead of trying to unread it
                             // to make it part of the next SIMD stride.
                             unsafe {
-                                *(dst.get_unchecked_mut(converted)) = b as u16;
+                                *(dst.get_unchecked_mut(converted)) = u16::from(b);
                             }
                             converted += 1;
                             if b < 60 {
@@ -316,13 +316,10 @@ impl SingleByteEncoder {
             if let Some(pos) = position(&self.table[32..64], code_unit) {
                 return Some(((128 + 32) + pos) as u8);
             }
-        } else {
+        } else if let Some(pos) = position(&self.table[32..self.run_byte_offset], code_unit) {
             // windows-1252, windows-874, ISO-8859-15 and ISO-8859-5
-
             // Search second quadrant before the run
-            if let Some(pos) = position(&self.table[32..self.run_byte_offset], code_unit) {
-                return Some(((128 + 32) + pos) as u8);
-            }
+            return Some(((128 + 32) + pos) as u8);
         }
 
         // Search first quadrant
@@ -373,8 +370,8 @@ impl SingleByteEncoder {
         'outermost: loop {
             match unsafe {
                 basic_latin_to_ascii(
-                    src.as_ptr().offset(converted as isize),
-                    dst.as_mut_ptr().offset(converted as isize),
+                    src.as_ptr().add(converted),
+                    dst.as_mut_ptr().add(converted),
                     length - converted,
                 )
             } {
@@ -407,7 +404,7 @@ impl SingleByteEncoder {
                                         );
                                     }
                                     let second =
-                                        unsafe { *src.get_unchecked(converted + 1) } as u32;
+                                        u32::from(unsafe { *src.get_unchecked(converted + 1) });
                                     if second & 0xFC00u32 != 0xDC00u32 {
                                         return (
                                             EncoderResult::Unmappable('\u{FFFD}'),
@@ -417,9 +414,9 @@ impl SingleByteEncoder {
                                     }
                                     // The next code unit is a low surrogate.
                                     let astral: char = unsafe {
-                                        ::std::mem::transmute(
-                                            ((non_ascii as u32) << 10) + second
-                                                - (((0xD800u32 << 10) - 0x10000u32) + 0xDC00u32),
+                                        ::std::char::from_u32_unchecked(
+                                            (u32::from(non_ascii) << 10) + second
+                                                - (((0xD800u32 << 10) - 0x1_0000u32) + 0xDC00u32),
                                         )
                                     };
                                     return (
@@ -436,10 +433,8 @@ impl SingleByteEncoder {
                                         converted,
                                     );
                                 }
-                                let thirty_two = non_ascii as u32;
-                                let bmp: char = unsafe { ::std::mem::transmute(thirty_two) };
                                 return (
-                                    EncoderResult::Unmappable(bmp),
+                                    EncoderResult::unmappable_from_bmp(non_ascii),
                                     converted + 1, // +1 `for non_ascii`
                                     converted,
                                 );

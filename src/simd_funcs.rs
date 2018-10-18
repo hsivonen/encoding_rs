@@ -353,7 +353,7 @@ mod tests {
         let ptr = vec.as_mut_ptr();
         unsafe {
             store8_unaligned(ptr, first);
-            store8_unaligned(ptr.offset(8), second);
+            store8_unaligned(ptr.add(8), second);
         }
         assert_eq!(&vec[..], &basic_latin[..]);
     }
@@ -369,7 +369,7 @@ mod tests {
             0x75, 0x76,
         ];
         let first = unsafe { load8_unaligned(basic_latin.as_ptr()) };
-        let second = unsafe { load8_unaligned(basic_latin.as_ptr().offset(8)) };
+        let second = unsafe { load8_unaligned(basic_latin.as_ptr().add(8)) };
         let mut vec = Vec::with_capacity(16);
         vec.resize(16, 0u8);
         let ptr = vec.as_mut_ptr();
@@ -387,7 +387,7 @@ mod tests {
             0x75, 0x76,
         ];
         let first = unsafe { load8_unaligned(input.as_ptr()) };
-        let second = unsafe { load8_unaligned(input.as_ptr().offset(8)) };
+        let second = unsafe { load8_unaligned(input.as_ptr().add(8)) };
         assert!(!simd_is_basic_latin(first | second));
     }
 
@@ -398,7 +398,7 @@ mod tests {
             0x75, 0x76,
         ];
         let first = unsafe { load8_unaligned(input.as_ptr()) };
-        let second = unsafe { load8_unaligned(input.as_ptr().offset(8)) };
+        let second = unsafe { load8_unaligned(input.as_ptr().add(8)) };
         assert!(!simd_is_basic_latin(first | second));
     }
 
@@ -409,7 +409,7 @@ mod tests {
             0x75, 0x76,
         ];
         let first = unsafe { load8_unaligned(input.as_ptr()) };
-        let second = unsafe { load8_unaligned(input.as_ptr().offset(8)) };
+        let second = unsafe { load8_unaligned(input.as_ptr().add(8)) };
         assert!(!simd_is_basic_latin(first | second));
     }
 

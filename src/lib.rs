@@ -9,7 +9,11 @@
 
 #![cfg_attr(
     feature = "cargo-clippy",
-    allow(doc_markdown, inline_always, new_ret_no_self)
+    allow(
+        clippy::doc_markdown,
+        clippy::inline_always,
+        clippy::new_ret_no_self
+    )
 )]
 #![doc(html_root_url = "https://docs.rs/encoding_rs/0.8.10")]
 
@@ -85,10 +89,7 @@
 //! // Very short output buffer to demonstrate the output buffer getting full.
 //! // Normally, you'd use something like `[0u8; 2048]`.
 //! let mut buffer_bytes = [0u8; 8];
-//! // Rust doesn't allow us to stack-allocate a `mut str` without `unsafe`.
-//! let mut buffer: &mut str = unsafe {
-//!     std::mem::transmute(&mut buffer_bytes[..])
-//! };
+//! let mut buffer: &mut str = std::str::from_utf8_mut(&mut buffer_bytes[..]).unwrap();
 //!
 //! // How many bytes in the buffer currently hold significant data.
 //! let mut bytes_in_buffer = 0usize;
@@ -2845,6 +2846,20 @@ impl Encoding {
         !(self == REPLACEMENT || self == UTF_16BE || self == UTF_16LE || self == ISO_2022_JP)
     }
 
+    /// Checks whether this encoding maps one byte to one Basic Multilingual
+    /// Plane code point (i.e. byte length equals decoded UTF-16 length) and
+    /// vice versa (for mappable characters).
+    ///
+    /// `true` iff this encoding is on the list of [Legacy single-byte
+    /// encodings](https://encoding.spec.whatwg.org/#legacy-single-byte-encodings)
+    /// in the spec or x-user-defined.
+    ///
+    /// Available via the C wrapper.
+    #[inline]
+    pub fn is_single_byte(&'static self) -> bool {
+        self.variant.is_single_byte()
+    }
+
     /// Checks whether the bytes 0x00...0x7F map mostly to the characters
     /// U+0000...U+007F and vice versa.
     #[inline]
@@ -2999,7 +3014,7 @@ impl Encoding {
                 ascii_valid_up_to(bytes)
             };
             if valid_up_to == bytes.len() {
-                let str: &str = unsafe { std::mem::transmute(bytes) };
+                let str: &str = unsafe { std::str::from_utf8_unchecked(bytes) };
                 return (Cow::Borrowed(str), false);
             }
             let decoder = self.new_decoder_without_bom_handling();
@@ -3091,7 +3106,7 @@ impl Encoding {
         if self == UTF_8 {
             let valid_up_to = utf8_valid_up_to(bytes);
             if valid_up_to == bytes.len() {
-                let str: &str = unsafe { std::mem::transmute(bytes) };
+                let str: &str = unsafe { std::str::from_utf8_unchecked(bytes) };
                 return Some(Cow::Borrowed(str));
             }
             return None;
@@ -3103,7 +3118,7 @@ impl Encoding {
                 ascii_valid_up_to(bytes)
             };
             if valid_up_to == bytes.len() {
-                let str: &str = unsafe { std::mem::transmute(bytes) };
+                let str: &str = unsafe { std::str::from_utf8_unchecked(bytes) };
                 return Some(Cow::Borrowed(str));
             }
             let decoder = self.new_decoder_without_bom_handling();
@@ -3393,7 +3408,7 @@ impl<'de> Deserialize<'de> for &'static Encoding {
 }
 
 /// Tracks the life cycle of a decoder from BOM sniffing to conversion to end.
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Copy, Clone)]
 enum DecoderLifeCycle {
     /// The decoder has seen no input yet.
     AtStart,
@@ -3422,6 +3437,7 @@ enum DecoderLifeCycle {
 }
 
 /// Communicate the BOM handling mode.
+#[derive(Debug, Copy, Clone)]
 enum BomHandling {
     /// Don't handle the BOM
     Off,
@@ -3886,7 +3902,7 @@ impl Decoder {
         dst: &mut str,
         last: bool,
     ) -> (CoderResult, usize, usize, bool) {
-        let bytes: &mut [u8] = unsafe { std::mem::transmute(dst) };
+        let bytes: &mut [u8] = unsafe { dst.as_bytes_mut() };
         let (result, read, written, replaced) = self.decode_to_utf8(src, bytes, last);
         let len = bytes.len();
         let mut trail = written;
@@ -3976,7 +3992,7 @@ impl Decoder {
         dst: &mut str,
         last: bool,
     ) -> (DecoderResult, usize, usize) {
-        let bytes: &mut [u8] = unsafe { std::mem::transmute(dst) };
+        let bytes: &mut [u8] = unsafe { dst.as_bytes_mut() };
         let (result, read, written) = self.decode_to_utf8_without_replacement(src, bytes, last);
         let len = bytes.len();
         let mut trail = written;
@@ -4216,7 +4232,7 @@ pub enum EncoderResult {
 
 impl EncoderResult {
     fn unmappable_from_bmp(bmp: u16) -> EncoderResult {
-        EncoderResult::Unmappable(::std::char::from_u32(bmp as u32).unwrap())
+        EncoderResult::Unmappable(::std::char::from_u32(u32::from(bmp)).unwrap())
     }
 }
 
@@ -4687,13 +4703,13 @@ fn write_ncr(unmappable: char, dst: &mut [u8]) -> usize {
     // len is the number of decimal digits needed to represent unmappable plus
     // 3 (the length of "&#" and ";").
     let mut number = unmappable as u32;
-    let len = if number >= 1000000u32 {
+    let len = if number >= 1_000_000u32 {
         10usize
-    } else if number >= 100000u32 {
+    } else if number >= 100_000u32 {
         9usize
-    } else if number >= 10000u32 {
+    } else if number >= 10_000u32 {
         8usize
-    } else if number >= 1000u32 {
+    } else if number >= 1_000u32 {
         7usize
     } else if number >= 100u32 {
         6usize
@@ -5634,4 +5650,48 @@ mod tests {
         assert_eq!(debincoded, demo);
     }
 
+    #[test]
+    fn test_is_single_byte() {
+        assert!(!BIG5.is_single_byte());
+        assert!(!EUC_JP.is_single_byte());
+        assert!(!EUC_KR.is_single_byte());
+        assert!(!GB18030.is_single_byte());
+        assert!(!GBK.is_single_byte());
+        assert!(!REPLACEMENT.is_single_byte());
+        assert!(!SHIFT_JIS.is_single_byte());
+        assert!(!UTF_8.is_single_byte());
+        assert!(!UTF_16BE.is_single_byte());
+        assert!(!UTF_16LE.is_single_byte());
+        assert!(!ISO_2022_JP.is_single_byte());
+
+        assert!(IBM866.is_single_byte());
+        assert!(ISO_8859_2.is_single_byte());
+        assert!(ISO_8859_3.is_single_byte());
+        assert!(ISO_8859_4.is_single_byte());
+        assert!(ISO_8859_5.is_single_byte());
+        assert!(ISO_8859_6.is_single_byte());
+        assert!(ISO_8859_7.is_single_byte());
+        assert!(ISO_8859_8.is_single_byte());
+        assert!(ISO_8859_10.is_single_byte());
+        assert!(ISO_8859_13.is_single_byte());
+        assert!(ISO_8859_14.is_single_byte());
+        assert!(ISO_8859_15.is_single_byte());
+        assert!(ISO_8859_16.is_single_byte());
+        assert!(ISO_8859_8_I.is_single_byte());
+        assert!(KOI8_R.is_single_byte());
+        assert!(KOI8_U.is_single_byte());
+        assert!(MACINTOSH.is_single_byte());
+        assert!(WINDOWS_874.is_single_byte());
+        assert!(WINDOWS_1250.is_single_byte());
+        assert!(WINDOWS_1251.is_single_byte());
+        assert!(WINDOWS_1252.is_single_byte());
+        assert!(WINDOWS_1253.is_single_byte());
+        assert!(WINDOWS_1254.is_single_byte());
+        assert!(WINDOWS_1255.is_single_byte());
+        assert!(WINDOWS_1256.is_single_byte());
+        assert!(WINDOWS_1257.is_single_byte());
+        assert!(WINDOWS_1258.is_single_byte());
+        assert!(X_MAC_CYRILLIC.is_single_byte());
+        assert!(X_USER_DEFINED.is_single_byte());
+    }
 }

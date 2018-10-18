@@ -46,7 +46,7 @@ fn as_u16_slice(data: &[u8]) -> &[u16] {
         let (adj_ptr, adj_len) = if ptr as usize & 1 == 0 {
             (ptr, len / 2)
         } else {
-            (ptr.offset(1), (len - 1) / 2)
+            (ptr.add(1), (len - 1) / 2)
         };
         ::std::slice::from_raw_parts(adj_ptr as *const u16, adj_len)
     }

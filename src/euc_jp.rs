@@ -77,10 +77,10 @@ impl EucJpDecoder {
             // and Katakana (10% acconding to Lunde).
             if jis0208_lead_minus_offset == 0x03 && trail_minus_offset < 0x53 {
                 // Hiragana
-                handle.write_upper_bmp(0x3041 + trail_minus_offset as u16)
+                handle.write_upper_bmp(0x3041 + u16::from(trail_minus_offset))
             } else if jis0208_lead_minus_offset == 0x04 && trail_minus_offset < 0x56 {
                 // Katakana
-                handle.write_upper_bmp(0x30A1 + trail_minus_offset as u16)
+                handle.write_upper_bmp(0x30A1 + u16::from(trail_minus_offset))
             } else if trail_minus_offset > (0xFE - 0xA1) {
                 if byte < 0x80 {
                     return (
@@ -95,7 +95,7 @@ impl EucJpDecoder {
                     handle.written(),
                 );
             } else {
-                let pointer = mul_94(jis0208_lead_minus_offset) + trail_minus_offset as usize;
+                let pointer = mul_94(jis0208_lead_minus_offset) + usize::from(trail_minus_offset);
                 let level1_pointer = pointer.wrapping_sub(1410);
                 if level1_pointer < JIS0208_LEVEL1_KANJI.len() {
                     handle.write_upper_bmp(JIS0208_LEVEL1_KANJI[level1_pointer])
@@ -160,7 +160,7 @@ impl EucJpDecoder {
                     handle.written(),
                 );
             }
-            let pointer = mul_94(jis0212_lead_minus_offset) + trail_minus_offset as usize;
+            let pointer = mul_94(jis0212_lead_minus_offset) + usize::from(trail_minus_offset);
             let pointer_minus_kanji = pointer.wrapping_sub(1410);
             if pointer_minus_kanji < JIS0212_KANJI.len() {
                 handle.write_upper_bmp(JIS0212_KANJI[pointer_minus_kanji])
@@ -202,7 +202,7 @@ impl EucJpDecoder {
                     handle.written(),
                 );
             }
-            handle.write_upper_bmp(0xFF61 + trail_minus_offset as u16)
+            handle.write_upper_bmp(0xFF61 + u16::from(trail_minus_offset))
         },
         self,
         non_ascii,

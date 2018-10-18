@@ -261,9 +261,9 @@ impl Gb18030Decoder {
                 } else {
                     handle.write_bmp_excl_ascii(gb18030_range_decode(pointer as u16))
                 }
-            } else if pointer >= 189000 && pointer <= 1237575 {
+            } else if pointer >= 189_000 && pointer <= 1_237_575 {
                 // Astral
-                handle.write_astral((pointer - (189000usize - 0x10000usize)) as u32)
+                handle.write_astral((pointer - (189_000usize - 0x1_0000usize)) as u32)
             } else {
                 return (DecoderResult::Malformed(4, 0),
                         unread_handle_fourth.consumed(),
@@ -535,7 +535,7 @@ impl Gb18030Encoder {
                     handle.written(),
                 );
             }
-            let range_pointer = astral as usize + (189000usize - 0x10000usize);
+            let range_pointer = astral as usize + (189_000usize - 0x1_0000usize);
             let first = range_pointer / (10 * 126 * 10);
             let rem_first = range_pointer % (10 * 126 * 10);
             let second = rem_first / (10 * 126);

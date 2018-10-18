@@ -68,7 +68,7 @@ impl ShiftJisDecoder {
                                 source.consumed(),
                                 handle.written());
                     }
-                    handle.write_upper_bmp(0xFF61 + non_ascii_minus_half_with_katakana_start as u16);
+                    handle.write_upper_bmp(0xFF61 + u16::from(non_ascii_minus_half_with_katakana_start));
                     // Not caring about optimizing subsequent non-ASCII
                     continue 'outermost;
                 }
@@ -89,7 +89,7 @@ impl ShiftJisDecoder {
             let trail_minus_hiragana = byte.wrapping_sub(0x9F);
             if lead_minus_offset == 0x01 && trail_minus_hiragana < 0x53 {
             // Hiragana
-                handle.write_upper_bmp(0x3041 + trail_minus_hiragana as u16)
+                handle.write_upper_bmp(0x3041 + u16::from(trail_minus_hiragana))
             } else {
                 let mut trail_minus_offset =
                     byte.wrapping_sub(0x40);
@@ -111,7 +111,7 @@ impl ShiftJisDecoder {
                 if lead_minus_offset == 0x02 &&
                    trail_minus_offset < 0x56 {
                     // Katakana
-                    handle.write_upper_bmp(0x30A1 + trail_minus_offset as u16)
+                    handle.write_upper_bmp(0x30A1 + u16::from(trail_minus_offset))
                 } else {
                     let pointer = lead_minus_offset as usize *
                                   188usize +
