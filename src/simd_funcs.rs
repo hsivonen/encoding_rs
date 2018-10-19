@@ -102,13 +102,8 @@ pub fn simd_byte_swap(s: u16x8) -> u16x8 {
 
 #[inline(always)]
 pub fn to_u16_lanes(s: u8x16) -> u16x8 {
-    unsafe { ::std::mem::transmute(s) }
+    u16x8::from_bits(s)
 }
-
-// #[inline(always)]
-// pub fn to_u8_lanes(s: u16x8) -> u8x16 {
-//     unsafe { ::std::mem::transmute(s) }
-// }
 
 cfg_if! {
     if #[cfg(target_feature = "sse2")] {
@@ -302,8 +297,8 @@ pub fn simd_unpack(s: u8x16) -> (u16x8, u16x8) {
             [8, 24, 9, 25, 10, 26, 11, 27, 12, 28, 13, 29, 14, 30, 15, 31]
         );
         (
-            ::std::mem::transmute_copy(&first),
-            ::std::mem::transmute_copy(&second),
+            u16x8::from_bits(first),
+            u16x8::from_bits(second)
         )
     }
 }
@@ -320,8 +315,8 @@ cfg_if! {
         #[inline(always)]
         pub fn simd_pack(a: u16x8, b: u16x8) -> u8x16 {
             unsafe {
-                let first: u8x16 = ::std::mem::transmute_copy(&a);
-                let second: u8x16 = ::std::mem::transmute_copy(&b);
+                let first: u8x16::from_bits(a);
+                let second: u8x16::from_bits(b);
                 shuffle!(
                     first,
                     second,
