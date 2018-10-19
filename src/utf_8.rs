@@ -780,22 +780,18 @@ impl Utf8Encoder {
         dst: &mut [u8],
         _last: bool,
     ) -> (EncoderResult, usize, usize) {
-        let mut to_write = src.len();
+        let bytes = src.as_bytes();
+        let mut to_write = bytes.len();
         if to_write <= dst.len() {
-            unsafe {
-                ::std::ptr::copy_nonoverlapping(src.as_ptr(), dst.as_mut_ptr(), to_write);
-            }
+            (&mut dst[..to_write]).copy_from_slice(bytes);
             return (EncoderResult::InputEmpty, to_write, to_write);
         }
         to_write = dst.len();
         // Move back until we find a UTF-8 sequence boundary.
-        let bytes = src.as_bytes();
         while (bytes[to_write] & 0xC0) == 0x80 {
             to_write -= 1;
         }
-        unsafe {
-            ::std::ptr::copy_nonoverlapping(src.as_ptr(), dst.as_mut_ptr(), to_write);
-        }
+        (&mut dst[..to_write]).copy_from_slice(&bytes[..to_write]);
         (EncoderResult::OutputFull, to_write, to_write)
     }
 }
