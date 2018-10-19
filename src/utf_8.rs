@@ -664,88 +664,111 @@ impl Utf8Encoder {
             'inner: loop {
                 // The following loop is only broken out of as a goto forward.
                 loop {
-                    // Unfortunately, this check isn't enough for the compiler to elide
-                    // the bound checks on writes to dst, which is why they are manually
-                    // elided, which makes a measurable difference.
-                    if written.checked_add(4).unwrap() > dst.len() {
-                        return (EncoderResult::OutputFull, read, written);
-                    }
-                    read += 1;
+                    // Note that `read` hasn't yet been updated to reflect
+                    // that `unit` has been read. We commit to updating `read`
+                    // only when we now we are able to update `written`, too.
+                    // This is in stark contrast to the general structure
+                    // of encoding_rs but makes UTF-16 to UTF-8 conversion's
+                    // output buffer space requirements more intuitive.
                     if unit < 0x800 {
-                        unsafe {
-                            *(dst.get_unchecked_mut(written)) = (unit >> 6) as u8 | 0xC0u8;
-                            written += 1;
-                            *(dst.get_unchecked_mut(written)) = (unit & 0x3F) as u8 | 0x80u8;
-                            written += 1;
+                        // The pattern here allows bound checks to be elided
+                        // from the writes into `tail`.
+                        if written <= dst.len() {
+                            let tail = &mut dst[written..];
+                            if tail.len() >= 2 {
+                                tail[0] = (unit >> 6) as u8 | 0xC0;
+                                tail[1] = (unit & 0x3F) as u8 | 0x80;
+
+                                read += 1;
+                                written += 2;
+                                break;
+                            }
                         }
-                        break;
+                        return (EncoderResult::OutputFull, read, written);
                     }
                     let unit_minus_surrogate_start = unit.wrapping_sub(0xD800);
                     if unsafe { likely(unit_minus_surrogate_start > (0xDFFF - 0xD800)) } {
-                        unsafe {
-                            *(dst.get_unchecked_mut(written)) = (unit >> 12) as u8 | 0xE0u8;
-                            written += 1;
-                            *(dst.get_unchecked_mut(written)) =
-                                ((unit & 0xFC0) >> 6) as u8 | 0x80u8;
-                            written += 1;
-                            *(dst.get_unchecked_mut(written)) = (unit & 0x3F) as u8 | 0x80u8;
-                            written += 1;
+                        // The pattern here allows bound checks to be elided
+                        // from the writes into `tail`.
+                        if written <= dst.len() {
+                            let tail = &mut dst[written..];
+                            if tail.len() >= 3 {
+                                tail[0] = (unit >> 12) as u8 | 0xE0;
+                                tail[1] = ((unit & 0xFC0) >> 6) as u8 | 0x80;
+                                tail[2] = (unit & 0x3F) as u8 | 0x80;
+
+                                read += 1;
+                                written += 3;
+                                break;
+                            }
                         }
-                        break;
+                        return (EncoderResult::OutputFull, read, written);
                     }
                     if unsafe { likely(unit_minus_surrogate_start <= (0xDBFF - 0xD800)) } {
                         // high surrogate
-                        // read > src.len() is impossible, but using
+                        let next_read = read + 1;
+                        // next_read > src.len() is impossible, but using
                         // >= instead of == allows the compiler to elide a bound check.
-                        if read >= src.len() {
-                            debug_assert_eq!(read, src.len());
+                        if next_read >= src.len() {
+                            debug_assert_eq!(next_read, src.len());
                             // Unpaired surrogate at the end of the buffer.
-                            unsafe {
-                                *(dst.get_unchecked_mut(written)) = 0xEFu8;
-                                written += 1;
-                                *(dst.get_unchecked_mut(written)) = 0xBFu8;
-                                written += 1;
-                                *(dst.get_unchecked_mut(written)) = 0xBDu8;
-                                written += 1;
+                            // The pattern here allows bound checks to be elided
+                            // from the writes into `tail`.
+                            if written <= dst.len() {
+                                let tail = &mut dst[written..];
+                                if tail.len() >= 3 {
+                                    tail[0] = 0xEFu8;
+                                    tail[1] = 0xBFu8;
+                                    tail[2] = 0xBDu8;
+
+                                    read += 1;
+                                    written += 3;
+                                    return (EncoderResult::InputEmpty, read, written);
+                                }
                             }
-                            return (EncoderResult::InputEmpty, read, written);
+                            return (EncoderResult::OutputFull, read, written);
                         }
-                        let second = src[read];
+                        let second = src[next_read];
                         let second_minus_low_surrogate_start = second.wrapping_sub(0xDC00);
                         if unsafe { likely(second_minus_low_surrogate_start <= (0xDFFF - 0xDC00)) }
                         {
-                            // The next code unit is a low surrogate. Advance position.
-                            read += 1;
-                            let astral = (u32::from(unit) << 10) + u32::from(second)
-                                - (((0xD800u32 << 10) - 0x10000u32) + 0xDC00u32);
-                            unsafe {
-                                *(dst.get_unchecked_mut(written)) = (astral >> 18) as u8 | 0xF0u8;
-                                written += 1;
-                                *(dst.get_unchecked_mut(written)) =
-                                    ((astral & 0x3F000u32) >> 12) as u8 | 0x80u8;
-                                written += 1;
-                                *(dst.get_unchecked_mut(written)) =
-                                    ((astral & 0xFC0u32) >> 6) as u8 | 0x80u8;
-                                written += 1;
-                                *(dst.get_unchecked_mut(written)) = (astral & 0x3F) as u8 | 0x80u8;
-                                written += 1;
+                            // The pattern here allows bound checks to be elided
+                            // from the writes into `tail`.
+                            if written <= dst.len() {
+                                let tail = &mut dst[written..];
+                                if tail.len() >= 4 {
+                                    let astral = (u32::from(unit) << 10) + u32::from(second)
+                                        - (((0xD800u32 << 10) - 0x10000u32) + 0xDC00u32);
+                                    tail[0] = (astral >> 18) as u8 | 0xF0;
+                                    tail[1] = ((astral & 0x3F000u32) >> 12) as u8 | 0x80;
+                                    tail[2] = ((astral & 0xFC0u32) >> 6) as u8 | 0x80;
+                                    tail[3] = (astral & 0x3F) as u8 | 0x80;
+
+                                    read += 2;
+                                    written += 4;
+                                    break;
+                                }
                             }
-                            break;
+                            return (EncoderResult::OutputFull, read, written);
                         }
                         // The next code unit is not a low surrogate. Don't advance
                         // position and treat the high surrogate as unpaired.
                         // Fall through
                     }
                     // Unpaired low surrogate
-                    unsafe {
-                        *(dst.get_unchecked_mut(written)) = 0xEFu8;
-                        written += 1;
-                        *(dst.get_unchecked_mut(written)) = 0xBFu8;
-                        written += 1;
-                        *(dst.get_unchecked_mut(written)) = 0xBDu8;
-                        written += 1;
+                    if written <= dst.len() {
+                        let tail = &mut dst[written..];
+                        if tail.len() >= 3 {
+                            tail[0] = 0xEFu8;
+                            tail[1] = 0xBFu8;
+                            tail[2] = 0xBDu8;
+
+                            read += 1;
+                            written += 3;
+                            break;
+                        }
                     }
-                    break;
+                    return (EncoderResult::OutputFull, read, written);
                 }
                 // Now see if the next unit is Basic Latin
                 // read > src.len() is impossible, but using
