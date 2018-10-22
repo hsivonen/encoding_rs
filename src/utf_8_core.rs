@@ -14,7 +14,7 @@
 // from that file. Subsequently, changes from the mentioned file at revision
 // 85eadf84f3945dc431643ea43d34f15193fdafb4 were merged into this file.
 
-use ascii::validate_ascii;
+use crate::ascii::validate_ascii;
 
 /// Errors which can occur when attempting to interpret a sequence of `u8`
 /// as a string.

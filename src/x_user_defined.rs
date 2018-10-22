@@ -13,7 +13,7 @@ use crate::variant::*;
 
 cfg_if!{
     if #[cfg(feature = "simd-accel")] {
-        use simd_funcs::*;
+        use crate::simd_funcs::*;
         use simd::u16x8;
 
         #[inline(always)]
