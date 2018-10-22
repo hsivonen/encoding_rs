@@ -8,8 +8,8 @@
 // except according to those terms.
 
 use super::*;
-use handles::*;
-use variant::*;
+use crate::handles::*;
+use crate::variant::*;
 
 pub struct Utf16Decoder {
     lead_surrogate: u16, // If non-zero and pending_bmp == false, a pending lead surrogate

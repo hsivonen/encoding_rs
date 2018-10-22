@@ -8,9 +8,9 @@
 // except according to those terms.
 
 use super::*;
-use data::*;
-use handles::*;
-use variant::*;
+use crate::data::*;
+use crate::handles::*;
+use crate::variant::*;
 // Rust 1.14.0 requires the following despite the asterisk above.
 use super::in_inclusive_range;
 use super::in_inclusive_range16;

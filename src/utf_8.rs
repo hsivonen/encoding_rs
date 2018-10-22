@@ -11,10 +11,10 @@
 extern crate rayon;
 
 use super::*;
-use ascii::ascii_to_basic_latin;
-use ascii::basic_latin_to_ascii;
-use handles::*;
-use variant::*;
+use crate::ascii::ascii_to_basic_latin;
+use crate::ascii::basic_latin_to_ascii;
+use crate::handles::*;
+use crate::variant::*;
 
 cfg_if!{
     if #[cfg(feature = "simd-accel")] {
