@@ -220,7 +220,7 @@ macro_rules! by_unit_check_simd {
 
 cfg_if!{
     if #[cfg(all(feature = "simd-accel", any(target_feature = "sse2", all(target_endian = "little", target_arch = "aarch64"), all(target_endian = "little", target_feature = "neon"))))] {
-        use simd_funcs::*;
+        use crate::simd_funcs::*;
         use simd::u8x16;
         use simd::u16x8;
 

@@ -42,7 +42,7 @@ cfg_if! {
     // on a 32-bit ARM CPU (particularly good on Exynos 5) and when running
     // 64-bit ARM code on a 64-bit ARM CPU.
     if #[cfg(any(all(feature = "simd-accel", target_feature = "sse2"), all(target_endian = "little", target_arch = "aarch64"), all(target_endian = "little", target_arch = "arm")))] {
-        use utf_8_core::run_utf8_validation;
+        use crate::utf_8_core::run_utf8_validation;
     } else {
         use ::std::str::Utf8Error;
         #[inline(always)]
