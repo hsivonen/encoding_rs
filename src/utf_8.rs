@@ -52,6 +52,37 @@ cfg_if! {
     }
 }
 
+// Format for the value in the first table
+//
+// Bit 0: 1 iff lead is C2..DF (two-byte sequence)
+// Bit 1: 1 iff lead is E0 (three-byte with special lower bound for second)
+// Bit 2: 1 iff lead is E1..EC (first normal three-byte range)
+// Bit 3: 1 iff lead is ED (three-byte with special upper bound for second)
+// Bit 4: 1 iff lead is EE..EF (second normal three-byte range)
+// Bit 5: 1 iff lead is F0 (four-byte with special lower bound for second)
+// Bit 6: 1 iff lead is F1..F3 (normal four-byte sequence)
+// Bit 7: 1 iff lead is F4 (four-byte with special upper bound for second)
+//
+// Bit 8: 1 iff none of the above is 1
+//
+// Bit 9: 1 iff two-byte or four-byte
+// Bit 10: 1 iff three-byte or four-byte
+//
+// Shifting right by 9, ANDing by 3 and adding 1 gives the advance.
+// 
+// Bit 11: Always 1
+// Bit 12: Always 1
+// Bit 13: Always 1
+// Bit 14: 1 iff three-byte or four-byte
+// Bit 15: 1 iff four-byte
+//
+// Shifting right by 11 gives the mask for extracting the payload
+// bits from the lead byte.
+//
+// Format for the other tables:
+// Bit is 1 iff the given the lead corresponding to the bit position
+// this trail byte is invalid.
+
 pub const UTF8_NORMAL_TRAIL: u8 = 1 << 3;
 
 pub const UTF8_THREE_BYTE_SPECIAL_LOWER_BOUND_TRAIL: u8 = 1 << 4;
