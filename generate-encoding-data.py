@@ -1430,26 +1430,97 @@ utf_8_file = open("src/utf_8.rs", "w")
 utf_8_file.write(utf_8_rs_begin)
 utf_8_file.write("""
 // Instead, please regenerate using generate-encoding-data.py
+first: [
+""")
 
-/// Bit is 1 if the trail is invalid.
-pub static UTF8_TRAIL_INVALID: [u8; 256] = [""")
-
-for i in range(256):
-  combined = 0
-  if i < 0x80 or i > 0xBF:
-    combined |= (1 << 3)
-  if i < 0xA0 or i > 0xBF:
-    combined |= (1 << 4)
-  if i < 0x80 or i > 0x9F:
-    combined |= (1 << 5)
-  if i < 0x90 or i > 0xBF:
-    combined |= (1 << 6)
-  if i < 0x80 or i > 0x8F:
-    combined |= (1 << 7)
-  utf_8_file.write("%d," % combined)
+for i in xrange(128, 256):
+  bits = (1 << 11) | (1 << 12) | (1 << 13)
+  if i >= 0xC2 and i <= 0xDF:
+    bits |= (1 << 0)
+    bits |= (1 << 9)
+    bits |= (1 << 14)
+    bits |= (1 << 15)
+  elif i == 0xE0:
+    bits |= (1 << 1)
+    bits |= (1 << 10)
+    bits |= (1 << 14)
+  elif i >= 0xE1 and i <= 0xEC:
+    bits |= (1 << 2)
+    bits |= (1 << 10)
+    bits |= (1 << 14)
+  elif i == 0xED:
+    bits |= (1 << 3)
+    bits |= (1 << 10)
+    bits |= (1 << 14)
+  elif i >= 0xEE and i <= 0xEF:
+    bits |= (1 << 4)
+    bits |= (1 << 10)
+    bits |= (1 << 14)
+  elif i == 0xF0:
+    bits |= (1 << 5)
+    bits |= (1 << 9)
+    bits |= (1 << 10)
+  elif i >= 0xF1 and i <= 0xF4:
+    bits |= (1 << 6)
+    bits |= (1 << 9)
+    bits |= (1 << 10)
+  elif i == 0xF4:
+    bits |= (1 << 7)
+    bits |= (1 << 9)
+    bits |= (1 << 10)
+  else:
+    bits == (1 << 8)
+  utf_8_file.write('0x%04X,\n' % bits)
 
 utf_8_file.write("""
-];
+],
+second: [
+""")
+
+for i in xrange(256):
+  bits = 0
+  if i < 0x80 or i > 0xBF:
+    bits |= (1 << 0)
+  if i < 0xA0 or i > 0xBF:
+    bits |= (1 << 1)
+  if i < 0x80 or i > 0xBF:
+    bits |= (1 << 2)
+  if i < 0x80 or i > 0x9F:
+    bits |= (1 << 3)
+  if i < 0x80 or i > 0xBF:
+    bits |= (1 << 4)
+  if i < 0x90 or i > 0xBF:
+    bits |= (1 << 5)
+  if i < 0x80 or i > 0xBF:
+    bits |= (1 << 6)
+  if i < 0x80 or i > 0x8F:
+    bits |= (1 << 7)
+  utf_8_file.write('0x%02X,\n' % bits)
+
+utf_8_file.write("""
+],
+third: [
+""")
+
+for i in xrange(256):
+  bits = 0
+  if i < 0x80 or i > 0xBF:
+    bits = 0xFE
+  utf_8_file.write('0x%02X,\n' % bits)
+
+utf_8_file.write("""
+],
+fourth: [
+""")
+
+for i in xrange(256):
+  bits = 0
+  if i < 0x80 or i > 0xBF:
+    bits = 0xE0
+  utf_8_file.write('0x%02X,\n' % bits)
+
+utf_8_file.write("""
+],
 """)
 
 utf_8_file.write(utf_8_rs_end)
