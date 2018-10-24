@@ -295,8 +295,21 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
                 let second_info = UTF_8_DATA.second[second as usize];
 
                 // TODO: Compute the following two without table lookups
-                let third_info = UTF_8_DATA.third[third as usize];
-                let fourth_info = UTF_8_DATA.fourth[fourth as usize];
+                // let third_info = UTF_8_DATA.third[third as usize];
+                // let fourth_info = UTF_8_DATA.fourth[fourth as usize];
+
+                // These compile to cmovl instructions that are slower than
+                // memory accesses.
+                let third_info = if in_inclusive_range8(third, 0x80, 0xBF) {
+                    0u8
+                } else {
+                    0xFE
+                };
+                let fourth_info = if in_inclusive_range8(fourth, 0x80, 0xBF) {
+                    0u8
+                } else {
+                    0xE0
+                };
 
                 let trail_status = 0x100u16
                     | u16::from(second_info)
@@ -347,33 +360,27 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
                 }
                 read += advance;
 
-                'inner: loop {
-                    if unsafe { unlikely(read + 8 > src.len()) } {
-                        break 'mid;
-                    }
-                    // >= optimizes better than ==
-                    if unsafe { unlikely(written >= dst.len()) } {
-                        debug_assert_eq!(written, dst.len());
-                        break 'outer;
-                    }
-
-                    // These fuse into a single unaligned 32-bit read
-                    first = unsafe { *(src.get_unchecked(read)) };
-                    second = unsafe { *(src.get_unchecked(read + 1)) };
-                    third = unsafe { *(src.get_unchecked(read + 2)) };
-                    fourth = unsafe { *(src.get_unchecked(read + 3)) };
-                    if unsafe { likely(first >= 0x80) } {
-                        continue 'mid;
-                    }
-                    unsafe { *(dst.get_unchecked_mut(written)) = u16::from(first) };
-                    read += 1;
-                    written += 1;
-                    if unsafe { likely(first < 60) } {
-                        // punctuation
-                        continue 'inner;
-                    }
-                    continue 'outer;
+                if unsafe { unlikely(read + 8 > src.len()) } {
+                    break 'mid;
                 }
+                // >= optimizes better than ==
+                if unsafe { unlikely(written >= dst.len()) } {
+                    debug_assert_eq!(written, dst.len());
+                    break 'outer;
+                }
+
+                // These fuse into a single unaligned 32-bit read
+                first = unsafe { *(src.get_unchecked(read)) };
+                second = unsafe { *(src.get_unchecked(read + 1)) };
+                third = unsafe { *(src.get_unchecked(read + 2)) };
+                fourth = unsafe { *(src.get_unchecked(read + 3)) };
+                if unsafe { likely(first >= 0x80) } {
+                    continue 'mid;
+                }
+                unsafe { *(dst.get_unchecked_mut(written)) = u16::from(first) };
+                read += 1;
+                written += 1;
+                continue 'outer;
             }
         }
         // tail
