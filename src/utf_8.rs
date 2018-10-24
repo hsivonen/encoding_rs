@@ -282,14 +282,16 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
             }
         }
         // Longest sequence times two
-        if read + 8 <= src.len() {
-            let mut first = src[read];
-            let mut second = src[read + 1];
-            let mut third = src[read + 2];
-            let mut fourth = src[read + 3];
+        if unsafe { likely(read + 8 <= src.len()) } {
+            // These fuse into a single unaligned 32-bit read
+            let mut first = unsafe { *(src.get_unchecked(read)) };
+            let mut second = unsafe { *(src.get_unchecked(read + 1)) };
+            let mut third = unsafe { *(src.get_unchecked(read + 2)) };
+            let mut fourth = unsafe { *(src.get_unchecked(read + 3)) };
             'mid: loop {
                 debug_assert!(first >= 0x80);
-                let first_info = UTF_8_DATA.first[first as usize - 0x80];
+                let first_info =
+                    unsafe { *(UTF_8_DATA.first.get_unchecked(first as usize - 0x80)) };
                 let second_info = UTF_8_DATA.second[second as usize];
 
                 // TODO: Compute the following two without table lookups
@@ -322,18 +324,23 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
                 code_point <<= 6 & mask;
                 code_point |= u32::from(third & 0x3F & mask);
 
-                if validity != 0 {
+                if unsafe { unlikely(validity != 0) } {
                     break 'outer;
                 }
-                if advance != 4 {
-                    dst[written] = code_point as u16;
+                if unsafe { likely(advance != 4) } {
+                    unsafe { *(dst.get_unchecked_mut(written)) = code_point as u16 };
                     written += 1;
-                } else if written + 1 <= dst.len() {
+                } else if unsafe { likely(written + 1 <= dst.len()) } {
                     code_point <<= 6;
                     code_point |= u32::from(fourth & 0x3F);
 
-                    dst[written] = (0xD7C0 + (code_point >> 10)) as u16;
-                    dst[written + 1] = (0xDC00 + (code_point & 0x3FF)) as u16;
+                    unsafe {
+                        *(dst.get_unchecked_mut(written)) = (0xD7C0 + (code_point >> 10)) as u16
+                    };
+                    unsafe {
+                        *(dst.get_unchecked_mut(written + 1)) =
+                            (0xDC00 + (code_point & 0x3FF)) as u16
+                    };
                     written += 2;
                 } else {
                     break 'outer;
@@ -341,26 +348,27 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
                 read += advance;
 
                 'inner: loop {
-                    if read + 8 > src.len() {
+                    if unsafe { unlikely(read + 8 > src.len()) } {
                         break 'mid;
                     }
                     // >= optimizes better than ==
-                    if written >= dst.len() {
+                    if unsafe { unlikely(written >= dst.len()) } {
                         debug_assert_eq!(written, dst.len());
                         break 'outer;
                     }
 
-                    first = src[read];
-                    second = src[read + 1];
-                    third = src[read + 2];
-                    fourth = src[read + 3];
-                    if first >= 0x80 {
+                    // These fuse into a single unaligned 32-bit read
+                    first = unsafe { *(src.get_unchecked(read)) };
+                    second = unsafe { *(src.get_unchecked(read + 1)) };
+                    third = unsafe { *(src.get_unchecked(read + 2)) };
+                    fourth = unsafe { *(src.get_unchecked(read + 3)) };
+                    if unsafe { likely(first >= 0x80) } {
                         continue 'mid;
                     }
-                    dst[written] = u16::from(first);
+                    unsafe { *(dst.get_unchecked_mut(written)) = u16::from(first) };
                     read += 1;
                     written += 1;
-                    if first < 60 {
+                    if unsafe { likely(first < 60) } {
                         // punctuation
                         continue 'inner;
                     }
@@ -398,7 +406,7 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
             let second = src[read + 1];
 
             debug_assert!(first >= 0x80);
-            let first_info = UTF_8_DATA.first[first as usize - 0x80];
+            let first_info = unsafe { *(UTF_8_DATA.first.get_unchecked(first as usize - 0x80)) };
             let second_info = UTF_8_DATA.second[second as usize];
 
             let advance_minus_one = (first_info >> 9) & 3;
