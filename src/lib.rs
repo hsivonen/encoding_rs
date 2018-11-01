@@ -705,13 +705,6 @@ mod macros;
 ))]
 mod simd_funcs;
 
-#[cfg(any(
-    all(feature = "simd-accel", target_feature = "sse2"),
-    all(target_endian = "little", target_arch = "aarch64"),
-    all(target_endian = "little", target_arch = "arm")
-))]
-mod utf_8_core;
-
 #[cfg(test)]
 mod testing;
 
