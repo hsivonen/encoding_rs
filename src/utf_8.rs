@@ -341,13 +341,14 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
 	                        if in_inclusive_range8(byte, 0xC2, 0xDF) {
 	                        	continue 'two;
 	                        }
-	                        if byte < 0x80 {
-	                            unsafe { *(dst.get_unchecked_mut(written)) = u16::from(byte) };
-	                            read += 1;
-	                            written += 1;
-	                            continue 'outer;
-	                        }
-	                        continue 'inner;
+							continue 'outer;	                        
+	                        // if byte < 0x80 {
+	                        //     unsafe { *(dst.get_unchecked_mut(written)) = u16::from(byte) };
+	                        //     read += 1;
+	                        //     written += 1;
+	                        //     continue 'outer;
+	                        // }
+	                        // continue 'inner;
 	                    }
 	                    break 'inner;
 	                }
@@ -380,13 +381,14 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
 	                        if in_inclusive_range8(byte, 0xE0, 0xEF) {
 	                        	continue 'three;
 	                        }
-	                        if byte < 0x80 {
-	                            unsafe { *(dst.get_unchecked_mut(written)) = u16::from(byte) };
-	                            read += 1;
-	                            written += 1;
-	                            continue 'outer;
-	                        }
-	                        continue 'inner;
+	                        continue 'outer;
+	                        // if byte < 0x80 {
+	                        //     unsafe { *(dst.get_unchecked_mut(written)) = u16::from(byte) };
+	                        //     read += 1;
+	                        //     written += 1;
+	                        //     continue 'outer;
+	                        // }
+	                        // continue 'inner;
 	                    }
 	                    break 'inner;
 	                }
@@ -427,13 +429,14 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
                         if in_inclusive_range8(byte, 0xF0, 0xF4) {
                         	continue 'four;
                         }
-	                    if byte < 0x80 {
-	                        unsafe { *(dst.get_unchecked_mut(written)) = u16::from(byte) };
-	                        read += 1;
-	                        written += 1;
-	                        continue 'outer;
-	                    }
-	                    continue 'inner;
+                        continue 'outer;
+	                    // if byte < 0x80 {
+	                    //     unsafe { *(dst.get_unchecked_mut(written)) = u16::from(byte) };
+	                    //     read += 1;
+	                    //     written += 1;
+	                    //     continue 'outer;
+	                    // }
+	                    // continue 'inner;
 	                }
 	                break 'inner;
 	            }
