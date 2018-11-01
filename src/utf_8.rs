@@ -308,7 +308,7 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
         // to overflow would mean that the source slice would be so large that
         // the address space of the process would not have space for any code.
         // Therefore, the slice cannot be so long that this would overflow.
-        if read + 4 <= src.len() {
+        if unsafe { likely(read + 4 <= src.len()) } {
             'inner: loop {
                 // At this point, `byte` is not included in `read`, because we
                 // don't yet know that a) the UTF-8 sequence is valid and b) that there
@@ -318,7 +318,7 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
                 // for output space in the BMP cases.
                 // Inspecting the lead byte directly is faster than what the
                 // std lib does!
-                if in_inclusive_range8(byte, 0xC2, 0xDF) {
+                if unsafe { likely(in_inclusive_range8(byte, 0xC2, 0xDF)) } {
                     // Two-byte
                     let second = unsafe { *(src.get_unchecked(read + 1)) };
                     if !in_inclusive_range8(second, 0x80, 0xBF) {
@@ -335,7 +335,7 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
                     if written == dst.len() {
                         break 'outer;
                     }
-                    if read + 4 <= src.len() {
+			        if unsafe { likely(read + 4 <= src.len()) } {
                         byte = unsafe { *(src.get_unchecked(read)) };
                         if byte < 0x80 {
                             unsafe { *(dst.get_unchecked_mut(written)) = u16::from(byte) };
@@ -370,7 +370,7 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
                         if written == dst.len() {
                             break 'outer;
                         }
-                        if read + 4 <= src.len() {
+				        if unsafe { likely(read + 4 <= src.len()) } {
                             byte = unsafe { *(src.get_unchecked(read)) };
                             if in_inclusive_range8(byte, 0xE0, 0xEF) {
                                 continue 'three;
@@ -416,7 +416,7 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
                 if written == dst.len() {
                     break 'outer;
                 }
-                if read + 4 <= src.len() {
+		        if unsafe { likely(read + 4 <= src.len()) } {
                     byte = unsafe { *(src.get_unchecked(read)) };
                     if byte < 0x80 {
                         unsafe { *(dst.get_unchecked_mut(written)) = u16::from(byte) };
