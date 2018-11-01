@@ -52,6 +52,8 @@ cfg_if! {
     }
 }
 
+pub const UTF8_INVALID_LEAD: u8 = 1;
+
 pub const UTF8_NORMAL_TRAIL: u8 = 1 << 3;
 
 pub const UTF8_THREE_BYTE_SPECIAL_LOWER_BOUND_TRAIL: u8 = 1 << 4;
@@ -67,21 +69,153 @@ pub const UTF8_FOUR_BYTE_SPECIAL_UPPER_BOUND_TRAIL: u8 = 1 << 7;
 
 /// Bit is 1 if the trail is invalid.
 pub static UTF8_TRAIL_INVALID: [u8; 256] = [
-    248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248,
-    248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248,
-    248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248,
-    248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248,
-    248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248,
-    248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248,
-    248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 80, 80, 80, 80, 80, 80,
-    80, 80, 80, 80, 80, 80, 80, 80, 80, 80, 144, 144, 144, 144, 144, 144, 144, 144, 144, 144, 144,
-    144, 144, 144, 144, 144, 160, 160, 160, 160, 160, 160, 160, 160, 160, 160, 160, 160, 160, 160,
-    160, 160, 160, 160, 160, 160, 160, 160, 160, 160, 160, 160, 160, 160, 160, 160, 160, 160, 248,
-    248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248,
-    248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248,
-    248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248, 248,
-    248, 248, 248, 248, 248, 248,
+    249, 249, 249, 249, 249, 249, 249, 249, 249, 249, 249, 249, 249, 249, 249, 249, 249, 249, 249,
+    249, 249, 249, 249, 249, 249, 249, 249, 249, 249, 249, 249, 249, 249, 249, 249, 249, 249, 249,
+    249, 249, 249, 249, 249, 249, 249, 249, 249, 249, 249, 249, 249, 249, 249, 249, 249, 249, 249,
+    249, 249, 249, 249, 249, 249, 249, 249, 249, 249, 249, 249, 249, 249, 249, 249, 249, 249, 249,
+    249, 249, 249, 249, 249, 249, 249, 249, 249, 249, 249, 249, 249, 249, 249, 249, 249, 249, 249,
+    249, 249, 249, 249, 249, 249, 249, 249, 249, 249, 249, 249, 249, 249, 249, 249, 249, 249, 249,
+    249, 249, 249, 249, 249, 249, 249, 249, 249, 249, 249, 249, 249, 249, 81, 81, 81, 81, 81, 81,
+    81, 81, 81, 81, 81, 81, 81, 81, 81, 81, 145, 145, 145, 145, 145, 145, 145, 145, 145, 145, 145,
+    145, 145, 145, 145, 145, 161, 161, 161, 161, 161, 161, 161, 161, 161, 161, 161, 161, 161, 161,
+    161, 161, 161, 161, 161, 161, 161, 161, 161, 161, 161, 161, 161, 161, 161, 161, 161, 161, 249,
+    249, 249, 249, 249, 249, 249, 249, 249, 249, 249, 249, 249, 249, 249, 249, 249, 249, 249, 249,
+    249, 249, 249, 249, 249, 249, 249, 249, 249, 249, 249, 249, 249, 249, 249, 249, 249, 249, 249,
+    249, 249, 249, 249, 249, 249, 249, 249, 249, 249, 249, 249, 249, 249, 249, 249, 249, 249, 249,
+    249, 249, 249, 249, 249, 249,
 ];
+
+pub static UTF8_SECOND_MASK: [u8; 128] = [
+    UTF8_INVALID_LEAD,
+    UTF8_INVALID_LEAD,
+    UTF8_INVALID_LEAD,
+    UTF8_INVALID_LEAD,
+    UTF8_INVALID_LEAD,
+    UTF8_INVALID_LEAD,
+    UTF8_INVALID_LEAD,
+    UTF8_INVALID_LEAD,
+    UTF8_INVALID_LEAD,
+    UTF8_INVALID_LEAD,
+    UTF8_INVALID_LEAD,
+    UTF8_INVALID_LEAD,
+    UTF8_INVALID_LEAD,
+    UTF8_INVALID_LEAD,
+    UTF8_INVALID_LEAD,
+    UTF8_INVALID_LEAD,
+    UTF8_INVALID_LEAD,
+    UTF8_INVALID_LEAD,
+    UTF8_INVALID_LEAD,
+    UTF8_INVALID_LEAD,
+    UTF8_INVALID_LEAD,
+    UTF8_INVALID_LEAD,
+    UTF8_INVALID_LEAD,
+    UTF8_INVALID_LEAD,
+    UTF8_INVALID_LEAD,
+    UTF8_INVALID_LEAD,
+    UTF8_INVALID_LEAD,
+    UTF8_INVALID_LEAD,
+    UTF8_INVALID_LEAD,
+    UTF8_INVALID_LEAD,
+    UTF8_INVALID_LEAD,
+    UTF8_INVALID_LEAD,
+    UTF8_INVALID_LEAD,
+    UTF8_INVALID_LEAD,
+    UTF8_INVALID_LEAD,
+    UTF8_INVALID_LEAD,
+    UTF8_INVALID_LEAD,
+    UTF8_INVALID_LEAD,
+    UTF8_INVALID_LEAD,
+    UTF8_INVALID_LEAD,
+    UTF8_INVALID_LEAD,
+    UTF8_INVALID_LEAD,
+    UTF8_INVALID_LEAD,
+    UTF8_INVALID_LEAD,
+    UTF8_INVALID_LEAD,
+    UTF8_INVALID_LEAD,
+    UTF8_INVALID_LEAD,
+    UTF8_INVALID_LEAD,
+    UTF8_INVALID_LEAD,
+    UTF8_INVALID_LEAD,
+    UTF8_INVALID_LEAD,
+    UTF8_INVALID_LEAD,
+    UTF8_INVALID_LEAD,
+    UTF8_INVALID_LEAD,
+    UTF8_INVALID_LEAD,
+    UTF8_INVALID_LEAD,
+    UTF8_INVALID_LEAD,
+    UTF8_INVALID_LEAD,
+    UTF8_INVALID_LEAD,
+    UTF8_INVALID_LEAD,
+    UTF8_INVALID_LEAD,
+    UTF8_INVALID_LEAD,
+    UTF8_INVALID_LEAD,
+    UTF8_INVALID_LEAD,
+    UTF8_INVALID_LEAD,
+    UTF8_INVALID_LEAD,
+    UTF8_NORMAL_TRAIL,
+    UTF8_NORMAL_TRAIL,
+    UTF8_NORMAL_TRAIL,
+    UTF8_NORMAL_TRAIL,
+    UTF8_NORMAL_TRAIL,
+    UTF8_NORMAL_TRAIL,
+    UTF8_NORMAL_TRAIL,
+    UTF8_NORMAL_TRAIL,
+    UTF8_NORMAL_TRAIL,
+    UTF8_NORMAL_TRAIL,
+    UTF8_NORMAL_TRAIL,
+    UTF8_NORMAL_TRAIL,
+    UTF8_NORMAL_TRAIL,
+    UTF8_NORMAL_TRAIL,
+    UTF8_NORMAL_TRAIL,
+    UTF8_NORMAL_TRAIL,
+    UTF8_NORMAL_TRAIL,
+    UTF8_NORMAL_TRAIL,
+    UTF8_NORMAL_TRAIL,
+    UTF8_NORMAL_TRAIL,
+    UTF8_NORMAL_TRAIL,
+    UTF8_NORMAL_TRAIL,
+    UTF8_NORMAL_TRAIL,
+    UTF8_NORMAL_TRAIL,
+    UTF8_NORMAL_TRAIL,
+    UTF8_NORMAL_TRAIL,
+    UTF8_NORMAL_TRAIL,
+    UTF8_NORMAL_TRAIL,
+    UTF8_NORMAL_TRAIL,
+    UTF8_NORMAL_TRAIL,
+    UTF8_THREE_BYTE_SPECIAL_LOWER_BOUND_TRAIL,
+    UTF8_NORMAL_TRAIL,
+    UTF8_NORMAL_TRAIL,
+    UTF8_NORMAL_TRAIL,
+    UTF8_NORMAL_TRAIL,
+    UTF8_NORMAL_TRAIL,
+    UTF8_NORMAL_TRAIL,
+    UTF8_NORMAL_TRAIL,
+    UTF8_NORMAL_TRAIL,
+    UTF8_NORMAL_TRAIL,
+    UTF8_NORMAL_TRAIL,
+    UTF8_NORMAL_TRAIL,
+    UTF8_NORMAL_TRAIL,
+    UTF8_THREE_BYTE_SPECIAL_UPPER_BOUND_TRAIL,
+    UTF8_NORMAL_TRAIL,
+    UTF8_NORMAL_TRAIL,
+    UTF8_FOUR_BYTE_SPECIAL_LOWER_BOUND_TRAIL,
+    UTF8_NORMAL_TRAIL,
+    UTF8_NORMAL_TRAIL,
+    UTF8_NORMAL_TRAIL,
+    UTF8_FOUR_BYTE_SPECIAL_LOWER_BOUND_TRAIL,
+    UTF8_INVALID_LEAD,
+    UTF8_INVALID_LEAD,
+    UTF8_INVALID_LEAD,
+    UTF8_INVALID_LEAD,
+    UTF8_INVALID_LEAD,
+    UTF8_INVALID_LEAD,
+    UTF8_INVALID_LEAD,
+    UTF8_INVALID_LEAD,
+    UTF8_INVALID_LEAD,
+    UTF8_INVALID_LEAD,
+    UTF8_INVALID_LEAD,
+];
+
 // END GENERATED CODE
 
 #[cfg(feature = "parallel-utf8")]
@@ -192,13 +326,12 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
                     };
                     read += 2;
                     written += 1;
-                } else if in_inclusive_range8(byte, 0xE1, 0xEC)
-                    | in_inclusive_range8(byte, 0xEE, 0xEF)
-                {
-                    // Three-byte normal
+                } else if byte < 0xF0 {
+                    // Three-byte
                     let second = unsafe { *(src.get_unchecked(read + 1)) };
                     let third = unsafe { *(src.get_unchecked(read + 2)) };
-                    if ((UTF8_TRAIL_INVALID[usize::from(second)] & UTF8_NORMAL_TRAIL)
+                    if ((UTF8_TRAIL_INVALID[usize::from(second)]
+                        & unsafe { *(UTF8_SECOND_MASK.get_unchecked(byte as usize - 0x80)) })
                         | (UTF8_TRAIL_INVALID[usize::from(third)] & UTF8_NORMAL_TRAIL))
                         != 0
                     {
@@ -210,121 +343,33 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
                     unsafe { *(dst.get_unchecked_mut(written)) = point };
                     read += 3;
                     written += 1;
-                } else if byte == 0xE0 {
-                    // Three-byte special lower bound
-                    let second = unsafe { *(src.get_unchecked(read + 1)) };
-                    let third = unsafe { *(src.get_unchecked(read + 2)) };
-                    if ((UTF8_TRAIL_INVALID[usize::from(second)]
-                        & UTF8_THREE_BYTE_SPECIAL_LOWER_BOUND_TRAIL)
-                        | (UTF8_TRAIL_INVALID[usize::from(third)] & UTF8_NORMAL_TRAIL))
-                        != 0
-                    {
-                        break 'outer;
-                    }
-                    let point = ((u16::from(byte) & 0xF) << 12)
-                        | ((u16::from(second) & 0x3F) << 6)
-                        | (u16::from(third) & 0x3F);
-                    unsafe { *(dst.get_unchecked_mut(written)) = point };
-                    read += 3;
-                    written += 1;
-                } else if byte == 0xED {
-                    // Three-byte special upper bound
-                    let second = unsafe { *(src.get_unchecked(read + 1)) };
-                    let third = unsafe { *(src.get_unchecked(read + 2)) };
-                    if ((UTF8_TRAIL_INVALID[usize::from(second)]
-                        & UTF8_THREE_BYTE_SPECIAL_UPPER_BOUND_TRAIL)
-                        | (UTF8_TRAIL_INVALID[usize::from(third)] & UTF8_NORMAL_TRAIL))
-                        != 0
-                    {
-                        break 'outer;
-                    }
-                    let point = ((u16::from(byte) & 0xF) << 12)
-                        | ((u16::from(second) & 0x3F) << 6)
-                        | (u16::from(third) & 0x3F);
-                    unsafe { *(dst.get_unchecked_mut(written)) = point };
-                    read += 3;
-                    written += 1;
-                } else if in_inclusive_range8(byte, 0xF1, 0xF3) {
-                    // Four-byte normal
-                    if written + 1 == dst.len() {
-                        break 'outer;
-                    }
-                    let second = unsafe { *(src.get_unchecked(read + 1)) };
-                    let third = unsafe { *(src.get_unchecked(read + 2)) };
-                    let fourth = unsafe { *(src.get_unchecked(read + 3)) };
-                    if ((UTF8_TRAIL_INVALID[usize::from(second)] & UTF8_NORMAL_TRAIL)
-                        | (UTF8_TRAIL_INVALID[usize::from(third)] & UTF8_NORMAL_TRAIL)
-                        | (UTF8_TRAIL_INVALID[usize::from(fourth)] & UTF8_NORMAL_TRAIL))
-                        != 0
-                    {
-                        break 'outer;
-                    }
-                    let point = ((u32::from(byte) & 0x7) << 18)
-                        | ((u32::from(second) & 0x3F) << 12)
-                        | ((u32::from(third) & 0x3F) << 6)
-                        | (u32::from(fourth) & 0x3F);
-                    unsafe { *(dst.get_unchecked_mut(written)) = (0xD7C0 + (point >> 10)) as u16 };
-                    unsafe {
-                        *(dst.get_unchecked_mut(written + 1)) = (0xDC00 + (point & 0x3FF)) as u16
-                    };
-                    read += 4;
-                    written += 2;
-                } else if byte == 0xF0 {
-                    // Four-byte special lower bound
-                    if written + 1 == dst.len() {
-                        break 'outer;
-                    }
-                    let second = unsafe { *(src.get_unchecked(read + 1)) };
-                    let third = unsafe { *(src.get_unchecked(read + 2)) };
-                    let fourth = unsafe { *(src.get_unchecked(read + 3)) };
-                    if ((UTF8_TRAIL_INVALID[usize::from(second)]
-                        & UTF8_FOUR_BYTE_SPECIAL_LOWER_BOUND_TRAIL)
-                        | (UTF8_TRAIL_INVALID[usize::from(third)] & UTF8_NORMAL_TRAIL)
-                        | (UTF8_TRAIL_INVALID[usize::from(fourth)] & UTF8_NORMAL_TRAIL))
-                        != 0
-                    {
-                        break 'outer;
-                    }
-                    let point = ((u32::from(byte) & 0x7) << 18)
-                        | ((u32::from(second) & 0x3F) << 12)
-                        | ((u32::from(third) & 0x3F) << 6)
-                        | (u32::from(fourth) & 0x3F);
-                    unsafe { *(dst.get_unchecked_mut(written)) = (0xD7C0 + (point >> 10)) as u16 };
-                    unsafe {
-                        *(dst.get_unchecked_mut(written + 1)) = (0xDC00 + (point & 0x3FF)) as u16
-                    };
-                    read += 4;
-                    written += 2;
-                } else if byte == 0xF4 {
-                    // Four-byte special upper bound
-                    if written + 1 == dst.len() {
-                        break 'outer;
-                    }
-                    let second = unsafe { *(src.get_unchecked(read + 1)) };
-                    let third = unsafe { *(src.get_unchecked(read + 2)) };
-                    let fourth = unsafe { *(src.get_unchecked(read + 3)) };
-                    if ((UTF8_TRAIL_INVALID[usize::from(second)]
-                        & UTF8_FOUR_BYTE_SPECIAL_UPPER_BOUND_TRAIL)
-                        | (UTF8_TRAIL_INVALID[usize::from(third)] & UTF8_NORMAL_TRAIL)
-                        | (UTF8_TRAIL_INVALID[usize::from(fourth)] & UTF8_NORMAL_TRAIL))
-                        != 0
-                    {
-                        break 'outer;
-                    }
-                    let point = ((u32::from(byte) & 0x7) << 18)
-                        | ((u32::from(second) & 0x3F) << 12)
-                        | ((u32::from(third) & 0x3F) << 6)
-                        | (u32::from(fourth) & 0x3F);
-                    unsafe { *(dst.get_unchecked_mut(written)) = (0xD7C0 + (point >> 10)) as u16 };
-                    unsafe {
-                        *(dst.get_unchecked_mut(written + 1)) = (0xDC00 + (point & 0x3FF)) as u16
-                    };
-                    read += 4;
-                    written += 2;
                 } else {
-                    break 'outer;
+                    // Four-byte
+                    if written + 1 == dst.len() {
+                        break 'outer;
+                    }
+                    let second = unsafe { *(src.get_unchecked(read + 1)) };
+                    let third = unsafe { *(src.get_unchecked(read + 2)) };
+                    let fourth = unsafe { *(src.get_unchecked(read + 3)) };
+                    if ((UTF8_TRAIL_INVALID[usize::from(second)]
+                        & unsafe { *(UTF8_SECOND_MASK.get_unchecked(byte as usize - 0x80)) })
+                        | (UTF8_TRAIL_INVALID[usize::from(third)] & UTF8_NORMAL_TRAIL)
+                        | (UTF8_TRAIL_INVALID[usize::from(fourth)] & UTF8_NORMAL_TRAIL))
+                        != 0
+                    {
+                        break 'outer;
+                    }
+                    let point = ((u32::from(byte) & 0x7) << 18)
+                        | ((u32::from(second) & 0x3F) << 12)
+                        | ((u32::from(third) & 0x3F) << 6)
+                        | (u32::from(fourth) & 0x3F);
+                    unsafe { *(dst.get_unchecked_mut(written)) = (0xD7C0 + (point >> 10)) as u16 };
+                    unsafe {
+                        *(dst.get_unchecked_mut(written + 1)) = (0xDC00 + (point & 0x3FF)) as u16
+                    };
+                    read += 4;
+                    written += 2;
                 }
-
                 if written == dst.len() {
                     break 'outer;
                 }

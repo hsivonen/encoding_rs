@@ -1432,10 +1432,11 @@ utf_8_file.write("""
 // Instead, please regenerate using generate-encoding-data.py
 
 /// Bit is 1 if the trail is invalid.
-pub static UTF8_TRAIL_INVALID: [u8; 256] = [""")
+pub static UTF8_TRAIL_INVALID: [u8; 256] = [
+""")
 
 for i in range(256):
-  combined = 0
+  combined = 1
   if i < 0x80 or i > 0xBF:
     combined |= (1 << 3)
   if i < 0xA0 or i > 0xBF:
@@ -1450,6 +1451,33 @@ for i in range(256):
 
 utf_8_file.write("""
 ];
+
+pub static UTF8_SECOND_MASK: [u8; 128] = [
+""")
+
+for i in range(128, 256):
+  if i >= 0xC2 and i <= 0xDF:
+    utf_8_file.write("UTF8_NORMAL_TRAIL,")
+  elif i == 0xE0:
+    utf_8_file.write("UTF8_THREE_BYTE_SPECIAL_LOWER_BOUND_TRAIL,")
+  elif i >= 0xE1 and i <= 0xEC:
+    utf_8_file.write("UTF8_NORMAL_TRAIL,")
+  elif i == 0xED:
+    utf_8_file.write("UTF8_THREE_BYTE_SPECIAL_UPPER_BOUND_TRAIL,")
+  elif i >= 0xEE and i <= 0xEF:
+    utf_8_file.write("UTF8_NORMAL_TRAIL,")
+  elif i == 0xF0:
+    utf_8_file.write("UTF8_FOUR_BYTE_SPECIAL_LOWER_BOUND_TRAIL,")
+  elif i >= 0xF1 and i <= 0xF3:
+    utf_8_file.write("UTF8_NORMAL_TRAIL,")
+  elif i == 0xF4:
+    utf_8_file.write("UTF8_FOUR_BYTE_SPECIAL_LOWER_BOUND_TRAIL,")
+  else:
+    utf_8_file.write("UTF8_INVALID_LEAD,")
+
+utf_8_file.write("""
+];
+
 """)
 
 utf_8_file.write(utf_8_rs_end)
