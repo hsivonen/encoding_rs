@@ -180,293 +180,277 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
                 // for output space in the BMP cases.
                 // Matching directly on the lead byte is faster than what the
                 // std lib does!
-                match byte {
-                    0...0x7F => {
-                        // ASCII: write and go back to SIMD.
+                if in_inclusive_range8(byte, 0xC2, 0xDF) {
+                    // Two-byte
+                    let second = unsafe { *(src.get_unchecked(read + 1)) };
+                    if (UTF8_TRAIL_INVALID[usize::from(second)] & UTF8_NORMAL_TRAIL) != 0 {
+                        break 'outer;
+                    }
+                    unsafe {
+                        *(dst.get_unchecked_mut(written)) =
+                            ((u16::from(byte) & 0x1F) << 6) | (u16::from(second) & 0x3F)
+                    };
+                    read += 2;
+                    written += 1;
+                } else if in_inclusive_range8(byte, 0xE1, 0xEC)
+                    | in_inclusive_range8(byte, 0xEE, 0xEF)
+                {
+                    // Three-byte normal
+                    let second = unsafe { *(src.get_unchecked(read + 1)) };
+                    let third = unsafe { *(src.get_unchecked(read + 2)) };
+                    if ((UTF8_TRAIL_INVALID[usize::from(second)] & UTF8_NORMAL_TRAIL)
+                        | (UTF8_TRAIL_INVALID[usize::from(third)] & UTF8_NORMAL_TRAIL))
+                        != 0
+                    {
+                        break 'outer;
+                    }
+                    let point = ((u16::from(byte) & 0xF) << 12)
+                        | ((u16::from(second) & 0x3F) << 6)
+                        | (u16::from(third) & 0x3F);
+                    unsafe { *(dst.get_unchecked_mut(written)) = point };
+                    read += 3;
+                    written += 1;
+                } else if byte == 0xE0 {
+                    // Three-byte special lower bound
+                    let second = unsafe { *(src.get_unchecked(read + 1)) };
+                    let third = unsafe { *(src.get_unchecked(read + 2)) };
+                    if ((UTF8_TRAIL_INVALID[usize::from(second)]
+                        & UTF8_THREE_BYTE_SPECIAL_LOWER_BOUND_TRAIL)
+                        | (UTF8_TRAIL_INVALID[usize::from(third)] & UTF8_NORMAL_TRAIL))
+                        != 0
+                    {
+                        break 'outer;
+                    }
+                    let point = ((u16::from(byte) & 0xF) << 12)
+                        | ((u16::from(second) & 0x3F) << 6)
+                        | (u16::from(third) & 0x3F);
+                    unsafe { *(dst.get_unchecked_mut(written)) = point };
+                    read += 3;
+                    written += 1;
+                } else if byte == 0xED {
+                    // Three-byte special upper bound
+                    let second = unsafe { *(src.get_unchecked(read + 1)) };
+                    let third = unsafe { *(src.get_unchecked(read + 2)) };
+                    if ((UTF8_TRAIL_INVALID[usize::from(second)]
+                        & UTF8_THREE_BYTE_SPECIAL_UPPER_BOUND_TRAIL)
+                        | (UTF8_TRAIL_INVALID[usize::from(third)] & UTF8_NORMAL_TRAIL))
+                        != 0
+                    {
+                        break 'outer;
+                    }
+                    let point = ((u16::from(byte) & 0xF) << 12)
+                        | ((u16::from(second) & 0x3F) << 6)
+                        | (u16::from(third) & 0x3F);
+                    unsafe { *(dst.get_unchecked_mut(written)) = point };
+                    read += 3;
+                    written += 1;
+                } else if in_inclusive_range8(byte, 0xF1, 0xF3) {
+                    // Four-byte normal
+                    if written + 1 == dst.len() {
+                        break 'outer;
+                    }
+                    let second = unsafe { *(src.get_unchecked(read + 1)) };
+                    let third = unsafe { *(src.get_unchecked(read + 2)) };
+                    let fourth = unsafe { *(src.get_unchecked(read + 3)) };
+                    if ((UTF8_TRAIL_INVALID[usize::from(second)] & UTF8_NORMAL_TRAIL)
+                        | (UTF8_TRAIL_INVALID[usize::from(third)] & UTF8_NORMAL_TRAIL)
+                        | (UTF8_TRAIL_INVALID[usize::from(fourth)] & UTF8_NORMAL_TRAIL))
+                        != 0
+                    {
+                        break 'outer;
+                    }
+                    let point = ((u32::from(byte) & 0x7) << 18)
+                        | ((u32::from(second) & 0x3F) << 12)
+                        | ((u32::from(third) & 0x3F) << 6)
+                        | (u32::from(fourth) & 0x3F);
+                    unsafe { *(dst.get_unchecked_mut(written)) = (0xD7C0 + (point >> 10)) as u16 };
+                    unsafe {
+                        *(dst.get_unchecked_mut(written + 1)) = (0xDC00 + (point & 0x3FF)) as u16
+                    };
+                    read += 4;
+                    written += 2;
+                } else if byte == 0xF0 {
+                    // Four-byte special lower bound
+                    if written + 1 == dst.len() {
+                        break 'outer;
+                    }
+                    let second = unsafe { *(src.get_unchecked(read + 1)) };
+                    let third = unsafe { *(src.get_unchecked(read + 2)) };
+                    let fourth = unsafe { *(src.get_unchecked(read + 3)) };
+                    if ((UTF8_TRAIL_INVALID[usize::from(second)]
+                        & UTF8_FOUR_BYTE_SPECIAL_LOWER_BOUND_TRAIL)
+                        | (UTF8_TRAIL_INVALID[usize::from(third)] & UTF8_NORMAL_TRAIL)
+                        | (UTF8_TRAIL_INVALID[usize::from(fourth)] & UTF8_NORMAL_TRAIL))
+                        != 0
+                    {
+                        break 'outer;
+                    }
+                    let point = ((u32::from(byte) & 0x7) << 18)
+                        | ((u32::from(second) & 0x3F) << 12)
+                        | ((u32::from(third) & 0x3F) << 6)
+                        | (u32::from(fourth) & 0x3F);
+                    unsafe { *(dst.get_unchecked_mut(written)) = (0xD7C0 + (point >> 10)) as u16 };
+                    unsafe {
+                        *(dst.get_unchecked_mut(written + 1)) = (0xDC00 + (point & 0x3FF)) as u16
+                    };
+                    read += 4;
+                    written += 2;
+                } else if byte == 0xF4 {
+                    // Four-byte special upper bound
+                    if written + 1 == dst.len() {
+                        break 'outer;
+                    }
+                    let second = unsafe { *(src.get_unchecked(read + 1)) };
+                    let third = unsafe { *(src.get_unchecked(read + 2)) };
+                    let fourth = unsafe { *(src.get_unchecked(read + 3)) };
+                    if ((UTF8_TRAIL_INVALID[usize::from(second)]
+                        & UTF8_FOUR_BYTE_SPECIAL_UPPER_BOUND_TRAIL)
+                        | (UTF8_TRAIL_INVALID[usize::from(third)] & UTF8_NORMAL_TRAIL)
+                        | (UTF8_TRAIL_INVALID[usize::from(fourth)] & UTF8_NORMAL_TRAIL))
+                        != 0
+                    {
+                        break 'outer;
+                    }
+                    let point = ((u32::from(byte) & 0x7) << 18)
+                        | ((u32::from(second) & 0x3F) << 12)
+                        | ((u32::from(third) & 0x3F) << 6)
+                        | (u32::from(fourth) & 0x3F);
+                    unsafe { *(dst.get_unchecked_mut(written)) = (0xD7C0 + (point >> 10)) as u16 };
+                    unsafe {
+                        *(dst.get_unchecked_mut(written + 1)) = (0xDC00 + (point & 0x3FF)) as u16
+                    };
+                    read += 4;
+                    written += 2;
+                } else {
+                    break 'outer;
+                }
+
+                if written == dst.len() {
+                    break 'outer;
+                }
+                if read + 4 <= src.len() {
+                    byte = unsafe { *(src.get_unchecked(read)) };
+                    if byte < 0x80 {
                         unsafe { *(dst.get_unchecked_mut(written)) = u16::from(byte) };
                         read += 1;
                         written += 1;
                         continue 'outer;
                     }
-                    0xC2...0xDF => {
-                        // Two-byte
-                        let second = unsafe { *(src.get_unchecked(read + 1)) };
-                        if (UTF8_TRAIL_INVALID[usize::from(second)] & UTF8_NORMAL_TRAIL) != 0 {
-                            break 'outer;
-                        }
-                        unsafe {
-                            *(dst.get_unchecked_mut(written)) =
-                                ((u16::from(byte) & 0x1F) << 6) | (u16::from(second) & 0x3F)
-                        };
-                        read += 2;
-                        written += 1;
-                    }
-                    0xE1...0xEC | 0xEE...0xEF => {
-                        // Three-byte normal
-                        let second = unsafe { *(src.get_unchecked(read + 1)) };
-                        let third = unsafe { *(src.get_unchecked(read + 2)) };
-                        if ((UTF8_TRAIL_INVALID[usize::from(second)] & UTF8_NORMAL_TRAIL)
-                            | (UTF8_TRAIL_INVALID[usize::from(third)] & UTF8_NORMAL_TRAIL))
-                            != 0
-                        {
-                            break 'outer;
-                        }
-                        let point = ((u16::from(byte) & 0xF) << 12)
-                            | ((u16::from(second) & 0x3F) << 6)
-                            | (u16::from(third) & 0x3F);
-                        unsafe { *(dst.get_unchecked_mut(written)) = point };
-                        read += 3;
-                        written += 1;
-                    }
-                    0xE0 => {
-                        // Three-byte special lower bound
-                        let second = unsafe { *(src.get_unchecked(read + 1)) };
-                        let third = unsafe { *(src.get_unchecked(read + 2)) };
-                        if ((UTF8_TRAIL_INVALID[usize::from(second)]
-                            & UTF8_THREE_BYTE_SPECIAL_LOWER_BOUND_TRAIL)
-                            | (UTF8_TRAIL_INVALID[usize::from(third)] & UTF8_NORMAL_TRAIL))
-                            != 0
-                        {
-                            break 'outer;
-                        }
-                        let point = ((u16::from(byte) & 0xF) << 12)
-                            | ((u16::from(second) & 0x3F) << 6)
-                            | (u16::from(third) & 0x3F);
-                        unsafe { *(dst.get_unchecked_mut(written)) = point };
-                        read += 3;
-                        written += 1;
-                    }
-                    0xED => {
-                        // Three-byte special upper bound
-                        let second = unsafe { *(src.get_unchecked(read + 1)) };
-                        let third = unsafe { *(src.get_unchecked(read + 2)) };
-                        if ((UTF8_TRAIL_INVALID[usize::from(second)]
-                            & UTF8_THREE_BYTE_SPECIAL_UPPER_BOUND_TRAIL)
-                            | (UTF8_TRAIL_INVALID[usize::from(third)] & UTF8_NORMAL_TRAIL))
-                            != 0
-                        {
-                            break 'outer;
-                        }
-                        let point = ((u16::from(byte) & 0xF) << 12)
-                            | ((u16::from(second) & 0x3F) << 6)
-                            | (u16::from(third) & 0x3F);
-                        unsafe { *(dst.get_unchecked_mut(written)) = point };
-                        read += 3;
-                        written += 1;
-                    }
-                    0xF1...0xF3 => {
-                        // Four-byte normal
-                        if written + 1 == dst.len() {
-                            break 'outer;
-                        }
-                        let second = unsafe { *(src.get_unchecked(read + 1)) };
-                        let third = unsafe { *(src.get_unchecked(read + 2)) };
-                        let fourth = unsafe { *(src.get_unchecked(read + 3)) };
-                        if ((UTF8_TRAIL_INVALID[usize::from(second)] & UTF8_NORMAL_TRAIL)
-                            | (UTF8_TRAIL_INVALID[usize::from(third)] & UTF8_NORMAL_TRAIL)
-                            | (UTF8_TRAIL_INVALID[usize::from(fourth)] & UTF8_NORMAL_TRAIL))
-                            != 0
-                        {
-                            break 'outer;
-                        }
-                        let point = ((u32::from(byte) & 0x7) << 18)
-                            | ((u32::from(second) & 0x3F) << 12)
-                            | ((u32::from(third) & 0x3F) << 6)
-                            | (u32::from(fourth) & 0x3F);
-                        unsafe {
-                            *(dst.get_unchecked_mut(written)) = (0xD7C0 + (point >> 10)) as u16
-                        };
-                        unsafe {
-                            *(dst.get_unchecked_mut(written + 1)) =
-                                (0xDC00 + (point & 0x3FF)) as u16
-                        };
-                        read += 4;
-                        written += 2;
-                    }
-                    0xF0 => {
-                        // Four-byte special lower bound
-                        if written + 1 == dst.len() {
-                            break 'outer;
-                        }
-                        let second = unsafe { *(src.get_unchecked(read + 1)) };
-                        let third = unsafe { *(src.get_unchecked(read + 2)) };
-                        let fourth = unsafe { *(src.get_unchecked(read + 3)) };
-                        if ((UTF8_TRAIL_INVALID[usize::from(second)]
-                            & UTF8_FOUR_BYTE_SPECIAL_LOWER_BOUND_TRAIL)
-                            | (UTF8_TRAIL_INVALID[usize::from(third)] & UTF8_NORMAL_TRAIL)
-                            | (UTF8_TRAIL_INVALID[usize::from(fourth)] & UTF8_NORMAL_TRAIL))
-                            != 0
-                        {
-                            break 'outer;
-                        }
-                        let point = ((u32::from(byte) & 0x7) << 18)
-                            | ((u32::from(second) & 0x3F) << 12)
-                            | ((u32::from(third) & 0x3F) << 6)
-                            | (u32::from(fourth) & 0x3F);
-                        unsafe {
-                            *(dst.get_unchecked_mut(written)) = (0xD7C0 + (point >> 10)) as u16
-                        };
-                        unsafe {
-                            *(dst.get_unchecked_mut(written + 1)) =
-                                (0xDC00 + (point & 0x3FF)) as u16
-                        };
-                        read += 4;
-                        written += 2;
-                    }
-                    0xF4 => {
-                        // Four-byte special upper bound
-                        if written + 1 == dst.len() {
-                            break 'outer;
-                        }
-                        let second = unsafe { *(src.get_unchecked(read + 1)) };
-                        let third = unsafe { *(src.get_unchecked(read + 2)) };
-                        let fourth = unsafe { *(src.get_unchecked(read + 3)) };
-                        if ((UTF8_TRAIL_INVALID[usize::from(second)]
-                            & UTF8_FOUR_BYTE_SPECIAL_UPPER_BOUND_TRAIL)
-                            | (UTF8_TRAIL_INVALID[usize::from(third)] & UTF8_NORMAL_TRAIL)
-                            | (UTF8_TRAIL_INVALID[usize::from(fourth)] & UTF8_NORMAL_TRAIL))
-                            != 0
-                        {
-                            break 'outer;
-                        }
-                        let point = ((u32::from(byte) & 0x7) << 18)
-                            | ((u32::from(second) & 0x3F) << 12)
-                            | ((u32::from(third) & 0x3F) << 6)
-                            | (u32::from(fourth) & 0x3F);
-                        unsafe {
-                            *(dst.get_unchecked_mut(written)) = (0xD7C0 + (point >> 10)) as u16
-                        };
-                        unsafe {
-                            *(dst.get_unchecked_mut(written + 1)) =
-                                (0xDC00 + (point & 0x3FF)) as u16
-                        };
-                        read += 4;
-                        written += 2;
-                    }
-                    _ => {
-                        // Invalid lead
-                        break 'outer;
-                    }
+                    continue 'inner;
                 }
-                if written == dst.len() {
-                    break 'outer;
-                }
-                if read + 4 > src.len() {
-                    if read == src.len() {
-                        break 'outer;
-                    }
-                    byte = unsafe { *(src.get_unchecked(read)) };
-                    break 'inner;
-                }
-                byte = unsafe { *(src.get_unchecked(read)) };
-                continue 'inner;
+                break 'inner;
             }
         }
         // We can't have a complete 4-byte sequence, but we could still have
         // a complete shorter sequence.
-
-        // At this point, `byte` is not included in `read`, because we
-        // don't yet know that a) the UTF-8 sequence is valid and b) that there
-        // is output space if it is an astral sequence.
-        // We know, thanks to `ascii_to_basic_latin` that there is output
-        // space for at least one UTF-16 code unit, so no need to check
-        // for output space in the BMP cases.
-        // Matching directly on the lead byte is faster than what the
-        // std lib does!
-        match byte {
-            0...0x7F => {
-                // ASCII: write and go back to SIMD.
-                dst[written] = u16::from(byte);
-                read += 1;
-                written += 1;
-                continue 'outer;
-            }
-            0xC2...0xDF => {
-                // Two-byte
-                let new_read = read + 2;
-                if new_read > src.len() {
-                    break 'outer;
-                }
-                let second = src[read + 1];
-                if (UTF8_TRAIL_INVALID[usize::from(second)] & UTF8_NORMAL_TRAIL) != 0 {
-                    break 'outer;
-                }
-                let point = ((u16::from(byte) & 0x1F) << 6) | (u16::from(second) & 0x3F);
-                dst[written] = point;
-                read = new_read;
-                written += 1;
-            }
-            0xE1...0xEC | 0xEE...0xEF => {
-                // Three-byte normal
-                let new_read = read + 3;
-                if new_read > src.len() {
-                    break 'outer;
-                }
-                let second = src[read + 1];
-                let third = src[read + 2];
-                if ((UTF8_TRAIL_INVALID[usize::from(second)] & UTF8_NORMAL_TRAIL)
-                    | (UTF8_TRAIL_INVALID[usize::from(third)] & UTF8_NORMAL_TRAIL))
-                    != 0
-                {
-                    break 'outer;
-                }
-                let point = ((u16::from(byte) & 0xF) << 12)
-                    | ((u16::from(second) & 0x3F) << 6)
-                    | (u16::from(third) & 0x3F);
-                dst[written] = point;
-                read = new_read;
-                written += 1;
-            }
-            0xE0 => {
-                // Three-byte special lower bound
-                let new_read = read + 3;
-                if new_read > src.len() {
-                    break 'outer;
-                }
-                let second = src[read + 1];
-                let third = src[read + 2];
-                if ((UTF8_TRAIL_INVALID[usize::from(second)]
-                    & UTF8_THREE_BYTE_SPECIAL_LOWER_BOUND_TRAIL)
-                    | (UTF8_TRAIL_INVALID[usize::from(third)] & UTF8_NORMAL_TRAIL))
-                    != 0
-                {
-                    break 'outer;
-                }
-                let point = ((u16::from(byte) & 0xF) << 12)
-                    | ((u16::from(second) & 0x3F) << 6)
-                    | (u16::from(third) & 0x3F);
-                dst[written] = point;
-                read = new_read;
-                written += 1;
-            }
-            0xED => {
-                // Three-byte special upper bound
-                let new_read = read + 3;
-                if new_read > src.len() {
-                    break 'outer;
-                }
-                let second = src[read + 1];
-                let third = src[read + 2];
-                if ((UTF8_TRAIL_INVALID[usize::from(second)]
-                    & UTF8_THREE_BYTE_SPECIAL_UPPER_BOUND_TRAIL)
-                    | (UTF8_TRAIL_INVALID[usize::from(third)] & UTF8_NORMAL_TRAIL))
-                    != 0
-                {
-                    break 'outer;
-                }
-                let point = ((u16::from(byte) & 0xF) << 12)
-                    | ((u16::from(second) & 0x3F) << 6)
-                    | (u16::from(third) & 0x3F);
-                dst[written] = point;
-                read = new_read;
-                written += 1;
-            }
-            _ => {
-                // Invalid lead or 4-byte lead
+        'tail: loop {
+            if read >= src.len() || written >= src.len() {
                 break 'outer;
             }
+            byte = src[read];
+            // At this point, `byte` is not included in `read`, because we
+            // don't yet know that a) the UTF-8 sequence is valid and b) that there
+            // is output space if it is an astral sequence.
+            // We know, thanks to `ascii_to_basic_latin` that there is output
+            // space for at least one UTF-16 code unit, so no need to check
+            // for output space in the BMP cases.
+            // Matching directly on the lead byte is faster than what the
+            // std lib does!
+            match byte {
+                0...0x7F => {
+                    // ASCII: write and go back to SIMD.
+                    dst[written] = u16::from(byte);
+                    read += 1;
+                    written += 1;
+                    continue 'outer;
+                }
+                0xC2...0xDF => {
+                    // Two-byte
+                    let new_read = read + 2;
+                    if new_read > src.len() {
+                        break 'outer;
+                    }
+                    let second = src[read + 1];
+                    if (UTF8_TRAIL_INVALID[usize::from(second)] & UTF8_NORMAL_TRAIL) != 0 {
+                        break 'outer;
+                    }
+                    let point = ((u16::from(byte) & 0x1F) << 6) | (u16::from(second) & 0x3F);
+                    dst[written] = point;
+                    read = new_read;
+                    written += 1;
+                }
+                0xE1...0xEC | 0xEE...0xEF => {
+                    // Three-byte normal
+                    let new_read = read + 3;
+                    if new_read > src.len() {
+                        break 'outer;
+                    }
+                    let second = src[read + 1];
+                    let third = src[read + 2];
+                    if ((UTF8_TRAIL_INVALID[usize::from(second)] & UTF8_NORMAL_TRAIL)
+                        | (UTF8_TRAIL_INVALID[usize::from(third)] & UTF8_NORMAL_TRAIL))
+                        != 0
+                    {
+                        break 'outer;
+                    }
+                    let point = ((u16::from(byte) & 0xF) << 12)
+                        | ((u16::from(second) & 0x3F) << 6)
+                        | (u16::from(third) & 0x3F);
+                    dst[written] = point;
+                    read = new_read;
+                    written += 1;
+                }
+                0xE0 => {
+                    // Three-byte special lower bound
+                    let new_read = read + 3;
+                    if new_read > src.len() {
+                        break 'outer;
+                    }
+                    let second = src[read + 1];
+                    let third = src[read + 2];
+                    if ((UTF8_TRAIL_INVALID[usize::from(second)]
+                        & UTF8_THREE_BYTE_SPECIAL_LOWER_BOUND_TRAIL)
+                        | (UTF8_TRAIL_INVALID[usize::from(third)] & UTF8_NORMAL_TRAIL))
+                        != 0
+                    {
+                        break 'outer;
+                    }
+                    let point = ((u16::from(byte) & 0xF) << 12)
+                        | ((u16::from(second) & 0x3F) << 6)
+                        | (u16::from(third) & 0x3F);
+                    dst[written] = point;
+                    read = new_read;
+                    written += 1;
+                }
+                0xED => {
+                    // Three-byte special upper bound
+                    let new_read = read + 3;
+                    if new_read > src.len() {
+                        break 'outer;
+                    }
+                    let second = src[read + 1];
+                    let third = src[read + 2];
+                    if ((UTF8_TRAIL_INVALID[usize::from(second)]
+                        & UTF8_THREE_BYTE_SPECIAL_UPPER_BOUND_TRAIL)
+                        | (UTF8_TRAIL_INVALID[usize::from(third)] & UTF8_NORMAL_TRAIL))
+                        != 0
+                    {
+                        break 'outer;
+                    }
+                    let point = ((u16::from(byte) & 0xF) << 12)
+                        | ((u16::from(second) & 0x3F) << 6)
+                        | (u16::from(third) & 0x3F);
+                    dst[written] = point;
+                    read = new_read;
+                    written += 1;
+                }
+                _ => {
+                    // Invalid lead or 4-byte lead
+                    break 'outer;
+                }
+            }
+            continue 'tail;
         }
-        break 'outer;
     }
     (read, written)
 }
