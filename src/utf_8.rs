@@ -13,6 +13,7 @@ extern crate rayon;
 use super::*;
 use ascii::ascii_to_basic_latin;
 use ascii::basic_latin_to_ascii;
+use ascii::validate_ascii;
 use handles::*;
 use variant::*;
 
@@ -202,7 +203,7 @@ pub static UTF8_SECOND_MASK: [u8; 128] = [
     UTF8_NORMAL_TRAIL,
     UTF8_NORMAL_TRAIL,
     UTF8_NORMAL_TRAIL,
-    UTF8_FOUR_BYTE_SPECIAL_LOWER_BOUND_TRAIL,
+    UTF8_FOUR_BYTE_SPECIAL_UPPER_BOUND_TRAIL,
     UTF8_INVALID_LEAD,
     UTF8_INVALID_LEAD,
     UTF8_INVALID_LEAD,
@@ -265,11 +266,170 @@ pub fn utf8_valid_up_to(bytes: &[u8]) -> usize {
 }
 
 #[cfg(not(feature = "parallel-utf8"))]
-pub fn utf8_valid_up_to(bytes: &[u8]) -> usize {
-    match run_utf8_validation(bytes) {
-        Ok(_) => bytes.len(),
-        Err(e) => e.valid_up_to(),
+pub fn utf8_valid_up_to(src: &[u8]) -> usize {
+    // This algorithm differs from the UTF-8 validation algorithm, but making
+    // this one consistent with that one makes this slower for reasons I don't
+    // understand.
+    let mut read = 0;
+    'outer: loop {
+        let mut byte = {
+            let src_remaining = &src[read..];
+            match validate_ascii(src_remaining) {
+                None => {
+                    return src.len();
+                }
+                Some((non_ascii, consumed)) => {
+                    read += consumed;
+                    non_ascii
+                }
+            }
+        };
+        // Check for the longest sequence to avoid checking twice for the
+        // multi-byte sequences. This can't overflow with 64-bit address space,
+        // because full 64 bits aren't in use. In the 32-bit PAE case, for this
+        // to overflow would mean that the source slice would be so large that
+        // the address space of the process would not have space for any code.
+        // Therefore, the slice cannot be so long that this would overflow.
+        if unsafe { likely(read + 4 <= src.len()) } {
+            'inner: loop {
+                // At this point, `byte` is not included in `read`, because we
+                // don't yet know that a) the UTF-8 sequence is valid and b) that there
+                // is output space if it is an astral sequence.
+                // We know, thanks to `ascii_to_basic_latin` that there is output
+                // space for at least one UTF-16 code unit, so no need to check
+                // for output space in the BMP cases.
+                // Inspecting the lead byte directly is faster than what the
+                // std lib does!
+                if unsafe { likely(in_inclusive_range8(byte, 0xC2, 0xDF)) } {
+                    // Two-byte
+                    let second = unsafe { *(src.get_unchecked(read + 1)) };
+                    if !in_inclusive_range8(second, 0x80, 0xBF) {
+                        break 'outer;
+                    }
+                    read += 2;
+
+                    // Next lead (manually inlined)
+                    if unsafe { likely(read + 4 <= src.len()) } {
+                        byte = unsafe { *(src.get_unchecked(read)) };
+                        if byte < 0x80 {
+                            read += 1;
+                            continue 'outer;
+                        }
+                        continue 'inner;
+                    }
+                    break 'inner;
+                }
+                if unsafe { likely(byte < 0xF0) } {
+                    'three: loop {
+                        // Three-byte
+                        let second = unsafe { *(src.get_unchecked(read + 1)) };
+                        let third = unsafe { *(src.get_unchecked(read + 2)) };
+                        if ((UTF8_TRAIL_INVALID[usize::from(second)]
+                            & unsafe { *(UTF8_SECOND_MASK.get_unchecked(byte as usize - 0x80)) })
+                            | (UTF8_TRAIL_INVALID[usize::from(third)] & UTF8_NORMAL_TRAIL))
+                            != 0
+                        {
+                            break 'outer;
+                        }
+                        read += 3;
+
+                        // Next lead (manually inlined)
+                        if unsafe { likely(read + 4 <= src.len()) } {
+                            byte = unsafe { *(src.get_unchecked(read)) };
+                            if in_inclusive_range8(byte, 0xE0, 0xEF) {
+                                continue 'three;
+                            }
+                            if unsafe { likely(byte < 0x80) } {
+                                read += 1;
+                                continue 'outer;
+                            }
+                            continue 'inner;
+                        }
+                        break 'inner;
+                    }
+                }
+                // Four-byte
+                let second = unsafe { *(src.get_unchecked(read + 1)) };
+                let third = unsafe { *(src.get_unchecked(read + 2)) };
+                let fourth = unsafe { *(src.get_unchecked(read + 3)) };
+                if ((UTF8_TRAIL_INVALID[usize::from(second)]
+                    & unsafe { *(UTF8_SECOND_MASK.get_unchecked(byte as usize - 0x80)) })
+                    | (UTF8_TRAIL_INVALID[usize::from(third)] & UTF8_NORMAL_TRAIL)
+                    | (UTF8_TRAIL_INVALID[usize::from(fourth)] & UTF8_NORMAL_TRAIL))
+                    != 0
+                {
+                    break 'outer;
+                }
+                read += 4;
+
+                // Next lead
+                if unsafe { likely(read + 4 <= src.len()) } {
+                    byte = unsafe { *(src.get_unchecked(read)) };
+                    if byte < 0x80 {
+                        read += 1;
+                        continue 'outer;
+                    }
+                    continue 'inner;
+                }
+                break 'inner;
+            }
+        }
+        // We can't have a complete 4-byte sequence, but we could still have
+        // one to three shorter sequences.
+        'tail: loop {
+            // >= is better for bound check elision than ==
+            if read >= src.len() {
+                break 'outer;
+            }
+            byte = src[read];
+            // At this point, `byte` is not included in `read`, because we
+            // don't yet know that a) the UTF-8 sequence is valid and b) that there
+            // is output space if it is an astral sequence.
+            // Inspecting the lead byte directly is faster than what the
+            // std lib does!
+            if byte < 0x80 {
+                read += 1;
+                continue 'tail;
+            }
+            if in_inclusive_range8(byte, 0xC2, 0xDF) {
+                // Two-byte
+                let new_read = read + 2;
+                if new_read > src.len() {
+                    break 'outer;
+                }
+                let second = src[read + 1];
+                if !in_inclusive_range8(second, 0x80, 0xBF) {
+                    break 'outer;
+                }
+                read += 2;
+                continue 'tail;
+            }
+            // We need to exclude valid four byte lead bytes, because
+            // `UTF8_SECOND_MASK` covers
+            if byte < 0xF0 {
+                // Three-byte
+                let new_read = read + 3;
+                if new_read > src.len() {
+                    break 'outer;
+                }
+                let second = src[read + 1];
+                let third = src[read + 2];
+                if ((UTF8_TRAIL_INVALID[usize::from(second)]
+                    & unsafe { *(UTF8_SECOND_MASK.get_unchecked(byte as usize - 0x80)) })
+                    | (UTF8_TRAIL_INVALID[usize::from(third)] & UTF8_NORMAL_TRAIL))
+                    != 0
+                {
+                    break 'outer;
+                }
+                read += 3;
+                // `'tail` handles sequences shorter than 4, so
+                // there can't be another sequence after this one.
+                break 'outer;
+            }
+            break 'outer;
+        }
     }
+    read
 }
 
 #[cfg_attr(
@@ -335,7 +495,7 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
                     if written == dst.len() {
                         break 'outer;
                     }
-			        if unsafe { likely(read + 4 <= src.len()) } {
+                    if unsafe { likely(read + 4 <= src.len()) } {
                         byte = unsafe { *(src.get_unchecked(read)) };
                         if byte < 0x80 {
                             unsafe { *(dst.get_unchecked_mut(written)) = u16::from(byte) };
@@ -370,7 +530,7 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
                         if written == dst.len() {
                             break 'outer;
                         }
-				        if unsafe { likely(read + 4 <= src.len()) } {
+                        if unsafe { likely(read + 4 <= src.len()) } {
                             byte = unsafe { *(src.get_unchecked(read)) };
                             if in_inclusive_range8(byte, 0xE0, 0xEF) {
                                 continue 'three;
@@ -416,7 +576,7 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
                 if written == dst.len() {
                     break 'outer;
                 }
-		        if unsafe { likely(read + 4 <= src.len()) } {
+                if unsafe { likely(read + 4 <= src.len()) } {
                     byte = unsafe { *(src.get_unchecked(read)) };
                     if byte < 0x80 {
                         unsafe { *(dst.get_unchecked_mut(written)) = u16::from(byte) };

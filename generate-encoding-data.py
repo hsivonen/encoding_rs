@@ -1471,7 +1471,7 @@ for i in range(128, 256):
   elif i >= 0xF1 and i <= 0xF3:
     utf_8_file.write("UTF8_NORMAL_TRAIL,")
   elif i == 0xF4:
-    utf_8_file.write("UTF8_FOUR_BYTE_SPECIAL_LOWER_BOUND_TRAIL,")
+    utf_8_file.write("UTF8_FOUR_BYTE_SPECIAL_UPPER_BOUND_TRAIL,")
   else:
     utf_8_file.write("UTF8_INVALID_LEAD,")
 
