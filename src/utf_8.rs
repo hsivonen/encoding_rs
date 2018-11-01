@@ -183,25 +183,28 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
                 match byte {
                     0...0x7F => {
                         // ASCII: write and go back to SIMD.
-                        dst[written] = u16::from(byte);
+                        unsafe { *(dst.get_unchecked_mut(written)) = u16::from(byte) };
                         read += 1;
                         written += 1;
                         continue 'outer;
                     }
                     0xC2...0xDF => {
                         // Two-byte
-                        let second = src[read + 1];
+                        let second = unsafe { *(src.get_unchecked(read + 1)) };
                         if (UTF8_TRAIL_INVALID[usize::from(second)] & UTF8_NORMAL_TRAIL) != 0 {
                             break 'outer;
                         }
-                        dst[written] = ((u16::from(byte) & 0x1F) << 6) | (u16::from(second) & 0x3F);
+                        unsafe {
+                            *(dst.get_unchecked_mut(written)) =
+                                ((u16::from(byte) & 0x1F) << 6) | (u16::from(second) & 0x3F)
+                        };
                         read += 2;
                         written += 1;
                     }
                     0xE1...0xEC | 0xEE...0xEF => {
                         // Three-byte normal
-                        let second = src[read + 1];
-                        let third = src[read + 2];
+                        let second = unsafe { *(src.get_unchecked(read + 1)) };
+                        let third = unsafe { *(src.get_unchecked(read + 2)) };
                         if ((UTF8_TRAIL_INVALID[usize::from(second)] & UTF8_NORMAL_TRAIL)
                             | (UTF8_TRAIL_INVALID[usize::from(third)] & UTF8_NORMAL_TRAIL))
                             != 0
@@ -211,14 +214,14 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
                         let point = ((u16::from(byte) & 0xF) << 12)
                             | ((u16::from(second) & 0x3F) << 6)
                             | (u16::from(third) & 0x3F);
-                        dst[written] = point;
+                        unsafe { *(dst.get_unchecked_mut(written)) = point };
                         read += 3;
                         written += 1;
                     }
                     0xE0 => {
                         // Three-byte special lower bound
-                        let second = src[read + 1];
-                        let third = src[read + 2];
+                        let second = unsafe { *(src.get_unchecked(read + 1)) };
+                        let third = unsafe { *(src.get_unchecked(read + 2)) };
                         if ((UTF8_TRAIL_INVALID[usize::from(second)]
                             & UTF8_THREE_BYTE_SPECIAL_LOWER_BOUND_TRAIL)
                             | (UTF8_TRAIL_INVALID[usize::from(third)] & UTF8_NORMAL_TRAIL))
@@ -229,14 +232,14 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
                         let point = ((u16::from(byte) & 0xF) << 12)
                             | ((u16::from(second) & 0x3F) << 6)
                             | (u16::from(third) & 0x3F);
-                        dst[written] = point;
+                        unsafe { *(dst.get_unchecked_mut(written)) = point };
                         read += 3;
                         written += 1;
                     }
                     0xED => {
                         // Three-byte special upper bound
-                        let second = src[read + 1];
-                        let third = src[read + 2];
+                        let second = unsafe { *(src.get_unchecked(read + 1)) };
+                        let third = unsafe { *(src.get_unchecked(read + 2)) };
                         if ((UTF8_TRAIL_INVALID[usize::from(second)]
                             & UTF8_THREE_BYTE_SPECIAL_UPPER_BOUND_TRAIL)
                             | (UTF8_TRAIL_INVALID[usize::from(third)] & UTF8_NORMAL_TRAIL))
@@ -247,7 +250,7 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
                         let point = ((u16::from(byte) & 0xF) << 12)
                             | ((u16::from(second) & 0x3F) << 6)
                             | (u16::from(third) & 0x3F);
-                        dst[written] = point;
+                        unsafe { *(dst.get_unchecked_mut(written)) = point };
                         read += 3;
                         written += 1;
                     }
@@ -256,9 +259,9 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
                         if written + 1 == dst.len() {
                             break 'outer;
                         }
-                        let second = src[read + 1];
-                        let third = src[read + 2];
-                        let fourth = src[read + 3];
+                        let second = unsafe { *(src.get_unchecked(read + 1)) };
+                        let third = unsafe { *(src.get_unchecked(read + 2)) };
+                        let fourth = unsafe { *(src.get_unchecked(read + 3)) };
                         if ((UTF8_TRAIL_INVALID[usize::from(second)] & UTF8_NORMAL_TRAIL)
                             | (UTF8_TRAIL_INVALID[usize::from(third)] & UTF8_NORMAL_TRAIL)
                             | (UTF8_TRAIL_INVALID[usize::from(fourth)] & UTF8_NORMAL_TRAIL))
@@ -270,8 +273,13 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
                             | ((u32::from(second) & 0x3F) << 12)
                             | ((u32::from(third) & 0x3F) << 6)
                             | (u32::from(fourth) & 0x3F);
-                        dst[written] = (0xD7C0 + (point >> 10)) as u16;
-                        dst[written + 1] = (0xDC00 + (point & 0x3FF)) as u16;
+                        unsafe {
+                            *(dst.get_unchecked_mut(written)) = (0xD7C0 + (point >> 10)) as u16
+                        };
+                        unsafe {
+                            *(dst.get_unchecked_mut(written + 1)) =
+                                (0xDC00 + (point & 0x3FF)) as u16
+                        };
                         read += 4;
                         written += 2;
                     }
@@ -280,9 +288,9 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
                         if written + 1 == dst.len() {
                             break 'outer;
                         }
-                        let second = src[read + 1];
-                        let third = src[read + 2];
-                        let fourth = src[read + 3];
+                        let second = unsafe { *(src.get_unchecked(read + 1)) };
+                        let third = unsafe { *(src.get_unchecked(read + 2)) };
+                        let fourth = unsafe { *(src.get_unchecked(read + 3)) };
                         if ((UTF8_TRAIL_INVALID[usize::from(second)]
                             & UTF8_FOUR_BYTE_SPECIAL_LOWER_BOUND_TRAIL)
                             | (UTF8_TRAIL_INVALID[usize::from(third)] & UTF8_NORMAL_TRAIL)
@@ -295,8 +303,13 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
                             | ((u32::from(second) & 0x3F) << 12)
                             | ((u32::from(third) & 0x3F) << 6)
                             | (u32::from(fourth) & 0x3F);
-                        dst[written] = (0xD7C0 + (point >> 10)) as u16;
-                        dst[written + 1] = (0xDC00 + (point & 0x3FF)) as u16;
+                        unsafe {
+                            *(dst.get_unchecked_mut(written)) = (0xD7C0 + (point >> 10)) as u16
+                        };
+                        unsafe {
+                            *(dst.get_unchecked_mut(written + 1)) =
+                                (0xDC00 + (point & 0x3FF)) as u16
+                        };
                         read += 4;
                         written += 2;
                     }
@@ -305,9 +318,9 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
                         if written + 1 == dst.len() {
                             break 'outer;
                         }
-                        let second = src[read + 1];
-                        let third = src[read + 2];
-                        let fourth = src[read + 3];
+                        let second = unsafe { *(src.get_unchecked(read + 1)) };
+                        let third = unsafe { *(src.get_unchecked(read + 2)) };
+                        let fourth = unsafe { *(src.get_unchecked(read + 3)) };
                         if ((UTF8_TRAIL_INVALID[usize::from(second)]
                             & UTF8_FOUR_BYTE_SPECIAL_UPPER_BOUND_TRAIL)
                             | (UTF8_TRAIL_INVALID[usize::from(third)] & UTF8_NORMAL_TRAIL)
@@ -320,8 +333,13 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
                             | ((u32::from(second) & 0x3F) << 12)
                             | ((u32::from(third) & 0x3F) << 6)
                             | (u32::from(fourth) & 0x3F);
-                        dst[written] = (0xD7C0 + (point >> 10)) as u16;
-                        dst[written + 1] = (0xDC00 + (point & 0x3FF)) as u16;
+                        unsafe {
+                            *(dst.get_unchecked_mut(written)) = (0xD7C0 + (point >> 10)) as u16
+                        };
+                        unsafe {
+                            *(dst.get_unchecked_mut(written + 1)) =
+                                (0xDC00 + (point & 0x3FF)) as u16
+                        };
                         read += 4;
                         written += 2;
                     }
@@ -337,10 +355,10 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
                     if read == src.len() {
                         break 'outer;
                     }
-                    byte = src[read];
+                    byte = unsafe { *(src.get_unchecked(read)) };
                     break 'inner;
                 }
-                byte = src[read];
+                byte = unsafe { *(src.get_unchecked(read)) };
                 continue 'inner;
             }
         }
