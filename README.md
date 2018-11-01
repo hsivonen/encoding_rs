@@ -383,6 +383,8 @@ To regenerate the generated code:
   rewriting the CJK encoders totally, so the speed isn't as good as
   what could be achieved by using even more memory / making the
   binary even langer.
+* Made UTF-8 to UTF-16 decode faster for non-ASCII below U+1000 and
+  for Hangul.
 * Add method `is_single_byte()` on `Encoding`.
 
 ### 0.8.10
