@@ -317,7 +317,7 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
                 if in_inclusive_range8(byte, 0xC2, 0xDF) {
                     // Two-byte
                     let second = unsafe { *(src.get_unchecked(read + 1)) };
-                    if (UTF8_TRAIL_INVALID[usize::from(second)] & UTF8_NORMAL_TRAIL) != 0 {
+                    if !in_inclusive_range8(second, 0x80, 0xBF) {
                         break 'outer;
                     }
                     unsafe {
@@ -326,7 +326,7 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
                     };
                     read += 2;
                     written += 1;
-                } else if byte < 0xF0 {
+                } else if unsafe { likely(byte < 0xF0) } {
                     // Three-byte
                     let second = unsafe { *(src.get_unchecked(read + 1)) };
                     let third = unsafe { *(src.get_unchecked(read + 2)) };
