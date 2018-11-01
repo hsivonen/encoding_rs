@@ -303,7 +303,11 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
             }
         };
         // Check for the longest sequence to avoid checking twice for the
-        // multi-byte sequences.
+        // multi-byte sequences. This can't overflow with 64-bit address space,
+        // because full 64 bits aren't in use. In the 32-bit PAE case, for this
+        // to overflow would mean that the source slice would be so large that
+        // the address space of the process would not have space for any code.
+        // Therefore, the slice cannot be so long that this would overflow.
         if read + 4 <= src.len() {
             'inner: loop {
                 // At this point, `byte` is not included in `read`, because we
@@ -312,7 +316,7 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
                 // We know, thanks to `ascii_to_basic_latin` that there is output
                 // space for at least one UTF-16 code unit, so no need to check
                 // for output space in the BMP cases.
-                // Matching directly on the lead byte is faster than what the
+                // Inspecting the lead byte directly is faster than what the
                 // std lib does!
                 if in_inclusive_range8(byte, 0xC2, 0xDF) {
                     // Two-byte
@@ -387,8 +391,9 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
             }
         }
         // We can't have a complete 4-byte sequence, but we could still have
-        // a complete shorter sequence.
+        // one to three shorter sequences.
         'tail: loop {
+            // >= is better for bound check elision than ==
             if read >= src.len() || written >= src.len() {
                 break 'outer;
             }
@@ -396,105 +401,57 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
             // At this point, `byte` is not included in `read`, because we
             // don't yet know that a) the UTF-8 sequence is valid and b) that there
             // is output space if it is an astral sequence.
-            // We know, thanks to `ascii_to_basic_latin` that there is output
-            // space for at least one UTF-16 code unit, so no need to check
-            // for output space in the BMP cases.
-            // Matching directly on the lead byte is faster than what the
+            // Inspecting the lead byte directly is faster than what the
             // std lib does!
-            match byte {
-                0...0x7F => {
-                    // ASCII: write and go back to SIMD.
-                    dst[written] = u16::from(byte);
-                    read += 1;
-                    written += 1;
-                    continue 'outer;
-                }
-                0xC2...0xDF => {
-                    // Two-byte
-                    let new_read = read + 2;
-                    if new_read > src.len() {
-                        break 'outer;
-                    }
-                    let second = src[read + 1];
-                    if (UTF8_TRAIL_INVALID[usize::from(second)] & UTF8_NORMAL_TRAIL) != 0 {
-                        break 'outer;
-                    }
-                    let point = ((u16::from(byte) & 0x1F) << 6) | (u16::from(second) & 0x3F);
-                    dst[written] = point;
-                    read = new_read;
-                    written += 1;
-                }
-                0xE1...0xEC | 0xEE...0xEF => {
-                    // Three-byte normal
-                    let new_read = read + 3;
-                    if new_read > src.len() {
-                        break 'outer;
-                    }
-                    let second = src[read + 1];
-                    let third = src[read + 2];
-                    if ((UTF8_TRAIL_INVALID[usize::from(second)] & UTF8_NORMAL_TRAIL)
-                        | (UTF8_TRAIL_INVALID[usize::from(third)] & UTF8_NORMAL_TRAIL))
-                        != 0
-                    {
-                        break 'outer;
-                    }
-                    let point = ((u16::from(byte) & 0xF) << 12)
-                        | ((u16::from(second) & 0x3F) << 6)
-                        | (u16::from(third) & 0x3F);
-                    dst[written] = point;
-                    read = new_read;
-                    written += 1;
-                }
-                0xE0 => {
-                    // Three-byte special lower bound
-                    let new_read = read + 3;
-                    if new_read > src.len() {
-                        break 'outer;
-                    }
-                    let second = src[read + 1];
-                    let third = src[read + 2];
-                    if ((UTF8_TRAIL_INVALID[usize::from(second)]
-                        & UTF8_THREE_BYTE_SPECIAL_LOWER_BOUND_TRAIL)
-                        | (UTF8_TRAIL_INVALID[usize::from(third)] & UTF8_NORMAL_TRAIL))
-                        != 0
-                    {
-                        break 'outer;
-                    }
-                    let point = ((u16::from(byte) & 0xF) << 12)
-                        | ((u16::from(second) & 0x3F) << 6)
-                        | (u16::from(third) & 0x3F);
-                    dst[written] = point;
-                    read = new_read;
-                    written += 1;
-                }
-                0xED => {
-                    // Three-byte special upper bound
-                    let new_read = read + 3;
-                    if new_read > src.len() {
-                        break 'outer;
-                    }
-                    let second = src[read + 1];
-                    let third = src[read + 2];
-                    if ((UTF8_TRAIL_INVALID[usize::from(second)]
-                        & UTF8_THREE_BYTE_SPECIAL_UPPER_BOUND_TRAIL)
-                        | (UTF8_TRAIL_INVALID[usize::from(third)] & UTF8_NORMAL_TRAIL))
-                        != 0
-                    {
-                        break 'outer;
-                    }
-                    let point = ((u16::from(byte) & 0xF) << 12)
-                        | ((u16::from(second) & 0x3F) << 6)
-                        | (u16::from(third) & 0x3F);
-                    dst[written] = point;
-                    read = new_read;
-                    written += 1;
-                }
-                _ => {
-                    // Invalid lead or 4-byte lead
+            if byte < 0x80 {
+                dst[written] = u16::from(byte);
+                read += 1;
+                written += 1;
+                continue 'tail;
+            }
+            if in_inclusive_range8(byte, 0xC2, 0xDF) {
+                // Two-byte
+                let new_read = read + 2;
+                if new_read > src.len() {
                     break 'outer;
                 }
+                let second = src[read + 1];
+                if !in_inclusive_range8(second, 0x80, 0xBF) {
+                    break 'outer;
+                }
+                dst[written] = ((u16::from(byte) & 0x1F) << 6) | (u16::from(second) & 0x3F);
+                read += 2;
+                written += 1;
+                continue 'tail;
             }
-            continue 'tail;
+            // We need to exclude valid four byte lead bytes, because
+            // `UTF8_SECOND_MASK` covers
+            if byte < 0xF0 {
+                // Three-byte
+                let new_read = read + 3;
+                if new_read > src.len() {
+                    break 'outer;
+                }
+                let second = src[read + 1];
+                let third = src[read + 2];
+                if ((UTF8_TRAIL_INVALID[usize::from(second)]
+                    & unsafe { *(UTF8_SECOND_MASK.get_unchecked(byte as usize - 0x80)) })
+                    | (UTF8_TRAIL_INVALID[usize::from(third)] & UTF8_NORMAL_TRAIL))
+                    != 0
+                {
+                    break 'outer;
+                }
+                let point = ((u16::from(byte) & 0xF) << 12)
+                    | ((u16::from(second) & 0x3F) << 6)
+                    | (u16::from(third) & 0x3F);
+                dst[written] = point;
+                read += 3;
+                written += 1;
+                // `'tail` handles sequences shorter than 4, so
+                // there can't be another sequence after this one.
+                break 'outer;
+            }
+            break 'outer;
         }
     }
     (read, written)
