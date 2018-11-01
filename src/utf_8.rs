@@ -319,127 +319,114 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
                 // Inspecting the lead byte directly is faster than what the
                 // std lib does!
                 if in_inclusive_range8(byte, 0xC2, 0xDF) {
-                	'two: loop {
-	                    // Two-byte
-	                    let second = unsafe { *(src.get_unchecked(read + 1)) };
-	                    if !in_inclusive_range8(second, 0x80, 0xBF) {
-	                        break 'outer;
-	                    }
-	                    unsafe {
-	                        *(dst.get_unchecked_mut(written)) =
-	                            ((u16::from(byte) & 0x1F) << 6) | (u16::from(second) & 0x3F)
-	                    };
-	                    read += 2;
-	                    written += 1;
+                    // Two-byte
+                    let second = unsafe { *(src.get_unchecked(read + 1)) };
+                    if !in_inclusive_range8(second, 0x80, 0xBF) {
+                        break 'outer;
+                    }
+                    unsafe {
+                        *(dst.get_unchecked_mut(written)) =
+                            ((u16::from(byte) & 0x1F) << 6) | (u16::from(second) & 0x3F)
+                    };
+                    read += 2;
+                    written += 1;
 
-	                    // Next lead (manually inlined)
-	                    if written == dst.len() {
-	                        break 'outer;
-	                    }
-	                    if read + 4 <= src.len() {
-	                        byte = unsafe { *(src.get_unchecked(read)) };
-	                        if in_inclusive_range8(byte, 0xC2, 0xDF) {
-	                        	continue 'two;
-	                        }
-							continue 'outer;	                        
-	                        // if byte < 0x80 {
-	                        //     unsafe { *(dst.get_unchecked_mut(written)) = u16::from(byte) };
-	                        //     read += 1;
-	                        //     written += 1;
-	                        //     continue 'outer;
-	                        // }
-	                        // continue 'inner;
-	                    }
-	                    break 'inner;
-	                }
+                    // Next lead (manually inlined)
+                    if written == dst.len() {
+                        break 'outer;
+                    }
+                    if read + 4 <= src.len() {
+                        byte = unsafe { *(src.get_unchecked(read)) };
+                        if byte < 0x80 {
+                            unsafe { *(dst.get_unchecked_mut(written)) = u16::from(byte) };
+                            read += 1;
+                            written += 1;
+                            continue 'outer;
+                        }
+                        continue 'inner;
+                    }
+                    break 'inner;
                 }
                 if unsafe { likely(byte < 0xF0) } {
-                	'three: loop {
-	                    // Three-byte
-	                    let second = unsafe { *(src.get_unchecked(read + 1)) };
-	                    let third = unsafe { *(src.get_unchecked(read + 2)) };
-	                    if ((UTF8_TRAIL_INVALID[usize::from(second)]
-	                        & unsafe { *(UTF8_SECOND_MASK.get_unchecked(byte as usize - 0x80)) })
-	                        | (UTF8_TRAIL_INVALID[usize::from(third)] & UTF8_NORMAL_TRAIL))
-	                        != 0
-	                    {
-	                        break 'outer;
-	                    }
-	                    let point = ((u16::from(byte) & 0xF) << 12)
-	                        | ((u16::from(second) & 0x3F) << 6)
-	                        | (u16::from(third) & 0x3F);
-	                    unsafe { *(dst.get_unchecked_mut(written)) = point };
-	                    read += 3;
-	                    written += 1;
-
-	                    // Next lead (manually inlined)
-	                    if written == dst.len() {
-	                        break 'outer;
-	                    }
-	                    if read + 4 <= src.len() {
-	                        byte = unsafe { *(src.get_unchecked(read)) };
-	                        if in_inclusive_range8(byte, 0xE0, 0xEF) {
-	                        	continue 'three;
-	                        }
-	                        continue 'outer;
-	                        // if byte < 0x80 {
-	                        //     unsafe { *(dst.get_unchecked_mut(written)) = u16::from(byte) };
-	                        //     read += 1;
-	                        //     written += 1;
-	                        //     continue 'outer;
-	                        // }
-	                        // continue 'inner;
-	                    }
-	                    break 'inner;
-	                }
-                }
-                'four: loop {
-	                // Four-byte
-	                if written + 1 == dst.len() {
-	                    break 'outer;
-	                }
-	                let second = unsafe { *(src.get_unchecked(read + 1)) };
-	                let third = unsafe { *(src.get_unchecked(read + 2)) };
-	                let fourth = unsafe { *(src.get_unchecked(read + 3)) };
-	                if ((UTF8_TRAIL_INVALID[usize::from(second)]
-	                    & unsafe { *(UTF8_SECOND_MASK.get_unchecked(byte as usize - 0x80)) })
-	                    | (UTF8_TRAIL_INVALID[usize::from(third)] & UTF8_NORMAL_TRAIL)
-	                    | (UTF8_TRAIL_INVALID[usize::from(fourth)] & UTF8_NORMAL_TRAIL))
-	                    != 0
-	                {
-	                    break 'outer;
-	                }
-	                let point = ((u32::from(byte) & 0x7) << 18)
-	                    | ((u32::from(second) & 0x3F) << 12)
-	                    | ((u32::from(third) & 0x3F) << 6)
-	                    | (u32::from(fourth) & 0x3F);
-	                unsafe { *(dst.get_unchecked_mut(written)) = (0xD7C0 + (point >> 10)) as u16 };
-	                unsafe {
-	                    *(dst.get_unchecked_mut(written + 1)) = (0xDC00 + (point & 0x3FF)) as u16
-	                };
-	                read += 4;
-	                written += 2;
-
-	                // Next lead
-	                if written == dst.len() {
-	                    break 'outer;
-	                }
-	                if read + 4 <= src.len() {
-	                    byte = unsafe { *(src.get_unchecked(read)) };
-                        if in_inclusive_range8(byte, 0xF0, 0xF4) {
-                        	continue 'four;
+                    'three: loop {
+                        // Three-byte
+                        let second = unsafe { *(src.get_unchecked(read + 1)) };
+                        let third = unsafe { *(src.get_unchecked(read + 2)) };
+                        if ((UTF8_TRAIL_INVALID[usize::from(second)]
+                            & unsafe { *(UTF8_SECOND_MASK.get_unchecked(byte as usize - 0x80)) })
+                            | (UTF8_TRAIL_INVALID[usize::from(third)] & UTF8_NORMAL_TRAIL))
+                            != 0
+                        {
+                            break 'outer;
                         }
+                        let point = ((u16::from(byte) & 0xF) << 12)
+                            | ((u16::from(second) & 0x3F) << 6)
+                            | (u16::from(third) & 0x3F);
+                        unsafe { *(dst.get_unchecked_mut(written)) = point };
+                        read += 3;
+                        written += 1;
+
+                        // Next lead (manually inlined)
+                        if written == dst.len() {
+                            break 'outer;
+                        }
+                        if read + 4 <= src.len() {
+                            byte = unsafe { *(src.get_unchecked(read)) };
+                            if in_inclusive_range8(byte, 0xE0, 0xEF) {
+                                continue 'three;
+                            }
+                            if unsafe { likely(byte < 0x80) } {
+                                unsafe { *(dst.get_unchecked_mut(written)) = u16::from(byte) };
+                                read += 1;
+                                written += 1;
+                                continue 'outer;
+                            }
+                            continue 'inner;
+                        }
+                        break 'inner;
+                    }
+                }
+                // Four-byte
+                if written + 1 == dst.len() {
+                    break 'outer;
+                }
+                let second = unsafe { *(src.get_unchecked(read + 1)) };
+                let third = unsafe { *(src.get_unchecked(read + 2)) };
+                let fourth = unsafe { *(src.get_unchecked(read + 3)) };
+                if ((UTF8_TRAIL_INVALID[usize::from(second)]
+                    & unsafe { *(UTF8_SECOND_MASK.get_unchecked(byte as usize - 0x80)) })
+                    | (UTF8_TRAIL_INVALID[usize::from(third)] & UTF8_NORMAL_TRAIL)
+                    | (UTF8_TRAIL_INVALID[usize::from(fourth)] & UTF8_NORMAL_TRAIL))
+                    != 0
+                {
+                    break 'outer;
+                }
+                let point = ((u32::from(byte) & 0x7) << 18)
+                    | ((u32::from(second) & 0x3F) << 12)
+                    | ((u32::from(third) & 0x3F) << 6)
+                    | (u32::from(fourth) & 0x3F);
+                unsafe { *(dst.get_unchecked_mut(written)) = (0xD7C0 + (point >> 10)) as u16 };
+                unsafe {
+                    *(dst.get_unchecked_mut(written + 1)) = (0xDC00 + (point & 0x3FF)) as u16
+                };
+                read += 4;
+                written += 2;
+
+                // Next lead
+                if written == dst.len() {
+                    break 'outer;
+                }
+                if read + 4 <= src.len() {
+                    byte = unsafe { *(src.get_unchecked(read)) };
+                    if byte < 0x80 {
+                        unsafe { *(dst.get_unchecked_mut(written)) = u16::from(byte) };
+                        read += 1;
+                        written += 1;
                         continue 'outer;
-	                    // if byte < 0x80 {
-	                    //     unsafe { *(dst.get_unchecked_mut(written)) = u16::from(byte) };
-	                    //     read += 1;
-	                    //     written += 1;
-	                    //     continue 'outer;
-	                    // }
-	                    // continue 'inner;
-	                }
-	                break 'inner;
-	            }
+                    }
+                    continue 'inner;
+                }
+                break 'inner;
             }
         }
         // We can't have a complete 4-byte sequence, but we could still have
