@@ -7,9 +7,6 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-#[cfg(feature = "parallel-utf8")]
-extern crate rayon;
-
 use super::*;
 use ascii::ascii_to_basic_latin;
 use ascii::basic_latin_to_ascii;
@@ -69,53 +66,6 @@ pub static UTF8_DATA: Utf8Data = Utf8Data {
 
 // END GENERATED CODE
 
-#[cfg(feature = "parallel-utf8")]
-#[cfg_attr(feature = "cargo-clippy", allow(clippy::never_loop))]
-pub fn utf8_valid_up_to(bytes: &[u8]) -> usize {
-    let mut len = bytes.len();
-    // The purpose of the outer loop is to avoid recursion when the attempt
-    // to find the split point discovers and over-long sequence.
-    'outer: loop {
-        // This magic number has been determined on i7-4770 with SSE2 enabled.
-        // It's very likely that the number should be different when different
-        // ISA is used for ASCII acceleration. The number has been chosen
-        // to optimize the all-ASCII case. With mostly non-ASCII, the number
-        // should be much smaller, but that would pessimize the all-ASCII case,
-        // which we are trying to optimize here.
-        if len < 290000 {
-            return match run_utf8_validation(&bytes[..len]) {
-                Ok(_) => bytes.len(),
-                Err(e) => e.valid_up_to(),
-            };
-        }
-        let mid = len >> 1;
-        let mut adjusted = mid;
-        let mut i = 0;
-        'inner: loop {
-            // No need to check for `adjusted` reaching `len` because we
-            // already know that `len` is way larger than `(len / 2) + 4`.
-            if i == 3 {
-                // `mid` landed inside an overlong sequence.
-                len = mid;
-                continue 'outer;
-            }
-            if (bytes[adjusted] & 0xC0) != 0x80 {
-                break 'inner;
-            }
-            adjusted += 1;
-            i += 1;
-        }
-        let (head, tail) = bytes[..len].split_at(adjusted);
-        let (head_valid_up_to, tail_valid_up_to) =
-            rayon::join(|| utf8_valid_up_to(head), || utf8_valid_up_to(tail));
-        if head_valid_up_to == adjusted {
-            return adjusted + tail_valid_up_to;
-        }
-        return head_valid_up_to;
-    }
-}
-
-#[cfg(not(feature = "parallel-utf8"))]
 pub fn utf8_valid_up_to(src: &[u8]) -> usize {
     // This algorithm differs from the UTF-8 validation algorithm, but making
     // this one consistent with that one makes this slower for reasons I don't
