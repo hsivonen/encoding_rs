@@ -368,9 +368,10 @@ To regenerate the generated code:
 * Changed minimum Rust requirement to 1.29.0 (for the ability to refer
   to the interior of a `static` when defining another `static`).
   (Semver breaking change.)
-* Explicitly aligned the lookup tables for single-byte encodings to
-  cache lines in the hope of freeing up one cache line for other data.
-  (Perhaps the tables were already aligned and this is placebo.)
+* Explicitly aligned the lookup tables for single-byte encodings and
+  UTF-8 to cache lines in the hope of freeing up one cache line for
+  other data. (Perhaps the tables were already aligned and this is
+  placebo.)
 * Added 32 bits of encode-oriented data for each single-byte encoding.
   The change was performance-neutral for non-Latin1-ish Latin legacy
   encodings, improved Latin1-ish and Arabic legacy encode speed
@@ -385,7 +386,7 @@ To regenerate the generated code:
   what could be achieved by using even more memory / making the
   binary even langer.
 * Made UTF-8 decode and validation faster.
-* Add method `is_single_byte()` on `Encoding`.
+* Added method `is_single_byte()` on `Encoding`.
 
 ### 0.8.10
 
