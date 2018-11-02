@@ -37,15 +37,14 @@ cfg_if!{
 
 #[repr(align(64))] // Align to cache lines
 pub struct Utf8Data {
-    pub trail_invalid: [u8; 256],
-    pub second_mask: [u8; 128],
+    pub table: [u8; 384],
 }
 
 // BEGIN GENERATED CODE. PLEASE DO NOT EDIT.
 // Instead, please regenerate using generate-encoding-data.py
 
 pub static UTF8_DATA: Utf8Data = Utf8Data {
-    trail_invalid: [
+    table: [
         252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252,
         252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252,
         252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252,
@@ -60,15 +59,11 @@ pub static UTF8_DATA: Utf8Data = Utf8Data {
         252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252,
         252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252,
         252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252,
-        252,
-    ],
-
-    second_mask: [
+        252, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
         4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
-        4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
-        4, 4, 4, 4, 4, 4, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
-        8, 8, 8, 8, 8, 8, 16, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 32, 8, 8, 64, 8, 8, 8, 128, 4, 4,
-        4, 4, 4, 4, 4, 4, 4, 4, 4,
+        4, 4, 4, 4, 4, 4, 4, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
+        8, 8, 8, 8, 8, 8, 8, 16, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 32, 8, 8, 64, 8, 8, 8, 128, 4,
+        4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
     ],
 };
 
@@ -179,9 +174,9 @@ pub fn utf8_valid_up_to(src: &[u8]) -> usize {
                         // Three-byte
                         let second = unsafe { *(src.get_unchecked(read + 1)) };
                         let third = unsafe { *(src.get_unchecked(read + 2)) };
-                        if ((UTF8_DATA.trail_invalid[usize::from(second)] & unsafe {
-                            *(UTF8_DATA.second_mask.get_unchecked(byte as usize - 0x80))
-                        }) | (third >> 6))
+                        if ((UTF8_DATA.table[usize::from(second)]
+                            & unsafe { *(UTF8_DATA.table.get_unchecked(byte as usize + 0x80)) })
+                            | (third >> 6))
                             != 2
                         {
                             break 'outer;
@@ -208,8 +203,8 @@ pub fn utf8_valid_up_to(src: &[u8]) -> usize {
                 let third = unsafe { *(src.get_unchecked(read + 2)) };
                 let fourth = unsafe { *(src.get_unchecked(read + 3)) };
                 if (u16::from(
-                    UTF8_DATA.trail_invalid[usize::from(second)]
-                        & unsafe { *(UTF8_DATA.second_mask.get_unchecked(byte as usize - 0x80)) },
+                    UTF8_DATA.table[usize::from(second)]
+                        & unsafe { *(UTF8_DATA.table.get_unchecked(byte as usize + 0x80)) },
                 ) | u16::from(third >> 6)
                     | (u16::from(fourth & 0xC0) << 2))
                     != 0x202
@@ -270,8 +265,8 @@ pub fn utf8_valid_up_to(src: &[u8]) -> usize {
                 }
                 let second = src[read + 1];
                 let third = src[read + 2];
-                if ((UTF8_DATA.trail_invalid[usize::from(second)]
-                    & unsafe { *(UTF8_DATA.second_mask.get_unchecked(byte as usize - 0x80)) })
+                if ((UTF8_DATA.table[usize::from(second)]
+                    & unsafe { *(UTF8_DATA.table.get_unchecked(byte as usize + 0x80)) })
                     | (third >> 6))
                     != 2
                 {
@@ -368,9 +363,9 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
                         // Three-byte
                         let second = unsafe { *(src.get_unchecked(read + 1)) };
                         let third = unsafe { *(src.get_unchecked(read + 2)) };
-                        if ((UTF8_DATA.trail_invalid[usize::from(second)] & unsafe {
-                            *(UTF8_DATA.second_mask.get_unchecked(byte as usize - 0x80))
-                        }) | (third >> 6))
+                        if ((UTF8_DATA.table[usize::from(second)]
+                            & unsafe { *(UTF8_DATA.table.get_unchecked(byte as usize + 0x80)) })
+                            | (third >> 6))
                             != 2
                         {
                             break 'outer;
@@ -410,8 +405,8 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
                 let third = unsafe { *(src.get_unchecked(read + 2)) };
                 let fourth = unsafe { *(src.get_unchecked(read + 3)) };
                 if (u16::from(
-                    UTF8_DATA.trail_invalid[usize::from(second)]
-                        & unsafe { *(UTF8_DATA.second_mask.get_unchecked(byte as usize - 0x80)) },
+                    UTF8_DATA.table[usize::from(second)]
+                        & unsafe { *(UTF8_DATA.table.get_unchecked(byte as usize + 0x80)) },
                 ) | u16::from(third >> 6)
                     | (u16::from(fourth & 0xC0) << 2))
                     != 0x202
@@ -490,8 +485,8 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
                 }
                 let second = src[read + 1];
                 let third = src[read + 2];
-                if ((UTF8_DATA.trail_invalid[usize::from(second)]
-                    & unsafe { *(UTF8_DATA.second_mask.get_unchecked(byte as usize - 0x80)) })
+                if ((UTF8_DATA.table[usize::from(second)]
+                    & unsafe { *(UTF8_DATA.table.get_unchecked(byte as usize + 0x80)) })
                     | (third >> 6))
                     != 2
                 {

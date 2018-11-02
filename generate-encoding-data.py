@@ -1432,7 +1432,7 @@ utf_8_file.write("""
 // Instead, please regenerate using generate-encoding-data.py
 
 pub static UTF8_DATA: Utf8Data = Utf8Data {
-    trail_invalid: [
+    table: [
 """)
 
 for i in range(256):
@@ -1448,12 +1448,6 @@ for i in range(256):
   if i < 0x80 or i > 0x8F:
     combined |= (1 << 7) # four-byte special upper bound
   utf_8_file.write("%d," % combined)
-
-utf_8_file.write("""
-    ],
-
-    second_mask: [
-""")
 
 for i in range(128, 256):
   lane = (1 << 2) # invalid lead
