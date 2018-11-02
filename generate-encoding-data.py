@@ -1436,7 +1436,7 @@ pub static UTF8_TRAIL_INVALID: [u8; 256] = [
 """)
 
 for i in range(256):
-  combined = 1
+  combined = (1 << 2)
   if i < 0x80 or i > 0xBF:
     combined |= (1 << 3)
   if i < 0xA0 or i > 0xBF:
