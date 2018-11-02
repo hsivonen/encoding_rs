@@ -362,7 +362,7 @@ To regenerate the generated code:
 
 ## Release Notes
 
-### 0.9.0
+### 0.8.11
 
 * Changed minimum Rust requirement to 1.29.0 (for the ability to refer
   to the interior of a `static` when defining another `static`).
@@ -383,8 +383,7 @@ To regenerate the generated code:
   rewriting the CJK encoders totally, so the speed isn't as good as
   what could be achieved by using even more memory / making the
   binary even langer.
-* Made UTF-8 to UTF-16 decode faster for non-ASCII below U+1000 and
-  for Hangul.
+* Made UTF-8 decode and validation faster.
 * Add method `is_single_byte()` on `Encoding`.
 
 ### 0.8.10
