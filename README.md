@@ -356,9 +356,10 @@ To regenerate the generated code:
 - [x] Implement the rust-encoding API in terms of encoding_rs.
 - [x] Add SIMD acceleration for Aarch64.
 - [x] Investigate the use of NEON on 32-bit ARM.
-- [ ] Investigate Björn Höhrmann's lookup table acceleration for UTF-8 as
-      adapted to Rust in rust-encoding.
+- [ ] ~Investigate Björn Höhrmann's lookup table acceleration for UTF-8 as
+      adapted to Rust in rust-encoding.~
 - [x] Add actually fast CJK encode options.
+- [ ] Investigate [Bob Steagall's lookup table acceleration for UTF-8](https://github.com/BobSteagall/CppNow2018/blob/master/FastConversionFromUTF-8/Fast%20Conversion%20From%20UTF-8%20with%20C%2B%2B%2C%20DFAs%2C%20and%20SSE%20Intrinsics%20-%20Bob%20Steagall%20-%20C%2B%2BNow%202018.pdf).
 
 ## Release Notes
 
