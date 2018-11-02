@@ -1431,8 +1431,8 @@ utf_8_file.write(utf_8_rs_begin)
 utf_8_file.write("""
 // Instead, please regenerate using generate-encoding-data.py
 
-/// Bit is 1 if the trail is invalid.
-pub static UTF8_TRAIL_INVALID: [u8; 256] = [
+pub static UTF8_DATA: Utf8Data = Utf8Data {
+    trail_invalid: [
 """)
 
 for i in range(256):
@@ -1450,9 +1450,9 @@ for i in range(256):
   utf_8_file.write("%d," % combined)
 
 utf_8_file.write("""
-];
+    ],
 
-pub static UTF8_SECOND_MASK: [u8; 128] = [
+    second_mask: [
 """)
 
 for i in range(128, 256):
@@ -1476,7 +1476,8 @@ for i in range(128, 256):
   utf_8_file.write("%d," % lane)
 
 utf_8_file.write("""
-];
+    ],
+};
 
 """)
 

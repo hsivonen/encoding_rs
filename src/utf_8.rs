@@ -35,34 +35,42 @@ cfg_if!{
     }
 }
 
+#[repr(align(64))] // Align to cache lines
+pub struct Utf8Data {
+    pub trail_invalid: [u8; 256],
+    pub second_mask: [u8; 128],
+}
+
 // BEGIN GENERATED CODE. PLEASE DO NOT EDIT.
 // Instead, please regenerate using generate-encoding-data.py
 
-/// Bit is 1 if the trail is invalid.
-pub static UTF8_TRAIL_INVALID: [u8; 256] = [
-    252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252,
-    252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252,
-    252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252,
-    252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252,
-    252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252,
-    252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252,
-    252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 84, 84, 84, 84, 84, 84,
-    84, 84, 84, 84, 84, 84, 84, 84, 84, 84, 148, 148, 148, 148, 148, 148, 148, 148, 148, 148, 148,
-    148, 148, 148, 148, 148, 164, 164, 164, 164, 164, 164, 164, 164, 164, 164, 164, 164, 164, 164,
-    164, 164, 164, 164, 164, 164, 164, 164, 164, 164, 164, 164, 164, 164, 164, 164, 164, 164, 252,
-    252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252,
-    252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252,
-    252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252,
-    252, 252, 252, 252, 252, 252,
-];
+pub static UTF8_DATA: Utf8Data = Utf8Data {
+    trail_invalid: [
+        252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252,
+        252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252,
+        252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252,
+        252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252,
+        252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252,
+        252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252,
+        252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252,
+        252, 252, 84, 84, 84, 84, 84, 84, 84, 84, 84, 84, 84, 84, 84, 84, 84, 84, 148, 148, 148,
+        148, 148, 148, 148, 148, 148, 148, 148, 148, 148, 148, 148, 148, 164, 164, 164, 164, 164,
+        164, 164, 164, 164, 164, 164, 164, 164, 164, 164, 164, 164, 164, 164, 164, 164, 164, 164,
+        164, 164, 164, 164, 164, 164, 164, 164, 164, 252, 252, 252, 252, 252, 252, 252, 252, 252,
+        252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252,
+        252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252,
+        252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252,
+        252,
+    ],
 
-pub static UTF8_SECOND_MASK: [u8; 128] = [
-    4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
-    4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
-    4, 4, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
-    16, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 32, 8, 8, 64, 8, 8, 8, 128, 4, 4, 4, 4, 4, 4, 4, 4, 4,
-    4, 4,
-];
+    second_mask: [
+        4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
+        4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
+        4, 4, 4, 4, 4, 4, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
+        8, 8, 8, 8, 8, 8, 16, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 32, 8, 8, 64, 8, 8, 8, 128, 4, 4,
+        4, 4, 4, 4, 4, 4, 4, 4, 4,
+    ],
+};
 
 // END GENERATED CODE
 
@@ -171,9 +179,9 @@ pub fn utf8_valid_up_to(src: &[u8]) -> usize {
                         // Three-byte
                         let second = unsafe { *(src.get_unchecked(read + 1)) };
                         let third = unsafe { *(src.get_unchecked(read + 2)) };
-                        if ((UTF8_TRAIL_INVALID[usize::from(second)]
-                            & unsafe { *(UTF8_SECOND_MASK.get_unchecked(byte as usize - 0x80)) })
-                            | (third >> 6))
+                        if ((UTF8_DATA.trail_invalid[usize::from(second)] & unsafe {
+                            *(UTF8_DATA.second_mask.get_unchecked(byte as usize - 0x80))
+                        }) | (third >> 6))
                             != 2
                         {
                             break 'outer;
@@ -200,8 +208,8 @@ pub fn utf8_valid_up_to(src: &[u8]) -> usize {
                 let third = unsafe { *(src.get_unchecked(read + 2)) };
                 let fourth = unsafe { *(src.get_unchecked(read + 3)) };
                 if (u16::from(
-                    UTF8_TRAIL_INVALID[usize::from(second)]
-                        & unsafe { *(UTF8_SECOND_MASK.get_unchecked(byte as usize - 0x80)) },
+                    UTF8_DATA.trail_invalid[usize::from(second)]
+                        & unsafe { *(UTF8_DATA.second_mask.get_unchecked(byte as usize - 0x80)) },
                 ) | u16::from(third >> 6)
                     | (u16::from(fourth & 0xC0) << 2))
                     != 0x202
@@ -253,7 +261,7 @@ pub fn utf8_valid_up_to(src: &[u8]) -> usize {
                 continue 'tail;
             }
             // We need to exclude valid four byte lead bytes, because
-            // `UTF8_SECOND_MASK` covers
+            // `UTF8_DATA.second_mask` covers
             if byte < 0xF0 {
                 // Three-byte
                 let new_read = read + 3;
@@ -262,8 +270,8 @@ pub fn utf8_valid_up_to(src: &[u8]) -> usize {
                 }
                 let second = src[read + 1];
                 let third = src[read + 2];
-                if ((UTF8_TRAIL_INVALID[usize::from(second)]
-                    & unsafe { *(UTF8_SECOND_MASK.get_unchecked(byte as usize - 0x80)) })
+                if ((UTF8_DATA.trail_invalid[usize::from(second)]
+                    & unsafe { *(UTF8_DATA.second_mask.get_unchecked(byte as usize - 0x80)) })
                     | (third >> 6))
                     != 2
                 {
@@ -360,9 +368,9 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
                         // Three-byte
                         let second = unsafe { *(src.get_unchecked(read + 1)) };
                         let third = unsafe { *(src.get_unchecked(read + 2)) };
-                        if ((UTF8_TRAIL_INVALID[usize::from(second)]
-                            & unsafe { *(UTF8_SECOND_MASK.get_unchecked(byte as usize - 0x80)) })
-                            | (third >> 6))
+                        if ((UTF8_DATA.trail_invalid[usize::from(second)] & unsafe {
+                            *(UTF8_DATA.second_mask.get_unchecked(byte as usize - 0x80))
+                        }) | (third >> 6))
                             != 2
                         {
                             break 'outer;
@@ -402,8 +410,8 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
                 let third = unsafe { *(src.get_unchecked(read + 2)) };
                 let fourth = unsafe { *(src.get_unchecked(read + 3)) };
                 if (u16::from(
-                    UTF8_TRAIL_INVALID[usize::from(second)]
-                        & unsafe { *(UTF8_SECOND_MASK.get_unchecked(byte as usize - 0x80)) },
+                    UTF8_DATA.trail_invalid[usize::from(second)]
+                        & unsafe { *(UTF8_DATA.second_mask.get_unchecked(byte as usize - 0x80)) },
                 ) | u16::from(third >> 6)
                     | (u16::from(fourth & 0xC0) << 2))
                     != 0x202
@@ -473,7 +481,7 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
                 continue 'tail;
             }
             // We need to exclude valid four byte lead bytes, because
-            // `UTF8_SECOND_MASK` covers
+            // `UTF8_DATA.second_mask` covers
             if byte < 0xF0 {
                 // Three-byte
                 let new_read = read + 3;
@@ -482,8 +490,8 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
                 }
                 let second = src[read + 1];
                 let third = src[read + 2];
-                if ((UTF8_TRAIL_INVALID[usize::from(second)]
-                    & unsafe { *(UTF8_SECOND_MASK.get_unchecked(byte as usize - 0x80)) })
+                if ((UTF8_DATA.trail_invalid[usize::from(second)]
+                    & unsafe { *(UTF8_DATA.second_mask.get_unchecked(byte as usize - 0x80)) })
                     | (third >> 6))
                     != 2
                 {
