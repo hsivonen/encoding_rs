@@ -1436,17 +1436,17 @@ pub static UTF8_TRAIL_INVALID: [u8; 256] = [
 """)
 
 for i in range(256):
-  combined = (1 << 2)
+  combined = (1 << 2) # invalid lead
   if i < 0x80 or i > 0xBF:
-    combined |= (1 << 3)
+    combined |= (1 << 3) # normal trail
   if i < 0xA0 or i > 0xBF:
-    combined |= (1 << 4)
+    combined |= (1 << 4) # three-byte special lower bound
   if i < 0x80 or i > 0x9F:
-    combined |= (1 << 5)
+    combined |= (1 << 5) # three-byte special upper bound
   if i < 0x90 or i > 0xBF:
-    combined |= (1 << 6)
+    combined |= (1 << 6) # four-byte special lower bound
   if i < 0x80 or i > 0x8F:
-    combined |= (1 << 7)
+    combined |= (1 << 7) # four-byte special upper bound
   utf_8_file.write("%d," % combined)
 
 utf_8_file.write("""
@@ -1456,24 +1456,24 @@ pub static UTF8_SECOND_MASK: [u8; 128] = [
 """)
 
 for i in range(128, 256):
+  lane = (1 << 2) # invalid lead
   if i >= 0xC2 and i <= 0xDF:
-    utf_8_file.write("UTF8_NORMAL_TRAIL,")
+    lane = (1 << 3) # normal trail
   elif i == 0xE0:
-    utf_8_file.write("UTF8_THREE_BYTE_SPECIAL_LOWER_BOUND_TRAIL,")
+    lane = (1 << 4) # three-byte special lower bound
   elif i >= 0xE1 and i <= 0xEC:
-    utf_8_file.write("UTF8_NORMAL_TRAIL,")
+    lane = (1 << 3) # normal trail
   elif i == 0xED:
-    utf_8_file.write("UTF8_THREE_BYTE_SPECIAL_UPPER_BOUND_TRAIL,")
+    lane = (1 << 5) # three-byte special upper bound
   elif i >= 0xEE and i <= 0xEF:
-    utf_8_file.write("UTF8_NORMAL_TRAIL,")
+    lane = (1 << 3) # normal trail
   elif i == 0xF0:
-    utf_8_file.write("UTF8_FOUR_BYTE_SPECIAL_LOWER_BOUND_TRAIL,")
+    lane = (1 << 6) # four-byte special lower bound
   elif i >= 0xF1 and i <= 0xF3:
-    utf_8_file.write("UTF8_NORMAL_TRAIL,")
+    lane = (1 << 3) # normal trail
   elif i == 0xF4:
-    utf_8_file.write("UTF8_FOUR_BYTE_SPECIAL_UPPER_BOUND_TRAIL,")
-  else:
-    utf_8_file.write("UTF8_INVALID_LEAD,")
+    lane = (1 << 7) # four-byte special upper bound
+  utf_8_file.write("%d," % lane)
 
 utf_8_file.write("""
 ];

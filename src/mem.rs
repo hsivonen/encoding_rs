@@ -729,33 +729,33 @@ pub fn is_utf8_bidi(buffer: &[u8]) -> bool {
     // U+1E800: F0 9E A0 80
     // U+1EFFF: F0 9E BF BF
     // U+1F000: F0 9F 80 80
-    let mut bytes = buffer;
+    let mut src = buffer;
     'outer: loop {
-        if let Some((mut byte, mut read)) = validate_ascii(bytes) {
+        if let Some((mut byte, mut read)) = validate_ascii(src) {
             // Check for the longest sequence to avoid checking twice for the
             // multi-byte sequences.
-            if read + 4 <= bytes.len() {
+            if read + 4 <= src.len() {
                 'inner: loop {
                     // At this point, `byte` is not included in `read`.
                     match byte {
                         0...0x7F => {
                             // ASCII: go back to SIMD.
                             read += 1;
-                            bytes = &bytes[read..];
+                            src = &src[read..];
                             continue 'outer;
                         }
                         0xC2...0xD5 => {
                             // Two-byte
-                            let second = bytes[read + 1];
-                            if (UTF8_TRAIL_INVALID[second as usize] & UTF8_NORMAL_TRAIL) != 0 {
+                            let second = unsafe { *(src.get_unchecked(read + 1)) };
+                            if !in_inclusive_range8(second, 0x80, 0xBF) {
                                 return true;
                             }
                             read += 2;
                         }
                         0xD6 => {
                             // Two-byte
-                            let second = bytes[read + 1];
-                            if (UTF8_TRAIL_INVALID[second as usize] & UTF8_NORMAL_TRAIL) != 0 {
+                            let second = unsafe { *(src.get_unchecked(read + 1)) };
+                            if !in_inclusive_range8(second, 0x80, 0xBF) {
                                 return true;
                             }
                             // XXX consider folding the above and below checks
@@ -767,11 +767,12 @@ pub fn is_utf8_bidi(buffer: &[u8]) -> bool {
                         // two-byte starting with 0xD7 and above is bidi
                         0xE1 | 0xE3...0xEC | 0xEE => {
                             // Three-byte normal
-                            let second = bytes[read + 1];
-                            let third = bytes[read + 2];
-                            if ((UTF8_TRAIL_INVALID[second as usize] & UTF8_NORMAL_TRAIL)
-                                | (UTF8_TRAIL_INVALID[third as usize] & UTF8_NORMAL_TRAIL))
-                                != 0
+                            let second = unsafe { *(src.get_unchecked(read + 1)) };
+                            let third = unsafe { *(src.get_unchecked(read + 2)) };
+                            if ((UTF8_TRAIL_INVALID[usize::from(second)] & unsafe {
+                                *(UTF8_SECOND_MASK.get_unchecked(byte as usize - 0x80))
+                            }) | (third >> 6))
+                                != 2
                             {
                                 return true;
                             }
@@ -779,11 +780,12 @@ pub fn is_utf8_bidi(buffer: &[u8]) -> bool {
                         }
                         0xE2 => {
                             // Three-byte normal, potentially bidi
-                            let second = bytes[read + 1];
-                            let third = bytes[read + 2];
-                            if ((UTF8_TRAIL_INVALID[second as usize] & UTF8_NORMAL_TRAIL)
-                                | (UTF8_TRAIL_INVALID[third as usize] & UTF8_NORMAL_TRAIL))
-                                != 0
+                            let second = unsafe { *(src.get_unchecked(read + 1)) };
+                            let third = unsafe { *(src.get_unchecked(read + 2)) };
+                            if ((UTF8_TRAIL_INVALID[usize::from(second)] & unsafe {
+                                *(UTF8_SECOND_MASK.get_unchecked(byte as usize - 0x80))
+                            }) | (third >> 6))
+                                != 2
                             {
                                 return true;
                             }
@@ -800,11 +802,12 @@ pub fn is_utf8_bidi(buffer: &[u8]) -> bool {
                         }
                         0xEF => {
                             // Three-byte normal, potentially bidi
-                            let second = bytes[read + 1];
-                            let third = bytes[read + 2];
-                            if ((UTF8_TRAIL_INVALID[second as usize] & UTF8_NORMAL_TRAIL)
-                                | (UTF8_TRAIL_INVALID[third as usize] & UTF8_NORMAL_TRAIL))
-                                != 0
+                            let second = unsafe { *(src.get_unchecked(read + 1)) };
+                            let third = unsafe { *(src.get_unchecked(read + 2)) };
+                            if ((UTF8_TRAIL_INVALID[usize::from(second)] & unsafe {
+                                *(UTF8_SECOND_MASK.get_unchecked(byte as usize - 0x80))
+                            }) | (third >> 6))
+                                != 2
                             {
                                 return true;
                             }
@@ -833,12 +836,12 @@ pub fn is_utf8_bidi(buffer: &[u8]) -> bool {
                         }
                         0xE0 => {
                             // Three-byte special lower bound, potentially bidi
-                            let second = bytes[read + 1];
-                            let third = bytes[read + 2];
-                            if ((UTF8_TRAIL_INVALID[second as usize]
-                                & UTF8_THREE_BYTE_SPECIAL_LOWER_BOUND_TRAIL)
-                                | (UTF8_TRAIL_INVALID[third as usize] & UTF8_NORMAL_TRAIL))
-                                != 0
+                            let second = unsafe { *(src.get_unchecked(read + 1)) };
+                            let third = unsafe { *(src.get_unchecked(read + 2)) };
+                            if ((UTF8_TRAIL_INVALID[usize::from(second)] & unsafe {
+                                *(UTF8_SECOND_MASK.get_unchecked(byte as usize - 0x80))
+                            }) | (third >> 6))
+                                != 2
                             {
                                 return true;
                             }
@@ -850,26 +853,29 @@ pub fn is_utf8_bidi(buffer: &[u8]) -> bool {
                         }
                         0xED => {
                             // Three-byte special upper bound
-                            let second = bytes[read + 1];
-                            let third = bytes[read + 2];
-                            if ((UTF8_TRAIL_INVALID[second as usize]
-                                & UTF8_THREE_BYTE_SPECIAL_UPPER_BOUND_TRAIL)
-                                | (UTF8_TRAIL_INVALID[third as usize] & UTF8_NORMAL_TRAIL))
-                                != 0
+                            let second = unsafe { *(src.get_unchecked(read + 1)) };
+                            let third = unsafe { *(src.get_unchecked(read + 2)) };
+                            if ((UTF8_TRAIL_INVALID[usize::from(second)] & unsafe {
+                                *(UTF8_SECOND_MASK.get_unchecked(byte as usize - 0x80))
+                            }) | (third >> 6))
+                                != 2
                             {
                                 return true;
                             }
                             read += 3;
                         }
-                        0xF1...0xF3 => {
+                        0xF1...0xF4 => {
                             // Four-byte normal
-                            let second = bytes[read + 1];
-                            let third = bytes[read + 2];
-                            let fourth = bytes[read + 3];
-                            if ((UTF8_TRAIL_INVALID[second as usize] & UTF8_NORMAL_TRAIL)
-                                | (UTF8_TRAIL_INVALID[third as usize] & UTF8_NORMAL_TRAIL)
-                                | (UTF8_TRAIL_INVALID[fourth as usize] & UTF8_NORMAL_TRAIL))
-                                != 0
+                            let second = unsafe { *(src.get_unchecked(read + 1)) };
+                            let third = unsafe { *(src.get_unchecked(read + 2)) };
+                            let fourth = unsafe { *(src.get_unchecked(read + 3)) };
+                            if (u16::from(
+                                UTF8_TRAIL_INVALID[usize::from(second)] & unsafe {
+                                    *(UTF8_SECOND_MASK.get_unchecked(byte as usize - 0x80))
+                                },
+                            ) | u16::from(third >> 6)
+                                | (u16::from(fourth & 0xC0) << 2))
+                                != 0x202
                             {
                                 return true;
                             }
@@ -877,37 +883,24 @@ pub fn is_utf8_bidi(buffer: &[u8]) -> bool {
                         }
                         0xF0 => {
                             // Four-byte special lower bound, potentially bidi
-                            let second = bytes[read + 1];
-                            let third = bytes[read + 2];
-                            let fourth = bytes[read + 3];
-                            if ((UTF8_TRAIL_INVALID[second as usize]
-                                & UTF8_FOUR_BYTE_SPECIAL_LOWER_BOUND_TRAIL)
-                                | (UTF8_TRAIL_INVALID[third as usize] & UTF8_NORMAL_TRAIL)
-                                | (UTF8_TRAIL_INVALID[fourth as usize] & UTF8_NORMAL_TRAIL))
-                                != 0
+                            let second = unsafe { *(src.get_unchecked(read + 1)) };
+                            let third = unsafe { *(src.get_unchecked(read + 2)) };
+                            let fourth = unsafe { *(src.get_unchecked(read + 3)) };
+                            if (u16::from(
+                                UTF8_TRAIL_INVALID[usize::from(second)] & unsafe {
+                                    *(UTF8_SECOND_MASK.get_unchecked(byte as usize - 0x80))
+                                },
+                            ) | u16::from(third >> 6)
+                                | (u16::from(fourth & 0xC0) << 2))
+                                != 0x202
                             {
                                 return true;
                             }
                             if unsafe { unlikely(second == 0x90 || second == 0x9E) } {
-                                let third = bytes[read + 2];
+                                let third = src[read + 2];
                                 if third >= 0xA0 {
                                     return true;
                                 }
-                            }
-                            read += 4;
-                        }
-                        0xF4 => {
-                            // Four-byte special upper bound
-                            let second = bytes[read + 1];
-                            let third = bytes[read + 2];
-                            let fourth = bytes[read + 3];
-                            if ((UTF8_TRAIL_INVALID[second as usize]
-                                & UTF8_FOUR_BYTE_SPECIAL_UPPER_BOUND_TRAIL)
-                                | (UTF8_TRAIL_INVALID[third as usize] & UTF8_NORMAL_TRAIL)
-                                | (UTF8_TRAIL_INVALID[fourth as usize] & UTF8_NORMAL_TRAIL))
-                                != 0
-                            {
-                                return true;
                             }
                             read += 4;
                         }
@@ -916,14 +909,14 @@ pub fn is_utf8_bidi(buffer: &[u8]) -> bool {
                             return true;
                         }
                     }
-                    if read + 4 > bytes.len() {
-                        if read == bytes.len() {
+                    if read + 4 > src.len() {
+                        if read == src.len() {
                             return false;
                         }
-                        byte = bytes[read];
+                        byte = src[read];
                         break 'inner;
                     }
-                    byte = bytes[read];
+                    byte = src[read];
                     continue 'inner;
                 }
             }
@@ -935,33 +928,33 @@ pub fn is_utf8_bidi(buffer: &[u8]) -> bool {
                 0...0x7F => {
                     // ASCII: go back to SIMD.
                     read += 1;
-                    bytes = &bytes[read..];
+                    src = &src[read..];
                     continue 'outer;
                 }
                 0xC2...0xD5 => {
                     // Two-byte
                     let new_read = read + 2;
-                    if new_read > bytes.len() {
+                    if new_read > src.len() {
                         return true;
                     }
-                    let second = bytes[read + 1];
-                    if (UTF8_TRAIL_INVALID[second as usize] & UTF8_NORMAL_TRAIL) != 0 {
+                    let second = unsafe { *(src.get_unchecked(read + 1)) };
+                    if !in_inclusive_range8(second, 0x80, 0xBF) {
                         return true;
                     }
                     read = new_read;
                     // We need to deal with the case where we came here with 3 bytes
                     // left, so we need to take a look at the last one.
-                    bytes = &bytes[read..];
+                    src = &src[read..];
                     continue 'outer;
                 }
                 0xD6 => {
                     // Two-byte, potentially bidi
                     let new_read = read + 2;
-                    if new_read > bytes.len() {
+                    if new_read > src.len() {
                         return true;
                     }
-                    let second = bytes[read + 1];
-                    if (UTF8_TRAIL_INVALID[second as usize] & UTF8_NORMAL_TRAIL) != 0 {
+                    let second = unsafe { *(src.get_unchecked(read + 1)) };
+                    if !in_inclusive_range8(second, 0x80, 0xBF) {
                         return true;
                     }
                     // XXX consider folding the above and below checks
@@ -971,21 +964,22 @@ pub fn is_utf8_bidi(buffer: &[u8]) -> bool {
                     read = new_read;
                     // We need to deal with the case where we came here with 3 bytes
                     // left, so we need to take a look at the last one.
-                    bytes = &bytes[read..];
+                    src = &src[read..];
                     continue 'outer;
                 }
                 // two-byte starting with 0xD7 and above is bidi
                 0xE1 | 0xE3...0xEC | 0xEE => {
                     // Three-byte normal
                     let new_read = read + 3;
-                    if new_read > bytes.len() {
+                    if new_read > src.len() {
                         return true;
                     }
-                    let second = bytes[read + 1];
-                    let third = bytes[read + 2];
-                    if ((UTF8_TRAIL_INVALID[second as usize] & UTF8_NORMAL_TRAIL)
-                        | (UTF8_TRAIL_INVALID[third as usize] & UTF8_NORMAL_TRAIL))
-                        != 0
+                    let second = unsafe { *(src.get_unchecked(read + 1)) };
+                    let third = unsafe { *(src.get_unchecked(read + 2)) };
+                    if ((UTF8_TRAIL_INVALID[usize::from(second)]
+                        & unsafe { *(UTF8_SECOND_MASK.get_unchecked(byte as usize - 0x80)) })
+                        | (third >> 6))
+                        != 2
                     {
                         return true;
                     }
@@ -993,14 +987,15 @@ pub fn is_utf8_bidi(buffer: &[u8]) -> bool {
                 0xE2 => {
                     // Three-byte normal, potentially bidi
                     let new_read = read + 3;
-                    if new_read > bytes.len() {
+                    if new_read > src.len() {
                         return true;
                     }
-                    let second = bytes[read + 1];
-                    let third = bytes[read + 2];
-                    if ((UTF8_TRAIL_INVALID[second as usize] & UTF8_NORMAL_TRAIL)
-                        | (UTF8_TRAIL_INVALID[third as usize] & UTF8_NORMAL_TRAIL))
-                        != 0
+                    let second = unsafe { *(src.get_unchecked(read + 1)) };
+                    let third = unsafe { *(src.get_unchecked(read + 2)) };
+                    if ((UTF8_TRAIL_INVALID[usize::from(second)]
+                        & unsafe { *(UTF8_SECOND_MASK.get_unchecked(byte as usize - 0x80)) })
+                        | (third >> 6))
+                        != 2
                     {
                         return true;
                     }
@@ -1017,14 +1012,15 @@ pub fn is_utf8_bidi(buffer: &[u8]) -> bool {
                 0xEF => {
                     // Three-byte normal, potentially bidi
                     let new_read = read + 3;
-                    if new_read > bytes.len() {
+                    if new_read > src.len() {
                         return true;
                     }
-                    let second = bytes[read + 1];
-                    let third = bytes[read + 2];
-                    if ((UTF8_TRAIL_INVALID[second as usize] & UTF8_NORMAL_TRAIL)
-                        | (UTF8_TRAIL_INVALID[third as usize] & UTF8_NORMAL_TRAIL))
-                        != 0
+                    let second = unsafe { *(src.get_unchecked(read + 1)) };
+                    let third = unsafe { *(src.get_unchecked(read + 2)) };
+                    if ((UTF8_TRAIL_INVALID[usize::from(second)]
+                        & unsafe { *(UTF8_SECOND_MASK.get_unchecked(byte as usize - 0x80)) })
+                        | (third >> 6))
+                        != 2
                     {
                         return true;
                     }
@@ -1053,15 +1049,15 @@ pub fn is_utf8_bidi(buffer: &[u8]) -> bool {
                 0xE0 => {
                     // Three-byte special lower bound, potentially bidi
                     let new_read = read + 3;
-                    if new_read > bytes.len() {
+                    if new_read > src.len() {
                         return true;
                     }
-                    let second = bytes[read + 1];
-                    let third = bytes[read + 2];
-                    if ((UTF8_TRAIL_INVALID[second as usize]
-                        & UTF8_THREE_BYTE_SPECIAL_LOWER_BOUND_TRAIL)
-                        | (UTF8_TRAIL_INVALID[third as usize] & UTF8_NORMAL_TRAIL))
-                        != 0
+                    let second = unsafe { *(src.get_unchecked(read + 1)) };
+                    let third = unsafe { *(src.get_unchecked(read + 2)) };
+                    if ((UTF8_TRAIL_INVALID[usize::from(second)]
+                        & unsafe { *(UTF8_SECOND_MASK.get_unchecked(byte as usize - 0x80)) })
+                        | (third >> 6))
+                        != 2
                     {
                         return true;
                     }
@@ -1073,15 +1069,15 @@ pub fn is_utf8_bidi(buffer: &[u8]) -> bool {
                 0xED => {
                     // Three-byte special upper bound
                     let new_read = read + 3;
-                    if new_read > bytes.len() {
+                    if new_read > src.len() {
                         return true;
                     }
-                    let second = bytes[read + 1];
-                    let third = bytes[read + 2];
-                    if ((UTF8_TRAIL_INVALID[second as usize]
-                        & UTF8_THREE_BYTE_SPECIAL_UPPER_BOUND_TRAIL)
-                        | (UTF8_TRAIL_INVALID[third as usize] & UTF8_NORMAL_TRAIL))
-                        != 0
+                    let second = unsafe { *(src.get_unchecked(read + 1)) };
+                    let third = unsafe { *(src.get_unchecked(read + 2)) };
+                    if ((UTF8_TRAIL_INVALID[usize::from(second)]
+                        & unsafe { *(UTF8_SECOND_MASK.get_unchecked(byte as usize - 0x80)) })
+                        | (third >> 6))
+                        != 2
                     {
                         return true;
                     }
