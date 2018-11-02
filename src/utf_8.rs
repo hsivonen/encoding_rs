@@ -334,11 +334,12 @@ pub fn utf8_valid_up_to(src: &[u8]) -> usize {
                 let second = unsafe { *(src.get_unchecked(read + 1)) };
                 let third = unsafe { *(src.get_unchecked(read + 2)) };
                 let fourth = unsafe { *(src.get_unchecked(read + 3)) };
-                if ((UTF8_TRAIL_INVALID[usize::from(second)]
-                    & unsafe { *(UTF8_SECOND_MASK.get_unchecked(byte as usize - 0x80)) })
-                    | (UTF8_TRAIL_INVALID[usize::from(third)] & UTF8_NORMAL_TRAIL)
-                    | (UTF8_TRAIL_INVALID[usize::from(fourth)] & UTF8_NORMAL_TRAIL))
-                    != 0
+                if (u16::from(
+                    UTF8_TRAIL_INVALID[usize::from(second)]
+                        & unsafe { *(UTF8_SECOND_MASK.get_unchecked(byte as usize - 0x80)) },
+                ) | u16::from(third >> 6)
+                    | (u16::from(fourth & 0xC0) << 2))
+                    != 0x202
                 {
                     break 'outer;
                 }
@@ -535,11 +536,12 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
                 let second = unsafe { *(src.get_unchecked(read + 1)) };
                 let third = unsafe { *(src.get_unchecked(read + 2)) };
                 let fourth = unsafe { *(src.get_unchecked(read + 3)) };
-                if ((UTF8_TRAIL_INVALID[usize::from(second)]
-                    & unsafe { *(UTF8_SECOND_MASK.get_unchecked(byte as usize - 0x80)) })
-                    | (UTF8_TRAIL_INVALID[usize::from(third)] & UTF8_NORMAL_TRAIL)
-                    | (UTF8_TRAIL_INVALID[usize::from(fourth)] & UTF8_NORMAL_TRAIL))
-                    != 0
+                if (u16::from(
+                    UTF8_TRAIL_INVALID[usize::from(second)]
+                        & unsafe { *(UTF8_SECOND_MASK.get_unchecked(byte as usize - 0x80)) },
+                ) | u16::from(third >> 6)
+                    | (u16::from(fourth & 0xC0) << 2))
+                    != 0x202
                 {
                     break 'outer;
                 }
