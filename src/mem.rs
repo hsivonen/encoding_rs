@@ -3205,4 +3205,31 @@ mod tests {
         assert!(is_utf8_bidi(b"\xD6\x80\xC2"));
         assert!(is_utf8_bidi(b"ab\xC2"));
     }
+
+    #[test]
+    fn test_decode_latin1() {
+        match decode_latin1(b"ab") {
+            Cow::Borrowed(s) => {
+                assert_eq!(s, "ab");
+            }
+            Cow::Owned(_) => {
+                unreachable!("Should have borrowed");
+            }
+        }
+        assert_eq!(decode_latin1(b"a\xE4"), "a\u{E4}");
+    }
+
+    #[test]
+    fn test_encode_latin1_lossy() {
+        match encode_latin1_lossy("ab") {
+            Cow::Borrowed(s) => {
+                assert_eq!(s, b"ab");
+            }
+            Cow::Owned(_) => {
+                unreachable!("Should have borrowed");
+            }
+        }
+        assert_eq!(encode_latin1_lossy("a\u{E4}"), &(b"a\xE4")[..]);
+    }
+
 }
