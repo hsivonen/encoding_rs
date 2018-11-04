@@ -387,6 +387,7 @@ To regenerate the generated code:
   binary even langer.
 * Made UTF-8 decode and validation faster.
 * Added method `is_single_byte()` on `Encoding`.
+* Added `mem::decode_latin1()` and `mem::encode_latin1_lossy()`.
 
 ### 0.8.10
 
