@@ -21,6 +21,8 @@
 //! in-memory encoding is sometimes used as a storage optimization of text
 //! when UTF-16 indexing and length semantics are exposed.
 
+use std::borrow::Cow;
+
 use super::in_inclusive_range16;
 use super::in_inclusive_range32;
 use super::in_inclusive_range8;
@@ -1945,6 +1947,65 @@ pub fn convert_utf16_to_latin1_lossy(src: &[u16], dst: &mut [u8]) {
     }
 }
 
+/// Converts bytes whose unsigned value is interpreted as Unicode code point
+/// (i.e. U+0000 to U+00FF, inclusive) to UTF-8.
+///
+/// Borrows if input is ASCII-only. Performs a single heap allocation
+/// otherwise.
+pub fn decode_latin1<'a>(bytes: &'a [u8]) -> Cow<'a, str> {
+    let up_to = ascii_valid_up_to(bytes);
+    // >= makes later things optimize better than ==
+    if up_to >= bytes.len() {
+        debug_assert_eq!(up_to, bytes.len());
+        let s: &str = unsafe { ::std::str::from_utf8_unchecked(bytes) };
+        return Cow::Borrowed(s);
+    }
+    let (head, tail) = bytes.split_at(up_to);
+    let capacity = head.len() + tail.len() * 2;
+    let mut vec = Vec::with_capacity(capacity);
+    unsafe {
+        vec.set_len(capacity);
+    }
+    (&mut vec[..up_to]).copy_from_slice(head);
+    let written = convert_latin1_to_utf8(tail, &mut vec[up_to..]);
+    vec.truncate(up_to + written);
+    Cow::Owned(unsafe { String::from_utf8_unchecked(vec) })
+}
+
+/// If the input is valid UTF-8 representing only Unicode code points from
+/// U+0000 to U+00FF, inclusive, converts the input into output that
+/// represents the value of each code point as the unsigned byte value of
+/// each output byte.
+///
+/// If the input does not fulfill the condition stated above, this function
+/// panics if debug assertions are enabled (and fuzzing isn't) and otherwise
+/// does something that is memory-safe without any promises about any
+/// properties of the output. In particular, callers shouldn't assume the
+/// output to be the same across crate versions or CPU architectures and
+/// should not assume that non-ASCII input can't map to ASCII output.
+///
+/// Borrows if input is ASCII-only. Performs a single heap allocation
+/// otherwise.
+pub fn encode_latin1_lossy<'a>(string: &'a str) -> Cow<'a, [u8]> {
+    let bytes = string.as_bytes();
+    let up_to = ascii_valid_up_to(bytes);
+    // >= makes later things optimize better than ==
+    if up_to >= bytes.len() {
+        debug_assert_eq!(up_to, bytes.len());
+        return Cow::Borrowed(bytes);
+    }
+    let (head, tail) = bytes.split_at(up_to);
+    let capacity = bytes.len();
+    let mut vec = Vec::with_capacity(capacity);
+    unsafe {
+        vec.set_len(capacity);
+    }
+    (&mut vec[..up_to]).copy_from_slice(head);
+    let written = convert_utf8_to_latin1_lossy(tail, &mut vec[up_to..]);
+    vec.truncate(up_to + written);
+    Cow::Owned(vec)
+}
+
 /// Returns the index of the first unpaired surrogate or, if the input is
 /// valid UTF-16 in its entirety, the length of the input.
 #[inline]
@@ -3144,4 +3205,31 @@ mod tests {
         assert!(is_utf8_bidi(b"\xD6\x80\xC2"));
         assert!(is_utf8_bidi(b"ab\xC2"));
     }
+
+    #[test]
+    fn test_decode_latin1() {
+        match decode_latin1(b"ab") {
+            Cow::Borrowed(s) => {
+                assert_eq!(s, "ab");
+            }
+            Cow::Owned(_) => {
+                unreachable!("Should have borrowed");
+            }
+        }
+        assert_eq!(decode_latin1(b"a\xE4"), "a\u{E4}");
+    }
+
+    #[test]
+    fn test_encode_latin1_lossy() {
+        match encode_latin1_lossy("ab") {
+            Cow::Borrowed(s) => {
+                assert_eq!(s, b"ab");
+            }
+            Cow::Owned(_) => {
+                unreachable!("Should have borrowed");
+            }
+        }
+        assert_eq!(encode_latin1_lossy("a\u{E4}"), &(b"a\xE4")[..]);
+    }
+
 }
