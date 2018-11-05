@@ -9,7 +9,7 @@ documentation = "https://docs.rs/encoding_rs/"
 homepage = "https://docs.rs/encoding_rs/"
 repository = "https://github.com/hsivonen/encoding_rs"
 keywords = ["encoding", "web", "unicode", "charset"]
-categories = ["text-processing", "encoding", "web-programming", "email"]
+categories = ["text-processing", "encoding", "web-programming", "internationalization"]
 
 [badges]
 travis-ci = { repository = "hsivonen/encoding_rs" }
