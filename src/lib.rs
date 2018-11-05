@@ -235,16 +235,17 @@
 //! performance, the decoder for ISO-2022-JP optimizes for ease/clarity
 //! of implementation.
 //!
-//! Despite the focus on the Web, encoding_rs may well be useful for decoding
-//! email, although you'll need to implement UTF-7 decoding and label handling
-//! by other means. (Due to the Web focus, patches to add UTF-7 are unwelcome
-//! in encoding_rs itself.) Also, despite the browser focus, the hope is that
-//! non-browser applications that wish to consume Web content or submit Web
-//! forms in a Web-compatible way will find encoding_rs useful. While
-//! encoding_rs does not try to match Windows behavior, many of the encodings
-//! are close enough to legacy encodings implemented by Windows that
-//! applications that need to consume data in legacy Windows encodins may
-//! find encoding_rs useful.
+//! Despite the browser focus, the hope is that non-browser applications
+//! that wish to consume Web content or submit Web forms in a Web-compatible
+//! way will find encoding_rs useful. While encoding_rs does not try to match
+//! Windows behavior, many of the encodings are close enough to legacy
+//! encodings implemented by Windows that applications that need to consume
+//! data in legacy Windows encodins may find encoding_rs useful.
+//!
+//! For decoding email, UTF-7 support is needed (unfortunately) in additition
+//! to the encodings defined in the Encoding Standard. The
+//! [charset](https://crates.io/crates/charset) wraps encoding_rs and adds
+//! UTF-7 decoding for email purposes.
 //!
 //! # Streaming & Non-Streaming; Rust & C/C++
 //!

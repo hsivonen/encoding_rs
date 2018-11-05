@@ -75,6 +75,12 @@ a `std::io::Read`, decode it into UTF-8 and presenting the result via
 `std::io::Read`. The [`encoding_rs_io`](https://crates.io/crates/encoding_rs_io)
 crate provides that capability.
 
+## Decoding Email
+
+For decoding character encodings that occur in email, use the
+[`charset`](https://crates.io/crates/charset) crate instead of using this
+one directly. (It wraps this crate and adds UTF-7 decoding.)
+
 ## Licensing
 
 Please see the file named
