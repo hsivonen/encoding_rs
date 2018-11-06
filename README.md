@@ -373,7 +373,6 @@ To regenerate the generated code:
 
 * Changed minimum Rust requirement to 1.29.0 (for the ability to refer
   to the interior of a `static` when defining another `static`).
-  (Semver breaking change.)
 * Explicitly aligned the lookup tables for single-byte encodings and
   UTF-8 to cache lines in the hope of freeing up one cache line for
   other data. (Perhaps the tables were already aligned and this is
