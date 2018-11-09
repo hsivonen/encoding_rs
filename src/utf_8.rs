@@ -149,30 +149,35 @@ pub fn utf8_valid_up_to(src: &[u8]) -> usize {
                     }
                 }
                 // Four-byte
-                let second = unsafe { *(src.get_unchecked(read + 1)) };
-                let third = unsafe { *(src.get_unchecked(read + 2)) };
-                let fourth = unsafe { *(src.get_unchecked(read + 3)) };
-                if (u16::from(
-                    UTF8_DATA.table[usize::from(second)]
-                        & unsafe { *(UTF8_DATA.table.get_unchecked(byte as usize + 0x80)) },
-                ) | u16::from(third >> 6)
-                    | (u16::from(fourth & 0xC0) << 2))
-                    != 0x202
-                {
-                    break 'outer;
-                }
-                read += 4;
-
-                // Next lead
-                if unsafe { likely(read + 4 <= src.len()) } {
-                    byte = unsafe { *(src.get_unchecked(read)) };
-                    if byte < 0x80 {
-                        read += 1;
-                        continue 'outer;
+                'four: loop {
+                    let second = unsafe { *(src.get_unchecked(read + 1)) };
+                    let third = unsafe { *(src.get_unchecked(read + 2)) };
+                    let fourth = unsafe { *(src.get_unchecked(read + 3)) };
+                    if (u16::from(
+                        UTF8_DATA.table[usize::from(second)]
+                            & unsafe { *(UTF8_DATA.table.get_unchecked(byte as usize + 0x80)) },
+                    ) | u16::from(third >> 6)
+                        | (u16::from(fourth & 0xC0) << 2))
+                        != 0x202
+                    {
+                        break 'outer;
                     }
-                    continue 'inner;
+                    read += 4;
+
+                    // Next lead
+                    if unsafe { likely(read + 4 <= src.len()) } {
+                        byte = unsafe { *(src.get_unchecked(read)) };
+                        if in_inclusive_range8(byte, 0xF0, 0xF4) {
+                            continue 'four;
+                        }
+                        if unsafe { likely(byte < 0x80) } {
+                            read += 1;
+                            continue 'outer;
+                        }
+                        continue 'inner;
+                    }
+                    break 'inner;
                 }
-                break 'inner;
             }
         }
         // We can't have a complete 4-byte sequence, but we could still have
@@ -348,47 +353,52 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
                     }
                 }
                 // Four-byte
-                if written + 1 == dst.len() {
-                    break 'outer;
-                }
-                let second = unsafe { *(src.get_unchecked(read + 1)) };
-                let third = unsafe { *(src.get_unchecked(read + 2)) };
-                let fourth = unsafe { *(src.get_unchecked(read + 3)) };
-                if (u16::from(
-                    UTF8_DATA.table[usize::from(second)]
-                        & unsafe { *(UTF8_DATA.table.get_unchecked(byte as usize + 0x80)) },
-                ) | u16::from(third >> 6)
-                    | (u16::from(fourth & 0xC0) << 2))
-                    != 0x202
-                {
-                    break 'outer;
-                }
-                let point = ((u32::from(byte) & 0x7) << 18)
-                    | ((u32::from(second) & 0x3F) << 12)
-                    | ((u32::from(third) & 0x3F) << 6)
-                    | (u32::from(fourth) & 0x3F);
-                unsafe { *(dst.get_unchecked_mut(written)) = (0xD7C0 + (point >> 10)) as u16 };
-                unsafe {
-                    *(dst.get_unchecked_mut(written + 1)) = (0xDC00 + (point & 0x3FF)) as u16
-                };
-                read += 4;
-                written += 2;
-
-                // Next lead
-                if written == dst.len() {
-                    break 'outer;
-                }
-                if unsafe { likely(read + 4 <= src.len()) } {
-                    byte = unsafe { *(src.get_unchecked(read)) };
-                    if byte < 0x80 {
-                        unsafe { *(dst.get_unchecked_mut(written)) = u16::from(byte) };
-                        read += 1;
-                        written += 1;
-                        continue 'outer;
+                'four: loop {
+                    if written + 1 == dst.len() {
+                        break 'outer;
                     }
-                    continue 'inner;
+                    let second = unsafe { *(src.get_unchecked(read + 1)) };
+                    let third = unsafe { *(src.get_unchecked(read + 2)) };
+                    let fourth = unsafe { *(src.get_unchecked(read + 3)) };
+                    if (u16::from(
+                        UTF8_DATA.table[usize::from(second)]
+                            & unsafe { *(UTF8_DATA.table.get_unchecked(byte as usize + 0x80)) },
+                    ) | u16::from(third >> 6)
+                        | (u16::from(fourth & 0xC0) << 2))
+                        != 0x202
+                    {
+                        break 'outer;
+                    }
+                    let point = ((u32::from(byte) & 0x7) << 18)
+                        | ((u32::from(second) & 0x3F) << 12)
+                        | ((u32::from(third) & 0x3F) << 6)
+                        | (u32::from(fourth) & 0x3F);
+                    unsafe { *(dst.get_unchecked_mut(written)) = (0xD7C0 + (point >> 10)) as u16 };
+                    unsafe {
+                        *(dst.get_unchecked_mut(written + 1)) = (0xDC00 + (point & 0x3FF)) as u16
+                    };
+                    read += 4;
+                    written += 2;
+
+                    // Next lead
+                    if written == dst.len() {
+                        break 'outer;
+                    }
+                    if unsafe { likely(read + 4 <= src.len()) } {
+                        byte = unsafe { *(src.get_unchecked(read)) };
+                        if in_inclusive_range8(byte, 0xF0, 0xF4) {
+                            continue 'four;
+                        }
+                        if unsafe { likely(byte < 0x80) } {
+                            unsafe { *(dst.get_unchecked_mut(written)) = u16::from(byte) };
+                            read += 1;
+                            written += 1;
+                            continue 'outer;
+                        }
+                        continue 'inner;
+                    }
+                    break 'inner;
                 }
-                break 'inner;
             }
         }
         // We can't have a complete 4-byte sequence, but we could still have
