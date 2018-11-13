@@ -778,7 +778,7 @@ macro_rules! ascii_to_ascii_simd_double_stride {
             	}
 	            $store(dst.add(SIMD_STRIDE_SIZE), second);
 	            let mask_second = mask_ascii(second);
-           		return Some(mask_second.trailing_zeros() as usize);
+           		return Some(SIMD_STRIDE_SIZE + mask_second.trailing_zeros() as usize);
 	        }
             $store(dst.add(SIMD_STRIDE_SIZE), second);
             None
@@ -822,7 +822,7 @@ macro_rules! ascii_to_basic_latin_simd_double_stride {
 	            $store(dst.add(SIMD_STRIDE_SIZE), c);
 	            $store(dst.add(SIMD_STRIDE_SIZE + (SIMD_STRIDE_SIZE / 2)), d);
 	            let mask_second = mask_ascii(second);
-           		return Some(mask_second.trailing_zeros() as usize);
+           		return Some(SIMD_STRIDE_SIZE + mask_second.trailing_zeros() as usize);
             }
             let (c, d) = simd_unpack(second);
             $store(dst.add(SIMD_STRIDE_SIZE), c);
