@@ -1044,8 +1044,8 @@ cfg_if! {
             let mut offset = 0usize;
             if SIMD_STRIDE_SIZE <= len {
                 // First, process one unaligned vector
-                 let simd = unsafe { load16_unaligned(src) };
-                 let mask = mask_ascii(simd);
+                let simd = unsafe { load16_unaligned(src) };
+                let mask = mask_ascii(simd);
                 if mask != 0 {
                     offset = mask.trailing_zeros() as usize;
                     let non_ascii = unsafe { *src.add(offset) };
@@ -1057,33 +1057,35 @@ cfg_if! {
                 // there will be enough more to justify more expense
                 // in the case of non-ASCII.
                 // Use aligned reads for the sake of old microachitectures.
-                let mut until_alignment = unsafe { (SIMD_ALIGNMENT - ((src.add(offset) as usize) & SIMD_ALIGNMENT_MASK)) & SIMD_ALIGNMENT_MASK };
+                let until_alignment = unsafe { (SIMD_ALIGNMENT - ((src.add(offset) as usize) & SIMD_ALIGNMENT_MASK)) & SIMD_ALIGNMENT_MASK };
                 // This addition won't overflow, because even in the 32-bit PAE case the
                 // address space holds enough code that the slice length can't be that
                 // close to address space size.
                 // offset now equals SIMD_STRIDE_SIZE, hence times 3 below.
                 if until_alignment + (SIMD_STRIDE_SIZE * 3) <= len {
-                    while until_alignment != 0 {
-                        let code_unit = unsafe { *(src.add(offset)) };
-                        if code_unit > 127 {
-                            return Some((code_unit, offset));
+                	if until_alignment != 0 {
+                        let simd = unsafe { load16_unaligned(src.add(offset)) };
+                        let mask = mask_ascii(simd);
+                        if mask != 0 {
+                            offset += mask.trailing_zeros() as usize;
+                            let non_ascii = unsafe { *src.add(offset) };
+                            return Some((non_ascii, offset));
                         }
-                        offset += 1;
-                        until_alignment -= 1;
-                    }
+                        offset += until_alignment;
+                	}
                     let len_minus_stride_times_two = len - (SIMD_STRIDE_SIZE * 2);
                     loop {
                         let first = unsafe { load16_aligned(src.add(offset)) };
                         let second = unsafe { load16_aligned(src.add(offset + SIMD_STRIDE_SIZE)) };
                         if !simd_is_ascii(first | second) {
-                             let mask_first = mask_ascii(first);
-                             if mask_first != 0 {
-                                offset += mask_first.trailing_zeros() as usize;
-                             } else {
-                                    let mask_second = mask_ascii(second);
-                                    offset += SIMD_STRIDE_SIZE + mask_second.trailing_zeros() as usize;
-                             }
-                            let non_ascii = unsafe { *src.add(offset) };
+	                        let mask_first = mask_ascii(first);
+	                        if mask_first != 0 {
+	                            offset += mask_first.trailing_zeros() as usize;
+	                        } else {
+	                            let mask_second = mask_ascii(second);
+	                            offset += SIMD_STRIDE_SIZE + mask_second.trailing_zeros() as usize;
+	                        }
+	                        let non_ascii = unsafe { *src.add(offset) };
                             return Some((non_ascii, offset));
                         }
                         offset += SIMD_STRIDE_SIZE * 2;
@@ -1104,8 +1106,8 @@ cfg_if! {
                 } else {
                     // At most two iterations, so unroll
                     if offset + SIMD_STRIDE_SIZE <= len {
-                         let simd = unsafe { load16_unaligned(src.add(offset)) };
-                         let mask = mask_ascii(simd);
+                        let simd = unsafe { load16_unaligned(src.add(offset)) };
+                        let mask = mask_ascii(simd);
                         if mask != 0 {
                             offset += mask.trailing_zeros() as usize;
                             let non_ascii = unsafe { *src.add(offset) };
