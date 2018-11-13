@@ -760,6 +760,8 @@ cfg_if! {
 
         pub const SIMD_STRIDE_SIZE: usize = 16;
 
+        pub const SIMD_ALIGNMENT: usize = 16;
+
         pub const MAX_STRIDE_SIZE: usize = 16;
 
         pub const SIMD_ALIGNMENT_MASK: usize = 15;
@@ -1041,44 +1043,90 @@ cfg_if! {
             let len = slice.len();
             let mut offset = 0usize;
             if SIMD_STRIDE_SIZE <= len {
-                let len_minus_stride = len - SIMD_STRIDE_SIZE;
-                // XXX Should we first process one stride unconditionally as unaligned to
-                // avoid the cost of the branchiness below if the first stride fails anyway?
-                // XXX Should we just use unaligned SSE2 access unconditionally? It seems that
-                // on Haswell, it would make sense to just use unaligned and not bother
-                // checking. Need to benchmark older architectures before deciding.
-                if ((src as usize) & SIMD_ALIGNMENT_MASK) == 0 {
+                // First, process one unaligned vector
+                 let simd = unsafe { load16_unaligned(src) };
+                 let mask = mask_ascii(simd);
+                if mask != 0 {
+                    offset = mask.trailing_zeros() as usize;
+                    let non_ascii = unsafe { *src.add(offset) };
+                    return Some((non_ascii, offset));
+                }
+                offset = SIMD_STRIDE_SIZE;
+
+                // We have now seen 16 ASCII bytes. Let's guess that
+                // there will be enough more to justify more expense
+                // in the case of non-ASCII.
+                // Use aligned reads for the sake of old microachitectures.
+                let mut until_alignment = unsafe { (SIMD_ALIGNMENT - ((src.add(offset) as usize) & SIMD_ALIGNMENT_MASK)) & SIMD_ALIGNMENT_MASK };
+                // This addition won't overflow, because even in the 32-bit PAE case the
+                // address space holds enough code that the slice length can't be that
+                // close to address space size.
+                // offset now equals SIMD_STRIDE_SIZE, hence times 3 below.
+                if until_alignment + (SIMD_STRIDE_SIZE * 3) <= len {
+                    while until_alignment != 0 {
+                        let code_unit = unsafe { *(src.add(offset)) };
+                        if code_unit > 127 {
+                            return Some((code_unit, offset));
+                        }
+                        offset += 1;
+                        until_alignment -= 1;
+                    }
+                    let len_minus_stride_times_two = len - (SIMD_STRIDE_SIZE * 2);
                     loop {
-                        let simd = unsafe { load16_aligned(src.add(offset)) };
-                        let mask = mask_ascii(simd);
-                        if mask != 0 {
-                            offset += mask.trailing_zeros() as usize;
+                        let first = unsafe { load16_aligned(src.add(offset)) };
+                        let second = unsafe { load16_aligned(src.add(offset + SIMD_STRIDE_SIZE)) };
+                        if !simd_is_ascii(first | second) {
+                             let mask_first = mask_ascii(first);
+                             if mask_first != 0 {
+                                offset += mask_first.trailing_zeros() as usize;
+                             } else {
+                                    let mask_second = mask_ascii(second);
+                                    offset += SIMD_STRIDE_SIZE + mask_second.trailing_zeros() as usize;
+                             }
                             let non_ascii = unsafe { *src.add(offset) };
                             return Some((non_ascii, offset));
                         }
-                        offset += SIMD_STRIDE_SIZE;
-                        if offset > len_minus_stride {
+                        offset += SIMD_STRIDE_SIZE * 2;
+                        if offset > len_minus_stride_times_two {
                             break;
                         }
                     }
-                } else {
-                    loop {
-                        let simd = unsafe { load16_unaligned(src.add(offset)) };
-                        let mask = mask_ascii(simd);
+                    if offset + SIMD_STRIDE_SIZE <= len {
+                         let simd = unsafe { load16_aligned(src.add(offset)) };
+                         let mask = mask_ascii(simd);
                         if mask != 0 {
                             offset += mask.trailing_zeros() as usize;
                             let non_ascii = unsafe { *src.add(offset) };
                             return Some((non_ascii, offset));
                         }
                         offset += SIMD_STRIDE_SIZE;
-                        if offset > len_minus_stride {
-                            break;
+                    }
+                } else {
+                    // At most two iterations, so unroll
+                    if offset + SIMD_STRIDE_SIZE <= len {
+                         let simd = unsafe { load16_unaligned(src.add(offset)) };
+                         let mask = mask_ascii(simd);
+                        if mask != 0 {
+                            offset += mask.trailing_zeros() as usize;
+                            let non_ascii = unsafe { *src.add(offset) };
+                            return Some((non_ascii, offset));
+                        }
+                        offset += SIMD_STRIDE_SIZE;
+                        if offset + SIMD_STRIDE_SIZE <= len {
+                             let simd = unsafe { load16_unaligned(src.add(offset)) };
+                             let mask = mask_ascii(simd);
+                            if mask != 0 {
+                                offset += mask.trailing_zeros() as usize;
+                                let non_ascii = unsafe { *src.add(offset) };
+                                return Some((non_ascii, offset));
+                            }
+                            offset += SIMD_STRIDE_SIZE;
                         }
                     }
                 }
             }
             while offset < len {
-                let code_unit = slice[offset];
+                let code_unit = unsafe { *(src.add(offset)) };
                 if code_unit > 127 {
                     return Some((code_unit, offset));
                 }
