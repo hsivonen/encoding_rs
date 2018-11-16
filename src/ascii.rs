@@ -884,6 +884,12 @@ cfg_if! {
 
 //        pub const ALIGNMENT: usize = 8;
 
+        pub const ALU_STRIDE_SIZE: usize = 16;
+
+        pub const ALU_ALIGNMENT: usize = 8;
+
+        pub const ALU_ALIGNMENT_MASK: usize = 7;
+
         ascii_to_ascii_simd_stride!(ascii_to_ascii_stride_neither_aligned, load16_unaligned, store16_unaligned);
 
         ascii_to_basic_latin_simd_stride!(ascii_to_basic_latin_stride_neither_aligned, load16_unaligned, store8_unaligned);
@@ -1202,7 +1208,7 @@ cfg_if! {
 }
 
 cfg_if! {
-    if #[cfg(all(feature = "simd-accel", target_endian = "little", target_arch = "aarch64"))] {
+    if #[cfg(all(feature = "simd-accel", target_endian = "little", target_arch = "disabled"))] {
         #[inline(always)]
         pub fn validate_ascii(slice: &[u8]) -> Option<(u8, usize)> {
             let src = slice.as_ptr();
