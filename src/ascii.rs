@@ -33,14 +33,18 @@ use simd_funcs::*;
 
 cfg_if!{
     if #[cfg(feature = "simd-accel")] {
+        #[allow(unused_imports)]
         use ::std::intrinsics::unlikely;
+        #[allow(unused_imports)]
         use ::std::intrinsics::likely;
     } else {
+        #[allow(dead_code)]
         #[inline(always)]
         // Unsafe to match the intrinsic, which is needlessly unsafe.
         unsafe fn unlikely(b: bool) -> bool {
             b
         }
+        #[allow(dead_code)]
         #[inline(always)]
         // Unsafe to match the intrinsic, which is needlessly unsafe.
         unsafe fn likely(b: bool) -> bool {
@@ -481,11 +485,13 @@ macro_rules! ascii_simd_check_align_unrolled {
                         let dst_masked = (dst.add(offset) as usize) & SIMD_ALIGNMENT_MASK;
                         if dst_masked == 0 {
                             loop {
-                            	if let Some(advance) = $double_stride_both_aligned(src.add(offset), dst.add(offset)) {
-                            		offset += advance;
-					                let code_unit = *(src.add(offset));
-				                    return Some((code_unit, offset));
-                            	}
+                                if let Some(advance) =
+                                    $double_stride_both_aligned(src.add(offset), dst.add(offset))
+                                {
+                                    offset += advance;
+                                    let code_unit = *(src.add(offset));
+                                    return Some((code_unit, offset));
+                                }
                                 offset += SIMD_STRIDE_SIZE * 2;
                                 if offset > len_minus_stride_times_two {
                                     break;
@@ -499,11 +505,13 @@ macro_rules! ascii_simd_check_align_unrolled {
                             }
                         } else {
                             loop {
-                            	if let Some(advance) = $double_stride_src_aligned(src.add(offset), dst.add(offset)) {
-                            		offset += advance;
-					                let code_unit = *(src.add(offset));
-				                    return Some((code_unit, offset));
-                            	}
+                                if let Some(advance) =
+                                    $double_stride_src_aligned(src.add(offset), dst.add(offset))
+                                {
+                                    offset += advance;
+                                    let code_unit = *(src.add(offset));
+                                    return Some((code_unit, offset));
+                                }
                                 offset += SIMD_STRIDE_SIZE * 2;
                                 if offset > len_minus_stride_times_two {
                                     break;
@@ -772,14 +780,14 @@ macro_rules! ascii_to_ascii_simd_double_stride {
             let second = load16_aligned(src.add(SIMD_STRIDE_SIZE));
             $store(dst, first);
             if unlikely(!simd_is_ascii(first | second)) {
-            	let mask_first = mask_ascii(first);
-            	if mask_first != 0 {
-            		return Some(mask_first.trailing_zeros() as usize);
-            	}
-	            $store(dst.add(SIMD_STRIDE_SIZE), second);
-	            let mask_second = mask_ascii(second);
-           		return Some(SIMD_STRIDE_SIZE + mask_second.trailing_zeros() as usize);
-	        }
+                let mask_first = mask_ascii(first);
+                if mask_first != 0 {
+                    return Some(mask_first.trailing_zeros() as usize);
+                }
+                $store(dst.add(SIMD_STRIDE_SIZE), second);
+                let mask_second = mask_ascii(second);
+                return Some(SIMD_STRIDE_SIZE + mask_second.trailing_zeros() as usize);
+            }
             $store(dst.add(SIMD_STRIDE_SIZE), second);
             None
         }
@@ -814,15 +822,15 @@ macro_rules! ascii_to_basic_latin_simd_double_stride {
             $store(dst, a);
             $store(dst.add(SIMD_STRIDE_SIZE / 2), b);
             if unlikely(!simd_is_ascii(first | second)) {
-            	let mask_first = mask_ascii(first);
-            	if mask_first != 0 {
-            		return Some(mask_first.trailing_zeros() as usize);            		
-            	}
-	            let (c, d) = simd_unpack(second);
-	            $store(dst.add(SIMD_STRIDE_SIZE), c);
-	            $store(dst.add(SIMD_STRIDE_SIZE + (SIMD_STRIDE_SIZE / 2)), d);
-	            let mask_second = mask_ascii(second);
-           		return Some(SIMD_STRIDE_SIZE + mask_second.trailing_zeros() as usize);
+                let mask_first = mask_ascii(first);
+                if mask_first != 0 {
+                    return Some(mask_first.trailing_zeros() as usize);
+                }
+                let (c, d) = simd_unpack(second);
+                $store(dst.add(SIMD_STRIDE_SIZE), c);
+                $store(dst.add(SIMD_STRIDE_SIZE + (SIMD_STRIDE_SIZE / 2)), d);
+                let mask_second = mask_ascii(second);
+                return Some(SIMD_STRIDE_SIZE + mask_second.trailing_zeros() as usize);
             }
             let (c, d) = simd_unpack(second);
             $store(dst.add(SIMD_STRIDE_SIZE), c);
