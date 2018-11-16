@@ -15,7 +15,7 @@
         clippy::new_ret_no_self
     )
 )]
-#![doc(html_root_url = "https://docs.rs/encoding_rs/0.8.10")]
+#![doc(html_root_url = "https://docs.rs/encoding_rs/0.8.11")]
 
 //! encoding_rs is a Gecko-oriented Free Software / Open Source implementation
 //! of the [Encoding Standard](https://encoding.spec.whatwg.org/) in Rust.
