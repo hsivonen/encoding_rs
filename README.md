@@ -369,6 +369,10 @@ To regenerate the generated code:
 
 ## Release Notes
 
+### 0.8.12
+
+* Removed the `clippy::` prefix from clippy lint names.
+
 ### 0.8.11
 
 * Changed minimum Rust requirement to 1.29.0 (for the ability to refer
