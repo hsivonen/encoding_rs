@@ -368,8 +368,8 @@ fn is_kanji_mapped(bmp: u16) -> bool {
 #[cfg_attr(
     feature = "cargo-clippy",
     allow(
-        clippy::if_let_redundant_pattern_matching,
-        clippy::if_same_then_else
+        if_let_redundant_pattern_matching,
+        if_same_then_else
     )
 )]
 #[inline(always)]
@@ -392,8 +392,8 @@ fn is_kanji_mapped(bmp: u16) -> bool {
 #[cfg_attr(
     feature = "cargo-clippy",
     allow(
-        clippy::if_let_redundant_pattern_matching,
-        clippy::if_same_then_else
+        if_let_redundant_pattern_matching,
+        if_same_then_else
     )
 )]
 fn is_mapped_for_two_byte_encode(bmp: u16) -> bool {

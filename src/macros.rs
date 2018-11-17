@@ -361,7 +361,7 @@ macro_rules! gb18030_decoder_function {
      $name:ident,
      $code_unit:ty,
      $dest_struct:ident) => (
-    #[cfg_attr(feature = "cargo-clippy", allow(clippy::never_loop))]
+    #[cfg_attr(feature = "cargo-clippy", allow(never_loop))]
     pub fn $name(&mut $slf,
                  src: &[u8],
                  dst: &mut [$code_unit],
@@ -686,7 +686,7 @@ macro_rules! euc_jp_decoder_function {
      $name:ident,
      $code_unit:ty,
      $dest_struct:ident) => (
-    #[cfg_attr(feature = "cargo-clippy", allow(clippy::never_loop))]
+    #[cfg_attr(feature = "cargo-clippy", allow(never_loop))]
     pub fn $name(&mut $slf,
                  src: &[u8],
                  dst: &mut [$code_unit],
