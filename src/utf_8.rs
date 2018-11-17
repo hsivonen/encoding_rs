@@ -235,7 +235,7 @@ pub fn utf8_valid_up_to(src: &[u8]) -> usize {
 
 #[cfg_attr(
     feature = "cargo-clippy",
-    allow(clippy::never_loop, clippy::cyclomatic_complexity)
+    allow(never_loop, cyclomatic_complexity)
 )]
 pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usize, usize) {
     // This algorithm differs from the UTF-8 validation algorithm, but making
@@ -633,7 +633,7 @@ impl Utf8Encoder {
         Some(byte_length)
     }
 
-    #[cfg_attr(feature = "cargo-clippy", allow(clippy::never_loop))]
+    #[cfg_attr(feature = "cargo-clippy", allow(never_loop))]
     pub fn encode_from_utf16_raw(
         &mut self,
         src: &[u16],

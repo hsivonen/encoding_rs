@@ -92,7 +92,7 @@ macro_rules! ascii_alu {
      $stride_fn:ident) => {
         #[cfg_attr(
             feature = "cargo-clippy",
-            allow(clippy::never_loop, clippy::cast_ptr_alignment)
+            allow(never_loop, cast_ptr_alignment)
         )]
         #[inline(always)]
         pub unsafe fn $name(
@@ -187,9 +187,9 @@ macro_rules! basic_latin_alu {
         #[cfg_attr(
             feature = "cargo-clippy",
             allow(
-                clippy::never_loop,
-                clippy::cast_ptr_alignment,
-                clippy::cast_lossless
+                never_loop,
+                cast_ptr_alignment,
+                cast_lossless
             )
         )]
         #[inline(always)]
@@ -286,9 +286,9 @@ macro_rules! latin1_alu {
         #[cfg_attr(
             feature = "cargo-clippy",
             allow(
-                clippy::never_loop,
-                clippy::cast_ptr_alignment,
-                clippy::cast_lossless
+                never_loop,
+                cast_ptr_alignment,
+                cast_lossless
             )
         )]
         #[inline(always)]
@@ -1377,7 +1377,7 @@ cfg_if! {
             find_non_ascii(word, second_word)
         }
 
-        #[cfg_attr(feature = "cargo-clippy", allow(clippy::cast_ptr_alignment))]
+        #[cfg_attr(feature = "cargo-clippy", allow(cast_ptr_alignment))]
         #[inline(always)]
         pub fn validate_ascii(slice: &[u8]) -> Option<(u8, usize)> {
             let src = slice.as_ptr();
