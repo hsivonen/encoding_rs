@@ -38,17 +38,8 @@ fn check_utf16(data: &[u16]) {
 
 fn as_u16_slice(data: &[u8]) -> &[u16] {
     unsafe {
-        let ptr = data.as_ptr();
-        let len = data.len();
-        if len < 2 {
-            return ::std::slice::from_raw_parts(ptr as *const u16, 0);
-        }
-        let (adj_ptr, adj_len) = if ptr as usize & 1 == 0 {
-            (ptr, len / 2)
-        } else {
-            (ptr.add(1), (len - 1) / 2)
-        };
-        ::std::slice::from_raw_parts(adj_ptr as *const u16, adj_len)
+        let (_, sixteen, _) = data.align_to::<u16>();
+        sixteen
     }
 }
 
