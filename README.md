@@ -326,6 +326,8 @@ To regenerate the generated code:
  * Have Python 2 installed.
  * Clone [`https://github.com/hsivonen/encoding_c`](https://github.com/hsivonen/encoding_c)
    next to the `encoding_rs` directory.
+ * Clone [`https://github.com/hsivonen/codepage`](https://github.com/hsivonen/codepage)
+   next to the `encoding_rs` directory.
  * Clone [`https://github.com/whatwg/encoding`](https://github.com/whatwg/encoding)
    next to the `encoding_rs` directory.
  * Checkout revision `f381389` of the `encoding` repo.

@@ -9,11 +9,7 @@
 
 #![cfg_attr(
     feature = "cargo-clippy",
-    allow(
-        doc_markdown,
-        inline_always,
-        new_ret_no_self
-    )
+    allow(doc_markdown, inline_always, new_ret_no_self)
 )]
 #![doc(html_root_url = "https://docs.rs/encoding_rs/0.8.13")]
 
@@ -240,7 +236,9 @@
 //! way will find encoding_rs useful. While encoding_rs does not try to match
 //! Windows behavior, many of the encodings are close enough to legacy
 //! encodings implemented by Windows that applications that need to consume
-//! data in legacy Windows encodins may find encoding_rs useful.
+//! data in legacy Windows encodins may find encoding_rs useful. The
+//! [codepage](https://crates.io/crates/codepage) crate maps from Windows
+//! code page identifiers onto encoding_rs `Encoding`s and vice versa.
 //!
 //! For decoding email, UTF-7 support is needed (unfortunately) in additition
 //! to the encodings defined in the Encoding Standard. The
