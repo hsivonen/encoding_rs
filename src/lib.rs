@@ -665,10 +665,7 @@
 //! See the section [_UTF-16LE, UTF-16BE and Unicode Encoding Schemes_](#utf-16le-utf-16be-and-unicode-encoding-schemes)
 //! for discussion about the UTF-16 family.
 
-#![cfg_attr(
-    feature = "simd-accel",
-    feature(platform_intrinsics, core_intrinsics)
-)]
+#![cfg_attr(feature = "simd-accel", feature(platform_intrinsics, core_intrinsics))]
 
 #[macro_use]
 extern crate cfg_if;
@@ -3654,7 +3651,7 @@ impl Decoder {
             | DecoderLifeCycle::AtUtf8Start
             | DecoderLifeCycle::AtUtf16LeStart
             | DecoderLifeCycle::AtUtf16BeStart => {
-                return self.variant.max_utf8_buffer_length(byte_length)
+                return self.variant.max_utf8_buffer_length(byte_length);
             }
             DecoderLifeCycle::AtStart => {
                 if let Some(utf8_bom) = checked_add(3, byte_length.checked_mul(3)) {
@@ -3746,7 +3743,7 @@ impl Decoder {
             | DecoderLifeCycle::AtUtf16BeStart => {
                 return self
                     .variant
-                    .max_utf8_buffer_length_without_replacement(byte_length)
+                    .max_utf8_buffer_length_without_replacement(byte_length);
             }
             DecoderLifeCycle::AtStart => {
                 if let Some(utf8_bom) = byte_length.checked_add(3) {
@@ -4062,7 +4059,7 @@ impl Decoder {
             | DecoderLifeCycle::AtUtf8Start
             | DecoderLifeCycle::AtUtf16LeStart
             | DecoderLifeCycle::AtUtf16BeStart => {
-                return self.variant.max_utf16_buffer_length(byte_length)
+                return self.variant.max_utf16_buffer_length(byte_length);
             }
             DecoderLifeCycle::AtStart => {
                 if let Some(utf8_bom) = byte_length.checked_add(1) {
@@ -5301,13 +5298,11 @@ mod tests {
 
     #[test]
     fn test_decode_bomful_invalid_utf8_to_cow_without_bom_handling_and_without_replacement() {
-        assert!(
-            UTF_8
-                .decode_without_bom_handling_and_without_replacement(
-                    b"\xEF\xBB\xBF\xE2\x82\xAC\x80\xC3\xA4"
-                )
-                .is_none()
-        );
+        assert!(UTF_8
+            .decode_without_bom_handling_and_without_replacement(
+                b"\xEF\xBB\xBF\xE2\x82\xAC\x80\xC3\xA4"
+            )
+            .is_none());
     }
 
     #[test]
@@ -5325,11 +5320,9 @@ mod tests {
 
     #[test]
     fn test_decode_invalid_windows_1257_to_cow_without_bom_handling_and_without_replacement() {
-        assert!(
-            WINDOWS_1257
-                .decode_without_bom_handling_and_without_replacement(b"abc\x80\xA1\xE4")
-                .is_none()
-        );
+        assert!(WINDOWS_1257
+            .decode_without_bom_handling_and_without_replacement(b"abc\x80\xA1\xE4")
+            .is_none());
     }
 
     #[test]
