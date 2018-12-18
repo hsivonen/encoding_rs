@@ -641,8 +641,8 @@ impl Utf8Encoder {
         let mut written = 0;
         'outer: loop {
             let mut unit = {
-                let src_remaining = &src[read..];
-                let dst_remaining = &mut dst[written..];
+                let src_remaining = unsafe { src.get_unchecked(read..) };
+                let dst_remaining = unsafe { dst.get_unchecked_mut(written..) };
                 let (pending, length) = if dst_remaining.len() < src_remaining.len() {
                     (EncoderResult::OutputFull, dst_remaining.len())
                 } else {
@@ -664,7 +664,7 @@ impl Utf8Encoder {
                 }
             };
             'inner: loop {
-                if unit < 0x800 {
+                if unsafe { likely(unit < 0x800) } {
                     'two: loop {
                         // Unfortunately, this check isn't enough for the compiler to elide
                         // the bound checks on writes to dst, which is why they are manually
@@ -686,10 +686,11 @@ impl Utf8Encoder {
                             return (EncoderResult::InputEmpty, read, written);
                         }
                         unit = src[read];
-                        if unsafe { likely(in_range16(unit, 0x80, 0x800)) } {
-                           continue 'two; 
+                        let unit_minus_two_byte_start = unit.wrapping_sub(0x80);
+                        if unsafe { unlikely(unit_minus_two_byte_start >= (0x800 - 0x80)) } {
+                           continue 'outer;
                         }
-                        continue 'outer;
+                        continue 'two;
                     }
                 }
                 'three: loop {
