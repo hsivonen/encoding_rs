@@ -666,15 +666,14 @@ impl Utf8Encoder {
             'inner: loop {
                 // The following loop is only broken out of as a goto forward.
                 loop {
+                    // Unfortunately, this check isn't enough for the compiler to elide
+                    // the bound checks on writes to dst, which is why they are manually
+                    // elided, which makes a measurable difference.
+                    if written + 2 > dst.len() {
+                        return (EncoderResult::OutputFull, read, written);
+                    }
                     read += 1;
                     if unit < 0x800 {
-                        // Unfortunately, this check isn't enough for the compiler to elide
-                        // the bound checks on writes to dst, which is why they are manually
-                        // elided, which makes a measurable difference.
-                        if written + 2 > dst.len() {
-                            read -= 1; // Undo the increment made at the top of the loop
-                            return (EncoderResult::OutputFull, read, written);
-                        }
                         unsafe {
                             *(dst.get_unchecked_mut(written)) = (unit >> 6) as u8 | 0xC0u8;
                             written += 1;
