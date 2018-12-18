@@ -645,8 +645,8 @@ impl Utf8Encoder {
         let mut unit;
         'outer: loop {
             unit = {
-                let src_remaining = &src[read..];
-                let dst_remaining = &mut dst[written..];
+                let src_remaining = unsafe { src.get_unchecked(read..) };
+                let dst_remaining = unsafe { dst.get_unchecked_mut(written..) };
                 let (pending, length) = if dst_remaining.len() < src_remaining.len() {
                     (EncoderResult::OutputFull, dst_remaining.len())
                 } else {
@@ -683,13 +683,31 @@ impl Utf8Encoder {
                     }
                     read += 1;
                     if unit < 0x800 {
-                        unsafe {
-                            *(dst.get_unchecked_mut(written)) = (unit >> 6) as u8 | 0xC0u8;
-                            written += 1;
-                            *(dst.get_unchecked_mut(written)) = (unit & 0x3F) as u8 | 0x80u8;
-                            written += 1;
+                        'two: loop {
+                            unsafe {
+                                *(dst.get_unchecked_mut(written)) = (unit >> 6) as u8 | 0xC0u8;
+                                written += 1;
+                                *(dst.get_unchecked_mut(written)) = (unit & 0x3F) as u8 | 0x80u8;
+                                written += 1;
+                            }
+                            // read > src.len() is impossible, but using
+                            // >= instead of == allows the compiler to elide a bound check.
+                            if read >= src.len() {
+                                debug_assert_eq!(read, src.len());
+                                return (EncoderResult::InputEmpty, read, written);
+                            }
+                            unit = src[read];
+                            if unsafe { unlikely(written + 4 > dst.len()) } {
+                                // Trying to do a more coarse-grained check within 'inner is
+                                // bad for performance, so let's break out and handle the tail.
+                                break 'outer;
+                            }
+                            if unsafe { likely(in_range16(unit, 0x80, 0x800)) } {
+                                read += 1;
+                                continue 'two;
+                            }
+                            continue 'outer;
                         }
-                        break;
                     }
                     let unit_minus_surrogate_start = unit.wrapping_sub(0xD800);
                     if unsafe { likely(unit_minus_surrogate_start > (0xDFFF - 0xD800)) } {
