@@ -642,8 +642,9 @@ impl Utf8Encoder {
     ) -> (EncoderResult, usize, usize) {
         let mut read = 0;
         let mut written = 0;
+        let mut unit;
         'outer: loop {
-            let mut unit = {
+            unit = {
                 let src_remaining = &src[read..];
                 let dst_remaining = &mut dst[written..];
                 let (pending, length) = if dst_remaining.len() < src_remaining.len() {
@@ -672,8 +673,13 @@ impl Utf8Encoder {
                     // Unfortunately, this check isn't enough for the compiler to elide
                     // the bound checks on writes to dst, which is why they are manually
                     // elided, which makes a measurable difference.
-                    if written.checked_add(4).unwrap() > dst.len() {
-                        return (EncoderResult::OutputFull, read, written);
+                    // Written can't be greater than dst.len(). dst cannot fill the
+                    // entire address space, so adding a small constant will not
+                    // overflow.
+                    if unsafe { unlikely(written + 4 > dst.len()) } {
+                        // Trying to do a more coarse-grained check within 'inner is
+                        // bad for performance, so let's break out and handle the tail.
+                        break 'outer;
                     }
                     read += 1;
                     if unit < 0x800 {
@@ -777,6 +783,81 @@ impl Utf8Encoder {
                 continue 'inner;
             }
         }
+        // Tail
+        // We now have up to 3 output slots, so an astral character
+        // will not fit.
+        if unit < 0x800 {
+            loop {
+                if unit < 0x80 {
+                    if written + 1 > dst.len() {
+                        return (EncoderResult::OutputFull, read, written);
+                    }
+                    read += 1;
+                    dst[written] = unit as u8;
+                    written +=1;
+                } else if unit < 0x800 {
+                    if written + 2 > dst.len() {
+                        return (EncoderResult::OutputFull, read, written);
+                    }
+                    read += 1;
+                    dst[written] = (unit >> 6) as u8 | 0xC0u8;
+                    written += 1;
+                    dst[written] = (unit & 0x3F) as u8 | 0x80u8;
+                    written += 1;                    
+                } else {
+                    return (EncoderResult::OutputFull, read, written);
+                }
+                // read > src.len() is impossible, but using
+                // >= instead of == allows the compiler to elide a bound check.
+                if read >= src.len() {
+                    debug_assert_eq!(read, src.len());
+                    return (EncoderResult::InputEmpty, read, written);
+                }
+                unit = src[read];                
+            }
+        }
+        // Could be an unpaired surrogate, but we'll need 3 output
+        // slots in any case.
+        if written + 3 > dst.len() {
+            return (EncoderResult::OutputFull, read, written);
+        }
+        read += 1;
+        let unit_minus_surrogate_start = unit.wrapping_sub(0xD800);
+        if unit_minus_surrogate_start <= (0xDFFF - 0xD800) {
+            // Got surrogate
+            if unit_minus_surrogate_start <= (0xDBFF - 0xD800) {
+                // Got high surrogate
+                if read >= src.len() {
+                    // Unpaired high surrogate
+                    unit = 0xFFFD;
+                } else {
+                    let second = src[read];
+                    if in_inclusive_range16(second, 0xDC00, 0xDFFF) {
+                        // Valid surrogate pair, but we know it won't fit.
+                        read -= 1;
+                        return (EncoderResult::OutputFull, read, written);
+                    }
+                    // Unpaired high
+                    unit = 0xFFFD;
+                }
+            } else {
+                // Unpaired low
+                unit = 0xFFFD;
+            }
+        }
+        dst[written] = (unit >> 12) as u8 | 0xE0u8;
+        written += 1;
+        dst[written] = ((unit & 0xFC0) >> 6) as u8 | 0x80u8;
+        written += 1;
+        dst[written] = (unit & 0x3F) as u8 | 0x80u8;
+        written += 1;
+        debug_assert_eq!(written, dst.len());
+        return (if read == src.len() {
+            EncoderResult::InputEmpty
+        } else {
+            EncoderResult::OutputFull
+        }, read, written);
+
     }
 
     pub fn encode_from_utf8_raw(
