@@ -664,31 +664,54 @@ impl Utf8Encoder {
                 }
             };
             'inner: loop {
-                // The following loop is only broken out of as a goto forward.
-                loop {
-                    // Unfortunately, this check isn't enough for the compiler to elide
-                    // the bound checks on writes to dst, which is why they are manually
-                    // elided, which makes a measurable difference.
-                    if written + 2 > dst.len() {
-                        return (EncoderResult::OutputFull, read, written);
-                    }
-                    read += 1;
-                    if unit < 0x800 {
+                if unit < 0x800 {
+                    'two: loop {
+                        // Unfortunately, this check isn't enough for the compiler to elide
+                        // the bound checks on writes to dst, which is why they are manually
+                        // elided, which makes a measurable difference.
+                        if written + 2 > dst.len() {
+                            return (EncoderResult::OutputFull, read, written);
+                        }
+                        read += 1;
                         unsafe {
                             *(dst.get_unchecked_mut(written)) = (unit >> 6) as u8 | 0xC0u8;
                             written += 1;
                             *(dst.get_unchecked_mut(written)) = (unit & 0x3F) as u8 | 0x80u8;
                             written += 1;
                         }
-                        break;
+                        // read > src.len() is impossible, but using
+                        // >= instead of == allows the compiler to elide a bound check.
+                        if read >= src.len() {
+                            debug_assert_eq!(read, src.len());
+                            return (EncoderResult::InputEmpty, read, written);
+                        }
+                        unit = src[read];
+                        if in_range16(unit, 0x80, 0x800) {
+                           continue 'two; 
+                        }
+                        if unsafe { likely(unit < 0x80) } {
+                            // written > dst.len() is impossible, but using
+                            // >= instead of == allows the compiler to elide a bound check.
+                            if written >= dst.len() {
+                                debug_assert_eq!(written, dst.len());
+                                return (EncoderResult::OutputFull, read, written);
+                            }
+                            dst[written] = unit as u8;
+                            read += 1;
+                            written += 1;
+                            continue 'outer;
+                        }
+                        continue 'inner;
                     }
+                }
+                'three: loop {
                     // Unfortunately, this check isn't enough for the compiler to elide
                     // the bound checks on writes to dst, which is why they are manually
                     // elided, which makes a measurable difference.
                     if written + 3 > dst.len() {
-                        read -= 1; // Undo the increment made at the top of the loop
                         return (EncoderResult::OutputFull, read, written);
                     }
+                    read += 1;
                     let unit_minus_surrogate_start = unit.wrapping_sub(0xD800);
                     if unsafe { likely(unit_minus_surrogate_start > (0xDFFF - 0xD800)) } {
                         unsafe {
@@ -700,13 +723,35 @@ impl Utf8Encoder {
                             *(dst.get_unchecked_mut(written)) = (unit & 0x3F) as u8 | 0x80u8;
                             written += 1;
                         }
-                        break;
+                        // read > src.len() is impossible, but using
+                        // >= instead of == allows the compiler to elide a bound check.
+                        if read >= src.len() {
+                            debug_assert_eq!(read, src.len());
+                            return (EncoderResult::InputEmpty, read, written);
+                        }
+                        unit = src[read];
+                        if unsafe { likely (unit >= 0x800) } {
+                           continue 'three; 
+                        }
+                        if unsafe { likely(unit < 0x80) } {
+                            // written > dst.len() is impossible, but using
+                            // >= instead of == allows the compiler to elide a bound check.
+                            if written >= dst.len() {
+                                debug_assert_eq!(written, dst.len());
+                                return (EncoderResult::OutputFull, read, written);
+                            }
+                            dst[written] = unit as u8;
+                            read += 1;
+                            written += 1;
+                            continue 'outer;
+                        }
+                        continue 'inner;
                     }
                     if unsafe { likely(unit_minus_surrogate_start <= (0xDBFF - 0xD800)) } {
                         // high surrogate
                         // read > src.len() is impossible, but using
                         // >= instead of == allows the compiler to elide a bound check.
-                        if read >= src.len() {
+                        if unsafe { unlikely(read >= src.len()) } {
                             debug_assert_eq!(read, src.len());
                             // Unpaired surrogate at the end of the buffer.
                             unsafe {
@@ -727,7 +772,7 @@ impl Utf8Encoder {
                             // the bound checks on writes to dst, which is why they are manually
                             // elided, which makes a measurable difference.
                             if written + 4 > dst.len() {
-                                read -= 1; // Undo the increment made at the top of the loop
+                                read -= 1; // Undo the increment made after `written + 3` check
                                 return (EncoderResult::OutputFull, read, written);
                             }
                             // The next code unit is a low surrogate. Advance position.
@@ -746,7 +791,7 @@ impl Utf8Encoder {
                                 *(dst.get_unchecked_mut(written)) = (astral & 0x3F) as u8 | 0x80u8;
                                 written += 1;
                             }
-                            break;
+                            continue 'outer;
                         }
                         // The next code unit is not a low surrogate. Don't advance
                         // position and treat the high surrogate as unpaired.
@@ -761,31 +806,8 @@ impl Utf8Encoder {
                         *(dst.get_unchecked_mut(written)) = 0xBDu8;
                         written += 1;
                     }
-                    break;
-                }
-                // Now see if the next unit is Basic Latin
-                // read > src.len() is impossible, but using
-                // >= instead of == allows the compiler to elide a bound check.
-                if read >= src.len() {
-                    debug_assert_eq!(read, src.len());
-                    return (EncoderResult::InputEmpty, read, written);
-                }
-                unit = src[read];
-                if unsafe { unlikely(unit < 0x80) } {
-                    // written > dst.len() is impossible, but using
-                    // >= instead of == allows the compiler to elide a bound check.
-                    if written >= dst.len() {
-                        debug_assert_eq!(written, dst.len());
-                        return (EncoderResult::OutputFull, read, written);
-                    }
-                    dst[written] = unit as u8;
-                    read += 1;
-                    written += 1;
-                    // Mysteriously, adding a punctuation check here makes
-                    // the expected benificiary cases *slower*!
                     continue 'outer;
                 }
-                continue 'inner;
             }
         }
     }
