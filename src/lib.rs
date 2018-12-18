@@ -28,6 +28,9 @@
 //! [_UTF-16LE, UTF-16BE and Unicode Encoding Schemes_](#utf-16le-utf-16be-and-unicode-encoding-schemes),
 //! [_ISO-8859-1_](#iso-8859-1) and [_Web / Browser Focus_](#web--browser-focus) below.
 //!
+//! There is a [long-form write-up](https://hsivonen.fi/encoding_rs/) about the
+//! design and internals of the crate.
+//!
 //! # Availability
 //!
 //! The code is available under the
