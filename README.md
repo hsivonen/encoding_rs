@@ -81,15 +81,23 @@ For decoding character encodings that occur in email, use the
 [`charset`](https://crates.io/crates/charset) crate instead of using this
 one directly. (It wraps this crate and adds UTF-7 decoding.)
 
+## Windows Code Page Identifier Mappings
+
+For mappings to and from Windows code page identifiers, use the
+[`codepage`](https://crates.io/crates/codepage) crate.
+
 ## Licensing
 
 Please see the file named
 [COPYRIGHT](https://github.com/hsivonen/encoding_rs/blob/master/COPYRIGHT).
 
-## API Documentation
+## Documentation
 
 Generated [API documentation](https://docs.rs/encoding_rs/) is available
 online.
+
+There is a [long-form write-up](https://hsivonen.fi/encoding_rs/) about the
+design and internals of the crate.
 
 ## C and C++ bindings
 
@@ -102,6 +110,9 @@ For the Gecko context, there's a
 [C++ wrapper using the MFBT/XPCOM types](https://searchfox.org/mozilla-central/source/intl/Encoding.h#100).
 
 These bindings do not cover the `mem` module.
+
+There's a [write-up](https://hsivonen.fi/modern-cpp-in-rust/) about the C++
+wrappers.
 
 ## Sample programs
 
