@@ -682,7 +682,7 @@ impl Utf8Encoder {
                         break 'outer;
                     }
                     read += 1;
-                    if unit < 0x800 {
+                    if unsafe{ likely(unit < 0x800) } {
                         'two: loop {
                             unsafe {
                                 *(dst.get_unchecked_mut(written)) = (unit >> 6) as u8 | 0xC0u8;
@@ -706,7 +706,11 @@ impl Utf8Encoder {
                                 read += 1;
                                 continue 'two;
                             }
-                            continue 'outer;
+                            if unit < 0x80 {
+                                continue 'outer;
+                            }
+                            read += 1;
+                            break 'two;
                         }
                     }
                     let unit_minus_surrogate_start = unit.wrapping_sub(0xD800);
