@@ -663,140 +663,126 @@ impl Utf8Encoder {
                     }
                 }
             };
-            'inner: loop {
-                if unsafe { likely(unit < 0x800) } {
-                    'two: loop {
-                        // Unfortunately, this check isn't enough for the compiler to elide
-                        // the bound checks on writes to dst, which is why they are manually
-                        // elided, which makes a measurable difference.
-                        if written + 2 > dst.len() {
-                            return (EncoderResult::OutputFull, read, written);
-                        }
-                        read += 1;
-                        unsafe {
-                            *(dst.get_unchecked_mut(written)) = (unit >> 6) as u8 | 0xC0u8;
-                            written += 1;
-                            *(dst.get_unchecked_mut(written)) = (unit & 0x3F) as u8 | 0x80u8;
-                            written += 1;
-                        }
-                        // read > src.len() is impossible, but using
-                        // >= instead of == allows the compiler to elide a bound check.
-                        if read >= src.len() {
-                            debug_assert_eq!(read, src.len());
-                            return (EncoderResult::InputEmpty, read, written);
-                        }
-                        unit = src[read];
-                        let unit_minus_two_byte_start = unit.wrapping_sub(0x80);
-                        if unsafe { unlikely(unit_minus_two_byte_start >= (0x800 - 0x80)) } {
-                           continue 'outer;
-                        }
-                        continue 'two;
-                    }
-                }
-                'three: loop {
+            if unsafe { likely(unit < 0x800) } {
+                'two: loop {
                     // Unfortunately, this check isn't enough for the compiler to elide
                     // the bound checks on writes to dst, which is why they are manually
                     // elided, which makes a measurable difference.
-                    if written + 3 > dst.len() {
+                    if written + 2 > dst.len() {
                         return (EncoderResult::OutputFull, read, written);
                     }
                     read += 1;
-                    let unit_minus_surrogate_start = unit.wrapping_sub(0xD800);
-                    if unsafe { likely(unit_minus_surrogate_start > (0xDFFF - 0xD800)) } {
-                        unsafe {
-                            *(dst.get_unchecked_mut(written)) = (unit >> 12) as u8 | 0xE0u8;
-                            written += 1;
-                            *(dst.get_unchecked_mut(written)) =
-                                ((unit & 0xFC0) >> 6) as u8 | 0x80u8;
-                            written += 1;
-                            *(dst.get_unchecked_mut(written)) = (unit & 0x3F) as u8 | 0x80u8;
-                            written += 1;
-                        }
-                        // read > src.len() is impossible, but using
-                        // >= instead of == allows the compiler to elide a bound check.
-                        if read >= src.len() {
-                            debug_assert_eq!(read, src.len());
-                            return (EncoderResult::InputEmpty, read, written);
-                        }
-                        unit = src[read];
-                        if unsafe { likely (unit >= 0x800) } {
-                           continue 'three; 
-                        }
-                        if unsafe { likely(unit < 0x80) } {
-                            // written > dst.len() is impossible, but using
-                            // >= instead of == allows the compiler to elide a bound check.
-                            if written >= dst.len() {
-                                debug_assert_eq!(written, dst.len());
-                                return (EncoderResult::OutputFull, read, written);
-                            }
-                            dst[written] = unit as u8;
-                            read += 1;
-                            written += 1;
-                            continue 'outer;
-                        }
-                        continue 'inner;
-                    }
-                    if unsafe { likely(unit_minus_surrogate_start <= (0xDBFF - 0xD800)) } {
-                        // high surrogate
-                        // read > src.len() is impossible, but using
-                        // >= instead of == allows the compiler to elide a bound check.
-                        if unsafe { unlikely(read >= src.len()) } {
-                            debug_assert_eq!(read, src.len());
-                            // Unpaired surrogate at the end of the buffer.
-                            unsafe {
-                                *(dst.get_unchecked_mut(written)) = 0xEFu8;
-                                written += 1;
-                                *(dst.get_unchecked_mut(written)) = 0xBFu8;
-                                written += 1;
-                                *(dst.get_unchecked_mut(written)) = 0xBDu8;
-                                written += 1;
-                            }
-                            return (EncoderResult::InputEmpty, read, written);
-                        }
-                        let second = src[read];
-                        let second_minus_low_surrogate_start = second.wrapping_sub(0xDC00);
-                        if unsafe { likely(second_minus_low_surrogate_start <= (0xDFFF - 0xDC00)) }
-                        {
-                            // Unfortunately, this check isn't enough for the compiler to elide
-                            // the bound checks on writes to dst, which is why they are manually
-                            // elided, which makes a measurable difference.
-                            if written + 4 > dst.len() {
-                                read -= 1; // Undo the increment made after `written + 3` check
-                                return (EncoderResult::OutputFull, read, written);
-                            }
-                            // The next code unit is a low surrogate. Advance position.
-                            read += 1;
-                            let astral = (u32::from(unit) << 10) + u32::from(second)
-                                - (((0xD800u32 << 10) - 0x10000u32) + 0xDC00u32);
-                            unsafe {
-                                *(dst.get_unchecked_mut(written)) = (astral >> 18) as u8 | 0xF0u8;
-                                written += 1;
-                                *(dst.get_unchecked_mut(written)) =
-                                    ((astral & 0x3F000u32) >> 12) as u8 | 0x80u8;
-                                written += 1;
-                                *(dst.get_unchecked_mut(written)) =
-                                    ((astral & 0xFC0u32) >> 6) as u8 | 0x80u8;
-                                written += 1;
-                                *(dst.get_unchecked_mut(written)) = (astral & 0x3F) as u8 | 0x80u8;
-                                written += 1;
-                            }
-                            continue 'outer;
-                        }
-                        // The next code unit is not a low surrogate. Don't advance
-                        // position and treat the high surrogate as unpaired.
-                        // Fall through
-                    }
-                    // Unpaired low surrogate
                     unsafe {
-                        *(dst.get_unchecked_mut(written)) = 0xEFu8;
+                        *(dst.get_unchecked_mut(written)) = (unit >> 6) as u8 | 0xC0u8;
                         written += 1;
-                        *(dst.get_unchecked_mut(written)) = 0xBFu8;
+                        *(dst.get_unchecked_mut(written)) = (unit & 0x3F) as u8 | 0x80u8;
                         written += 1;
-                        *(dst.get_unchecked_mut(written)) = 0xBDu8;
+                    }
+                    // read > src.len() is impossible, but using
+                    // >= instead of == allows the compiler to elide a bound check.
+                    if read >= src.len() {
+                        debug_assert_eq!(read, src.len());
+                        return (EncoderResult::InputEmpty, read, written);
+                    }
+                    unit = src[read];
+                    let unit_minus_two_byte_start = unit.wrapping_sub(0x80);
+                    if unsafe { unlikely(unit_minus_two_byte_start >= (0x800 - 0x80)) } {
+                       continue 'outer;
+                    }
+                    continue 'two;
+                }
+            }
+            'three: loop {
+                // Unfortunately, this check isn't enough for the compiler to elide
+                // the bound checks on writes to dst, which is why they are manually
+                // elided, which makes a measurable difference.
+                if written + 3 > dst.len() {
+                    return (EncoderResult::OutputFull, read, written);
+                }
+                read += 1;
+                let unit_minus_surrogate_start = unit.wrapping_sub(0xD800);
+                if unsafe { likely(unit_minus_surrogate_start > (0xDFFF - 0xD800)) } {
+                    unsafe {
+                        *(dst.get_unchecked_mut(written)) = (unit >> 12) as u8 | 0xE0u8;
                         written += 1;
+                        *(dst.get_unchecked_mut(written)) =
+                            ((unit & 0xFC0) >> 6) as u8 | 0x80u8;
+                        written += 1;
+                        *(dst.get_unchecked_mut(written)) = (unit & 0x3F) as u8 | 0x80u8;
+                        written += 1;
+                    }
+                    // read > src.len() is impossible, but using
+                    // >= instead of == allows the compiler to elide a bound check.
+                    if read >= src.len() {
+                        debug_assert_eq!(read, src.len());
+                        return (EncoderResult::InputEmpty, read, written);
+                    }
+                    unit = src[read];
+                    if unsafe { likely (unit >= 0x800) } {
+                       continue 'three;
                     }
                     continue 'outer;
                 }
+                if unsafe { likely(unit_minus_surrogate_start <= (0xDBFF - 0xD800)) } {
+                    // high surrogate
+                    // read > src.len() is impossible, but using
+                    // >= instead of == allows the compiler to elide a bound check.
+                    if unsafe { unlikely(read >= src.len()) } {
+                        debug_assert_eq!(read, src.len());
+                        // Unpaired surrogate at the end of the buffer.
+                        unsafe {
+                            *(dst.get_unchecked_mut(written)) = 0xEFu8;
+                            written += 1;
+                            *(dst.get_unchecked_mut(written)) = 0xBFu8;
+                            written += 1;
+                            *(dst.get_unchecked_mut(written)) = 0xBDu8;
+                            written += 1;
+                        }
+                        return (EncoderResult::InputEmpty, read, written);
+                    }
+                    let second = src[read];
+                    let second_minus_low_surrogate_start = second.wrapping_sub(0xDC00);
+                    if unsafe { likely(second_minus_low_surrogate_start <= (0xDFFF - 0xDC00)) }
+                    {
+                        // Unfortunately, this check isn't enough for the compiler to elide
+                        // the bound checks on writes to dst, which is why they are manually
+                        // elided, which makes a measurable difference.
+                        if written + 4 > dst.len() {
+                            read -= 1; // Undo the increment made after `written + 3` check
+                            return (EncoderResult::OutputFull, read, written);
+                        }
+                        // The next code unit is a low surrogate. Advance position.
+                        read += 1;
+                        let astral = (u32::from(unit) << 10) + u32::from(second)
+                            - (((0xD800u32 << 10) - 0x10000u32) + 0xDC00u32);
+                        unsafe {
+                            *(dst.get_unchecked_mut(written)) = (astral >> 18) as u8 | 0xF0u8;
+                            written += 1;
+                            *(dst.get_unchecked_mut(written)) =
+                                ((astral & 0x3F000u32) >> 12) as u8 | 0x80u8;
+                            written += 1;
+                            *(dst.get_unchecked_mut(written)) =
+                                ((astral & 0xFC0u32) >> 6) as u8 | 0x80u8;
+                            written += 1;
+                            *(dst.get_unchecked_mut(written)) = (astral & 0x3F) as u8 | 0x80u8;
+                            written += 1;
+                        }
+                        continue 'outer;
+                    }
+                    // The next code unit is not a low surrogate. Don't advance
+                    // position and treat the high surrogate as unpaired.
+                    // Fall through
+                }
+                // Unpaired low surrogate
+                unsafe {
+                    *(dst.get_unchecked_mut(written)) = 0xEFu8;
+                    written += 1;
+                    *(dst.get_unchecked_mut(written)) = 0xBFu8;
+                    written += 1;
+                    *(dst.get_unchecked_mut(written)) = 0xBDu8;
+                    written += 1;
+                }
+                continue 'outer;
             }
         }
     }
