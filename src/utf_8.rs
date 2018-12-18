@@ -787,15 +787,9 @@ impl Utf8Encoder {
                         // Fall through
                     }
                     // Unpaired low surrogate
-                    unsafe {
-                        *(dst.get_unchecked_mut(written)) = 0xEFu8;
-                        written += 1;
-                        *(dst.get_unchecked_mut(written)) = 0xBFu8;
-                        written += 1;
-                        *(dst.get_unchecked_mut(written)) = 0xBDu8;
-                        written += 1;
-                    }
-                    continue 'outer;
+                    unit = 0xFFFD;
+                    read -= 1;
+                    continue 'three;
                 }
             }
         }
