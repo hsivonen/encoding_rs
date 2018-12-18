@@ -689,19 +689,7 @@ impl Utf8Encoder {
                         if unsafe { likely(in_range16(unit, 0x80, 0x800)) } {
                            continue 'two; 
                         }
-                        if unsafe { likely(unit < 0x80) } {
-                            // written > dst.len() is impossible, but using
-                            // >= instead of == allows the compiler to elide a bound check.
-                            if written >= dst.len() {
-                                debug_assert_eq!(written, dst.len());
-                                return (EncoderResult::OutputFull, read, written);
-                            }
-                            dst[written] = unit as u8;
-                            read += 1;
-                            written += 1;
-                            continue 'outer;
-                        }
-                        break 'two;
+                        continue 'outer;
                     }
                 }
                 'three: loop {
