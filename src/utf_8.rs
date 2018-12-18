@@ -14,7 +14,7 @@ use ascii::validate_ascii;
 use handles::*;
 use variant::*;
 
-cfg_if!{
+cfg_if! {
     if #[cfg(feature = "simd-accel")] {
         use ::std::intrinsics::unlikely;
         use ::std::intrinsics::likely;
@@ -233,10 +233,7 @@ pub fn utf8_valid_up_to(src: &[u8]) -> usize {
     read
 }
 
-#[cfg_attr(
-    feature = "cargo-clippy",
-    allow(never_loop, cyclomatic_complexity)
-)]
+#[cfg_attr(feature = "cargo-clippy", allow(never_loop, cyclomatic_complexity))]
 pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usize, usize) {
     // This algorithm differs from the UTF-8 validation algorithm, but making
     // this one consistent with that one makes this slower for reasons I don't
@@ -669,14 +666,15 @@ impl Utf8Encoder {
             'inner: loop {
                 // The following loop is only broken out of as a goto forward.
                 loop {
-                    // Unfortunately, this check isn't enough for the compiler to elide
-                    // the bound checks on writes to dst, which is why they are manually
-                    // elided, which makes a measurable difference.
-                    if written.checked_add(4).unwrap() > dst.len() {
-                        return (EncoderResult::OutputFull, read, written);
-                    }
                     read += 1;
                     if unit < 0x800 {
+                        // Unfortunately, this check isn't enough for the compiler to elide
+                        // the bound checks on writes to dst, which is why they are manually
+                        // elided, which makes a measurable difference.
+                        if written + 2 > dst.len() {
+                            read -= 1; // Undo the increment made at the top of the loop
+                            return (EncoderResult::OutputFull, read, written);
+                        }
                         unsafe {
                             *(dst.get_unchecked_mut(written)) = (unit >> 6) as u8 | 0xC0u8;
                             written += 1;
@@ -684,6 +682,13 @@ impl Utf8Encoder {
                             written += 1;
                         }
                         break;
+                    }
+                    // Unfortunately, this check isn't enough for the compiler to elide
+                    // the bound checks on writes to dst, which is why they are manually
+                    // elided, which makes a measurable difference.
+                    if written + 3 > dst.len() {
+                        read -= 1; // Undo the increment made at the top of the loop
+                        return (EncoderResult::OutputFull, read, written);
                     }
                     let unit_minus_surrogate_start = unit.wrapping_sub(0xD800);
                     if unsafe { likely(unit_minus_surrogate_start > (0xDFFF - 0xD800)) } {
@@ -719,6 +724,13 @@ impl Utf8Encoder {
                         let second_minus_low_surrogate_start = second.wrapping_sub(0xDC00);
                         if unsafe { likely(second_minus_low_surrogate_start <= (0xDFFF - 0xDC00)) }
                         {
+                            // Unfortunately, this check isn't enough for the compiler to elide
+                            // the bound checks on writes to dst, which is why they are manually
+                            // elided, which makes a measurable difference.
+                            if written + 4 > dst.len() {
+                                read -= 1; // Undo the increment made at the top of the loop
+                                return (EncoderResult::OutputFull, read, written);
+                            }
                             // The next code unit is a low surrogate. Advance position.
                             read += 1;
                             let astral = (u32::from(unit) << 10) + u32::from(second)
@@ -1114,7 +1126,6 @@ mod tests {
             assert!(!had_errors);
             assert_eq!(output[0], 0x00E4);
         }
-
     }
 
 }
