@@ -686,7 +686,7 @@ impl Utf8Encoder {
                             return (EncoderResult::InputEmpty, read, written);
                         }
                         unit = src[read];
-                        if in_range16(unit, 0x80, 0x800) {
+                        if unsafe { likely(in_range16(unit, 0x80, 0x800)) } {
                            continue 'two; 
                         }
                         if unsafe { likely(unit < 0x80) } {
@@ -701,7 +701,7 @@ impl Utf8Encoder {
                             written += 1;
                             continue 'outer;
                         }
-                        continue 'inner;
+                        break 'two;
                     }
                 }
                 'three: loop {
