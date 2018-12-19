@@ -124,7 +124,7 @@ fn fuzz_convert_str_to_utf16(data: &[u8]) {
 }
 
 fn fuzz_convert_utf16_to_utf8(data: &[u16]) {
-    let needed = data.len() * 3 + 1;
+    let needed = data.len() * 3;
     let mut dst = vec_with_len::<u8>(needed);
     let mut safe_dst = vec_with_len::<u8>(needed);
     let len = encoding_rs::mem::convert_utf16_to_utf8(data, &mut dst[..]);
@@ -137,7 +137,7 @@ fn fuzz_convert_utf16_to_utf8(data: &[u16]) {
 }
 
 fn fuzz_convert_utf16_to_str(data: &[u16]) {
-    let needed = data.len() * 3 + 1;
+    let needed = data.len() * 3;
     let mut dst = string_with_len(needed);
     let mut safe_dst = string_with_len(needed);
     let len = encoding_rs::mem::convert_utf16_to_str(data, &mut dst[..]);
