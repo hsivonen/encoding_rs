@@ -382,6 +382,11 @@ To regenerate the generated code:
 
 ## Release Notes
 
+### 0.8.14
+
+* Made UTF-16 to UTF-8 encode conversion fill the output buffer as
+  closely as possible.
+
 ### 0.8.13
 
 * Made the UTF-8 to UTF-16 decoder compare the number of code units written
