@@ -645,18 +645,52 @@ pub fn convert_utf16_to_utf16_partial_inner(src: &[u16], dst: &mut [u8]) -> (usi
                 // Unfortunately, this check isn't enough for the compiler to elide
                 // the bound checks on writes to dst, which is why they are manually
                 // elided, which makes a measurable difference.
-                if written.checked_add(4).unwrap() > dst.len() {
+                if written + 4 > dst.len() {
                     return (read, written);
                 }
                 read += 1;
                 if unit < 0x800 {
-                    unsafe {
-                        *(dst.get_unchecked_mut(written)) = (unit >> 6) as u8 | 0xC0u8;
-                        written += 1;
-                        *(dst.get_unchecked_mut(written)) = (unit & 0x3F) as u8 | 0x80u8;
-                        written += 1;
+                    'two: loop {
+                        unsafe {
+                            *(dst.get_unchecked_mut(written)) = (unit >> 6) as u8 | 0xC0u8;
+                            written += 1;
+                            *(dst.get_unchecked_mut(written)) = (unit & 0x3F) as u8 | 0x80u8;
+                            written += 1;
+                        }
+                        // Now see if the next unit is Basic Latin
+                        // read > src.len() is impossible, but using
+                        // >= instead of == allows the compiler to elide a bound check.
+                        if read >= src.len() {
+                            debug_assert_eq!(read, src.len());
+                            return (read, written);
+                        }
+                        unit = src[read];
+                        if unsafe { likely(in_range16(unit, 0x80, 0x800)) } {
+                            if written + 2 > dst.len() {
+                                return (read, written);
+                            }
+                            read += 1;
+                            continue 'two;
+                        }
+/*
+                        if unsafe { unlikely(unit < 0x80) } {
+                            // written > dst.len() is impossible, but using
+                            // >= instead of == allows the compiler to elide a bound check.
+                            if written >= dst.len() {
+                                debug_assert_eq!(written, dst.len());
+                                return (read, written);
+                            }
+                            dst[written] = unit as u8;
+                            read += 1;
+                            written += 1;
+                            // Mysteriously, adding a punctuation check here makes
+                            // the expected benificiary cases *slower*!
+                            continue 'outer;
+                        }
+                        continue 'inner;
+*/
+                        continue 'outer;
                     }
-                    break;
                 }
                 let unit_minus_surrogate_start = unit.wrapping_sub(0xD800);
                 if unsafe { likely(unit_minus_surrogate_start > (0xDFFF - 0xD800)) } {
