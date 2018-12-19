@@ -1608,6 +1608,10 @@ pub fn convert_str_to_utf16(src: &str, dst: &mut [u16]) -> usize {
 ///
 /// Returns the number of code units read and the number of bytes written.
 ///
+/// Guarantees that the bytes in the destination beyond the number of
+/// bytes claimed as written by the second item of the return tuple
+/// are left unmodified.
+///
 /// Not all code units are read if there isn't enough output space.
 ///
 /// Note  that this method isn't designed for general streamability but for
@@ -1615,12 +1619,14 @@ pub fn convert_str_to_utf16(src: &str, dst: &mut [u16]) -> usize {
 /// if the input starts with or ends with an unpaired surrogate, those are
 /// replaced with the REPLACEMENT CHARACTER.
 ///
+/// Matches the semantics of `TextEncoder.encodeInto()` from the
+/// Encoding Standard.
+///
 /// # Safety
 ///
-/// Note that this function may write garbage beyond the number of bytes
-/// indicated by the return value, so using a `&mut str` interpreted as
-/// `&mut [u8]` as the destination is not safe. If you want to convert into
-/// a `&mut str`, use `convert_utf16_to_str()` instead of this function.
+/// If you want to convert into a `&mut str`, use
+/// `convert_utf16_to_str_partial()` instead of using this function
+/// together with the `unsafe` method `as_bytes_mut()` on `&mut str`.
 #[inline(always)]
 pub fn convert_utf16_to_utf8_partial(src: &[u16], dst: &mut [u8]) -> (usize, usize) {
     // The two functions called below are marked `inline(never)` to make
@@ -1643,7 +1649,7 @@ pub fn convert_utf16_to_utf8_partial(src: &[u16], dst: &mut [u8]) -> (usize, usi
 /// with the REPLACEMENT CHARACTER.
 ///
 /// The length of the destination buffer must be at least the length of the
-/// source buffer times three _plus one_.
+/// source buffer times three.
 ///
 /// Returns the number of bytes written.
 ///
@@ -1653,13 +1659,12 @@ pub fn convert_utf16_to_utf8_partial(src: &[u16], dst: &mut [u8]) -> (usize, usi
 ///
 /// # Safety
 ///
-/// Note that this function may write garbage beyond the number of bytes
-/// indicated by the return value, so using a `&mut str` interpreted as
-/// `&mut [u8]` as the destination is not safe. If you want to convert into
-/// a `&mut str`, use `convert_utf16_to_str()` instead of this function.
+/// If you want to convert into a `&mut str`, use `convert_utf16_to_str()`
+/// instead of using this function together with the `unsafe` method
+/// `as_bytes_mut()` on `&mut str`.
 #[inline(always)]
 pub fn convert_utf16_to_utf8(src: &[u16], dst: &mut [u8]) -> usize {
-    assert!(dst.len() > src.len() * 3);
+    assert!(dst.len() >= src.len() * 3);
     let (read, written) = convert_utf16_to_utf8_partial(src, dst);
     debug_assert_eq!(read, src.len());
     written
@@ -1684,11 +1689,6 @@ pub fn convert_utf16_to_str_partial(src: &[u16], dst: &mut str) -> (usize, usize
     let (read, written) = convert_utf16_to_utf8_partial(src, bytes);
     let len = bytes.len();
     let mut trail = written;
-    let max = ::std::cmp::min(len, trail + MAX_STRIDE_SIZE);
-    while trail < max {
-        bytes[trail] = 0;
-        trail += 1;
-    }
     while trail < len && ((bytes[trail] & 0xC0) == 0x80) {
         bytes[trail] = 0;
         trail += 1;
@@ -1701,16 +1701,16 @@ pub fn convert_utf16_to_str_partial(src: &[u16], dst: &mut str) -> (usize, usize
 /// signaled using the Rust type system.
 ///
 /// The length of the destination buffer must be at least the length of the
-/// source buffer times three _plus one_.
+/// source buffer times three.
 ///
 /// Returns the number of bytes written.
 ///
 /// # Panics
 ///
 /// Panics if the destination buffer is shorter than stated above.
-#[inline]
+#[inline(always)]
 pub fn convert_utf16_to_str(src: &[u16], dst: &mut str) -> usize {
-    assert!(dst.len() > src.len() * 3);
+    assert!(dst.len() >= src.len() * 3);
     let (read, written) = convert_utf16_to_str_partial(src, dst);
     debug_assert_eq!(read, src.len());
     written
