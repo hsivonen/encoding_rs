@@ -916,6 +916,39 @@ mod tests {
         encode_from_utf8(UTF_8, string, expect);
     }
 
+    fn encode_utf8_from_utf16_with_output_limit(
+        string: &[u16],
+        expect: &str,
+        limit: usize,
+        expect_result: EncoderResult,
+    ) {
+        let mut dst = Vec::new();
+        {
+            dst.resize(limit, 0u8);
+            let mut encoder = UTF_8.new_encoder();
+            let (result, read, written) =
+                encoder.encode_from_utf16_without_replacement(string, &mut dst, false);
+            assert_eq!(result, expect_result);
+            if expect_result == EncoderResult::InputEmpty {
+                assert_eq!(read, string.len());
+            }
+            assert_eq!(&dst[..written], expect.as_bytes());
+        }
+        {
+            dst.resize(64, 0u8);
+            for (i, elem) in dst.iter_mut().enumerate() {
+                *elem = i as u8;
+            }
+            let mut encoder = UTF_8.new_encoder();
+            let (_, _, mut j) =
+                encoder.encode_from_utf16_without_replacement(string, &mut dst, false);
+            while j < dst.len() {
+                assert_eq!(usize::from(dst[j]), j);
+                j += 1;
+            }
+        }
+    }
+
     #[test]
     fn test_utf8_decode() {
         // Empty
@@ -1098,6 +1131,404 @@ mod tests {
         encode_utf8_from_utf16(&[0xD800, 0xDC00], "\u{10000}".as_bytes());
         encode_utf8_from_utf16(&[0xDBFF, 0xDFFF], "\u{10FFFF}".as_bytes());
         encode_utf8_from_utf16(&[0xDC00, 0xDEDE], "\u{FFFD}\u{FFFD}".as_bytes());
+    }
+
+    #[test]
+    fn test_encode_utf8_from_utf16_with_output_limit() {
+        encode_utf8_from_utf16_with_output_limit(&[0x0062], "\u{62}", 1, EncoderResult::InputEmpty);
+        encode_utf8_from_utf16_with_output_limit(&[0x00A7], "\u{A7}", 2, EncoderResult::InputEmpty);
+        encode_utf8_from_utf16_with_output_limit(
+            &[0x2603],
+            "\u{2603}",
+            3,
+            EncoderResult::InputEmpty,
+        );
+        encode_utf8_from_utf16_with_output_limit(
+            &[0xD83D, 0xDCA9],
+            "\u{1F4A9}",
+            4,
+            EncoderResult::InputEmpty,
+        );
+
+        encode_utf8_from_utf16_with_output_limit(&[0x00A7], "", 1, EncoderResult::OutputFull);
+        encode_utf8_from_utf16_with_output_limit(&[0x2603], "", 2, EncoderResult::OutputFull);
+        encode_utf8_from_utf16_with_output_limit(
+            &[0xD83D, 0xDCA9],
+            "",
+            3,
+            EncoderResult::OutputFull,
+        );
+
+        encode_utf8_from_utf16_with_output_limit(
+            &[0x0063, 0x0062],
+            "\u{63}\u{62}",
+            2,
+            EncoderResult::InputEmpty,
+        );
+        encode_utf8_from_utf16_with_output_limit(
+            &[0x0063, 0x00A7],
+            "\u{63}\u{A7}",
+            3,
+            EncoderResult::InputEmpty,
+        );
+        encode_utf8_from_utf16_with_output_limit(
+            &[0x0063, 0x2603],
+            "\u{63}\u{2603}",
+            4,
+            EncoderResult::InputEmpty,
+        );
+        encode_utf8_from_utf16_with_output_limit(
+            &[0x0063, 0xD83D, 0xDCA9],
+            "\u{63}\u{1F4A9}",
+            5,
+            EncoderResult::InputEmpty,
+        );
+
+        encode_utf8_from_utf16_with_output_limit(
+            &[0x0063, 0x00A7],
+            "\u{63}",
+            2,
+            EncoderResult::OutputFull,
+        );
+        encode_utf8_from_utf16_with_output_limit(
+            &[0x0063, 0x2603],
+            "\u{63}",
+            3,
+            EncoderResult::OutputFull,
+        );
+        encode_utf8_from_utf16_with_output_limit(
+            &[0x0063, 0xD83D, 0xDCA9],
+            "\u{63}",
+            4,
+            EncoderResult::OutputFull,
+        );
+
+        encode_utf8_from_utf16_with_output_limit(
+            &[0x00B6, 0x0062],
+            "\u{B6}\u{62}",
+            3,
+            EncoderResult::InputEmpty,
+        );
+        encode_utf8_from_utf16_with_output_limit(
+            &[0x00B6, 0x00A7],
+            "\u{B6}\u{A7}",
+            4,
+            EncoderResult::InputEmpty,
+        );
+        encode_utf8_from_utf16_with_output_limit(
+            &[0x00B6, 0x2603],
+            "\u{B6}\u{2603}",
+            5,
+            EncoderResult::InputEmpty,
+        );
+        encode_utf8_from_utf16_with_output_limit(
+            &[0x00B6, 0xD83D, 0xDCA9],
+            "\u{B6}\u{1F4A9}",
+            6,
+            EncoderResult::InputEmpty,
+        );
+
+        encode_utf8_from_utf16_with_output_limit(
+            &[0x00B6, 0x00A7],
+            "\u{B6}",
+            3,
+            EncoderResult::OutputFull,
+        );
+        encode_utf8_from_utf16_with_output_limit(
+            &[0x00B6, 0x2603],
+            "\u{B6}",
+            4,
+            EncoderResult::OutputFull,
+        );
+        encode_utf8_from_utf16_with_output_limit(
+            &[0x00B6, 0xD83D, 0xDCA9],
+            "\u{B6}",
+            5,
+            EncoderResult::OutputFull,
+        );
+
+        encode_utf8_from_utf16_with_output_limit(
+            &[0x263A, 0x0062],
+            "\u{263A}\u{62}",
+            4,
+            EncoderResult::InputEmpty,
+        );
+        encode_utf8_from_utf16_with_output_limit(
+            &[0x263A, 0x00A7],
+            "\u{263A}\u{A7}",
+            5,
+            EncoderResult::InputEmpty,
+        );
+        encode_utf8_from_utf16_with_output_limit(
+            &[0x263A, 0x2603],
+            "\u{263A}\u{2603}",
+            6,
+            EncoderResult::InputEmpty,
+        );
+        encode_utf8_from_utf16_with_output_limit(
+            &[0x263A, 0xD83D, 0xDCA9],
+            "\u{263A}\u{1F4A9}",
+            7,
+            EncoderResult::InputEmpty,
+        );
+
+        encode_utf8_from_utf16_with_output_limit(
+            &[0x263A, 0x00A7],
+            "\u{263A}",
+            4,
+            EncoderResult::OutputFull,
+        );
+        encode_utf8_from_utf16_with_output_limit(
+            &[0x263A, 0x2603],
+            "\u{263A}",
+            5,
+            EncoderResult::OutputFull,
+        );
+        encode_utf8_from_utf16_with_output_limit(
+            &[0x263A, 0xD83D, 0xDCA9],
+            "\u{263A}",
+            6,
+            EncoderResult::OutputFull,
+        );
+
+        encode_utf8_from_utf16_with_output_limit(
+            &[0xD83D, 0xDE0E, 0x0062],
+            "\u{1F60E}\u{62}",
+            5,
+            EncoderResult::InputEmpty,
+        );
+        encode_utf8_from_utf16_with_output_limit(
+            &[0xD83D, 0xDE0E, 0x00A7],
+            "\u{1F60E}\u{A7}",
+            6,
+            EncoderResult::InputEmpty,
+        );
+        encode_utf8_from_utf16_with_output_limit(
+            &[0xD83D, 0xDE0E, 0x2603],
+            "\u{1F60E}\u{2603}",
+            7,
+            EncoderResult::InputEmpty,
+        );
+        encode_utf8_from_utf16_with_output_limit(
+            &[0xD83D, 0xDE0E, 0xD83D, 0xDCA9],
+            "\u{1F60E}\u{1F4A9}",
+            8,
+            EncoderResult::InputEmpty,
+        );
+
+        encode_utf8_from_utf16_with_output_limit(
+            &[0xD83D, 0xDE0E, 0x00A7],
+            "\u{1F60E}",
+            5,
+            EncoderResult::OutputFull,
+        );
+        encode_utf8_from_utf16_with_output_limit(
+            &[0xD83D, 0xDE0E, 0x2603],
+            "\u{1F60E}",
+            6,
+            EncoderResult::OutputFull,
+        );
+        encode_utf8_from_utf16_with_output_limit(
+            &[0xD83D, 0xDE0E, 0xD83D, 0xDCA9],
+            "\u{1F60E}",
+            7,
+            EncoderResult::OutputFull,
+        );
+
+        encode_utf8_from_utf16_with_output_limit(
+            &[0x0063, 0x00B6, 0x0062, 0x0062],
+            "\u{63}\u{B6}\u{62}\u{62}",
+            5,
+            EncoderResult::InputEmpty,
+        );
+        encode_utf8_from_utf16_with_output_limit(
+            &[0x0063, 0x00B6, 0x0062, 0x0062],
+            "\u{63}\u{B6}\u{62}",
+            4,
+            EncoderResult::OutputFull,
+        );
+
+        encode_utf8_from_utf16_with_output_limit(
+            &[0x0063, 0x00B6, 0x0062, 0x0062, 0x0062],
+            "\u{63}\u{B6}\u{62}\u{62}\u{62}",
+            6,
+            EncoderResult::InputEmpty,
+        );
+        encode_utf8_from_utf16_with_output_limit(
+            &[0x0063, 0x00B6, 0x0062, 0x0062, 0x0062],
+            "\u{63}\u{B6}\u{62}\u{62}",
+            5,
+            EncoderResult::OutputFull,
+        );
+
+        encode_utf8_from_utf16_with_output_limit(
+            &[0x263A, 0x0062, 0x0062],
+            "\u{263A}\u{62}\u{62}",
+            5,
+            EncoderResult::InputEmpty,
+        );
+        encode_utf8_from_utf16_with_output_limit(
+            &[0x263A, 0x0062, 0x0062],
+            "\u{263A}\u{62}",
+            4,
+            EncoderResult::OutputFull,
+        );
+
+        encode_utf8_from_utf16_with_output_limit(
+            &[0x263A, 0x0062, 0x0062, 0x0062],
+            "\u{263A}\u{62}\u{62}\u{62}",
+            6,
+            EncoderResult::InputEmpty,
+        );
+        encode_utf8_from_utf16_with_output_limit(
+            &[0x263A, 0x0062, 0x0062, 0x0062],
+            "\u{263A}\u{62}\u{62}",
+            5,
+            EncoderResult::OutputFull,
+        );
+
+        encode_utf8_from_utf16_with_output_limit(
+            &[0x0063, 0x00B6, 0x00A7],
+            "\u{63}\u{B6}\u{A7}",
+            5,
+            EncoderResult::InputEmpty,
+        );
+        encode_utf8_from_utf16_with_output_limit(
+            &[0x0063, 0x00B6, 0x00A7],
+            "\u{63}\u{B6}",
+            4,
+            EncoderResult::OutputFull,
+        );
+
+        encode_utf8_from_utf16_with_output_limit(
+            &[0x0063, 0x00B6, 0x00A7, 0x0062],
+            "\u{63}\u{B6}\u{A7}\u{62}",
+            6,
+            EncoderResult::InputEmpty,
+        );
+        encode_utf8_from_utf16_with_output_limit(
+            &[0x0063, 0x00B6, 0x00A7, 0x0062],
+            "\u{63}\u{B6}\u{A7}",
+            5,
+            EncoderResult::OutputFull,
+        );
+
+        encode_utf8_from_utf16_with_output_limit(
+            &[0x263A, 0x00A7, 0x0062],
+            "\u{263A}\u{A7}\u{62}",
+            6,
+            EncoderResult::InputEmpty,
+        );
+        encode_utf8_from_utf16_with_output_limit(
+            &[0x263A, 0x00A7, 0x0062],
+            "\u{263A}\u{A7}",
+            5,
+            EncoderResult::OutputFull,
+        );
+
+        encode_utf8_from_utf16_with_output_limit(
+            &[0x0063, 0x00B6, 0x0062, 0x00A7],
+            "\u{63}\u{B6}\u{62}\u{A7}",
+            6,
+            EncoderResult::InputEmpty,
+        );
+        encode_utf8_from_utf16_with_output_limit(
+            &[0x0063, 0x00B6, 0x0062, 0x00A7],
+            "\u{63}\u{B6}\u{62}",
+            5,
+            EncoderResult::OutputFull,
+        );
+
+        encode_utf8_from_utf16_with_output_limit(
+            &[0x263A, 0x0062, 0x00A7],
+            "\u{263A}\u{62}\u{A7}",
+            6,
+            EncoderResult::InputEmpty,
+        );
+        encode_utf8_from_utf16_with_output_limit(
+            &[0x263A, 0x0062, 0x00A7],
+            "\u{263A}\u{62}",
+            5,
+            EncoderResult::OutputFull,
+        );
+
+        encode_utf8_from_utf16_with_output_limit(
+            &[0x0063, 0x00B6, 0x2603],
+            "\u{63}\u{B6}\u{2603}",
+            6,
+            EncoderResult::InputEmpty,
+        );
+        encode_utf8_from_utf16_with_output_limit(
+            &[0x0063, 0x00B6, 0x2603],
+            "\u{63}\u{B6}",
+            5,
+            EncoderResult::OutputFull,
+        );
+
+        encode_utf8_from_utf16_with_output_limit(
+            &[0x263A, 0x2603],
+            "\u{263A}\u{2603}",
+            6,
+            EncoderResult::InputEmpty,
+        );
+        encode_utf8_from_utf16_with_output_limit(
+            &[0x263A, 0x2603],
+            "\u{263A}",
+            5,
+            EncoderResult::OutputFull,
+        );
+
+        encode_utf8_from_utf16_with_output_limit(
+            &[0x0063, 0x00B6, 0xD83D],
+            "\u{63}\u{B6}\u{FFFD}",
+            6,
+            EncoderResult::InputEmpty,
+        );
+        encode_utf8_from_utf16_with_output_limit(
+            &[0x0063, 0x00B6, 0xD83D],
+            "\u{63}\u{B6}",
+            5,
+            EncoderResult::OutputFull,
+        );
+
+        encode_utf8_from_utf16_with_output_limit(
+            &[0x263A, 0xD83D],
+            "\u{263A}\u{FFFD}",
+            6,
+            EncoderResult::InputEmpty,
+        );
+        encode_utf8_from_utf16_with_output_limit(
+            &[0x263A, 0xD83D],
+            "\u{263A}",
+            5,
+            EncoderResult::OutputFull,
+        );
+
+        encode_utf8_from_utf16_with_output_limit(
+            &[0x0063, 0x00B6, 0xDCA9],
+            "\u{63}\u{B6}\u{FFFD}",
+            6,
+            EncoderResult::InputEmpty,
+        );
+        encode_utf8_from_utf16_with_output_limit(
+            &[0x0063, 0x00B6, 0xDCA9],
+            "\u{63}\u{B6}",
+            5,
+            EncoderResult::OutputFull,
+        );
+
+        encode_utf8_from_utf16_with_output_limit(
+            &[0x263A, 0xDCA9],
+            "\u{263A}\u{FFFD}",
+            6,
+            EncoderResult::InputEmpty,
+        );
+        encode_utf8_from_utf16_with_output_limit(
+            &[0x263A, 0xDCA9],
+            "\u{263A}",
+            5,
+            EncoderResult::OutputFull,
+        );
     }
 
     #[test]
