@@ -29,7 +29,6 @@ use super::in_inclusive_range8;
 use super::in_range16;
 use super::in_range32;
 use super::DecoderResult;
-use super::EncoderResult;
 use ascii::*;
 use utf_8::*;
 
@@ -39,8 +38,14 @@ macro_rules! non_fuzz_debug_assert {
 
 cfg_if! {
     if #[cfg(feature = "simd-accel")] {
+        use ::std::intrinsics::likely;
         use ::std::intrinsics::unlikely;
     } else {
+        #[inline(always)]
+        // Unsafe to match the intrinsic, which is needlessly unsafe.
+        unsafe fn likely(b: bool) -> bool {
+            b
+        }
         #[inline(always)]
         // Unsafe to match the intrinsic, which is needlessly unsafe.
         unsafe fn unlikely(b: bool) -> bool {
@@ -1616,12 +1621,22 @@ pub fn convert_str_to_utf16(src: &str, dst: &mut [u16]) -> usize {
 /// indicated by the return value, so using a `&mut str` interpreted as
 /// `&mut [u8]` as the destination is not safe. If you want to convert into
 /// a `&mut str`, use `convert_utf16_to_str()` instead of this function.
-#[inline]
+#[inline(always)]
 pub fn convert_utf16_to_utf8_partial(src: &[u16], dst: &mut [u8]) -> (usize, usize) {
-    let mut encoder = Utf8Encoder;
-    let (result, read, written) = encoder.encode_from_utf16_raw(src, dst, true);
-    debug_assert!(result == EncoderResult::OutputFull || read == src.len());
-    (read, written)
+    // The two functions called below are marked `inline(never)` to make
+    // transitions from the hot part (first function) into the cold part
+    // (second function) go through a return and another call to discouge
+    // the CPU from speculating from the hot code into the cold code.
+    // Letting the transitions be mere intra-function jumps, even to
+    // always-later basic blocks would wipe away a quarter of Arabic encode
+    // performance on Haswell!
+    let (read, written) = convert_utf16_to_utf16_partial_inner(src, dst);
+    if unsafe { likely(read == src.len()) } {
+        return (read, written);
+    }
+    let (tail_read, tail_written) =
+        convert_utf16_to_utf16_partial_tail(&src[read..], &mut dst[written..]);
+    (read + tail_read, written + tail_written)
 }
 
 /// Converts potentially-invalid UTF-16 to valid UTF-8 with errors replaced
@@ -1642,7 +1657,7 @@ pub fn convert_utf16_to_utf8_partial(src: &[u16], dst: &mut [u8]) -> (usize, usi
 /// indicated by the return value, so using a `&mut str` interpreted as
 /// `&mut [u8]` as the destination is not safe. If you want to convert into
 /// a `&mut str`, use `convert_utf16_to_str()` instead of this function.
-#[inline]
+#[inline(always)]
 pub fn convert_utf16_to_utf8(src: &[u16], dst: &mut [u8]) -> usize {
     assert!(dst.len() > src.len() * 3);
     let (read, written) = convert_utf16_to_utf8_partial(src, dst);

@@ -12,6 +12,7 @@ use ascii::ascii_to_basic_latin;
 use ascii::basic_latin_to_ascii;
 use ascii::validate_ascii;
 use handles::*;
+use mem::convert_utf16_to_utf8_partial;
 use variant::*;
 
 cfg_if! {
@@ -611,7 +612,7 @@ impl Utf8Decoder {
 
 #[cfg_attr(feature = "cargo-clippy", allow(never_loop))]
 #[inline(never)]
-fn convert_utf16_to_utf16_partial_inner(src: &[u16], dst: &mut [u8]) -> (usize, usize) {
+pub fn convert_utf16_to_utf16_partial_inner(src: &[u16], dst: &mut [u8]) -> (usize, usize) {
     let mut read = 0;
     let mut written = 0;
     'outer: loop {
@@ -749,6 +750,83 @@ fn convert_utf16_to_utf16_partial_inner(src: &[u16], dst: &mut [u8]) -> (usize, 
     }
 }
 
+#[inline(never)]
+pub fn convert_utf16_to_utf16_partial_tail(src: &[u16], dst: &mut [u8]) -> (usize, usize) {
+    // Everything below is cold code!
+    let mut read = 0;
+    let mut written = 0;
+    let mut unit = src[read];
+    // We now have up to 3 output slots, so an astral character
+    // will not fit.
+    if unit < 0x800 {
+        loop {
+            if unit < 0x80 {
+                if written >= dst.len() {
+                    return (read, written);
+                }
+                read += 1;
+                dst[written] = unit as u8;
+                written += 1;
+            } else if unit < 0x800 {
+                if written + 2 > dst.len() {
+                    return (read, written);
+                }
+                read += 1;
+                dst[written] = (unit >> 6) as u8 | 0xC0u8;
+                written += 1;
+                dst[written] = (unit & 0x3F) as u8 | 0x80u8;
+                written += 1;
+            } else {
+                return (read, written);
+            }
+            // read > src.len() is impossible, but using
+            // >= instead of == allows the compiler to elide a bound check.
+            if read >= src.len() {
+                debug_assert_eq!(read, src.len());
+                return (read, written);
+            }
+            unit = src[read];
+        }
+    }
+    // Could be an unpaired surrogate, but we'll need 3 output
+    // slots in any case.
+    if written + 3 > dst.len() {
+        return (read, written);
+    }
+    read += 1;
+    let unit_minus_surrogate_start = unit.wrapping_sub(0xD800);
+    if unit_minus_surrogate_start <= (0xDFFF - 0xD800) {
+        // Got surrogate
+        if unit_minus_surrogate_start <= (0xDBFF - 0xD800) {
+            // Got high surrogate
+            if read >= src.len() {
+                // Unpaired high surrogate
+                unit = 0xFFFD;
+            } else {
+                let second = src[read];
+                if in_inclusive_range16(second, 0xDC00, 0xDFFF) {
+                    // Valid surrogate pair, but we know it won't fit.
+                    read -= 1;
+                    return (read, written);
+                }
+                // Unpaired high
+                unit = 0xFFFD;
+            }
+        } else {
+            // Unpaired low
+            unit = 0xFFFD;
+        }
+    }
+    dst[written] = (unit >> 12) as u8 | 0xE0u8;
+    written += 1;
+    dst[written] = ((unit & 0xFC0) >> 6) as u8 | 0x80u8;
+    written += 1;
+    dst[written] = (unit & 0x3F) as u8 | 0x80u8;
+    written += 1;
+    debug_assert_eq!(written, dst.len());
+    (read, written)
+}
+
 pub struct Utf8Encoder;
 
 impl Utf8Encoder {
@@ -776,7 +854,7 @@ impl Utf8Encoder {
         dst: &mut [u8],
         _last: bool,
     ) -> (EncoderResult, usize, usize) {
-        let (read, written) = convert_utf16_to_utf16_partial_inner(src, dst);
+        let (read, written) = convert_utf16_to_utf8_partial(src, dst);
         (
             if read == src.len() {
                 EncoderResult::InputEmpty
