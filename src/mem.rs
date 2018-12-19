@@ -37,7 +37,7 @@ macro_rules! non_fuzz_debug_assert {
     ($($arg:tt)*) => (if !cfg!(fuzzing) { debug_assert!($($arg)*); })
 }
 
-cfg_if!{
+cfg_if! {
     if #[cfg(feature = "simd-accel")] {
         use ::std::intrinsics::unlikely;
     } else {
@@ -220,7 +220,7 @@ macro_rules! by_unit_check_simd {
     };
 }
 
-cfg_if!{
+cfg_if! {
     if #[cfg(all(feature = "simd-accel", any(target_feature = "sse2", all(target_endian = "little", target_arch = "aarch64"), all(target_endian = "little", target_feature = "neon"))))] {
         use simd_funcs::*;
         use simd::u8x16;
@@ -352,7 +352,7 @@ fn utf16_valid_up_to_alu(buffer: &[u16]) -> (usize, bool) {
     }
 }
 
-cfg_if!{
+cfg_if! {
     if #[cfg(all(feature = "simd-accel", any(target_feature = "sse2", all(target_endian = "little", target_arch = "aarch64"), all(target_endian = "little", target_feature = "neon"))))] {
         #[inline(always)]
         fn is_str_latin1_impl(buffer: &str) -> Option<usize> {
@@ -441,7 +441,7 @@ fn is_utf8_latin1_impl(buffer: &[u8]) -> Option<usize> {
     }
 }
 
-cfg_if!{
+cfg_if! {
     if #[cfg(all(feature = "simd-accel", any(target_feature = "sse2", all(target_endian = "little", target_arch = "aarch64"), all(target_endian = "little", target_feature = "neon"))))] {
         #[inline(always)]
         fn is_utf16_bidi_impl(buffer: &[u16]) -> bool {
@@ -491,7 +491,7 @@ cfg_if!{
     }
 }
 
-cfg_if!{
+cfg_if! {
     if #[cfg(all(feature = "simd-accel", any(target_feature = "sse2", all(target_endian = "little", target_arch = "aarch64"), all(target_endian = "little", target_feature = "neon"))))] {
         #[inline(always)]
         fn check_utf16_for_latin1_and_bidi_impl(buffer: &[u16]) -> Latin1Bidi {
@@ -687,10 +687,7 @@ pub fn is_utf16_latin1(buffer: &[u16]) -> bool {
 /// Returns `true` if the input is invalid UTF-8 or the input contains an
 /// RTL character. Returns `false` if the input is valid UTF-8 and contains
 /// no RTL characters.
-#[cfg_attr(
-    feature = "cargo-clippy",
-    allow(collapsible_if, cyclomatic_complexity)
-)]
+#[cfg_attr(feature = "cargo-clippy", allow(collapsible_if, cyclomatic_complexity))]
 #[inline]
 pub fn is_utf8_bidi(buffer: &[u8]) -> bool {
     // As of rustc 1.25.0-nightly (73ac5d6a8 2018-01-11), this is faster
@@ -771,9 +768,11 @@ pub fn is_utf8_bidi(buffer: &[u8]) -> bool {
                             // Three-byte normal
                             let second = unsafe { *(src.get_unchecked(read + 1)) };
                             let third = unsafe { *(src.get_unchecked(read + 2)) };
-                            if ((UTF8_DATA.table[usize::from(second)] & unsafe {
-                                *(UTF8_DATA.table.get_unchecked(byte as usize + 0x80))
-                            }) | (third >> 6))
+                            if ((UTF8_DATA.table[usize::from(second)]
+                                & unsafe {
+                                    *(UTF8_DATA.table.get_unchecked(byte as usize + 0x80))
+                                })
+                                | (third >> 6))
                                 != 2
                             {
                                 return true;
@@ -784,9 +783,11 @@ pub fn is_utf8_bidi(buffer: &[u8]) -> bool {
                             // Three-byte normal, potentially bidi
                             let second = unsafe { *(src.get_unchecked(read + 1)) };
                             let third = unsafe { *(src.get_unchecked(read + 2)) };
-                            if ((UTF8_DATA.table[usize::from(second)] & unsafe {
-                                *(UTF8_DATA.table.get_unchecked(byte as usize + 0x80))
-                            }) | (third >> 6))
+                            if ((UTF8_DATA.table[usize::from(second)]
+                                & unsafe {
+                                    *(UTF8_DATA.table.get_unchecked(byte as usize + 0x80))
+                                })
+                                | (third >> 6))
                                 != 2
                             {
                                 return true;
@@ -806,9 +807,11 @@ pub fn is_utf8_bidi(buffer: &[u8]) -> bool {
                             // Three-byte normal, potentially bidi
                             let second = unsafe { *(src.get_unchecked(read + 1)) };
                             let third = unsafe { *(src.get_unchecked(read + 2)) };
-                            if ((UTF8_DATA.table[usize::from(second)] & unsafe {
-                                *(UTF8_DATA.table.get_unchecked(byte as usize + 0x80))
-                            }) | (third >> 6))
+                            if ((UTF8_DATA.table[usize::from(second)]
+                                & unsafe {
+                                    *(UTF8_DATA.table.get_unchecked(byte as usize + 0x80))
+                                })
+                                | (third >> 6))
                                 != 2
                             {
                                 return true;
@@ -840,9 +843,11 @@ pub fn is_utf8_bidi(buffer: &[u8]) -> bool {
                             // Three-byte special lower bound, potentially bidi
                             let second = unsafe { *(src.get_unchecked(read + 1)) };
                             let third = unsafe { *(src.get_unchecked(read + 2)) };
-                            if ((UTF8_DATA.table[usize::from(second)] & unsafe {
-                                *(UTF8_DATA.table.get_unchecked(byte as usize + 0x80))
-                            }) | (third >> 6))
+                            if ((UTF8_DATA.table[usize::from(second)]
+                                & unsafe {
+                                    *(UTF8_DATA.table.get_unchecked(byte as usize + 0x80))
+                                })
+                                | (third >> 6))
                                 != 2
                             {
                                 return true;
@@ -857,9 +862,11 @@ pub fn is_utf8_bidi(buffer: &[u8]) -> bool {
                             // Three-byte special upper bound
                             let second = unsafe { *(src.get_unchecked(read + 1)) };
                             let third = unsafe { *(src.get_unchecked(read + 2)) };
-                            if ((UTF8_DATA.table[usize::from(second)] & unsafe {
-                                *(UTF8_DATA.table.get_unchecked(byte as usize + 0x80))
-                            }) | (third >> 6))
+                            if ((UTF8_DATA.table[usize::from(second)]
+                                & unsafe {
+                                    *(UTF8_DATA.table.get_unchecked(byte as usize + 0x80))
+                                })
+                                | (third >> 6))
                                 != 2
                             {
                                 return true;

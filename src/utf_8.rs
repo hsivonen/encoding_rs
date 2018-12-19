@@ -14,7 +14,7 @@ use ascii::validate_ascii;
 use handles::*;
 use variant::*;
 
-cfg_if!{
+cfg_if! {
     if #[cfg(feature = "simd-accel")] {
         use ::std::intrinsics::unlikely;
         use ::std::intrinsics::likely;
@@ -233,10 +233,7 @@ pub fn utf8_valid_up_to(src: &[u8]) -> usize {
     read
 }
 
-#[cfg_attr(
-    feature = "cargo-clippy",
-    allow(never_loop, cyclomatic_complexity)
-)]
+#[cfg_attr(feature = "cargo-clippy", allow(never_loop, cyclomatic_complexity))]
 pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usize, usize) {
     // This algorithm differs from the UTF-8 validation algorithm, but making
     // this one consistent with that one makes this slower for reasons I don't
@@ -1114,7 +1111,6 @@ mod tests {
             assert!(!had_errors);
             assert_eq!(output[0], 0x00E4);
         }
-
     }
 
 }
