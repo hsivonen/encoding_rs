@@ -1634,8 +1634,8 @@ pub fn convert_utf16_to_utf8_partial(src: &[u16], dst: &mut [u8]) -> (usize, usi
     // (second function) go through a return and another call to discouge
     // the CPU from speculating from the hot code into the cold code.
     // Letting the transitions be mere intra-function jumps, even to
-    // always-later basic blocks would wipe away a quarter of Arabic encode
-    // performance on Haswell!
+    // basic blocks out-of-lined to the end of the function would wipe
+    // away a quarter of Arabic encode performance on Haswell!
     let (read, written) = convert_utf16_to_utf16_partial_inner(src, dst);
     if unsafe { likely(read == src.len()) } {
         return (read, written);
