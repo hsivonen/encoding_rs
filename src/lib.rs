@@ -11,7 +11,7 @@
     feature = "cargo-clippy",
     allow(doc_markdown, inline_always, new_ret_no_self)
 )]
-#![doc(html_root_url = "https://docs.rs/encoding_rs/0.8.10")]
+#![doc(html_root_url = "https://docs.rs/encoding_rs/0.8.13")]
 
 //! encoding_rs is a Gecko-oriented Free Software / Open Source implementation
 //! of the [Encoding Standard](https://encoding.spec.whatwg.org/) in Rust.
@@ -27,6 +27,9 @@
 //! For expectation setting, please be sure to read the sections
 //! [_UTF-16LE, UTF-16BE and Unicode Encoding Schemes_](#utf-16le-utf-16be-and-unicode-encoding-schemes),
 //! [_ISO-8859-1_](#iso-8859-1) and [_Web / Browser Focus_](#web--browser-focus) below.
+//!
+//! There is a [long-form write-up](https://hsivonen.fi/encoding_rs/) about the
+//! design and internals of the crate.
 //!
 //! # Availability
 //!
@@ -231,16 +234,19 @@
 //! performance, the decoder for ISO-2022-JP optimizes for ease/clarity
 //! of implementation.
 //!
-//! Despite the focus on the Web, encoding_rs may well be useful for decoding
-//! email, although you'll need to implement UTF-7 decoding and label handling
-//! by other means. (Due to the Web focus, patches to add UTF-7 are unwelcome
-//! in encoding_rs itself.) Also, despite the browser focus, the hope is that
-//! non-browser applications that wish to consume Web content or submit Web
-//! forms in a Web-compatible way will find encoding_rs useful. While
-//! encoding_rs does not try to match Windows behavior, many of the encodings
-//! are close enough to legacy encodings implemented by Windows that
-//! applications that need to consume data in legacy Windows encodins may
-//! find encoding_rs useful.
+//! Despite the browser focus, the hope is that non-browser applications
+//! that wish to consume Web content or submit Web forms in a Web-compatible
+//! way will find encoding_rs useful. While encoding_rs does not try to match
+//! Windows behavior, many of the encodings are close enough to legacy
+//! encodings implemented by Windows that applications that need to consume
+//! data in legacy Windows encodins may find encoding_rs useful. The
+//! [codepage](https://crates.io/crates/codepage) crate maps from Windows
+//! code page identifiers onto encoding_rs `Encoding`s and vice versa.
+//!
+//! For decoding email, UTF-7 support is needed (unfortunately) in additition
+//! to the encodings defined in the Encoding Standard. The
+//! [charset](https://crates.io/crates/charset) wraps encoding_rs and adds
+//! UTF-7 decoding for email purposes.
 //!
 //! # Streaming & Non-Streaming; Rust & C/C++
 //!
@@ -698,13 +704,6 @@ mod macros;
     )
 ))]
 mod simd_funcs;
-
-#[cfg(any(
-    all(feature = "simd-accel", target_feature = "sse2"),
-    all(target_endian = "little", target_arch = "aarch64"),
-    all(target_endian = "little", target_arch = "arm")
-))]
-mod utf_8_core;
 
 #[cfg(test)]
 mod testing;

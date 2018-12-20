@@ -31,6 +31,28 @@
 ))]
 use simd_funcs::*;
 
+cfg_if! {
+    if #[cfg(feature = "simd-accel")] {
+        #[allow(unused_imports)]
+        use ::std::intrinsics::unlikely;
+        #[allow(unused_imports)]
+        use ::std::intrinsics::likely;
+    } else {
+        #[allow(dead_code)]
+        #[inline(always)]
+        // Unsafe to match the intrinsic, which is needlessly unsafe.
+        unsafe fn unlikely(b: bool) -> bool {
+            b
+        }
+        #[allow(dead_code)]
+        #[inline(always)]
+        // Unsafe to match the intrinsic, which is needlessly unsafe.
+        unsafe fn likely(b: bool) -> bool {
+            b
+        }
+    }
+}
+
 // `as` truncates, so works on 32-bit, too.
 #[allow(dead_code)]
 pub const ASCII_MASK: usize = 0x8080_8080_8080_8080u64 as usize;
@@ -400,6 +422,129 @@ macro_rules! ascii_simd_check_align {
 }
 
 #[allow(unused_macros)]
+macro_rules! ascii_simd_check_align_unrolled {
+    (
+        $name:ident,
+        $src_unit:ty,
+        $dst_unit:ty,
+        $stride_both_aligned:ident,
+        $stride_src_aligned:ident,
+        $stride_neither_aligned:ident,
+        $double_stride_both_aligned:ident,
+        $double_stride_src_aligned:ident
+    ) => {
+        #[inline(always)]
+        pub unsafe fn $name(
+            src: *const $src_unit,
+            dst: *mut $dst_unit,
+            len: usize,
+        ) -> Option<($src_unit, usize)> {
+            let unit_size = ::std::mem::size_of::<$src_unit>();
+            let mut offset = 0usize;
+            // This loop is only broken out of as a goto forward without
+            // actually looping
+            'outer: loop {
+                if SIMD_STRIDE_SIZE <= len {
+                    // First, process one unaligned
+                    if !$stride_neither_aligned(src, dst) {
+                        break 'outer;
+                    }
+                    offset = SIMD_STRIDE_SIZE;
+
+                    // We have now seen 16 ASCII bytes. Let's guess that
+                    // there will be enough more to justify more expense
+                    // in the case of non-ASCII.
+                    // Use aligned reads for the sake of old microachitectures.
+                    let until_alignment = ((SIMD_ALIGNMENT
+                        - ((src.add(offset) as usize) & SIMD_ALIGNMENT_MASK))
+                        & SIMD_ALIGNMENT_MASK)
+                        / unit_size;
+                    // This addition won't overflow, because even in the 32-bit PAE case the
+                    // address space holds enough code that the slice length can't be that
+                    // close to address space size.
+                    // offset now equals SIMD_STRIDE_SIZE, hence times 3 below.
+                    if until_alignment + (SIMD_STRIDE_SIZE * 3) <= len {
+                        if until_alignment != 0 {
+                            if !$stride_neither_aligned(src.add(offset), dst.add(offset)) {
+                                break;
+                            }
+                            offset += until_alignment;
+                        }
+                        let len_minus_stride_times_two = len - (SIMD_STRIDE_SIZE * 2);
+                        let dst_masked = (dst.add(offset) as usize) & SIMD_ALIGNMENT_MASK;
+                        if dst_masked == 0 {
+                            loop {
+                                if let Some(advance) =
+                                    $double_stride_both_aligned(src.add(offset), dst.add(offset))
+                                {
+                                    offset += advance;
+                                    let code_unit = *(src.add(offset));
+                                    return Some((code_unit, offset));
+                                }
+                                offset += SIMD_STRIDE_SIZE * 2;
+                                if offset > len_minus_stride_times_two {
+                                    break;
+                                }
+                            }
+                            if offset + SIMD_STRIDE_SIZE <= len {
+                                if !$stride_both_aligned(src.add(offset), dst.add(offset)) {
+                                    break 'outer;
+                                }
+                                offset += SIMD_STRIDE_SIZE;
+                            }
+                        } else {
+                            loop {
+                                if let Some(advance) =
+                                    $double_stride_src_aligned(src.add(offset), dst.add(offset))
+                                {
+                                    offset += advance;
+                                    let code_unit = *(src.add(offset));
+                                    return Some((code_unit, offset));
+                                }
+                                offset += SIMD_STRIDE_SIZE * 2;
+                                if offset > len_minus_stride_times_two {
+                                    break;
+                                }
+                            }
+                            if offset + SIMD_STRIDE_SIZE <= len {
+                                if !$stride_src_aligned(src.add(offset), dst.add(offset)) {
+                                    break 'outer;
+                                }
+                                offset += SIMD_STRIDE_SIZE;
+                            }
+                        }
+                    } else {
+                        // At most two iterations, so unroll
+                        if offset + SIMD_STRIDE_SIZE <= len {
+                            if !$stride_neither_aligned(src.add(offset), dst.add(offset)) {
+                                break;
+                            }
+                            offset += SIMD_STRIDE_SIZE;
+                            if offset + SIMD_STRIDE_SIZE <= len {
+                                if !$stride_neither_aligned(src.add(offset), dst.add(offset)) {
+                                    break;
+                                }
+                                offset += SIMD_STRIDE_SIZE;
+                            }
+                        }
+                    }
+                }
+                break 'outer;
+            }
+            while offset < len {
+                let code_unit = *(src.add(offset));
+                if code_unit > 127 {
+                    return Some((code_unit, offset));
+                }
+                *(dst.add(offset)) = code_unit as $dst_unit;
+                offset += 1;
+            }
+            None
+        }
+    };
+}
+
+#[allow(unused_macros)]
 macro_rules! latin1_simd_check_align {
     (
         $name:ident,
@@ -616,6 +761,29 @@ macro_rules! ascii_to_ascii_simd_stride {
 }
 
 #[allow(unused_macros)]
+macro_rules! ascii_to_ascii_simd_double_stride {
+    ($name:ident, $store:ident) => {
+        #[inline(always)]
+        pub unsafe fn $name(src: *const u8, dst: *mut u8) -> Option<usize> {
+            let first = load16_aligned(src);
+            let second = load16_aligned(src.add(SIMD_STRIDE_SIZE));
+            $store(dst, first);
+            if unlikely(!simd_is_ascii(first | second)) {
+                let mask_first = mask_ascii(first);
+                if mask_first != 0 {
+                    return Some(mask_first.trailing_zeros() as usize);
+                }
+                $store(dst.add(SIMD_STRIDE_SIZE), second);
+                let mask_second = mask_ascii(second);
+                return Some(SIMD_STRIDE_SIZE + mask_second.trailing_zeros() as usize);
+            }
+            $store(dst.add(SIMD_STRIDE_SIZE), second);
+            None
+        }
+    };
+}
+
+#[allow(unused_macros)]
 macro_rules! ascii_to_basic_latin_simd_stride {
     ($name:ident, $load:ident, $store:ident) => {
         #[inline(always)]
@@ -628,6 +796,35 @@ macro_rules! ascii_to_basic_latin_simd_stride {
             $store(dst, first);
             $store(dst.add(8), second);
             true
+        }
+    };
+}
+
+#[allow(unused_macros)]
+macro_rules! ascii_to_basic_latin_simd_double_stride {
+    ($name:ident, $store:ident) => {
+        #[inline(always)]
+        pub unsafe fn $name(src: *const u8, dst: *mut u16) -> Option<usize> {
+            let first = load16_aligned(src);
+            let second = load16_aligned(src.add(SIMD_STRIDE_SIZE));
+            let (a, b) = simd_unpack(first);
+            $store(dst, a);
+            $store(dst.add(SIMD_STRIDE_SIZE / 2), b);
+            if unlikely(!simd_is_ascii(first | second)) {
+                let mask_first = mask_ascii(first);
+                if mask_first != 0 {
+                    return Some(mask_first.trailing_zeros() as usize);
+                }
+                let (c, d) = simd_unpack(second);
+                $store(dst.add(SIMD_STRIDE_SIZE), c);
+                $store(dst.add(SIMD_STRIDE_SIZE + (SIMD_STRIDE_SIZE / 2)), d);
+                let mask_second = mask_ascii(second);
+                return Some(SIMD_STRIDE_SIZE + mask_second.trailing_zeros() as usize);
+            }
+            let (c, d) = simd_unpack(second);
+            $store(dst.add(SIMD_STRIDE_SIZE), c);
+            $store(dst.add(SIMD_STRIDE_SIZE + (SIMD_STRIDE_SIZE / 2)), d);
+            None
         }
     };
 }
@@ -683,6 +880,12 @@ cfg_if! {
         pub const MAX_STRIDE_SIZE: usize = 16;
 
 //        pub const ALIGNMENT: usize = 8;
+
+        pub const ALU_STRIDE_SIZE: usize = 16;
+
+        pub const ALU_ALIGNMENT: usize = 8;
+
+        pub const ALU_ALIGNMENT_MASK: usize = 7;
 
         ascii_to_ascii_simd_stride!(ascii_to_ascii_stride_neither_aligned, load16_unaligned, store16_unaligned);
 
@@ -749,18 +952,24 @@ cfg_if! {
 
         pub const SIMD_STRIDE_SIZE: usize = 16;
 
+        pub const SIMD_ALIGNMENT: usize = 16;
+
         pub const MAX_STRIDE_SIZE: usize = 16;
 
         pub const SIMD_ALIGNMENT_MASK: usize = 15;
 
+        ascii_to_ascii_simd_double_stride!(ascii_to_ascii_simd_double_stride_both_aligned, store16_aligned);
+        ascii_to_ascii_simd_double_stride!(ascii_to_ascii_simd_double_stride_src_aligned, store16_unaligned);
+
+        ascii_to_basic_latin_simd_double_stride!(ascii_to_basic_latin_simd_double_stride_both_aligned, store8_aligned);
+        ascii_to_basic_latin_simd_double_stride!(ascii_to_basic_latin_simd_double_stride_src_aligned, store8_unaligned);
+
         ascii_to_ascii_simd_stride!(ascii_to_ascii_stride_both_aligned, load16_aligned, store16_aligned);
         ascii_to_ascii_simd_stride!(ascii_to_ascii_stride_src_aligned, load16_aligned, store16_unaligned);
-        ascii_to_ascii_simd_stride!(ascii_to_ascii_stride_dst_aligned, load16_unaligned, store16_aligned);
         ascii_to_ascii_simd_stride!(ascii_to_ascii_stride_neither_aligned, load16_unaligned, store16_unaligned);
 
         ascii_to_basic_latin_simd_stride!(ascii_to_basic_latin_stride_both_aligned, load16_aligned, store8_aligned);
         ascii_to_basic_latin_simd_stride!(ascii_to_basic_latin_stride_src_aligned, load16_aligned, store8_unaligned);
-        ascii_to_basic_latin_simd_stride!(ascii_to_basic_latin_stride_dst_aligned, load16_unaligned, store8_aligned);
         ascii_to_basic_latin_simd_stride!(ascii_to_basic_latin_stride_neither_aligned, load16_unaligned, store8_unaligned);
 
         unpack_simd_stride!(unpack_stride_both_aligned, load16_aligned, store8_aligned);
@@ -774,8 +983,9 @@ cfg_if! {
         pack_simd_stride!(pack_stride_both_aligned, load8_aligned, store16_aligned);
         pack_simd_stride!(pack_stride_src_aligned, load8_aligned, store16_unaligned);
 
-        ascii_simd_check_align!(ascii_to_ascii, u8, u8, ascii_to_ascii_stride_both_aligned, ascii_to_ascii_stride_src_aligned, ascii_to_ascii_stride_dst_aligned, ascii_to_ascii_stride_neither_aligned);
-        ascii_simd_check_align!(ascii_to_basic_latin, u8, u16, ascii_to_basic_latin_stride_both_aligned, ascii_to_basic_latin_stride_src_aligned, ascii_to_basic_latin_stride_dst_aligned, ascii_to_basic_latin_stride_neither_aligned);
+        ascii_simd_check_align_unrolled!(ascii_to_ascii, u8, u8, ascii_to_ascii_stride_both_aligned, ascii_to_ascii_stride_src_aligned, ascii_to_ascii_stride_neither_aligned, ascii_to_ascii_simd_double_stride_both_aligned, ascii_to_ascii_simd_double_stride_src_aligned);
+        ascii_simd_check_align_unrolled!(ascii_to_basic_latin, u8, u16, ascii_to_basic_latin_stride_both_aligned, ascii_to_basic_latin_stride_src_aligned, ascii_to_basic_latin_stride_neither_aligned, ascii_to_basic_latin_simd_double_stride_both_aligned, ascii_to_basic_latin_simd_double_stride_src_aligned);
+
         ascii_simd_check_align!(basic_latin_to_ascii, u16, u8, basic_latin_to_ascii_stride_both_aligned, basic_latin_to_ascii_stride_src_aligned, basic_latin_to_ascii_stride_dst_aligned, basic_latin_to_ascii_stride_neither_aligned);
         latin1_simd_check_align_unrolled!(unpack_latin1, u8, u16, unpack_stride_both_aligned, unpack_stride_src_aligned, unpack_stride_dst_aligned, unpack_stride_neither_aligned);
         latin1_simd_check_align_unrolled!(pack_latin1, u16, u8, pack_stride_both_aligned, pack_stride_src_aligned, pack_stride_dst_aligned, pack_stride_neither_aligned);
@@ -995,7 +1205,7 @@ cfg_if! {
 }
 
 cfg_if! {
-    if #[cfg(all(feature = "simd-accel", target_endian = "little", target_arch = "aarch64"))] {
+    if #[cfg(all(feature = "simd-accel", target_endian = "little", target_arch = "disabled"))] {
         #[inline(always)]
         pub fn validate_ascii(slice: &[u8]) -> Option<(u8, usize)> {
             let src = slice.as_ptr();
@@ -1030,28 +1240,69 @@ cfg_if! {
             let len = slice.len();
             let mut offset = 0usize;
             if SIMD_STRIDE_SIZE <= len {
-                let len_minus_stride = len - SIMD_STRIDE_SIZE;
-                // XXX Should we first process one stride unconditionally as unaligned to
-                // avoid the cost of the branchiness below if the first stride fails anyway?
-                // XXX Should we just use unaligned SSE2 access unconditionally? It seems that
-                // on Haswell, it would make sense to just use unaligned and not bother
-                // checking. Need to benchmark older architectures before deciding.
-                if ((src as usize) & SIMD_ALIGNMENT_MASK) == 0 {
-                    loop {
-                        let simd = unsafe { load16_aligned(src.add(offset)) };
+                // First, process one unaligned vector
+                let simd = unsafe { load16_unaligned(src) };
+                let mask = mask_ascii(simd);
+                if mask != 0 {
+                    offset = mask.trailing_zeros() as usize;
+                    let non_ascii = unsafe { *src.add(offset) };
+                    return Some((non_ascii, offset));
+                }
+                offset = SIMD_STRIDE_SIZE;
+
+                // We have now seen 16 ASCII bytes. Let's guess that
+                // there will be enough more to justify more expense
+                // in the case of non-ASCII.
+                // Use aligned reads for the sake of old microachitectures.
+                let until_alignment = unsafe { (SIMD_ALIGNMENT - ((src.add(offset) as usize) & SIMD_ALIGNMENT_MASK)) & SIMD_ALIGNMENT_MASK };
+                // This addition won't overflow, because even in the 32-bit PAE case the
+                // address space holds enough code that the slice length can't be that
+                // close to address space size.
+                // offset now equals SIMD_STRIDE_SIZE, hence times 3 below.
+                if until_alignment + (SIMD_STRIDE_SIZE * 3) <= len {
+                    if until_alignment != 0 {
+                        let simd = unsafe { load16_unaligned(src.add(offset)) };
                         let mask = mask_ascii(simd);
                         if mask != 0 {
                             offset += mask.trailing_zeros() as usize;
                             let non_ascii = unsafe { *src.add(offset) };
                             return Some((non_ascii, offset));
                         }
-                        offset += SIMD_STRIDE_SIZE;
-                        if offset > len_minus_stride {
+                        offset += until_alignment;
+                    }
+                    let len_minus_stride_times_two = len - (SIMD_STRIDE_SIZE * 2);
+                    loop {
+                        let first = unsafe { load16_aligned(src.add(offset)) };
+                        let second = unsafe { load16_aligned(src.add(offset + SIMD_STRIDE_SIZE)) };
+                        if !simd_is_ascii(first | second) {
+                            let mask_first = mask_ascii(first);
+                            if mask_first != 0 {
+                                offset += mask_first.trailing_zeros() as usize;
+                            } else {
+                                let mask_second = mask_ascii(second);
+                                offset += SIMD_STRIDE_SIZE + mask_second.trailing_zeros() as usize;
+                            }
+                            let non_ascii = unsafe { *src.add(offset) };
+                            return Some((non_ascii, offset));
+                        }
+                        offset += SIMD_STRIDE_SIZE * 2;
+                        if offset > len_minus_stride_times_two {
                             break;
                         }
                     }
+                    if offset + SIMD_STRIDE_SIZE <= len {
+                         let simd = unsafe { load16_aligned(src.add(offset)) };
+                         let mask = mask_ascii(simd);
+                        if mask != 0 {
+                            offset += mask.trailing_zeros() as usize;
+                            let non_ascii = unsafe { *src.add(offset) };
+                            return Some((non_ascii, offset));
+                        }
+                        offset += SIMD_STRIDE_SIZE;
+                    }
                 } else {
-                    loop {
+                    // At most two iterations, so unroll
+                    if offset + SIMD_STRIDE_SIZE <= len {
                         let simd = unsafe { load16_unaligned(src.add(offset)) };
                         let mask = mask_ascii(simd);
                         if mask != 0 {
@@ -1060,14 +1311,21 @@ cfg_if! {
                             return Some((non_ascii, offset));
                         }
                         offset += SIMD_STRIDE_SIZE;
-                        if offset > len_minus_stride {
-                            break;
+                        if offset + SIMD_STRIDE_SIZE <= len {
+                             let simd = unsafe { load16_unaligned(src.add(offset)) };
+                             let mask = mask_ascii(simd);
+                            if mask != 0 {
+                                offset += mask.trailing_zeros() as usize;
+                                let non_ascii = unsafe { *src.add(offset) };
+                                return Some((non_ascii, offset));
+                            }
+                            offset += SIMD_STRIDE_SIZE;
                         }
                     }
                 }
             }
             while offset < len {
-                let code_unit = slice[offset];
+                let code_unit = unsafe { *(src.add(offset)) };
                 if code_unit > 127 {
                     return Some((code_unit, offset));
                 }

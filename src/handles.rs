@@ -1082,13 +1082,7 @@ impl<'a> Utf8Destination<'a> {
         // Validate first, then memcpy to let memcpy do its thing even for
         // non-ASCII. (And potentially do something better than SSE2 for ASCII.)
         let valid_len = utf8_valid_up_to(&src_remaining[..min_len]);
-        unsafe {
-            ::std::ptr::copy_nonoverlapping(
-                src_remaining.as_ptr(),
-                dst_remaining.as_mut_ptr(),
-                valid_len,
-            );
-        }
+        (&mut dst_remaining[..valid_len]).copy_from_slice(&src_remaining[..valid_len]);
         source.pos += valid_len;
         self.pos += valid_len;
     }

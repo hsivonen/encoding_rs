@@ -1,7 +1,7 @@
 [package]
 name = "encoding_rs"
 description = "A Gecko-oriented implementation of the Encoding Standard"
-version = "0.8.10" # Remember to keep html_root_url in lib.rs in sync!
+version = "0.8.13" # Remember to keep html_root_url in lib.rs in sync!
 authors = ["Henri Sivonen <hsivonen@hsivonen.fi>"]
 license = "MIT/Apache-2.0"
 readme = "README.md"
@@ -9,7 +9,7 @@ documentation = "https://docs.rs/encoding_rs/"
 homepage = "https://docs.rs/encoding_rs/"
 repository = "https://github.com/hsivonen/encoding_rs"
 keywords = ["encoding", "web", "unicode", "charset"]
-categories = ["text-processing", "encoding", "web-programming", "email"]
+categories = ["text-processing", "encoding", "web-programming", "internationalization"]
 
 [badges]
 travis-ci = { repository = "hsivonen/encoding_rs" }

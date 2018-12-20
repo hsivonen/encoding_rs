@@ -11,7 +11,7 @@ cargo-fuzz = true
 [dependencies.encoding_rs]
 path = ".."
 [dependencies.safe_encoding_rs_mem]
-git = "https://github.com/hsivonen/safe_encoding_rs_mem"
+path = "../../safe_encoding_rs_mem"
 [dependencies.libfuzzer-sys]
 git = "https://github.com/rust-fuzz/libfuzzer-sys.git"
 
@@ -21,6 +21,7 @@ members = ["."]
 
 [features]
 simd-accel = ["encoding_rs/simd-accel"]
+fast-legacy-encode = ["encoding_rs/fast-legacy-encode"]
 
 [[bin]]
 name = "fuzz_encodings"

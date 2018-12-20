@@ -75,15 +75,29 @@ a `std::io::Read`, decode it into UTF-8 and presenting the result via
 `std::io::Read`. The [`encoding_rs_io`](https://crates.io/crates/encoding_rs_io)
 crate provides that capability.
 
+## Decoding Email
+
+For decoding character encodings that occur in email, use the
+[`charset`](https://crates.io/crates/charset) crate instead of using this
+one directly. (It wraps this crate and adds UTF-7 decoding.)
+
+## Windows Code Page Identifier Mappings
+
+For mappings to and from Windows code page identifiers, use the
+[`codepage`](https://crates.io/crates/codepage) crate.
+
 ## Licensing
 
 Please see the file named
 [COPYRIGHT](https://github.com/hsivonen/encoding_rs/blob/master/COPYRIGHT).
 
-## API Documentation
+## Documentation
 
 Generated [API documentation](https://docs.rs/encoding_rs/) is available
 online.
+
+There is a [long-form write-up](https://hsivonen.fi/encoding_rs/) about the
+design and internals of the crate.
 
 ## C and C++ bindings
 
@@ -96,6 +110,9 @@ For the Gecko context, there's a
 [C++ wrapper using the MFBT/XPCOM types](https://searchfox.org/mozilla-central/source/intl/Encoding.h#100).
 
 These bindings do not cover the `mem` module.
+
+There's a [write-up](https://hsivonen.fi/modern-cpp-in-rust/) about the C++
+wrappers.
 
 ## Sample programs
 
@@ -320,6 +337,8 @@ To regenerate the generated code:
  * Have Python 2 installed.
  * Clone [`https://github.com/hsivonen/encoding_c`](https://github.com/hsivonen/encoding_c)
    next to the `encoding_rs` directory.
+ * Clone [`https://github.com/hsivonen/codepage`](https://github.com/hsivonen/codepage)
+   next to the `encoding_rs` directory.
  * Clone [`https://github.com/whatwg/encoding`](https://github.com/whatwg/encoding)
    next to the `encoding_rs` directory.
  * Checkout revision `f381389` of the `encoding` repo.
@@ -356,20 +375,36 @@ To regenerate the generated code:
 - [x] Implement the rust-encoding API in terms of encoding_rs.
 - [x] Add SIMD acceleration for Aarch64.
 - [x] Investigate the use of NEON on 32-bit ARM.
-- [ ] Investigate Björn Höhrmann's lookup table acceleration for UTF-8 as
-      adapted to Rust in rust-encoding.
+- [ ] ~Investigate Björn Höhrmann's lookup table acceleration for UTF-8 as
+      adapted to Rust in rust-encoding.~
 - [x] Add actually fast CJK encode options.
+- [ ] ~Investigate [Bob Steagall's lookup table acceleration for UTF-8](https://github.com/BobSteagall/CppNow2018/blob/master/FastConversionFromUTF-8/Fast%20Conversion%20From%20UTF-8%20with%20C%2B%2B%2C%20DFAs%2C%20and%20SSE%20Intrinsics%20-%20Bob%20Steagall%20-%20C%2B%2BNow%202018.pdf).~
 
 ## Release Notes
 
-### 0.9.0
+### 0.8.14
+
+* Made UTF-16 to UTF-8 encode conversion fill the output buffer as
+  closely as possible.
+
+### 0.8.13
+
+* Made the UTF-8 to UTF-16 decoder compare the number of code units written
+  with the length of the right slice (the output slice) to fix a panic
+  introduced in 0.8.11.
+
+### 0.8.12
+
+* Removed the `clippy::` prefix from clippy lint names.
+
+### 0.8.11
 
 * Changed minimum Rust requirement to 1.29.0 (for the ability to refer
   to the interior of a `static` when defining another `static`).
-  (Semver breaking change.)
-* Explicitly aligned the lookup tables for single-byte encodings to
-  cache lines in the hope of freeing up one cache line for other data.
-  (Perhaps the tables were already aligned and this is placebo.)
+* Explicitly aligned the lookup tables for single-byte encodings and
+  UTF-8 to cache lines in the hope of freeing up one cache line for
+  other data. (Perhaps the tables were already aligned and this is
+  placebo.)
 * Added 32 bits of encode-oriented data for each single-byte encoding.
   The change was performance-neutral for non-Latin1-ish Latin legacy
   encodings, improved Latin1-ish and Arabic legacy encode speed
@@ -383,7 +418,9 @@ To regenerate the generated code:
   rewriting the CJK encoders totally, so the speed isn't as good as
   what could be achieved by using even more memory / making the
   binary even langer.
-* Add method `is_single_byte()` on `Encoding`.
+* Made UTF-8 decode and validation faster.
+* Added method `is_single_byte()` on `Encoding`.
+* Added `mem::decode_latin1()` and `mem::encode_latin1_lossy()`.
 
 ### 0.8.10
 
