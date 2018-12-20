@@ -70,7 +70,7 @@ const LATIN1_MASK: usize = 0xFF00_FF00_FF00_FF00u64 as usize;
 #[allow(unused_macros)]
 macro_rules! by_unit_check_alu {
     ($name:ident, $unit:ty, $bound:expr, $mask:ident) => {
-        #[cfg_attr(feature = "cargo-clippy", allow(clippy::cast_ptr_alignment))]
+        #[cfg_attr(feature = "cargo-clippy", allow(cast_ptr_alignment))]
         #[inline(always)]
         fn $name(buffer: &[$unit]) -> bool {
             let mut offset = 0usize;
@@ -306,7 +306,7 @@ cfg_if! {
 
 /// The second return value is true iff the last code unit of the slice was
 /// reached and turned out to be a low surrogate that is part of a valid pair.
-#[cfg_attr(feature = "cargo-clippy", allow(clippy::collapsible_if))]
+#[cfg_attr(feature = "cargo-clippy", allow(collapsible_if))]
 #[inline(always)]
 fn utf16_valid_up_to_alu(buffer: &[u16]) -> (usize, bool) {
     let len = buffer.len();
@@ -561,7 +561,7 @@ cfg_if! {
             }
         }
     } else {
-        #[cfg_attr(feature = "cargo-clippy", allow(clippy::cast_ptr_alignment))]
+        #[cfg_attr(feature = "cargo-clippy", allow(cast_ptr_alignment))]
         #[inline(always)]
         fn check_utf16_for_latin1_and_bidi_impl(buffer: &[u16]) -> Latin1Bidi {
             let mut offset = 0usize;
@@ -680,10 +680,7 @@ pub fn is_utf16_latin1(buffer: &[u16]) -> bool {
 /// Returns `true` if the input is invalid UTF-8 or the input contains an
 /// RTL character. Returns `false` if the input is valid UTF-8 and contains
 /// no RTL characters.
-#[cfg_attr(
-    feature = "cargo-clippy",
-    allow(clippy::collapsible_if, clippy::cyclomatic_complexity)
-)]
+#[cfg_attr(feature = "cargo-clippy", allow(collapsible_if, cyclomatic_complexity))]
 pub fn is_utf8_bidi(buffer: &[u8]) -> bool {
     // As of rustc 1.25.0-nightly (73ac5d6a8 2018-01-11), this is faster
     // than UTF-8 validation followed by `is_str_bidi()` for German,
@@ -1104,7 +1101,7 @@ pub fn is_utf8_bidi(buffer: &[u8]) -> bool {
 /// cause right-to-left behavior without the presence of right-to-left
 /// characters or right-to-left controls are not checked for. As a special
 /// case, U+FEFF is excluded from Arabic Presentation Forms-B.
-#[cfg_attr(feature = "cargo-clippy", allow(clippy::collapsible_if))]
+#[cfg_attr(feature = "cargo-clippy", allow(collapsible_if))]
 pub fn is_str_bidi(buffer: &str) -> bool {
     // U+058F: D6 8F
     // U+0590: D6 90

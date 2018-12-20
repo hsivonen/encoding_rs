@@ -9,7 +9,7 @@
 
 #![cfg_attr(
     feature = "cargo-clippy",
-    allow(clippy::doc_markdown, clippy::inline_always, clippy::new_ret_no_self)
+    allow(doc_markdown, inline_always, new_ret_no_self)
 )]
 #![doc(html_root_url = "https://docs.rs/encoding_rs/0.8.10")]
 

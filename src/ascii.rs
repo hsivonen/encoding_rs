@@ -68,10 +68,7 @@ macro_rules! ascii_alu {
      $src_unit:ty,
      $dst_unit:ty,
      $stride_fn:ident) => {
-        #[cfg_attr(
-            feature = "cargo-clippy",
-            allow(clippy::never_loop, clippy::cast_ptr_alignment)
-        )]
+        #[cfg_attr(feature = "cargo-clippy", allow(never_loop, cast_ptr_alignment))]
         #[inline(always)]
         pub unsafe fn $name(
             src: *const $src_unit,
@@ -164,7 +161,7 @@ macro_rules! basic_latin_alu {
      $stride_fn:ident) => {
         #[cfg_attr(
             feature = "cargo-clippy",
-            allow(clippy::never_loop, clippy::cast_ptr_alignment, clippy::cast_lossless)
+            allow(never_loop, cast_ptr_alignment, cast_lossless)
         )]
         #[inline(always)]
         pub unsafe fn $name(
@@ -259,7 +256,7 @@ macro_rules! latin1_alu {
     ($name:ident, $src_unit:ty, $dst_unit:ty, $stride_fn:ident) => {
         #[cfg_attr(
             feature = "cargo-clippy",
-            allow(clippy::never_loop, clippy::cast_ptr_alignment, clippy::cast_lossless)
+            allow(never_loop, cast_ptr_alignment, cast_lossless)
         )]
         #[inline(always)]
         pub unsafe fn $name(src: *const $src_unit, dst: *mut $dst_unit, len: usize) {
@@ -1111,7 +1108,7 @@ cfg_if! {
             find_non_ascii(word, second_word)
         }
 
-        #[cfg_attr(feature = "cargo-clippy", allow(clippy::cast_ptr_alignment))]
+        #[cfg_attr(feature = "cargo-clippy", allow(cast_ptr_alignment))]
         #[inline(always)]
         pub fn validate_ascii(slice: &[u8]) -> Option<(u8, usize)> {
             let src = slice.as_ptr();

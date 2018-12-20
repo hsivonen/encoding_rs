@@ -1152,7 +1152,7 @@ impl<'a> Utf16Source<'a> {
             Space::Full(self.consumed())
         }
     }
-    #[cfg_attr(feature = "cargo-clippy", allow(clippy::collapsible_if))]
+    #[cfg_attr(feature = "cargo-clippy", allow(collapsible_if))]
     #[inline(always)]
     fn read(&mut self) -> char {
         self.old_pos = self.pos;
@@ -1186,7 +1186,7 @@ impl<'a> Utf16Source<'a> {
         // Unpaired low surrogate
         '\u{FFFD}'
     }
-    #[cfg_attr(feature = "cargo-clippy", allow(clippy::collapsible_if))]
+    #[cfg_attr(feature = "cargo-clippy", allow(collapsible_if))]
     #[inline(always)]
     fn read_enum(&mut self) -> Unicode {
         self.old_pos = self.pos;

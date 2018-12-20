@@ -85,7 +85,7 @@ pub static UTF8_TRAIL_INVALID: [u8; 256] = [
 // END GENERATED CODE
 
 #[cfg(feature = "parallel-utf8")]
-#[cfg_attr(feature = "cargo-clippy", allow(clippy::never_loop))]
+#[cfg_attr(feature = "cargo-clippy", allow(never_loop))]
 pub fn utf8_valid_up_to(bytes: &[u8]) -> usize {
     let mut len = bytes.len();
     // The purpose of the outer loop is to avoid recursion when the attempt
@@ -138,10 +138,7 @@ pub fn utf8_valid_up_to(bytes: &[u8]) -> usize {
     }
 }
 
-#[cfg_attr(
-    feature = "cargo-clippy",
-    allow(clippy::never_loop, clippy::cyclomatic_complexity)
-)]
+#[cfg_attr(feature = "cargo-clippy", allow(never_loop, cyclomatic_complexity))]
 pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usize, usize) {
     // This algorithm differs from the UTF-8 validation algorithm, but making
     // this one consistent with that one makes this slower for reasons I don't
@@ -628,7 +625,7 @@ impl Utf8Encoder {
         Some(byte_length)
     }
 
-    #[cfg_attr(feature = "cargo-clippy", allow(clippy::never_loop))]
+    #[cfg_attr(feature = "cargo-clippy", allow(never_loop))]
     pub fn encode_from_utf16_raw(
         &mut self,
         src: &[u16],
