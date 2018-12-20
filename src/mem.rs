@@ -35,7 +35,7 @@ macro_rules! non_fuzz_debug_assert {
     ($($arg:tt)*) => (if !cfg!(fuzzing) { debug_assert!($($arg)*); })
 }
 
-cfg_if!{
+cfg_if! {
     if #[cfg(feature = "simd-accel")] {
         use ::std::intrinsics::unlikely;
     } else {
@@ -218,7 +218,7 @@ macro_rules! by_unit_check_simd {
     };
 }
 
-cfg_if!{
+cfg_if! {
     if #[cfg(all(feature = "simd-accel", any(target_feature = "sse2", all(target_endian = "little", target_arch = "aarch64"), all(target_endian = "little", target_feature = "neon"))))] {
         use simd_funcs::*;
         use packed_simd::u8x16;
@@ -350,7 +350,7 @@ fn utf16_valid_up_to_alu(buffer: &[u16]) -> (usize, bool) {
     }
 }
 
-cfg_if!{
+cfg_if! {
     if #[cfg(all(feature = "simd-accel", any(target_feature = "sse2", all(target_endian = "little", target_arch = "aarch64"), all(target_endian = "little", target_feature = "neon"))))] {
         #[inline(always)]
         fn is_str_latin1_impl(buffer: &str) -> Option<usize> {
@@ -439,7 +439,7 @@ fn is_utf8_latin1_impl(buffer: &[u8]) -> Option<usize> {
     }
 }
 
-cfg_if!{
+cfg_if! {
     if #[cfg(all(feature = "simd-accel", any(target_feature = "sse2", all(target_endian = "little", target_arch = "aarch64"), all(target_endian = "little", target_feature = "neon"))))] {
         #[inline(always)]
         fn is_utf16_bidi_impl(buffer: &[u16]) -> bool {
@@ -489,7 +489,7 @@ cfg_if!{
     }
 }
 
-cfg_if!{
+cfg_if! {
     if #[cfg(all(feature = "simd-accel", any(target_feature = "sse2", all(target_endian = "little", target_arch = "aarch64"), all(target_endian = "little", target_feature = "neon"))))] {
         #[inline(always)]
         fn check_utf16_for_latin1_and_bidi_impl(buffer: &[u16]) -> Latin1Bidi {

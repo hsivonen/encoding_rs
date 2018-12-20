@@ -16,7 +16,7 @@ use ascii::basic_latin_to_ascii;
 use handles::*;
 use variant::*;
 
-cfg_if!{
+cfg_if! {
     if #[cfg(feature = "simd-accel")] {
         use ::std::intrinsics::unlikely;
         use ::std::intrinsics::likely;

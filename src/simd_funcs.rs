@@ -296,10 +296,7 @@ pub fn simd_unpack(s: u8x16) -> (u16x8, u16x8) {
             u8x16::splat(0),
             [8, 24, 9, 25, 10, 26, 11, 27, 12, 28, 13, 29, 14, 30, 15, 31]
         );
-        (
-            u16x8::from_bits(first),
-            u16x8::from_bits(second)
-        )
+        (u16x8::from_bits(first), u16x8::from_bits(second))
     }
 }
 
