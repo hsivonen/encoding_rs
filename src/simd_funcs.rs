@@ -312,8 +312,8 @@ cfg_if! {
         #[inline(always)]
         pub fn simd_pack(a: u16x8, b: u16x8) -> u8x16 {
             unsafe {
-                let first: u8x16::from_bits(a);
-                let second: u8x16::from_bits(b);
+                let first = u8x16::from_bits(a);
+                let second = u8x16::from_bits(b);
                 shuffle!(
                     first,
                     second,
