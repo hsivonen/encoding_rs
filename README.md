@@ -126,18 +126,22 @@ There are currently these optional cargo features:
 
 ### `simd-accel`
 
-On Rust versions prior to 1.33, enabled SSE2 acceleration on x86 and x86_64
-and NEON acceleration on Aarch64 and ARMv7 using nightly Rust features.
+Enables SIMD acceleration using the nightly-dependent `packed_simd` crate.
 
-Enabling this feature opts out of Rust forward-compatibility (aka. "stability")
-guarantees and, indeed, this crate fails to build with Rust 1.33 nightly with
-this feature enabled.
+This is an opt-in feature, because enabling this feature _opts out_ of Rust's
+guarantees of future compilers compiling old code (aka. "stability story").
 
-Even on Rust versions that this feature worked with, enabling this feature
-broke the build unless the target is x86 with SSE2 (Rust's default 32-bit x86
-target, `i686`, has SSE2, but Linux distros may use an x86 target without SSE2,
-i.e. `i586` in `rustup` terms), ARMv7 or thumbv7 with NEON
-(`-C target_feature=+neon`), x86_64 or Aarch64.
+Currently, this has not been tested to be an improvement except for these
+targets:
+
+* x86_64
+* i686
+* aarch64
+
+If you use nightly Rust, use targets whose first component is one of the
+above, and you are prepared _to have to revise your configuration when updating
+Rust_, you should enable this feature. Otherwise, please _do not_ enable this
+feature.
 
 Used by Firefox.
 
@@ -382,6 +386,10 @@ To regenerate the generated code:
 - [ ] ~Investigate [Bob Steagall's lookup table acceleration for UTF-8](https://github.com/BobSteagall/CppNow2018/blob/master/FastConversionFromUTF-8/Fast%20Conversion%20From%20UTF-8%20with%20C%2B%2B%2C%20DFAs%2C%20and%20SSE%20Intrinsics%20-%20Bob%20Steagall%20-%20C%2B%2BNow%202018.pdf).~
 
 ## Release Notes
+
+### 0.8.16
+
+* Switch from the `simd` crate to `packed_simd`.
 
 ### 0.8.15
 
