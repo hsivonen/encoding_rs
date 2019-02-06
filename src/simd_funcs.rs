@@ -18,21 +18,26 @@ use packed_simd::IntoBits;
 // TODO: Migrate unaligned access to stdlib code if/when the RFC
 // https://github.com/rust-lang/rfcs/pull/1725 is implemented.
 
+extern { 
+#[link_name = "llvm.arm.neon.vpmaxu.v8i8"]
+fn vpmax_u8(a: m8x8, b: m8x8) -> m8x8;
+}
+
 #[inline(always)]
 fn any16x8(s: m16x8) -> bool {
     any8x16(s.into_bits())
 }
 
 #[inline(always)]
-fn any8x16(s: m8x16) -> bool {
+fn any8x16(x: m8x16) -> bool {
     unsafe {
-        union U { full: m8x16, pair: (m8x8, m8x8) }
-        let (a, b) = U { full: s }.pair;
-        let c = ::std::arch::arm::vpmax_u8(::std::mem::transmute(a), ::std::mem::transmute(b));
-        let d = std::arch::arm::vpmax_u8(c, ::std::mem::uninitialized());
-        union V { v: ::std::arch::arm::uint8x8_t, ints: (u32, u32) }
-        let bits = V { v: d }.ints.0;
-        bits != 0
+        union U { x: m8x16, y: (m8x8, m8x8) }
+        let (a, b) = U { x }.y;
+        let c = vpmax_u8(a, b);
+        let d = vpmax_u8(c, std::mem::uninitialized());
+        union V { d: m8x8, y: (u32, u32) }
+        let e = V { d }.y.0;
+        e != 0
     }
 }
 

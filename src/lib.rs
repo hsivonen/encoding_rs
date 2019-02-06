@@ -665,7 +665,10 @@
 //! See the section [_UTF-16LE, UTF-16BE and Unicode Encoding Schemes_](#utf-16le-utf-16be-and-unicode-encoding-schemes)
 //! for discussion about the UTF-16 family.
 
-#![cfg_attr(feature = "simd-accel", feature(stdsimd, core_intrinsics))]
+#![cfg_attr(feature = "simd-accel", feature(stdsimd, core_intrinsics, link_llvm_intrinsics))]
+
+#![allow(non_camel_case_types, improper_ctypes)]
+
 
 #[macro_use]
 extern crate cfg_if;
