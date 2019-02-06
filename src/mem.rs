@@ -631,7 +631,7 @@ cfg_if! {
 ///
 /// May read the entire buffer even if it isn't all-ASCII. (I.e. the function
 /// is not guaranteed to fail fast.)
-#[inline]
+#[inline(never)]
 pub fn is_ascii(buffer: &[u8]) -> bool {
     is_ascii_impl(buffer)
 }
@@ -641,7 +641,7 @@ pub fn is_ascii(buffer: &[u8]) -> bool {
 ///
 /// May read the entire buffer even if it isn't all-ASCII. (I.e. the function
 /// is not guaranteed to fail fast.)
-#[inline]
+#[inline(never)]
 pub fn is_basic_latin(buffer: &[u16]) -> bool {
     is_basic_latin_impl(buffer)
 }
@@ -651,7 +651,7 @@ pub fn is_basic_latin(buffer: &[u16]) -> bool {
 ///
 /// Fails fast. (I.e. returns before having read the whole buffer if UTF-8
 /// invalidity or code points above U+00FF are discovered.
-#[inline]
+#[inline(never)]
 pub fn is_utf8_latin1(buffer: &[u8]) -> bool {
     is_utf8_latin1_impl(buffer).is_none()
 }
@@ -661,7 +661,7 @@ pub fn is_utf8_latin1(buffer: &[u8]) -> bool {
 ///
 /// Fails fast. (I.e. returns before having read the whole buffer if code
 /// points above U+00FF are discovered.
-#[inline]
+#[inline(never)]
 pub fn is_str_latin1(buffer: &str) -> bool {
     is_str_latin1_impl(buffer).is_none()
 }
@@ -671,7 +671,7 @@ pub fn is_str_latin1(buffer: &str) -> bool {
 ///
 /// May read the entire buffer even if it isn't all-Latin1. (I.e. the function
 /// is not guaranteed to fail fast.)
-#[inline]
+#[inline(never)]
 pub fn is_utf16_latin1(buffer: &[u16]) -> bool {
     is_utf16_latin1_impl(buffer)
 }
@@ -693,7 +693,7 @@ pub fn is_utf16_latin1(buffer: &[u16]) -> bool {
 /// RTL character. Returns `false` if the input is valid UTF-8 and contains
 /// no RTL characters.
 #[cfg_attr(feature = "cargo-clippy", allow(collapsible_if, cyclomatic_complexity))]
-#[inline]
+#[inline(never)]
 pub fn is_utf8_bidi(buffer: &[u8]) -> bool {
     // As of rustc 1.25.0-nightly (73ac5d6a8 2018-01-11), this is faster
     // than UTF-8 validation followed by `is_str_bidi()` for German,
@@ -1123,7 +1123,7 @@ pub fn is_utf8_bidi(buffer: &[u8]) -> bool {
 /// characters or right-to-left controls are not checked for. As a special
 /// case, U+FEFF is excluded from Arabic Presentation Forms-B.
 #[cfg_attr(feature = "cargo-clippy", allow(collapsible_if))]
-#[inline]
+#[inline(never)]
 pub fn is_str_bidi(buffer: &str) -> bool {
     // U+058F: D6 8F
     // U+0590: D6 90
@@ -1283,7 +1283,7 @@ pub fn is_str_bidi(buffer: &str) -> bool {
 /// high surrogate that could be the high half of an RTL character.
 /// Returns `false` if the input contains neither RTL characters nor
 /// unpaired high surrogates that could be higher halves of RTL characters.
-#[inline]
+#[inline(never)]
 pub fn is_utf16_bidi(buffer: &[u16]) -> bool {
     is_utf16_bidi_impl(buffer)
 }
@@ -1416,7 +1416,7 @@ pub fn is_utf16_code_unit_bidi(u: u16) -> bool {
 /// Returns `Latin1Bidi::Latin1` if `is_utf8_latin1()` would return `true`.
 /// Otherwise, returns `Latin1Bidi::Bidi` if `is_utf8_bidi()` would return
 /// `true`. Otherwise, returns `Latin1Bidi::LeftToRight`.
-#[inline]
+#[inline(never)]
 pub fn check_utf8_for_latin1_and_bidi(buffer: &[u8]) -> Latin1Bidi {
     if let Some(offset) = is_utf8_latin1_impl(buffer) {
         if is_utf8_bidi(&buffer[offset..]) {
@@ -1437,7 +1437,7 @@ pub fn check_utf8_for_latin1_and_bidi(buffer: &[u8]) -> Latin1Bidi {
 /// Returns `Latin1Bidi::Latin1` if `is_str_latin1()` would return `true`.
 /// Otherwise, returns `Latin1Bidi::Bidi` if `is_str_bidi()` would return
 /// `true`. Otherwise, returns `Latin1Bidi::LeftToRight`.
-#[inline]
+#[inline(never)]
 pub fn check_str_for_latin1_and_bidi(buffer: &str) -> Latin1Bidi {
     // The transition from the latin1 check to the bidi check isn't
     // optimal but not tweaking it to perfection today.
@@ -1460,7 +1460,7 @@ pub fn check_str_for_latin1_and_bidi(buffer: &str) -> Latin1Bidi {
 /// Returns `Latin1Bidi::Latin1` if `is_utf16_latin1()` would return `true`.
 /// Otherwise, returns `Latin1Bidi::Bidi` if `is_utf16_bidi()` would return
 /// `true`. Otherwise, returns `Latin1Bidi::LeftToRight`.
-#[inline]
+#[inline(never)]
 pub fn check_utf16_for_latin1_and_bidi(buffer: &[u16]) -> Latin1Bidi {
     check_utf16_for_latin1_and_bidi_impl(buffer)
 }
@@ -1476,7 +1476,7 @@ pub fn check_utf16_for_latin1_and_bidi(buffer: &[u16]) -> Latin1Bidi {
 /// # Panics
 ///
 /// Panics if the destination buffer is shorter than stated above.
-#[inline]
+#[inline(never)]
 pub fn convert_utf8_to_utf16(src: &[u8], dst: &mut [u16]) -> usize {
     // TODO: Can the requirement for dst to be at least one unit longer
     // be eliminated?
@@ -1516,7 +1516,7 @@ pub fn convert_utf8_to_utf16(src: &[u8], dst: &mut [u16]) -> usize {
 /// # Panics
 ///
 /// Panics if the destination buffer is shorter than stated above.
-#[inline]
+#[inline(never)]
 pub fn convert_str_to_utf16(src: &str, dst: &mut [u16]) -> usize {
     assert!(
         dst.len() >= src.len(),
@@ -1683,7 +1683,7 @@ pub fn convert_utf16_to_utf8(src: &[u16], dst: &mut [u8]) -> usize {
 /// not allocating memory for the worst case up front. Specifically,
 /// if the input starts with or ends with an unpaired surrogate, those are
 /// replaced with the REPLACEMENT CHARACTER.
-#[inline]
+#[inline(never)]
 pub fn convert_utf16_to_str_partial(src: &[u16], dst: &mut str) -> (usize, usize) {
     let bytes: &mut [u8] = unsafe { dst.as_bytes_mut() };
     let (read, written) = convert_utf16_to_utf8_partial(src, bytes);
@@ -1727,7 +1727,7 @@ pub fn convert_utf16_to_str(src: &[u16], dst: &mut str) -> usize {
 /// # Panics
 ///
 /// Panics if the destination buffer is shorter than stated above.
-#[inline]
+#[inline(never)]
 pub fn convert_latin1_to_utf16(src: &[u8], dst: &mut [u16]) {
     assert!(
         dst.len() >= src.len(),
@@ -1755,7 +1755,7 @@ pub fn convert_latin1_to_utf16(src: &[u8], dst: &mut [u16]) {
 /// indicated by the return value, so using a `&mut str` interpreted as
 /// `&mut [u8]` as the destination is not safe. If you want to convert into
 /// a `&mut str`, use `convert_utf16_to_str()` instead of this function.
-#[inline]
+#[inline(never)]
 pub fn convert_latin1_to_utf8_partial(src: &[u8], dst: &mut [u8]) -> (usize, usize) {
     let src_len = src.len();
     let src_ptr = src.as_ptr();
@@ -1811,7 +1811,7 @@ pub fn convert_latin1_to_utf8_partial(src: &[u8], dst: &mut [u8]) -> (usize, usi
 /// indicated by the return value, so using a `&mut str` interpreted as
 /// `&mut [u8]` as the destination is not safe. If you want to convert into
 /// a `&mut str`, use `convert_utf16_to_str()` instead of this function.
-#[inline]
+#[inline(never)]
 pub fn convert_latin1_to_utf8(src: &[u8], dst: &mut [u8]) -> usize {
     assert!(
         dst.len() >= src.len() * 2,
@@ -1830,7 +1830,7 @@ pub fn convert_latin1_to_utf8(src: &[u8], dst: &mut [u8]) -> usize {
 /// Returns the number of bytes read and the number of bytes written.
 ///
 /// If the output isn't large enough, not all input is consumed.
-#[inline]
+#[inline(never)]
 pub fn convert_latin1_to_str_partial(src: &[u8], dst: &mut str) -> (usize, usize) {
     let bytes: &mut [u8] = unsafe { dst.as_bytes_mut() };
     let (read, written) = convert_latin1_to_utf8_partial(src, bytes);
@@ -1860,7 +1860,7 @@ pub fn convert_latin1_to_str_partial(src: &[u8], dst: &mut str) -> (usize, usize
 /// # Panics
 ///
 /// Panics if the destination buffer is shorter than stated above.
-#[inline]
+#[inline(never)]
 pub fn convert_latin1_to_str(src: &[u8], dst: &mut str) -> usize {
     assert!(
         dst.len() >= src.len() * 2,
@@ -1894,7 +1894,7 @@ pub fn convert_latin1_to_str(src: &[u8], dst: &mut str) -> usize {
 ///
 /// If debug assertions are enabled (and not fuzzing) and the input is
 /// not in the range U+0000 to U+00FF, inclusive.
-#[inline]
+#[inline(never)]
 pub fn convert_utf8_to_latin1_lossy(src: &[u8], dst: &mut [u8]) -> usize {
     assert!(
         dst.len() >= src.len(),
@@ -1957,7 +1957,7 @@ pub fn convert_utf8_to_latin1_lossy(src: &[u8], dst: &mut [u8]) -> usize {
 ///
 /// (Probably in future versions if debug assertions are enabled (and not
 /// fuzzing) and the input is not in the range U+0000 to U+00FF, inclusive.)
-#[inline]
+#[inline(never)]
 pub fn convert_utf16_to_latin1_lossy(src: &[u16], dst: &mut [u8]) {
     assert!(
         dst.len() >= src.len(),
@@ -2030,13 +2030,13 @@ pub fn encode_latin1_lossy<'a>(string: &'a str) -> Cow<'a, [u8]> {
 
 /// Returns the index of the first unpaired surrogate or, if the input is
 /// valid UTF-16 in its entirety, the length of the input.
-#[inline]
+#[inline(never)]
 pub fn utf16_valid_up_to(buffer: &[u16]) -> usize {
     utf16_valid_up_to_impl(buffer)
 }
 
 /// Replaces unpaired surrogates in the input with the REPLACEMENT CHARACTER.
-#[inline]
+#[inline(never)]
 pub fn ensure_utf16_validity(buffer: &mut [u16]) {
     let mut offset = 0;
     loop {
@@ -2060,7 +2060,7 @@ pub fn ensure_utf16_validity(buffer: &mut [u16]) {
 /// # Panics
 ///
 /// Panics if the destination buffer is shorter than stated above.
-#[inline]
+#[inline(never)]
 pub fn copy_ascii_to_ascii(src: &[u8], dst: &mut [u8]) -> usize {
     assert!(
         dst.len() >= src.len(),
@@ -2087,7 +2087,7 @@ pub fn copy_ascii_to_ascii(src: &[u8], dst: &mut [u8]) -> usize {
 /// # Panics
 ///
 /// Panics if the destination buffer is shorter than stated above.
-#[inline]
+#[inline(never)]
 pub fn copy_ascii_to_basic_latin(src: &[u8], dst: &mut [u16]) -> usize {
     assert!(
         dst.len() >= src.len(),
@@ -2114,7 +2114,7 @@ pub fn copy_ascii_to_basic_latin(src: &[u8], dst: &mut [u16]) -> usize {
 /// # Panics
 ///
 /// Panics if the destination buffer is shorter than stated above.
-#[inline]
+#[inline(never)]
 pub fn copy_basic_latin_to_ascii(src: &[u16], dst: &mut [u8]) -> usize {
     assert!(
         dst.len() >= src.len(),
