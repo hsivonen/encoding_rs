@@ -9,10 +9,32 @@
 
 use packed_simd::u16x8;
 use packed_simd::u8x16;
+use packed_simd::m8x16;
+use packed_simd::m16x8;
+use packed_simd::m8x8;
 use packed_simd::FromBits;
+use packed_simd::IntoBits;
 
 // TODO: Migrate unaligned access to stdlib code if/when the RFC
 // https://github.com/rust-lang/rfcs/pull/1725 is implemented.
+
+#[inline(always)]
+fn any16x8(s: m16x8) -> bool {
+    any8x16(s.into_bits())
+}
+
+#[inline(always)]
+fn any8x16(s: m8x16) -> bool {
+    unsafe {
+        union U { full: m8x16, pair: (m8x8, m8x8) }
+        let (a, b) = U { full: s }.pair;
+        let c = ::std::arch::arm::vpmax_u8(::std::mem::transmute(a), ::std::mem::transmute(b));
+        let d = std::arch::arm::vpmax_u8(c, ::std::mem::uninitialized());
+        union V { v: ::std::arch::arm::uint8x8_t, ints: (u32, u32) }
+        let bits = V { v: d }.ints.0;
+        bits != 0
+    }
+}
 
 #[inline(always)]
 pub unsafe fn load16_unaligned(ptr: *const u8) -> u8x16 {
@@ -143,7 +165,7 @@ cfg_if! {
             // This optimizes better on ARM than
             // the lt formulation.
             let highest_ascii = u8x16::splat(0x7F);
-            !s.gt(highest_ascii).any()
+            any8x16(!s.gt(highest_ascii))
         }
     }
 }
@@ -202,7 +224,7 @@ cfg_if! {
             // seems faster in this case while the above
             // function is better the other way round...
             let highest_latin1 = u16x8::splat(0xFF);
-            !s.gt(highest_latin1).any()
+            any16x8(!s.gt(highest_latin1))
         }
     }
 }
@@ -211,7 +233,7 @@ cfg_if! {
 pub fn contains_surrogates(s: u16x8) -> bool {
     let mask = u16x8::splat(0xF800);
     let surrogate_bits = u16x8::splat(0xD800);
-    (s & mask).eq(surrogate_bits).any()
+    any16x8((s & mask).eq(surrogate_bits))
 }
 
 cfg_if! {
@@ -271,7 +293,7 @@ pub fn is_u16x8_bidi(s: u16x8) -> bool {
 
     // Quick refutation failed. Let's do the full check.
 
-    (in_range16x8!(s, 0x0590, 0x0900)
+    any16x8(in_range16x8!(s, 0x0590, 0x0900)
         | in_range16x8!(s, 0xFB1D, 0xFE00)
         | in_range16x8!(s, 0xFE70, 0xFEFF)
         | in_range16x8!(s, 0xD802, 0xD804)
@@ -280,7 +302,6 @@ pub fn is_u16x8_bidi(s: u16x8) -> bool {
         | s.eq(u16x8::splat(0x202B))
         | s.eq(u16x8::splat(0x202E))
         | s.eq(u16x8::splat(0x2067)))
-    .any()
 }
 
 #[inline(always)]
