@@ -12,6 +12,8 @@ use packed_simd::u8x16;
 use packed_simd::m8x16;
 use packed_simd::m16x8;
 use packed_simd::m8x8;
+use packed_simd::m16x4;
+use packed_simd::u32x2;
 use packed_simd::FromBits;
 use packed_simd::IntoBits;
 
@@ -21,22 +23,33 @@ use packed_simd::IntoBits;
 extern { 
 #[link_name = "llvm.arm.neon.vpmaxu.v8i8"]
 fn vpmax_u8(a: m8x8, b: m8x8) -> m8x8;
+
+#[link_name = "llvm.arm.neon.vpmaxu.v4i16"]
+fn vpmax_u16(a: m16x4, b: m16x4) -> m16x4;
 }
 
 #[inline(always)]
-fn any16x8(s: m16x8) -> bool {
-    any8x16(s.into_bits())
+fn any16x8(x: m16x8) -> bool {
+    unsafe {
+    	let lo: m16x4 = shuffle!(x, x, [0, 1, 2, 3]);
+    	let hi: m16x4 = shuffle!(x, x, [4, 5, 6, 7]);
+        let c = vpmax_u16(hi, lo);
+        let d = vpmax_u16(c, std::mem::uninitialized());
+        let pair: u32x2 = d.into_bits();
+        let e = pair.extract_unchecked(0);
+        e != 0
+    }
 }
 
 #[inline(always)]
 fn any8x16(x: m8x16) -> bool {
     unsafe {
-        union U { x: m8x16, y: (m8x8, m8x8) }
-        let (a, b) = U { x }.y;
-        let c = vpmax_u8(a, b);
+    	let lo: m8x8 = shuffle!(x, x, [0, 1, 2, 3, 4, 5, 6, 7]);
+    	let hi: m8x8 = shuffle!(x, x, [8, 9, 10, 11, 12, 13, 14, 15]);
+        let c = vpmax_u8(hi, lo);
         let d = vpmax_u8(c, std::mem::uninitialized());
-        union V { d: m8x8, y: (u32, u32) }
-        let e = V { d }.y.0;
+        let pair: u32x2 = d.into_bits();
+        let e = pair.extract_unchecked(0);
         e != 0
     }
 }
