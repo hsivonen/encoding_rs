@@ -170,7 +170,7 @@ cfg_if! {
             // This optimizes better on ARM than
             // the lt formulation.
             let highest_ascii = u8x16::splat(0x7F);
-            any8x16(!s.gt(highest_ascii))
+            !any8x16(s.gt(highest_ascii))
         }
     }
 }
