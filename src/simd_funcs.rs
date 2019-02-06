@@ -240,7 +240,7 @@ cfg_if! {
             // seems faster in this case while the above
             // function is better the other way round...
             let highest_latin1 = u16x8::splat(0xFF);
-            any16x8(!s.gt(highest_latin1))
+            !any16x8(s.gt(highest_latin1))
         }
     }
 }
