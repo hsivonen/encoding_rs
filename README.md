@@ -137,11 +137,28 @@ targets:
 * x86_64
 * i686
 * aarch64
+* thumbv7neon
 
-If you use nightly Rust, use targets whose first component is one of the
+If you use nightly Rust, you use targets whose first component is one of the
 above, and you are prepared _to have to revise your configuration when updating
 Rust_, you should enable this feature. Otherwise, please _do not_ enable this
 feature.
+
+_Note!_ If you are compiling for a target that does not have 128-bit SIMD
+enabled as part of the target definition and you are enabling 128-bit SIMD
+using `-C target_feature`, you need to enable the `core_arch` Cargo feature
+for `packed_simd` to compile a crates.io snapshot of `core_arch` instead of
+using the standard-library copy of `core::arch`, because the `core::arch`
+module of the pre-compiled standard library has been compiled with the
+assumption that the CPU doesn't have 128-bit SIMD. At present this applies
+mainly to 32-bit ARM targets whose first component does not include the
+substring `neon`.
+
+The encoding_rs side of things has not been properly set up for POWER,
+PowerPC, MIPS, etc., SIMD at this time, so even if you were to follow
+the advice from the previous paragraph, you probably shouldn't use
+the `simd-accel` option on the less mainstream architectures at this
+time.
 
 Used by Firefox.
 
