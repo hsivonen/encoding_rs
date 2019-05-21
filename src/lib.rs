@@ -248,6 +248,18 @@
 //! [charset](https://crates.io/crates/charset) wraps encoding_rs and adds
 //! UTF-7 decoding for email purposes.
 //!
+//! # Preparing Text for the Encoders
+//!
+//! Normalizing text into Unicode Normalization Form C prior to encoding text
+//! into a legacy encoding minimizes unmappable characters. Text can be
+//! normalized to Unicode Normalization Form C using the
+//! [`unic-normal`](https://crates.io/crates/unic-normal) crate.
+//!
+//! The exception is windows-1258, which after normalizing to Unicode
+//! Normalization Form C requires tone marks to be decomposed in order to
+//! minimize unmappable characters. Vietnamese tone marks can be decomposed
+//! using the [`detone`](https://crates.io/crates/detone) crate.
+//!
 //! # Streaming & Non-Streaming; Rust & C/C++
 //!
 //! The API in Rust has two modes of operation: streaming and non-streaming.

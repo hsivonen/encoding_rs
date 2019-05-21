@@ -86,6 +86,18 @@ one directly. (It wraps this crate and adds UTF-7 decoding.)
 For mappings to and from Windows code page identifiers, use the
 [`codepage`](https://crates.io/crates/codepage) crate.
 
+## Preparing Text for the Encoders
+
+Normalizing text into Unicode Normalization Form C prior to encoding text into
+a legacy encoding minimizes unmappable characters. Text can be normalized to
+Unicode Normalization Form C using the
+[`unic-normal`](https://crates.io/crates/unic-normal) crate.
+
+The exception is windows-1258, which after normalizing to Unicode Normalization
+Form C requires tone marks to be decomposed in order to minimize unmappable
+characters. Vietnamese tone marks can be decomposed using the
+[`detone`](https://crates.io/crates/detone) crate.
+
 ## Licensing
 
 Please see the file named
