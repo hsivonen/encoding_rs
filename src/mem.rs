@@ -1282,7 +1282,7 @@ pub fn is_utf16_bidi(buffer: &[u16]) -> bool {
     is_utf16_bidi_impl(buffer)
 }
 
-/// Checks whether a code point triggers right-to-left processing.
+/// Checks whether a scalar value triggers right-to-left processing.
 ///
 /// The check is done on a Unicode block basis without regard to assigned
 /// vs. unassigned code points in the block. Hebrew presentation forms in
