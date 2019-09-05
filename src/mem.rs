@@ -2018,6 +2018,19 @@ pub fn utf16_valid_up_to(buffer: &[u16]) -> usize {
     utf16_valid_up_to_impl(buffer)
 }
 
+/// Returns the index of first byte that starts an invalid byte
+/// sequence or a non-Latin1 byte sequence, or the length of the
+/// string if there are neither.
+pub fn utf8_latin1_up_to(buffer: &[u8]) -> usize {
+    is_utf8_latin1_impl(buffer).unwrap_or(buffer.len())
+}
+
+/// Returns the index of first byte that starts a non-Latin1 byte
+/// sequence, or the length of the string if there are none.
+pub fn str_latin1_up_to(buffer: &str) -> usize {
+    is_str_latin1_impl(buffer).unwrap_or(buffer.len())
+}
+
 /// Replaces unpaired surrogates in the input with the REPLACEMENT CHARACTER.
 #[inline]
 pub fn ensure_utf16_validity(buffer: &mut [u16]) {
@@ -2442,7 +2455,7 @@ mod tests {
             0u16, 0u16, 0u16, 0u16, 0u16, 0u16, 0u16, 0u16, 0u16, 0u16, 0u16, 0u16, 0u16,
             0x2603u16, 0x00B6u16, 0xD83Du16,
         ];
-        assert_eq!(utf16_valid_up_to(&lone_high_at_end[..]), 15);;
+        assert_eq!(utf16_valid_up_to(&lone_high_at_end[..]), 15);
     }
 
     #[test]
@@ -3233,5 +3246,4 @@ mod tests {
         }
         assert_eq!(encode_latin1_lossy("a\u{E4}"), &(b"a\xE4")[..]);
     }
-
 }

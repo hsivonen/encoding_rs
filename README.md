@@ -416,6 +416,10 @@ To regenerate the generated code:
 
 ## Release Notes
 
+### 0.8.18
+
+* Add `mem::utf8_latin1_up_to` and `mem::str_latin1_up_to`.
+
 ### 0.8.17
 
 * Update `bincode` (dev dependency) version requirement to 1.0.
