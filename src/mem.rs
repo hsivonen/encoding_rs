@@ -653,7 +653,7 @@ pub fn is_utf8_latin1(buffer: &[u8]) -> bool {
     is_utf8_latin1_impl(buffer).is_none()
 }
 
-/// Checks whether the buffer represents only code point less than or equal
+/// Checks whether the buffer represents only code points less than or equal
 /// to U+00FF.
 ///
 /// Fails fast. (I.e. returns before having read the whole buffer if code
