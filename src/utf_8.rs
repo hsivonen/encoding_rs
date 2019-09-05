@@ -479,6 +479,10 @@ impl Utf8Decoder {
         VariantDecoder::Utf8(Utf8Decoder::new_inner())
     }
 
+    pub fn in_neutral_state(&self) -> bool {
+        self.bytes_needed == 0
+    }
+
     fn extra_from_state(&self) -> usize {
         if self.bytes_needed == 0 {
             0
@@ -1633,5 +1637,4 @@ mod tests {
             assert_eq!(output[0], 0x00E4);
         }
     }
-
 }

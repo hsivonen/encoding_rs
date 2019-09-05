@@ -419,6 +419,7 @@ To regenerate the generated code:
 ### 0.8.18
 
 * Add `mem::utf8_latin1_up_to` and `mem::str_latin1_up_to`.
+* Add `Decoder::latin1_byte_compatible_up_to`.
 
 ### 0.8.17
 
