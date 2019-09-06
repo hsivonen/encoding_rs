@@ -1596,6 +1596,30 @@ pub fn convert_str_to_utf16(src: &str, dst: &mut [u16]) -> usize {
     }
 }
 
+/// Converts potentially-invalid UTF-8 to valid UTF-16 signaling on error.
+///
+/// The length of the destination buffer must be at least the length of the
+/// source buffer.
+///
+/// Returns the number of `u16`s written or `None` if the input was invalid.
+///
+/// When the input was invalid, some output may have been written.
+///
+/// # Panics
+///
+/// Panics if the destination buffer is shorter than stated above.
+pub fn convert_utf8_to_utf16_without_replacement(src: &[u8], dst: &mut [u16]) -> Option<usize> {
+    assert!(
+        dst.len() >= src.len(),
+        "Destination must not be shorter than the source."
+    );
+    let (read, written) = convert_utf8_to_utf16_up_to_invalid(src, dst);
+    if read == src.len() {
+        return Some(written);
+    }
+    None
+}
+
 /// Converts potentially-invalid UTF-16 to valid UTF-8 with errors replaced
 /// with the REPLACEMENT CHARACTER with potentially insufficient output
 /// space.
@@ -3249,5 +3273,63 @@ mod tests {
             }
         }
         assert_eq!(encode_latin1_lossy("a\u{E4}"), &(b"a\xE4")[..]);
+    }
+
+    #[test]
+    fn test_convert_utf8_to_utf16_without_replacement() {
+        let mut buf = [0u16; 5];
+        assert_eq!(
+            convert_utf8_to_utf16_without_replacement(b"ab", &mut buf[..2]),
+            Some(2)
+        );
+        assert_eq!(buf[0], u16::from(b'a'));
+        assert_eq!(buf[1], u16::from(b'b'));
+        assert_eq!(buf[2], 0);
+        assert_eq!(
+            convert_utf8_to_utf16_without_replacement(b"\xC3\xA4c", &mut buf[..3]),
+            Some(2)
+        );
+        assert_eq!(buf[0], 0xE4);
+        assert_eq!(buf[1], u16::from(b'c'));
+        assert_eq!(buf[2], 0);
+        assert_eq!(
+            convert_utf8_to_utf16_without_replacement(b"\xE2\x98\x83", &mut buf[..3]),
+            Some(1)
+        );
+        assert_eq!(buf[0], 0x2603);
+        assert_eq!(buf[1], u16::from(b'c'));
+        assert_eq!(buf[2], 0);
+        assert_eq!(
+            convert_utf8_to_utf16_without_replacement(b"\xE2\x98\x83d", &mut buf[..4]),
+            Some(2)
+        );
+        assert_eq!(buf[0], 0x2603);
+        assert_eq!(buf[1], u16::from(b'd'));
+        assert_eq!(buf[2], 0);
+        assert_eq!(
+            convert_utf8_to_utf16_without_replacement(b"\xE2\x98\x83\xC3\xA4", &mut buf[..5]),
+            Some(2)
+        );
+        assert_eq!(buf[0], 0x2603);
+        assert_eq!(buf[1], 0xE4);
+        assert_eq!(buf[2], 0);
+        assert_eq!(
+            convert_utf8_to_utf16_without_replacement(b"\xF0\x9F\x93\x8E", &mut buf[..4]),
+            Some(2)
+        );
+        assert_eq!(buf[0], 0xD83D);
+        assert_eq!(buf[1], 0xDCCE);
+        assert_eq!(buf[2], 0);
+        assert_eq!(
+            convert_utf8_to_utf16_without_replacement(b"\xF0\x9F\x93\x8Ee", &mut buf[..5]),
+            Some(3)
+        );
+        assert_eq!(buf[0], 0xD83D);
+        assert_eq!(buf[1], 0xDCCE);
+        assert_eq!(buf[2], u16::from(b'e'));
+        assert_eq!(
+            convert_utf8_to_utf16_without_replacement(b"\xF0\x9F\x93", &mut buf[..5]),
+            None
+        );
     }
 }

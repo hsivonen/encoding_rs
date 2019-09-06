@@ -420,11 +420,12 @@ To regenerate the generated code:
 ### 0.8.19
 
 * Removed a bunch of bound checks in `convert_str_to_utf16`.
+* Added `mem::convert_utf8_to_utf16_without_replacement`.
 
 ### 0.8.18
 
-* Add `mem::utf8_latin1_up_to` and `mem::str_latin1_up_to`.
-* Add `Decoder::latin1_byte_compatible_up_to`.
+* Added `mem::utf8_latin1_up_to` and `mem::str_latin1_up_to`.
+* Added `Decoder::latin1_byte_compatible_up_to`.
 
 ### 0.8.17
 
