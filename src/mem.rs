@@ -1538,14 +1538,14 @@ pub fn convert_str_to_utf16(src: &str, dst: &mut [u16]) -> usize {
             if byte < 0xE0 {
                 if byte >= 0x80 {
                     // Two-byte
-                    let second = bytes[read + 1];
+                    let second = unsafe { *(bytes.get_unchecked(read + 1)) };
                     let point = ((u16::from(byte) & 0x1F) << 6) | (u16::from(second) & 0x3F);
-                    dst[written] = point;
+                    unsafe { *(dst.get_unchecked_mut(written)) = point };
                     read += 2;
                     written += 1;
                 } else {
                     // ASCII: write and go back to SIMD.
-                    dst[written] = u16::from(byte);
+                    unsafe { *(dst.get_unchecked_mut(written)) = u16::from(byte) };
                     read += 1;
                     written += 1;
                     // Intuitively, we should go back to the outer loop only
@@ -1557,25 +1557,27 @@ pub fn convert_str_to_utf16(src: &str, dst: &mut [u16]) -> usize {
                 }
             } else if byte < 0xF0 {
                 // Three-byte
-                let second = bytes[read + 1];
-                let third = bytes[read + 2];
+                let second = unsafe { *(bytes.get_unchecked(read + 1)) };
+                let third = unsafe { *(bytes.get_unchecked(read + 2)) };
                 let point = ((u16::from(byte) & 0xF) << 12)
                     | ((u16::from(second) & 0x3F) << 6)
                     | (u16::from(third) & 0x3F);
-                dst[written] = point;
+                unsafe { *(dst.get_unchecked_mut(written)) = point };
                 read += 3;
                 written += 1;
             } else {
                 // Four-byte
-                let second = bytes[read + 1];
-                let third = bytes[read + 2];
-                let fourth = bytes[read + 3];
+                let second = unsafe { *(bytes.get_unchecked(read + 1)) };
+                let third = unsafe { *(bytes.get_unchecked(read + 2)) };
+                let fourth = unsafe { *(bytes.get_unchecked(read + 3)) };
                 let point = ((u32::from(byte) & 0x7) << 18)
                     | ((u32::from(second) & 0x3F) << 12)
                     | ((u32::from(third) & 0x3F) << 6)
                     | (u32::from(fourth) & 0x3F);
-                dst[written] = (0xD7C0 + (point >> 10)) as u16;
-                dst[written + 1] = (0xDC00 + (point & 0x3FF)) as u16;
+                unsafe { *(dst.get_unchecked_mut(written)) = (0xD7C0 + (point >> 10)) as u16 };
+                unsafe {
+                    *(dst.get_unchecked_mut(written + 1)) = (0xDC00 + (point & 0x3FF)) as u16
+                };
                 read += 4;
                 written += 2;
             }

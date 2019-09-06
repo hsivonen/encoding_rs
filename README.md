@@ -416,6 +416,10 @@ To regenerate the generated code:
 
 ## Release Notes
 
+### 0.8.19
+
+* Removed a bunch of bound checks in `convert_str_to_utf16`.
+
 ### 0.8.18
 
 * Add `mem::utf8_latin1_up_to` and `mem::str_latin1_up_to`.
