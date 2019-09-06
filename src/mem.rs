@@ -1627,12 +1627,12 @@ pub fn convert_utf16_to_utf8_partial(src: &[u16], dst: &mut [u8]) -> (usize, usi
     // Letting the transitions be mere intra-function jumps, even to
     // basic blocks out-of-lined to the end of the function would wipe
     // away a quarter of Arabic encode performance on Haswell!
-    let (read, written) = convert_utf16_to_utf16_partial_inner(src, dst);
+    let (read, written) = convert_utf16_to_utf8_partial_inner(src, dst);
     if unsafe { likely(read == src.len()) } {
         return (read, written);
     }
     let (tail_read, tail_written) =
-        convert_utf16_to_utf16_partial_tail(&src[read..], &mut dst[written..]);
+        convert_utf16_to_utf8_partial_tail(&src[read..], &mut dst[written..]);
     (read + tail_read, written + tail_written)
 }
 

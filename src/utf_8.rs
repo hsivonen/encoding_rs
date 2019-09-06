@@ -616,7 +616,7 @@ impl Utf8Decoder {
 
 #[cfg_attr(feature = "cargo-clippy", allow(never_loop))]
 #[inline(never)]
-pub fn convert_utf16_to_utf16_partial_inner(src: &[u16], dst: &mut [u8]) -> (usize, usize) {
+pub fn convert_utf16_to_utf8_partial_inner(src: &[u16], dst: &mut [u8]) -> (usize, usize) {
     let mut read = 0;
     let mut written = 0;
     'outer: loop {
@@ -755,7 +755,7 @@ pub fn convert_utf16_to_utf16_partial_inner(src: &[u16], dst: &mut [u8]) -> (usi
 }
 
 #[inline(never)]
-pub fn convert_utf16_to_utf16_partial_tail(src: &[u16], dst: &mut [u8]) -> (usize, usize) {
+pub fn convert_utf16_to_utf8_partial_tail(src: &[u16], dst: &mut [u8]) -> (usize, usize) {
     // Everything below is cold code!
     let mut read = 0;
     let mut written = 0;
