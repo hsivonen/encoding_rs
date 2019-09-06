@@ -118,10 +118,11 @@ An FFI layer for encoding_rs is available as a
 with a [demo C++ wrapper](https://github.com/hsivonen/encoding_c/blob/master/include/encoding_rs_cpp.h)
 using the C++ standard library and [GSL](https://github.com/Microsoft/GSL/) types.
 
+The bindings for the `mem` module are in the
+[encoding_c_mem crate](https://github.com/hsivonen/encoding_c_mem).
+
 For the Gecko context, there's a
 [C++ wrapper using the MFBT/XPCOM types](https://searchfox.org/mozilla-central/source/intl/Encoding.h#100).
-
-These bindings do not cover the `mem` module.
 
 There's a [write-up](https://hsivonen.fi/modern-cpp-in-rust/) about the C++
 wrappers.

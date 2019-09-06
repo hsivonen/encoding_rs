@@ -20,6 +20,9 @@
 //! U+00FF, inclusive, and does not refer to the windows-1252 range. This
 //! in-memory encoding is sometimes used as a storage optimization of text
 //! when UTF-16 indexing and length semantics are exposed.
+//!
+//! The FFI binding for this module are in the
+//! [encoding_c_mem crate](https://github.com/hsivonen/encoding_c_mem).
 
 use std::borrow::Cow;
 
