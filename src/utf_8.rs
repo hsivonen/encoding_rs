@@ -68,9 +68,6 @@ pub static UTF8_DATA: Utf8Data = Utf8Data {
 // END GENERATED CODE
 
 pub fn utf8_valid_up_to(src: &[u8]) -> usize {
-    // This algorithm differs from the UTF-8 validation algorithm, but making
-    // this one consistent with that one makes this slower for reasons I don't
-    // understand.
     let mut read = 0;
     'outer: loop {
         let mut byte = {
@@ -236,9 +233,6 @@ pub fn utf8_valid_up_to(src: &[u8]) -> usize {
 
 #[cfg_attr(feature = "cargo-clippy", allow(never_loop, cyclomatic_complexity))]
 pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usize, usize) {
-    // This algorithm differs from the UTF-8 validation algorithm, but making
-    // this one consistent with that one makes this slower for reasons I don't
-    // understand.
     let mut read = 0;
     let mut written = 0;
     'outer: loop {
