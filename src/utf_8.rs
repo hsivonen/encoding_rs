@@ -93,9 +93,6 @@ pub fn utf8_valid_up_to(src: &[u8]) -> usize {
                 // At this point, `byte` is not included in `read`, because we
                 // don't yet know that a) the UTF-8 sequence is valid and b) that there
                 // is output space if it is an astral sequence.
-                // We know, thanks to `ascii_to_basic_latin` that there is output
-                // space for at least one UTF-16 code unit, so no need to check
-                // for output space in the BMP cases.
                 // Inspecting the lead byte directly is faster than what the
                 // std lib does!
                 if unsafe { likely(in_inclusive_range8(byte, 0xC2, 0xDF)) } {
