@@ -5609,6 +5609,19 @@ mod tests {
     }
 
     #[test]
+    fn test_buffer_end_utf16be() {
+        let mut decoder = UTF_16BE.new_decoder_without_bom_handling();
+        let mut dest = [0u8; 4];
+
+        assert_eq!(
+            decoder.decode_to_utf8(&[0xD8, 0x00], &mut dest, false),
+            (CoderResult::InputEmpty, 2, 0, false)
+        );
+
+        let _ = decoder.decode_to_utf8(&[0xD8, 0x00], &mut dest, true);
+    }
+
+    #[test]
     fn test_hash() {
         let mut encodings = ::std::collections::HashSet::new();
         encodings.insert(UTF_8);

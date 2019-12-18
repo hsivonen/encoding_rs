@@ -102,11 +102,19 @@ impl Utf16Decoder {
                             self.lead_surrogate = 0;
                             match self.lead_byte {
                                 None => {
-                                    return (DecoderResult::Malformed(2, 0), src_consumed, dest.written());
+                                    return (
+                                        DecoderResult::Malformed(2, 0),
+                                        src_consumed,
+                                        dest.written(),
+                                    );
                                 }
                                 Some(_) => {
                                     self.lead_byte = None;
-                                    return (DecoderResult::Malformed(3, 0), src_consumed, dest.written());
+                                    return (
+                                        DecoderResult::Malformed(3, 0),
+                                        src_consumed,
+                                        dest.written(),
+                                    );
                                 }
                             }
                         }
@@ -114,7 +122,7 @@ impl Utf16Decoder {
                         self.lead_byte = None;
                         return (DecoderResult::Malformed(1, 0), src_consumed, dest.written());
                     }
-                }                
+                }
             }
         },
         {
