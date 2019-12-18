@@ -417,6 +417,10 @@ To regenerate the generated code:
 
 ## Release Notes
 
+## 0.8.21
+
+* Fixed a panic with invalid UTF-16[BE|LE] input at the end of the stream.
+
 ### 0.8.20
 
 * Make `Decoder::latin1_byte_compatible_up_to` return `None` in more
