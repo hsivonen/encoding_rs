@@ -2129,7 +2129,7 @@ pub static X_USER_DEFINED_INIT: Encoding = Encoding {
 /// `static`.
 pub static X_USER_DEFINED: &'static Encoding = &X_USER_DEFINED_INIT;
 
-static LABELS_SORTED: [&'static str; 219] = [
+pub static LABELS_SORTED: [&'static str; 219] = [
     "l1",
     "l2",
     "l3",
@@ -2351,7 +2351,7 @@ static LABELS_SORTED: [&'static str; 219] = [
     "cseucpkdfmtjapanese",
 ];
 
-static ENCODINGS_IN_LABEL_SORT: [&'static Encoding; 219] = [
+pub static ENCODINGS_IN_LABEL_SORT: [&'static Encoding; 219] = [
     &WINDOWS_1252_INIT,
     &ISO_8859_2_INIT,
     &ISO_8859_3_INIT,
