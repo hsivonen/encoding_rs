@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# Copyright 2013-2016 Mozilla Foundation. See the COPYRIGHT
+# Copyright Mozilla Foundation. See the COPYRIGHT
 # file at the top-level directory of this distribution.
 #
 # Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
@@ -1171,7 +1171,7 @@ data_file.close()
 # Variant
 
 variant_file = open("src/variant.rs", "w")
-variant_file.write('''// Copyright 2015-2016 Mozilla Foundation. See the COPYRIGHT
+variant_file.write('''// Copyright Mozilla Foundation. See the COPYRIGHT
 // file at the top-level directory of this distribution.
 //
 // Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
@@ -1476,7 +1476,7 @@ single_byte_file.close()
 
 static_file = open("../encoding_c/include/encoding_rs_statics.h", "w")
 
-static_file.write("""// Copyright 2016 Mozilla Foundation. See the COPYRIGHT
+static_file.write("""// Copyright Mozilla Foundation. See the COPYRIGHT
 // file at the top-level directory of this distribution.
 //
 // Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
