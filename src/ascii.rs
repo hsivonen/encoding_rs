@@ -211,7 +211,7 @@ macro_rules! basic_latin_alu {
                         let src_until_alignment = (ALU_ALIGNMENT
                             - ((src as usize) & ALU_ALIGNMENT_MASK))
                             & ALU_ALIGNMENT_MASK;
-                        if (dst.add(src_until_alignment) as usize) & ALU_ALIGNMENT_MASK != 0 {
+                        if (dst.wrapping_add(src_until_alignment) as usize) & ALU_ALIGNMENT_MASK != 0 {
                             break;
                         }
                         src_until_alignment
