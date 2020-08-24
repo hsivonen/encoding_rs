@@ -291,7 +291,7 @@ macro_rules! latin1_alu {
                         let src_until_alignment = (ALU_ALIGNMENT
                             - ((src as usize) & ALU_ALIGNMENT_MASK))
                             & ALU_ALIGNMENT_MASK;
-                        if (dst.add(src_until_alignment) as usize) & ALU_ALIGNMENT_MASK != 0 {
+                        if (dst.wrapping_add(src_until_alignment) as usize) & ALU_ALIGNMENT_MASK != 0 {
                             break;
                         }
                         src_until_alignment
@@ -300,7 +300,7 @@ macro_rules! latin1_alu {
                         let dst_until_alignment = (ALU_ALIGNMENT
                             - ((dst as usize) & ALU_ALIGNMENT_MASK))
                             & ALU_ALIGNMENT_MASK;
-                        if (src.add(dst_until_alignment) as usize) & ALU_ALIGNMENT_MASK != 0 {
+                        if (src.wrapping_add(dst_until_alignment) as usize) & ALU_ALIGNMENT_MASK != 0 {
                             break;
                         }
                         dst_until_alignment
