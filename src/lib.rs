@@ -247,6 +247,9 @@
 //! [charset](https://crates.io/crates/charset) wraps encoding_rs and adds
 //! UTF-7 decoding for email purposes.
 //!
+//! For single-byte DOS encodings beyond the ones supported by the Encoding
+//! Standard, there is the [`oem_cp`](https://crates.io/crates/oem_cp) crate.
+//!
 //! # Preparing Text for the Encoders
 //!
 //! Normalizing text into Unicode Normalization Form C prior to encoding text

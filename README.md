@@ -86,6 +86,11 @@ one directly. (It wraps this crate and adds UTF-7 decoding.)
 For mappings to and from Windows code page identifiers, use the
 [`codepage`](https://crates.io/crates/codepage) crate.
 
+## DOS Encodings
+
+This crate does not support single-byte DOS encodings that aren't required by
+the Web Platform, but the [`oem_cp`](https://crates.io/crates/oem_cp) crate does.
+
 ## Preparing Text for the Encoders
 
 Normalizing text into Unicode Normalization Form C prior to encoding text into
