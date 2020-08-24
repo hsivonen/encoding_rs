@@ -417,6 +417,10 @@ To regenerate the generated code:
 
 ## Release Notes
 
+### 0.8.24
+
+* Avoid computing an intermediate (not dereferenced) pointer value in a manner designated as Undefined Behavior when computing pointer alignment.
+
 ### 0.8.23
 
 * Remove year from copyright notices. (No features or bug fixes.)
