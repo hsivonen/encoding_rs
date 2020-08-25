@@ -645,6 +645,7 @@ mod tests {
     fn test_single_byte_decode() {
         decode_single_byte(IBM866, &data::SINGLE_BYTE_DATA.ibm866);
         decode_single_byte(ISO_8859_10, &data::SINGLE_BYTE_DATA.iso_8859_10);
+        if cfg!(miri) { return; } // Miri is too slow
         decode_single_byte(ISO_8859_13, &data::SINGLE_BYTE_DATA.iso_8859_13);
         decode_single_byte(ISO_8859_14, &data::SINGLE_BYTE_DATA.iso_8859_14);
         decode_single_byte(ISO_8859_15, &data::SINGLE_BYTE_DATA.iso_8859_15);
@@ -676,6 +677,7 @@ mod tests {
     fn test_single_byte_encode() {
         encode_single_byte(IBM866, &data::SINGLE_BYTE_DATA.ibm866);
         encode_single_byte(ISO_8859_10, &data::SINGLE_BYTE_DATA.iso_8859_10);
+        if cfg!(miri) { return; } // Miri is too slow
         encode_single_byte(ISO_8859_13, &data::SINGLE_BYTE_DATA.iso_8859_13);
         encode_single_byte(ISO_8859_14, &data::SINGLE_BYTE_DATA.iso_8859_14);
         encode_single_byte(ISO_8859_15, &data::SINGLE_BYTE_DATA.iso_8859_15);

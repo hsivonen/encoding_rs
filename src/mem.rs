@@ -2231,8 +2231,9 @@ mod tests {
 
     #[test]
     fn test_is_utf16_latin1_fail() {
-        let mut src: Vec<u16> = Vec::with_capacity(256);
-        src.resize(256, 0);
+        let len = if cfg!(miri) { 64 } else { 256 }; // Miri is too slow
+        let mut src: Vec<u16> = Vec::with_capacity(len);
+        src.resize(len, 0);
         for i in 0..src.len() {
             src[i] = i as u16;
         }
@@ -2248,8 +2249,9 @@ mod tests {
 
     #[test]
     fn test_is_str_latin1_success() {
-        let mut src: Vec<u16> = Vec::with_capacity(256);
-        src.resize(256, 0);
+        let len = if cfg!(miri) { 64 } else { 256 }; // Miri is too slow
+        let mut src: Vec<u16> = Vec::with_capacity(len);
+        src.resize(len, 0);
         for i in 0..src.len() {
             src[i] = i as u16;
         }
@@ -2262,8 +2264,9 @@ mod tests {
 
     #[test]
     fn test_is_str_latin1_fail() {
-        let mut src: Vec<u16> = Vec::with_capacity(256);
-        src.resize(256, 0);
+        let len = if cfg!(miri) { 32 } else { 256 }; // Miri is too slow
+        let mut src: Vec<u16> = Vec::with_capacity(len);
+        src.resize(len, 0);
         for i in 0..src.len() {
             src[i] = i as u16;
         }
@@ -2280,8 +2283,9 @@ mod tests {
 
     #[test]
     fn test_is_utf8_latin1_success() {
-        let mut src: Vec<u16> = Vec::with_capacity(256);
-        src.resize(256, 0);
+        let len = if cfg!(miri) { 64 } else { 256 }; // Miri is too slow
+        let mut src: Vec<u16> = Vec::with_capacity(len);
+        src.resize(len, 0);
         for i in 0..src.len() {
             src[i] = i as u16;
         }
@@ -2297,8 +2301,9 @@ mod tests {
 
     #[test]
     fn test_is_utf8_latin1_fail() {
-        let mut src: Vec<u16> = Vec::with_capacity(256);
-        src.resize(256, 0);
+        let len = if cfg!(miri) { 32 } else { 256 }; // Miri is too slow
+        let mut src: Vec<u16> = Vec::with_capacity(len);
+        src.resize(len, 0);
         for i in 0..src.len() {
             src[i] = i as u16;
         }
@@ -3144,6 +3149,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)] // Miri is too slow
     fn test_is_char_bidi_thoroughly() {
         for i in 0..0xD800u32 {
             let c: char = ::std::char::from_u32(i).unwrap();
@@ -3156,6 +3162,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)] // Miri is too slow
     fn test_is_utf16_code_unit_bidi_thoroughly() {
         for i in 0..0x10000u32 {
             let u = i as u16;
@@ -3167,6 +3174,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)] // Miri is too slow
     fn test_is_str_bidi_thoroughly() {
         let mut buf = [0; 4];
         for i in 0..0xD800u32 {
@@ -3186,6 +3194,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)] // Miri is too slow
     fn test_is_utf8_bidi_thoroughly() {
         let mut buf = [0; 8];
         for i in 0..0xD800u32 {
@@ -3227,6 +3236,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)] // Miri is too slow
     fn test_is_utf16_bidi_thoroughly() {
         let mut buf = [0; 32];
         for i in 0..0x10000u32 {

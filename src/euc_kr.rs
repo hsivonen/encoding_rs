@@ -406,6 +406,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)] // Miri is too slow
     fn test_euc_kr_decode_all() {
         let input = include_bytes!("test_data/euc_kr_in.txt");
         let expectation = include_str!("test_data/euc_kr_in_ref.txt");
@@ -415,6 +416,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)] // Miri is too slow
     fn test_euc_kr_encode_all() {
         let input = include_str!("test_data/euc_kr_out.txt");
         let expectation = include_bytes!("test_data/euc_kr_out_ref.txt");
