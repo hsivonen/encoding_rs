@@ -8,3 +8,10 @@ env:
 script:
   - cargo test --verbose --features 'less-slow-kanji-encode less-slow-big5-hanzi-encode less-slow-gb-hanzi-encode serde'
   - cargo test --verbose
+
+matrix:
+  include:
+  - name: miri
+    rust: nightly
+    script:
+      - sh ci/miri.sh
