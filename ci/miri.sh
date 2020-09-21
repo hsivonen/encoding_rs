@@ -8,7 +8,7 @@ rustup component add miri
 
 # Run tests.
 # Stacked Borrows is disabled as it costs too much RAM (due to our large tables).
-cargo miri test -- -Zmiri-disable-stacked-borrows
+MIRIFLAGS="-Zmiri-disable-stacked-borrows" cargo miri test
 
 # Restore old state in case Travis uses this cache for other jobs.
 rustup default nightly
