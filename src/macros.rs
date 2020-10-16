@@ -571,7 +571,7 @@ macro_rules! gb18030_decoder_function {
                                     }
                                     Space::Available(destination_handle) => {
                                         let (b, _) = source_handle.read();
-                                        'innermost: loop {
+                                        loop {
                                             if b > 127 {
                                                 $non_ascii = b;
                                                 $handle = destination_handle;
@@ -875,7 +875,7 @@ macro_rules! euc_jp_decoder_function {
                                     }
                                     Space::Available(destination_handle) => {
                                         let (b, _) = source_handle.read();
-                                        'innermost: loop {
+                                        loop {
                                             if b > 127 {
                                                 $non_ascii = b;
                                                 $handle = destination_handle;
