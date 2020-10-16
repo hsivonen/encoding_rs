@@ -740,13 +740,13 @@ pub fn is_utf8_bidi(buffer: &[u8]) -> bool {
                 'inner: loop {
                     // At this point, `byte` is not included in `read`.
                     match byte {
-                        0...0x7F => {
+                        0..=0x7F => {
                             // ASCII: go back to SIMD.
                             read += 1;
                             src = &src[read..];
                             continue 'outer;
                         }
-                        0xC2...0xD5 => {
+                        0xC2..=0xD5 => {
                             // Two-byte
                             let second = unsafe { *(src.get_unchecked(read + 1)) };
                             if !in_inclusive_range8(second, 0x80, 0xBF) {
@@ -767,7 +767,7 @@ pub fn is_utf8_bidi(buffer: &[u8]) -> bool {
                             read += 2;
                         }
                         // two-byte starting with 0xD7 and above is bidi
-                        0xE1 | 0xE3...0xEC | 0xEE => {
+                        0xE1 | 0xE3..=0xEC | 0xEE => {
                             // Three-byte normal
                             let second = unsafe { *(src.get_unchecked(read + 1)) };
                             let third = unsafe { *(src.get_unchecked(read + 2)) };
@@ -876,7 +876,7 @@ pub fn is_utf8_bidi(buffer: &[u8]) -> bool {
                             }
                             read += 3;
                         }
-                        0xF1...0xF4 => {
+                        0xF1..=0xF4 => {
                             // Four-byte normal
                             let second = unsafe { *(src.get_unchecked(read + 1)) };
                             let third = unsafe { *(src.get_unchecked(read + 2)) };
@@ -939,13 +939,13 @@ pub fn is_utf8_bidi(buffer: &[u8]) -> bool {
 
             // At this point, `byte` is not included in `read`.
             match byte {
-                0...0x7F => {
+                0..=0x7F => {
                     // ASCII: go back to SIMD.
                     read += 1;
                     src = &src[read..];
                     continue 'outer;
                 }
-                0xC2...0xD5 => {
+                0xC2..=0xD5 => {
                     // Two-byte
                     let new_read = read + 2;
                     if new_read > src.len() {
@@ -982,7 +982,7 @@ pub fn is_utf8_bidi(buffer: &[u8]) -> bool {
                     continue 'outer;
                 }
                 // two-byte starting with 0xD7 and above is bidi
-                0xE1 | 0xE3...0xEC | 0xEE => {
+                0xE1 | 0xE3..=0xEC | 0xEE => {
                     // Three-byte normal
                     let new_read = read + 3;
                     if new_read > src.len() {
@@ -3117,11 +3117,11 @@ mod tests {
     #[inline(always)]
     pub fn reference_is_char_bidi(c: char) -> bool {
         match c {
-            '\u{0590}'...'\u{08FF}'
-            | '\u{FB1D}'...'\u{FDFF}'
-            | '\u{FE70}'...'\u{FEFE}'
-            | '\u{10800}'...'\u{10FFF}'
-            | '\u{1E800}'...'\u{1EFFF}'
+            '\u{0590}'..='\u{08FF}'
+            | '\u{FB1D}'..='\u{FDFF}'
+            | '\u{FE70}'..='\u{FEFE}'
+            | '\u{10800}'..='\u{10FFF}'
+            | '\u{1E800}'..='\u{1EFFF}'
             | '\u{200F}'
             | '\u{202B}'
             | '\u{202E}'
@@ -3133,9 +3133,9 @@ mod tests {
     #[inline(always)]
     pub fn reference_is_utf16_code_unit_bidi(u: u16) -> bool {
         match u {
-            0x0590...0x08FF
-            | 0xFB1D...0xFDFF
-            | 0xFE70...0xFEFE
+            0x0590..=0x08FF
+            | 0xFB1D..=0xFDFF
+            | 0xFE70..=0xFEFE
             | 0xD802
             | 0xD803
             | 0xD83A
