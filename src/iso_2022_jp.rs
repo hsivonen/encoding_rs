@@ -863,7 +863,8 @@ mod tests {
         decode_iso_2022_jp(b"\x1B$@\x80\x54\x64", "\u{FFFD}\u{58FA}");
         decode_iso_2022_jp(b"\x1B$B\x28\x80", "\u{FFFD}");
 
-        if cfg!(miri) { // Miri is too slow
+        if cfg!(miri) {
+            // Miri is too slow
             return;
         }
 
@@ -942,7 +943,8 @@ mod tests {
         // Roman
         encode_iso_2022_jp("a\u{00A5}b", b"a\x1B(J\x5Cb\x1B(B");
         encode_iso_2022_jp("a\u{203E}b", b"a\x1B(J\x7Eb\x1B(B");
-        if !cfg!(miri) { // Miri is too slow
+        if !cfg!(miri) {
+            // Miri is too slow
             encode_iso_2022_jp("a\u{00A5}b\x5C", b"a\x1B(J\x5Cb\x1B(B\x5C");
             encode_iso_2022_jp("a\u{203E}b\x7E", b"a\x1B(J\x7Eb\x1B(B\x7E");
             encode_iso_2022_jp("\u{00A5}\u{1F4A9}", b"\x1B(J\x5C&#128169;\x1B(B");
@@ -955,7 +957,8 @@ mod tests {
         // Half-width Katakana
         encode_iso_2022_jp("\u{FF61}", b"\x1B$B\x21\x23\x1B(B");
         encode_iso_2022_jp("\u{FF65}", b"\x1B$B\x21\x26\x1B(B");
-        if !cfg!(miri) { // Miri is too slow
+        if !cfg!(miri) {
+            // Miri is too slow
             encode_iso_2022_jp("\u{FF66}", b"\x1B$B\x25\x72\x1B(B");
             encode_iso_2022_jp("\u{FF70}", b"\x1B$B\x21\x3C\x1B(B");
             encode_iso_2022_jp("\u{FF9D}", b"\x1B$B\x25\x73\x1B(B");
@@ -966,7 +969,8 @@ mod tests {
         // 0208
         encode_iso_2022_jp("\u{58FA}", b"\x1B$B\x54\x64\x1B(B");
         encode_iso_2022_jp("\u{58FA}\u{250F}", b"\x1B$B\x54\x64\x28\x2E\x1B(B");
-        if !cfg!(miri) { // Miri is too slow
+        if !cfg!(miri) {
+            // Miri is too slow
             encode_iso_2022_jp("\u{58FA}\u{1F4A9}", b"\x1B$B\x54\x64\x1B(B&#128169;");
             encode_iso_2022_jp("\u{58FA}\x1B", b"\x1B$B\x54\x64\x1B(B&#65533;");
             encode_iso_2022_jp("\u{58FA}\x0E", b"\x1B$B\x54\x64\x1B(B&#65533;");

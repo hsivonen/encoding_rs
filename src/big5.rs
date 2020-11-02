@@ -365,7 +365,8 @@ mod tests {
         // ASCII
         encode_big5("\u{0061}\u{0062}", b"\x61\x62");
 
-        if !cfg!(miri) { // Miri is too slow
+        if !cfg!(miri) {
+            // Miri is too slow
             // Edge cases
             encode_big5("\u{9EA6}\u{0061}", b"&#40614;\x61");
             encode_big5("\u{2626B}\u{0061}", b"&#156267;\x61");
