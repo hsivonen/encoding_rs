@@ -358,7 +358,7 @@ as semver-breaking, because this crate depends on `cfg-if`, which doesn't
 appear to treat MSRV changes as semver-breaking, so it would be useless for
 this crate to treat MSRV changes as semver-breaking.
 
-As of 2020-11-02, MSRV appears to be Rust 1.31.0.
+As of 2020-11-02, MSRV appears to be Rust 1.36.0.
 
 ## Compatibility with rust-encoding
 
