@@ -15,3 +15,7 @@ matrix:
     rust: nightly
     script:
       - sh ci/miri.sh
+  - name: simd
+    rust: nightly
+    script:
+      - cargo test --verbose --features simd-accel
