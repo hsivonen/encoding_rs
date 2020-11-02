@@ -29,7 +29,7 @@
         all(target_endian = "little", target_feature = "neon")
     )
 ))]
-use simd_funcs::*;
+use crate::simd_funcs::*;
 
 cfg_if! {
     if #[cfg(feature = "simd-accel")] {
