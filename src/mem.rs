@@ -32,8 +32,8 @@ use super::in_inclusive_range8;
 use super::in_range16;
 use super::in_range32;
 use super::DecoderResult;
-use ascii::*;
-use utf_8::*;
+use crate::ascii::*;
+use crate::utf_8::*;
 
 macro_rules! non_fuzz_debug_assert {
     ($($arg:tt)*) => (if !cfg!(fuzzing) { debug_assert!($($arg)*); })

@@ -2,6 +2,7 @@
 name = "encoding_rs"
 description = "A Gecko-oriented implementation of the Encoding Standard"
 version = "0.8.24"
+edition = '2018'
 authors = ["Henri Sivonen <hsivonen@hsivonen.fi>"]
 license = "Apache-2.0 OR MIT"
 readme = "README.md"

@@ -425,6 +425,9 @@ To regenerate the generated code:
 
 * Do pointer alignment checks in a way where intermediate steps aren't defined to be Undefined Behavior.
 * Update the `packed_simd` dependency to `packed_simd_2`.
+* Update the `cfg-if` dependency to 1.0.
+* Address warnings that have been introduced by newer Rust versions along the way.
+* Update to edition 2018, since even prior to 1.0 `cfg-if` updated to edition 2018 without a semver break.
 
 ### 0.8.24
 

@@ -741,10 +741,10 @@ mod variant;
 
 pub mod mem;
 
-use ascii::ascii_valid_up_to;
-use ascii::iso_2022_jp_ascii_valid_up_to;
-use utf_8::utf8_valid_up_to;
-use variant::*;
+use crate::ascii::ascii_valid_up_to;
+use crate::ascii::iso_2022_jp_ascii_valid_up_to;
+use crate::utf_8::utf8_valid_up_to;
+use crate::variant::*;
 
 use std::borrow::Cow;
 use std::cmp::Ordering;

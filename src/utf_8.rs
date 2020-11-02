@@ -8,12 +8,12 @@
 // except according to those terms.
 
 use super::*;
-use ascii::ascii_to_basic_latin;
-use ascii::basic_latin_to_ascii;
-use ascii::validate_ascii;
-use handles::*;
-use mem::convert_utf16_to_utf8_partial;
-use variant::*;
+use crate::ascii::ascii_to_basic_latin;
+use crate::ascii::basic_latin_to_ascii;
+use crate::ascii::validate_ascii;
+use crate::handles::*;
+use crate::mem::convert_utf16_to_utf8_partial;
+use crate::variant::*;
 
 cfg_if! {
     if #[cfg(feature = "simd-accel")] {

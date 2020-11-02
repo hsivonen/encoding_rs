@@ -8,7 +8,7 @@
 // except according to those terms.
 
 use super::*;
-use variant::*;
+use crate::variant::*;
 
 pub struct ReplacementDecoder {
     emitted: bool,

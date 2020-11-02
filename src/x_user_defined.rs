@@ -8,8 +8,8 @@
 // except according to those terms.
 
 use super::*;
-use handles::*;
-use variant::*;
+use crate::handles::*;
+use crate::variant::*;
 
 cfg_if! {
     if #[cfg(feature = "simd-accel")] {

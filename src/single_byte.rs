@@ -8,10 +8,10 @@
 // except according to those terms.
 
 use super::*;
-use ascii::*;
-use data::position;
-use handles::*;
-use variant::*;
+use crate::ascii::*;
+use crate::data::position;
+use crate::handles::*;
+use crate::variant::*;
 
 pub struct SingleByteDecoder {
     table: &'static [u16; 128],
