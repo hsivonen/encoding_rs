@@ -276,7 +276,7 @@ cfg_if! {
                     offset = offset_plus_until_alignment;
                 }
                 let len_minus_stride = len - SIMD_STRIDE_SIZE / unit_size;
-                'inner: loop {
+                loop {
                     let offset_plus_stride = offset + SIMD_STRIDE_SIZE / unit_size;
                     if contains_surrogates(unsafe { *(src.add(offset) as *const u16x8) }) {
                         if offset_plus_stride == len {
