@@ -421,6 +421,10 @@ To regenerate the generated code:
 
 ## Release Notes
 
+### 0.8.26
+
+* Fix oversights in edition 2018 migration that broke the `simd-accel` feature.
+
 ### 0.8.25
 
 * Do pointer alignment checks in a way where intermediate steps aren't defined to be Undefined Behavior.
