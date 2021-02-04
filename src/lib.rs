@@ -3420,7 +3420,7 @@ impl<'de> Visitor<'de> for EncodingVisitor {
         if let Some(enc) = Encoding::for_label(value.as_bytes()) {
             Ok(enc)
         } else {
-            Err(E::custom(format!("invalid encoding label: {}", value)))
+            Err(E::custom(alloc::format!("invalid encoding label: {}", value)))
         }
     }
 }

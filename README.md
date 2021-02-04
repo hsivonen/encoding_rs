@@ -432,6 +432,10 @@ To regenerate the generated code:
 
 ## Release Notes
 
+### 0.8.28
+
+* Fix error in Serde support introduced as part of `no_std` support.
+
 ### 0.8.27
 
 * Make the crate works in a `no_std` environment (with `alloc`).
