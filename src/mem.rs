@@ -25,8 +25,8 @@
 //! [encoding_c_mem crate](https://github.com/hsivonen/encoding_c_mem).
 
 use alloc::borrow::Cow;
-use alloc::vec::Vec;
 use alloc::string::String;
+use alloc::vec::Vec;
 
 use super::in_inclusive_range16;
 use super::in_inclusive_range32;

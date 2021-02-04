@@ -326,8 +326,8 @@ cfg_if! {
 
 #[cfg(test)]
 mod tests {
-    use alloc::vec::Vec;
     use super::*;
+    use alloc::vec::Vec;
 
     #[test]
     fn test_unpack() {

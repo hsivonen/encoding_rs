@@ -680,12 +680,11 @@
 //! for discussion about the UTF-16 family.
 
 #![no_std]
-
 #![cfg_attr(feature = "simd-accel", feature(stdsimd, core_intrinsics))]
 
-extern crate core;
 #[cfg_attr(test, macro_use)]
 extern crate alloc;
+extern crate core;
 #[macro_use]
 extern crate cfg_if;
 
@@ -752,8 +751,8 @@ use crate::utf_8::utf8_valid_up_to;
 use crate::variant::*;
 
 use alloc::borrow::Cow;
-use alloc::vec::Vec;
 use alloc::string::String;
+use alloc::vec::Vec;
 use core::cmp::Ordering;
 use core::hash::Hash;
 use core::hash::Hasher;
