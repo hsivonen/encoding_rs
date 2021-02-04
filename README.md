@@ -75,6 +75,14 @@ a `std::io::Read`, decode it into UTF-8 and presenting the result via
 `std::io::Read`. The [`encoding_rs_io`](https://crates.io/crates/encoding_rs_io)
 crate provides that capability.
 
+## `no_std` Environment
+
+The crate works in a `no_std` environment assuming that `alloc` is present.
+The `alloc`-using part are on the outer edge of the crate, so if there is
+interest in using the crate in environments without `alloc` it would be
+feasible to add a way to turn off those parts of the API of this crate that
+use `Vec`/`String`/`Cow`.
+
 ## Decoding Email
 
 For decoding character encodings that occur in email, use the
@@ -420,6 +428,10 @@ To regenerate the generated code:
 - [ ] ~Investigate [Bob Steagall's lookup table acceleration for UTF-8](https://github.com/BobSteagall/CppNow2018/blob/master/FastConversionFromUTF-8/Fast%20Conversion%20From%20UTF-8%20with%20C%2B%2B%2C%20DFAs%2C%20and%20SSE%20Intrinsics%20-%20Bob%20Steagall%20-%20C%2B%2BNow%202018.pdf).~
 
 ## Release Notes
+
+### 0.8.27
+
+* Make the crate works in a `no_std` environment (with `alloc`).
 
 ### 0.8.26
 
