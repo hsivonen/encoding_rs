@@ -366,7 +366,8 @@ as semver-breaking, because this crate depends on `cfg-if`, which doesn't
 appear to treat MSRV changes as semver-breaking, so it would be useless for
 this crate to treat MSRV changes as semver-breaking.
 
-As of 2020-11-02, MSRV appears to be Rust 1.36.0.
+As of 2021-02-04, MSRV appears to be Rust 1.36.0 for using the crate and
+1.42.0 for doc tests to pass without errors about the global allocator.
 
 ## Compatibility with rust-encoding
 
@@ -426,6 +427,8 @@ To regenerate the generated code:
       adapted to Rust in rust-encoding.~
 - [x] Add actually fast CJK encode options.
 - [ ] ~Investigate [Bob Steagall's lookup table acceleration for UTF-8](https://github.com/BobSteagall/CppNow2018/blob/master/FastConversionFromUTF-8/Fast%20Conversion%20From%20UTF-8%20with%20C%2B%2B%2C%20DFAs%2C%20and%20SSE%20Intrinsics%20-%20Bob%20Steagall%20-%20C%2B%2BNow%202018.pdf).~
+- [ ] Provide a build mode that works without `alloc` (with lesser API surface).
+- [ ] Migrate to `std::simd` once it is stable and declare 1.0.
 
 ## Release Notes
 
