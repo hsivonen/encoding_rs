@@ -41,11 +41,11 @@
 //! The [repository is on GitHub](https://github.com/hsivonen/encoding_rs). The
 //! [crate is available on crates.io](https://crates.io/crates/encoding_rs).
 //!
-//! # Integration with `core::io`
+//! # Integration with `std::io`
 //!
-//! This crate doesn't implement traits from `core::io`. However, for the case of
-//! wrapping a `core::io::Read` in a decoder that implements `core::io::Read` and
-//! presents the data from the wrapped `core::io::Read` as UTF-8 is addressed by
+//! This crate doesn't implement traits from `std::io`. However, for the case of
+//! wrapping a `std::io::Read` in a decoder that implements `std::io::Read` and
+//! presents the data from the wrapped `std::io::Read` as UTF-8 is addressed by
 //! the [`encoding_rs_io`](https://docs.rs/encoding_rs_io/) crate.
 //!
 //! # Examples
@@ -87,7 +87,7 @@
 //! // Very short output buffer to demonstrate the output buffer getting full.
 //! // Normally, you'd use something like `[0u8; 2048]`.
 //! let mut buffer_bytes = [0u8; 8];
-//! let mut buffer: &mut str = core::str::from_utf8_mut(&mut buffer_bytes[..]).unwrap();
+//! let mut buffer: &mut str = std::str::from_utf8_mut(&mut buffer_bytes[..]).unwrap();
 //!
 //! // How many bytes in the buffer currently hold significant data.
 //! let mut bytes_in_buffer = 0usize;
