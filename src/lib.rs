@@ -2137,7 +2137,7 @@ pub static X_USER_DEFINED_INIT: Encoding = Encoding {
 /// `static`.
 pub static X_USER_DEFINED: &'static Encoding = &X_USER_DEFINED_INIT;
 
-static LABELS_SORTED: [&'static str; 219] = [
+static LABELS_SORTED: [&'static str; 228] = [
     "l1",
     "l2",
     "l3",
@@ -2153,6 +2153,7 @@ static LABELS_SORTED: [&'static str; 219] = [
     "utf8",
     "koi8",
     "sjis",
+    "ucs-2",
     "ms932",
     "cp866",
     "utf-8",
@@ -2197,6 +2198,7 @@ static LABELS_SORTED: [&'static str; 219] = [
     "gb_2312",
     "dos-874",
     "cn-big5",
+    "unicode",
     "chinese",
     "logical",
     "cskoi8r",
@@ -2249,6 +2251,7 @@ static LABELS_SORTED: [&'static str; 219] = [
     "iso8859-8",
     "iso-ir-58",
     "iso8859-9",
+    "csunicode",
     "macintosh",
     "shift-jis",
     "shift_jis",
@@ -2308,6 +2311,8 @@ static LABELS_SORTED: [&'static str; 219] = [
     "csisolatin9",
     "csiso88596e",
     "csiso88598e",
+    "unicodefffe",
+    "unicodefeff",
     "csmacintosh",
     "csiso88596i",
     "csiso88598i",
@@ -2334,12 +2339,15 @@ static LABELS_SORTED: [&'static str; 219] = [
     "iso-8859-8-i",
     "sun_eu_greek",
     "csksc56011987",
+    "unicode20utf8",
+    "unicode11utf8",
     "ks_c_5601-1987",
     "ansi_x3.4-1968",
     "ks_c_5601-1989",
     "x-mac-cyrillic",
     "x-user-defined",
     "csiso58gb231280",
+    "iso-10646-ucs-2",
     "iso_8859-1:1987",
     "iso_8859-2:1987",
     "iso_8859-6:1987",
@@ -2348,6 +2356,7 @@ static LABELS_SORTED: [&'static str; 219] = [
     "iso_8859-4:1988",
     "iso_8859-5:1988",
     "iso_8859-8:1988",
+    "x-unicode20utf8",
     "iso_8859-9:1989",
     "csisolatingreek",
     "x-mac-ukrainian",
@@ -2359,7 +2368,7 @@ static LABELS_SORTED: [&'static str; 219] = [
     "cseucpkdfmtjapanese",
 ];
 
-static ENCODINGS_IN_LABEL_SORT: [&'static Encoding; 219] = [
+static ENCODINGS_IN_LABEL_SORT: [&'static Encoding; 228] = [
     &WINDOWS_1252_INIT,
     &ISO_8859_2_INIT,
     &ISO_8859_3_INIT,
@@ -2375,6 +2384,7 @@ static ENCODINGS_IN_LABEL_SORT: [&'static Encoding; 219] = [
     &UTF_8_INIT,
     &KOI8_R_INIT,
     &SHIFT_JIS_INIT,
+    &UTF_16LE_INIT,
     &SHIFT_JIS_INIT,
     &IBM866_INIT,
     &UTF_8_INIT,
@@ -2419,6 +2429,7 @@ static ENCODINGS_IN_LABEL_SORT: [&'static Encoding; 219] = [
     &GBK_INIT,
     &WINDOWS_874_INIT,
     &BIG5_INIT,
+    &UTF_16LE_INIT,
     &GBK_INIT,
     &ISO_8859_8_I_INIT,
     &KOI8_R_INIT,
@@ -2471,6 +2482,7 @@ static ENCODINGS_IN_LABEL_SORT: [&'static Encoding; 219] = [
     &ISO_8859_8_INIT,
     &GBK_INIT,
     &WINDOWS_1254_INIT,
+    &UTF_16LE_INIT,
     &MACINTOSH_INIT,
     &SHIFT_JIS_INIT,
     &SHIFT_JIS_INIT,
@@ -2530,6 +2542,8 @@ static ENCODINGS_IN_LABEL_SORT: [&'static Encoding; 219] = [
     &ISO_8859_15_INIT,
     &ISO_8859_6_INIT,
     &ISO_8859_8_INIT,
+    &UTF_16BE_INIT,
+    &UTF_16LE_INIT,
     &MACINTOSH_INIT,
     &ISO_8859_6_INIT,
     &ISO_8859_8_I_INIT,
@@ -2556,12 +2570,15 @@ static ENCODINGS_IN_LABEL_SORT: [&'static Encoding; 219] = [
     &ISO_8859_8_I_INIT,
     &ISO_8859_7_INIT,
     &EUC_KR_INIT,
+    &UTF_8_INIT,
+    &UTF_8_INIT,
     &EUC_KR_INIT,
     &WINDOWS_1252_INIT,
     &EUC_KR_INIT,
     &X_MAC_CYRILLIC_INIT,
     &X_USER_DEFINED_INIT,
     &GBK_INIT,
+    &UTF_16LE_INIT,
     &WINDOWS_1252_INIT,
     &ISO_8859_2_INIT,
     &ISO_8859_6_INIT,
@@ -2570,6 +2587,7 @@ static ENCODINGS_IN_LABEL_SORT: [&'static Encoding; 219] = [
     &ISO_8859_4_INIT,
     &ISO_8859_5_INIT,
     &ISO_8859_8_INIT,
+    &UTF_8_INIT,
     &WINDOWS_1254_INIT,
     &ISO_8859_7_INIT,
     &X_MAC_CYRILLIC_INIT,
@@ -3420,7 +3438,10 @@ impl<'de> Visitor<'de> for EncodingVisitor {
         if let Some(enc) = Encoding::for_label(value.as_bytes()) {
             Ok(enc)
         } else {
-            Err(E::custom(alloc::format!("invalid encoding label: {}", value)))
+            Err(E::custom(alloc::format!(
+                "invalid encoding label: {}",
+                value
+            )))
         }
     }
 }
