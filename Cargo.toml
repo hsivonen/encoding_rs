@@ -16,7 +16,7 @@ categories = ["text-processing", "encoding", "web-programming", "internationaliz
 travis-ci = { repository = "hsivonen/encoding_rs" }
 
 [features]
-simd-accel = ["packed_simd", "packed_simd/into_bits"]
+simd-accel = ["core_simd"]
 less-slow-kanji-encode = []
 less-slow-big5-hanzi-encode = []
 less-slow-gb-hanzi-encode = []
@@ -33,7 +33,7 @@ fast-legacy-encode = ["fast-hangul-encode",
 
 [dependencies]
 cfg-if = "1.0"
-packed_simd = { version = "0.3.4", package = "packed_simd_2", optional = true }
+core_simd = { path = "../stdsimd/crates/core_simd", optional = true }
 serde = { version = "1.0", optional = true }
 
 [dev-dependencies]

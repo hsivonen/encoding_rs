@@ -34,7 +34,7 @@ use crate::simd_funcs::*;
         all(target_endian = "little", target_feature = "neon")
     )
 ))]
-use packed_simd::u16x8;
+use core_simd::u16x8;
 
 use super::DecoderResult;
 use super::EncoderResult;

@@ -696,9 +696,6 @@ extern crate cfg_if;
         all(target_endian = "little", target_feature = "neon")
     )
 ))]
-#[macro_use(shuffle)]
-extern crate packed_simd;
-
 #[cfg(feature = "serde")]
 extern crate serde;
 
@@ -3420,7 +3417,10 @@ impl<'de> Visitor<'de> for EncodingVisitor {
         if let Some(enc) = Encoding::for_label(value.as_bytes()) {
             Ok(enc)
         } else {
-            Err(E::custom(alloc::format!("invalid encoding label: {}", value)))
+            Err(E::custom(alloc::format!(
+                "invalid encoding label: {}",
+                value
+            )))
         }
     }
 }
