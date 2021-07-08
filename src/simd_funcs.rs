@@ -133,7 +133,7 @@ cfg_if! {
         #[inline(always)]
         pub fn simd_is_ascii(s: u8x16) -> bool {
             unsafe {
-                vmaxvq_u8(s.into()) < 0x80
+                vmaxvq_u8(::core::mem::transmute_copy(&s)) < 0x80
             }
         }
     } else {
@@ -161,7 +161,7 @@ cfg_if! {
         #[inline(always)]
         pub fn simd_is_str_latin1(s: u8x16) -> bool {
             unsafe {
-                vmaxvq_u8(uint8x16_t::from_bits(s)) < 0xC4
+                vmaxvq_u8(::core::mem::transmute_copy(&s)) < 0xC4
             }
         }
     } else {
@@ -178,14 +178,14 @@ cfg_if! {
         #[inline(always)]
         pub fn simd_is_basic_latin(s: u16x8) -> bool {
             unsafe {
-                vmaxvq_u16(uint16x8_t::from_bits(s)) < 0x80
+                vmaxvq_u16(::core::mem::transmute_copy(&s)) < 0x80
             }
         }
 
         #[inline(always)]
         pub fn simd_is_latin1(s: u16x8) -> bool {
             unsafe {
-                vmaxvq_u16(uint16x8_t::from_bits(s)) < 0x100
+                vmaxvq_u16(::core::mem::transmute_copy(&s)) < 0x100
             }
         }
     } else {
@@ -218,7 +218,7 @@ cfg_if! {
         macro_rules! aarch64_return_false_if_below_hebrew {
             ($s:ident) => ({
                 unsafe {
-                    if vmaxvq_u16(uint16x8_t::from_bits($s)) < 0x0590 {
+                    if vmaxvq_u16(::core::mem::transmute_copy(&$s)) < 0x0590 {
                         return false;
                     }
                 }
@@ -306,13 +306,9 @@ cfg_if! {
         #[inline(always)]
         pub fn simd_pack(a: u16x8, b: u16x8) -> u8x16 {
             unsafe {
-                let first = u8x16::from(a);
-                let second = u8x16::from(b);
-                shuffle!(
-                    first,
-                    second,
-                    [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30]
-                )
+                let first: u8x16 = ::core::mem::transmute_copy(&a);
+                let second: u8x16 = ::core::mem::transmute_copy(&b);
+                first.shuffle::<{[0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30]}>(second)
             }
         }
     }
