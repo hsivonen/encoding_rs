@@ -778,7 +778,7 @@ macro_rules! ascii_to_ascii_simd_double_stride {
             $store(dst, first);
             if unlikely(!simd_is_ascii(first | second)) {
                 let mask_first = mask_ascii(first);
-                if mask_first != 0 {
+                if unlikely(mask_first != 0) {
                     return Some(mask_first.trailing_zeros() as usize);
                 }
                 $store(dst.add(SIMD_STRIDE_SIZE), second);
@@ -797,7 +797,7 @@ macro_rules! ascii_to_basic_latin_simd_stride {
         #[inline(always)]
         pub unsafe fn $name(src: *const u8, dst: *mut u16) -> bool {
             let simd = $load(src);
-            if !simd_is_ascii(simd) {
+            if unlikely(!simd_is_ascii(simd)) {
                 return false;
             }
             let (first, second) = simd_unpack(simd);
@@ -820,7 +820,7 @@ macro_rules! ascii_to_basic_latin_simd_double_stride {
             $store(dst.add(SIMD_STRIDE_SIZE / 2), b);
             if unlikely(!simd_is_ascii(first | second)) {
                 let mask_first = mask_ascii(first);
-                if mask_first != 0 {
+                if unlikely(mask_first != 0) {
                     return Some(mask_first.trailing_zeros() as usize);
                 }
                 let (c, d) = simd_unpack(second);
@@ -857,7 +857,7 @@ macro_rules! basic_latin_to_ascii_simd_stride {
         pub unsafe fn $name(src: *const u16, dst: *mut u8) -> bool {
             let first = $load(src);
             let second = $load(src.add(8));
-            if simd_is_basic_latin(first | second) {
+            if likely(simd_is_basic_latin(first | second)) {
                 $store(dst, simd_pack(first, second));
                 true
             } else {
@@ -1223,7 +1223,7 @@ cfg_if! {
                 let len_minus_stride = len - SIMD_STRIDE_SIZE;
                 loop {
                     let simd = unsafe { load16_unaligned(src.add(offset)) };
-                    if !simd_is_ascii(simd) {
+                    if unsafe { unlikely(!simd_is_ascii(simd)) } {
                         break;
                     }
                     offset += SIMD_STRIDE_SIZE;
@@ -1282,7 +1282,7 @@ cfg_if! {
                     loop {
                         let first = unsafe { load16_aligned(src.add(offset)) };
                         let second = unsafe { load16_aligned(src.add(offset + SIMD_STRIDE_SIZE)) };
-                        if !simd_is_ascii(first | second) {
+                        if unsafe { unlikely(!simd_is_ascii(first | second)) } {
                             let mask_first = mask_ascii(first);
                             if mask_first != 0 {
                                 offset += mask_first.trailing_zeros() as usize;
@@ -1299,8 +1299,8 @@ cfg_if! {
                         }
                     }
                     if offset + SIMD_STRIDE_SIZE <= len {
-                         let simd = unsafe { load16_aligned(src.add(offset)) };
-                         let mask = mask_ascii(simd);
+                        let simd = unsafe { load16_aligned(src.add(offset)) };
+                        let mask = mask_ascii(simd);
                         if mask != 0 {
                             offset += mask.trailing_zeros() as usize;
                             let non_ascii = unsafe { *src.add(offset) };
@@ -1320,8 +1320,8 @@ cfg_if! {
                         }
                         offset += SIMD_STRIDE_SIZE;
                         if offset + SIMD_STRIDE_SIZE <= len {
-                             let simd = unsafe { load16_unaligned(src.add(offset)) };
-                             let mask = mask_ascii(simd);
+                            let simd = unsafe { load16_unaligned(src.add(offset)) };
+                            let mask = mask_ascii(simd);
                             if mask != 0 {
                                 offset += mask.trailing_zeros() as usize;
                                 let non_ascii = unsafe { *src.add(offset) };

@@ -42,6 +42,28 @@ use crate::ascii::*;
 use crate::utf_8::convert_utf8_to_utf16_up_to_invalid;
 use crate::utf_8::utf8_valid_up_to;
 
+cfg_if! {
+    if #[cfg(feature = "simd-accel")] {
+        #[allow(unused_imports)]
+        use ::core::intrinsics::unlikely;
+        #[allow(unused_imports)]
+        use ::core::intrinsics::likely;
+    } else {
+        #[allow(dead_code)]
+        #[inline(always)]
+        // Unsafe to match the intrinsic, which is needlessly unsafe.
+        unsafe fn unlikely(b: bool) -> bool {
+            b
+        }
+        #[allow(dead_code)]
+        #[inline(always)]
+        // Unsafe to match the intrinsic, which is needlessly unsafe.
+        unsafe fn likely(b: bool) -> bool {
+            b
+        }
+    }
+}
+
 pub enum Space<T> {
     Available(T),
     Full(usize),
@@ -245,7 +267,7 @@ fn copy_unaligned_basic_latin_to_ascii<E: Endian>(
                 first = simd_byte_swap(first);
                 second = simd_byte_swap(second);
             }
-            if !simd_is_basic_latin(first | second) {
+            if unsafe { unlikely(!simd_is_basic_latin(first | second)) } {
                 break;
             }
             let packed = simd_pack(first, second);

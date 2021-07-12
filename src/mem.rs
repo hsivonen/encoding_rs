@@ -203,7 +203,7 @@ macro_rules! by_unit_check_simd {
                                     *(src.add(offset + (3 * (SIMD_STRIDE_SIZE / unit_size)))
                                         as *const $simd_ty)
                                 };
-                            if !$func(unroll_accu) {
+                            if unsafe { unlikely(!$func(unroll_accu)) } {
                                 return false;
                             }
                             offset += 4 * (SIMD_STRIDE_SIZE / unit_size);
