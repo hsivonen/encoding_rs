@@ -77,11 +77,10 @@ crate provides that capability.
 
 ## `no_std` Environment
 
-The crate works in a `no_std` environment assuming that `alloc` is present.
-The `alloc`-using part are on the outer edge of the crate, so if there is
-interest in using the crate in environments without `alloc` it would be
-feasible to add a way to turn off those parts of the API of this crate that
-use `Vec`/`String`/`Cow`.
+The crate works in a `no_std` environment. By default, the `alloc` feature,
+which assumes that an allocator is present is enabled. For a no-allocator
+environment, the default features (i.e. `alloc`) can be turned off. This
+makes the part of the API that returns `Vec`/`String`/`Cow` unavailable.
 
 ## Decoding Email
 
@@ -431,6 +430,10 @@ To regenerate the generated code:
 - [ ] Migrate to `std::simd` once it is stable and declare 1.0.
 
 ## Release Notes
+
+### 0.8.29
+
+* Make the parts that use an allocator optional.
 
 ### 0.8.28
 

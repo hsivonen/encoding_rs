@@ -24,8 +24,11 @@
 //! The FFI binding for this module are in the
 //! [encoding_c_mem crate](https://github.com/hsivonen/encoding_c_mem).
 
+#[cfg(feature = "alloc")]
 use alloc::borrow::Cow;
+#[cfg(feature = "alloc")]
 use alloc::string::String;
+#[cfg(feature = "alloc")]
 use alloc::vec::Vec;
 
 use super::in_inclusive_range16;
@@ -1988,6 +1991,9 @@ pub fn convert_utf16_to_latin1_lossy(src: &[u16], dst: &mut [u8]) {
 ///
 /// Borrows if input is ASCII-only. Performs a single heap allocation
 /// otherwise.
+///
+/// Only available if the `alloc` feature is enabled (enabled by default).
+#[cfg(feature = "alloc")]
 pub fn decode_latin1<'a>(bytes: &'a [u8]) -> Cow<'a, str> {
     let up_to = ascii_valid_up_to(bytes);
     // >= makes later things optimize better than ==
@@ -2022,6 +2028,9 @@ pub fn decode_latin1<'a>(bytes: &'a [u8]) -> Cow<'a, str> {
 ///
 /// Borrows if input is ASCII-only. Performs a single heap allocation
 /// otherwise.
+///
+/// Only available if the `alloc` feature is enabled (enabled by default).
+#[cfg(feature = "alloc")]
 pub fn encode_latin1_lossy<'a>(string: &'a str) -> Cow<'a, [u8]> {
     let bytes = string.as_bytes();
     let up_to = ascii_valid_up_to(bytes);
@@ -2155,7 +2164,7 @@ pub fn copy_basic_latin_to_ascii(src: &[u16], dst: &mut [u8]) -> usize {
 // Any copyright to the test code below this comment is dedicated to the
 // Public Domain. http://creativecommons.org/publicdomain/zero/1.0/
 
-#[cfg(test)]
+#[cfg(all(test, feature = "alloc"))]
 mod tests {
     use super::*;
 

@@ -16,6 +16,8 @@ categories = ["text-processing", "encoding", "web-programming", "internationaliz
 travis-ci = { repository = "hsivonen/encoding_rs" }
 
 [features]
+default = ["alloc"]
+alloc = []
 simd-accel = ["packed_simd", "packed_simd/into_bits"]
 less-slow-kanji-encode = []
 less-slow-big5-hanzi-encode = []

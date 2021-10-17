@@ -1508,7 +1508,7 @@ pub fn iso_2022_jp_ascii_valid_up_to(bytes: &[u8]) -> usize {
 // Any copyright to the test code below this comment is dedicated to the
 // Public Domain. http://creativecommons.org/publicdomain/zero/1.0/
 
-#[cfg(test)]
+#[cfg(all(test, feature = "alloc"))]
 mod tests {
     use super::*;
     use alloc::vec::Vec;
