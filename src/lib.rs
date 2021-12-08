@@ -2697,18 +2697,18 @@ impl Encoding {
     /// on it.)
     ///
     /// Available via the C wrapper.
-    /// 
+    ///
     /// # Example
     /// ```
     /// use encoding_rs::Encoding;
-    /// 
+    ///
     /// assert_eq!(Some(encoding_rs::UTF_8), Encoding::for_label(b"utf-8"));
     /// assert_eq!(Some(encoding_rs::UTF_8), Encoding::for_label(b"unicode11utf8"));
-    /// 
+    ///
     /// assert_eq!(Some(encoding_rs::ISO_8859_2), Encoding::for_label(b"latin2"));
-    /// 
+    ///
     /// assert_eq!(Some(encoding_rs::UTF_16BE), Encoding::for_label(b"utf-16be"));
-    /// 
+    ///
     /// assert_eq!(None, Encoding::for_label(b"unrecognized label"));
     /// ```
     pub fn for_label(label: &[u8]) -> Option<&'static Encoding> {

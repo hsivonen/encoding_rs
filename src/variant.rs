@@ -20,17 +20,17 @@
 //! allocation in Rust code, including the convenience methods on `Encoding`.
 
 use super::*;
-use crate::big5::*;
-use crate::euc_jp::*;
-use crate::euc_kr::*;
-use crate::gb18030::*;
-use crate::iso_2022_jp::*;
-use crate::replacement::*;
-use crate::shift_jis::*;
-use crate::single_byte::*;
-use crate::utf_16::*;
-use crate::utf_8::*;
-use crate::x_user_defined::*;
+use big5::*;
+use euc_jp::*;
+use euc_kr::*;
+use gb18030::*;
+use iso_2022_jp::*;
+use replacement::*;
+use shift_jis::*;
+use single_byte::*;
+use utf_16::*;
+use utf_8::*;
+use x_user_defined::*;
 
 pub enum VariantDecoder {
     SingleByte(SingleByteDecoder),
