@@ -3,7 +3,6 @@
 [![Build Status](https://travis-ci.org/hsivonen/encoding_rs.svg?branch=master)](https://travis-ci.org/hsivonen/encoding_rs)
 [![crates.io](https://img.shields.io/crates/v/encoding_rs.svg)](https://crates.io/crates/encoding_rs)
 [![docs.rs](https://docs.rs/encoding_rs/badge.svg)](https://docs.rs/encoding_rs/)
-[![Apache 2 / MIT dual-licensed](https://img.shields.io/badge/license-Apache%202%20%2F%20MIT-blue.svg)](https://github.com/hsivonen/encoding_rs/blob/master/COPYRIGHT)
 
 encoding_rs an implementation of the (non-JavaScript parts of) the
 [Encoding Standard](https://encoding.spec.whatwg.org/) written in Rust and
@@ -112,8 +111,22 @@ characters. Vietnamese tone marks can be decomposed using the
 
 ## Licensing
 
+TL;DR: ((Apache-2.0 OR MIT) AND BSD-3-Clause) for the code and data combination,
+but [crates.io doesn't support
+parentheses](https://github.com/rust-lang/crates.io/issues/2595), so the crate
+metadata points to a custom file.
+
 Please see the file named
 [COPYRIGHT](https://github.com/hsivonen/encoding_rs/blob/master/COPYRIGHT).
+
+The non-test code that isn't generated from the WHATWG data in this crate is
+under Apache-2.0 OR MIT. Test code is under CC0.
+
+This crate contains code/data generated from WHATWG-supplied data. The WHATWG
+upstream changed its license for portions of specs incorporated into source code
+from CC0 to BSD-3-Clause between the initial release of this crate and the present
+version of this crate. The in-source licensing legends have been updated for the
+parts of the generated code that have changed since the upstream license change.
 
 ## Documentation
 
@@ -388,7 +401,10 @@ To regenerate the generated code:
    next to the `encoding_rs` directory.
  * Clone [`https://github.com/whatwg/encoding`](https://github.com/whatwg/encoding)
    next to the `encoding_rs` directory.
- * Checkout revision `f381389` of the `encoding` repo.
+ * Checkout revision `be3337450e7df1c49dca7872153c4c4670dd8256` of the `encoding` repo.
+   (Note: `f381389` was the revision of `encoding` used from before the `encoding` repo
+   license change. So far, only output changed since then has been updated to
+   the new license legend.)
  * With the `encoding_rs` directory as the working directory, run
    `python generate-encoding-data.py`.
 
@@ -430,6 +446,10 @@ To regenerate the generated code:
 - [ ] Migrate to `std::simd` once it is stable and declare 1.0.
 
 ## Release Notes
+
+### 0.8.30
+
+* Update the licensing information to take into account the WHATWG data license change.
 
 ### 0.8.29
 
