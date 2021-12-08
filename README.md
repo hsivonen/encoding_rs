@@ -5,8 +5,14 @@
 [![docs.rs](https://docs.rs/encoding_rs/badge.svg)](https://docs.rs/encoding_rs/)
 
 encoding_rs an implementation of the (non-JavaScript parts of) the
-[Encoding Standard](https://encoding.spec.whatwg.org/) written in Rust and
-used in Gecko (starting with Firefox 56).
+[Encoding Standard](https://encoding.spec.whatwg.org/) written in Rust.
+
+The Encoding Standard defines the Web-compatible set of character encodings,
+which means this crate can be used to decode Web content. encoding_rs is
+used in Gecko starting with Firefox 56. Due to the notable overlap between
+the legacy encodings on the Web and the legacy encodings used on Windows,
+this crate may be of use for non-Web-related situations as well; see below
+for links to adjacent crates.
 
 Additionally, the `mem` module provides various operations for dealing with
 in-RAM text (as opposed to data that's coming from or going to an IO boundary).
