@@ -134,6 +134,19 @@ from CC0 to BSD-3-Clause between the initial release of this crate and the prese
 version of this crate. The in-source licensing legends have been updated for the
 parts of the generated code that have changed since the upstream license change.
 
+To work around the lack of support for paretheses in crates.io metadata, the
+`cargo deny` clarification is:
+
+```toml
+[[licenses.clarify]]
+name = "encoding_rs"
+version = "*"
+expression = "(Apache-2.0 OR MIT) AND BSD-3-Clause"
+license-files = [
+    { path = "COPYRIGHT", hash = 0x39f8ad31 }
+]
+```
+
 ## Documentation
 
 Generated [API documentation](https://docs.rs/encoding_rs/) is available
