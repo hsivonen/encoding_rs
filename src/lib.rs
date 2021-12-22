@@ -3257,11 +3257,29 @@ impl Encoding {
     ///
     /// Available to Rust only and only with the `alloc` feature enabled (enabled
     /// by default).
+    ///
+    /// # Examples
+    ///
+    /// `encode` can be used with either `&str` or `String`.
+    /// ```
+    /// let encoding = encoding_rs::UTF_8;
+    /// let (bytes, output_encoding, saw_unmappable_chars) = encoding.encode("some string");
+    /// let (bytes, output_encoding, saw_unmappable_chars) = encoding.encode(String::from("some string"));
+    /// ```
     #[cfg(feature = "alloc")]
-    pub fn encode<'a>(&'static self, string: &'a str) -> (Cow<'a, [u8]>, &'static Encoding, bool) {
+    pub fn encode<'a>(
+        &'static self,
+        string: impl Into<Cow<'a, str>>,
+    ) -> (Cow<'a, [u8]>, &'static Encoding, bool) {
+        let string = string.into();
+        let to_cow_bytes = |string: Cow<'a, str>| match string {
+            Cow::Owned(string) => Cow::Owned(string.into_bytes()),
+            Cow::Borrowed(str) => Cow::Borrowed(str.as_bytes()),
+        };
+
         let output_encoding = self.output_encoding();
         if output_encoding == UTF_8 {
-            return (Cow::Borrowed(string.as_bytes()), output_encoding, false);
+            return (to_cow_bytes(string), output_encoding, false);
         }
         debug_assert!(output_encoding.is_potentially_borrowable());
         let bytes = string.as_bytes();
@@ -3271,7 +3289,7 @@ impl Encoding {
             ascii_valid_up_to(bytes)
         };
         if valid_up_to == bytes.len() {
-            return (Cow::Borrowed(bytes), output_encoding, false);
+            return (to_cow_bytes(string), output_encoding, false);
         }
         let mut encoder = output_encoding.new_encoder();
         let mut vec: Vec<u8> = Vec::with_capacity(
