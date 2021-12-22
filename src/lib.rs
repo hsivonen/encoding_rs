@@ -3271,7 +3271,14 @@ impl Encoding {
         &'static self,
         string: impl Into<Cow<'a, str>>,
     ) -> (Cow<'a, [u8]>, &'static Encoding, bool) {
-        let string = string.into();
+        self.encode_(string.into())
+    }
+
+    /// Non-generic version of `encode`, to avoid monomorphizing a large amount of code many times.
+    fn encode_<'a>(
+        &'static self,
+        string: Cow<'a, str>,
+    ) -> (Cow<'a, [u8]>, &'static Encoding, bool) {
         let to_cow_bytes = |string: Cow<'a, str>| match string {
             Cow::Owned(string) => Cow::Owned(string.into_bytes()),
             Cow::Borrowed(str) => Cow::Borrowed(str.as_bytes()),
