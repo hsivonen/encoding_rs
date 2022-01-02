@@ -172,7 +172,7 @@ impl UserDefinedEncoder {
                 destination_handle.write_one(c as u8);
                 continue;
             }
-            if c < '\u{F780}' || c > '\u{F7FF}' {
+            if !('\u{F780}'..='\u{F7FF}').contains(&c) {
                 return (
                     EncoderResult::Unmappable(c),
                     unread_handle.consumed(),

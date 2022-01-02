@@ -392,9 +392,9 @@ impl VariantEncoding {
     }
 
     pub fn is_single_byte(&self) -> bool {
-        match *self {
-            VariantEncoding::SingleByte(_, _, _, _) | VariantEncoding::UserDefined => true,
-            _ => false,
-        }
+        matches!(
+            *self,
+            VariantEncoding::SingleByte(_, _, _, _) | VariantEncoding::UserDefined
+        )
     }
 }

@@ -190,7 +190,7 @@ impl Iso2022JpDecoder {
                         continue;
                     }
                     self.output_flag = false;
-                    if b >= 0x21u8 && b <= 0x5Fu8 {
+                    if (0x21u8..=0x5Fu8).contains(&b) {
                         destination_handle.write_upper_bmp(u16::from(b) - 0x21u16 + 0xFF61u16);
                         continue;
                     }
@@ -206,7 +206,7 @@ impl Iso2022JpDecoder {
                         continue;
                     }
                     self.output_flag = false;
-                    if b >= 0x21u8 && b <= 0x7Eu8 {
+                    if (0x21u8..=0x7Eu8).contains(&b) {
                         self.lead = b;
                         self.decoder_state = Iso2022JpDecoderState::TrailByte;
                         continue;
@@ -375,28 +375,21 @@ fn is_kanji_mapped(bmp: u16) -> bool {
 #[cfg(not(feature = "fast-kanji-encode"))]
 #[cfg_attr(
     feature = "cargo-clippy",
-    allow(if_let_redundant_pattern_matching, if_same_then_else)
+    allow(if_let_redundant_pattern_matching, clippy::if_same_then_else)
 )]
 #[inline(always)]
 fn is_kanji_mapped(bmp: u16) -> bool {
-    if 0x4EDD == bmp {
-        true
-    } else if let Some(_) = jis0208_level1_kanji_shift_jis_encode(bmp) {
+    0x4EDD == bmp
+        || matches!(jis0208_level1_kanji_shift_jis_encode(bmp), Some(_))
         // Use the shift_jis variant, because we don't care about the
         // byte values here.
-        true
-    } else if let Some(_) = jis0208_level2_and_additional_kanji_encode(bmp) {
-        true
-    } else if let Some(_) = position(&IBM_KANJI[..], bmp) {
-        true
-    } else {
-        false
-    }
+        || matches!(jis0208_level2_and_additional_kanji_encode(bmp), Some(_))
+        || matches!(position(&IBM_KANJI[..], bmp), Some(_))
 }
 
 #[cfg_attr(
     feature = "cargo-clippy",
-    allow(if_let_redundant_pattern_matching, if_same_then_else)
+    allow(if_let_redundant_pattern_matching, clippy::if_same_then_else)
 )]
 fn is_mapped_for_two_byte_encode(bmp: u16) -> bool {
     // The code below uses else after return to
@@ -413,24 +406,16 @@ fn is_mapped_for_two_byte_encode(bmp: u16) -> bool {
             true
         } else {
             let bmp_minus_space = bmp.wrapping_sub(0x3000);
-            if bmp_minus_space < 3 {
-                // fast-track common punctuation
-                true
-            } else if in_inclusive_range16(bmp, 0xFF61, 0xFF9F) {
-                true
-            } else if bmp == 0x2212 {
-                true
-            } else if let Some(_) = jis0208_range_encode(bmp) {
-                true
-            } else if in_inclusive_range16(bmp, 0xFA0E, 0xFA2D) || bmp == 0xF929 || bmp == 0xF9DC {
-                true
-            } else if let Some(_) = ibm_symbol_encode(bmp) {
-                true
-            } else if let Some(_) = jis0208_symbol_encode(bmp) {
-                true
-            } else {
-                false
-            }
+            // fast-track common punctuation
+            bmp_minus_space < 3
+                || in_inclusive_range16(bmp, 0xFF61, 0xFF9F)
+                || bmp == 0x2212
+                || jis0208_range_encode(bmp).is_some()
+                || in_inclusive_range16(bmp, 0xFA0E, 0xFA2D)
+                || bmp == 0xF929
+                || bmp == 0xF9DC
+                || ibm_symbol_encode(bmp).is_some()
+                || jis0208_symbol_encode(bmp).is_some()
         }
     }
 }
@@ -483,10 +468,7 @@ impl Iso2022JpEncoder {
     }
 
     pub fn has_pending_state(&self) -> bool {
-        match self.state {
-            Iso2022JpEncoderState::Ascii => false,
-            _ => true,
-        }
+        !matches!(self.state, Iso2022JpEncoderState::Ascii)
     }
 
     pub fn max_buffer_length_from_utf16_without_replacement(

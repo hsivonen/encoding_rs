@@ -24,10 +24,7 @@ enum Gb18030Pending {
 
 impl Gb18030Pending {
     fn is_none(&self) -> bool {
-        match *self {
-            Gb18030Pending::None => true,
-            _ => false,
-        }
+        matches!(*self, Gb18030Pending::None)
     }
 
     fn count(&self) -> usize {
@@ -269,7 +266,7 @@ impl Gb18030Decoder {
                 } else {
                     handle.write_bmp_excl_ascii(gb18030_range_decode(pointer as u16))
                 }
-            } else if pointer >= 189_000 && pointer <= 1_237_575 {
+            } else if (189_000..=1_237_575).contains(&pointer) {
                 // Astral
                 handle.write_astral((pointer - (189_000usize - 0x1_0000usize)) as u32)
             } else {
