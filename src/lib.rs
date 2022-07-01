@@ -4029,16 +4029,16 @@ impl Decoder {
         dst: &mut String,
         last: bool,
     ) -> (CoderResult, usize, bool) {
-        unsafe {
-            let vec = dst.as_mut_vec();
+        
+            let vec = unsafe {dst.as_mut_vec()};
             let old_len = vec.len();
             let capacity = vec.capacity();
-            vec.set_len(capacity);
+            unsafe {vec.set_len(capacity)};
             let (result, read, written, replaced) =
                 self.decode_to_utf8(src, &mut vec[old_len..], last);
-            vec.set_len(old_len + written);
+            unsafe {vec.set_len(old_len + written)};
             (result, read, replaced)
-        }
+        
     }
 
     public_decode_function!(/// Incrementally decode a byte stream into UTF-8
@@ -4119,16 +4119,16 @@ impl Decoder {
         dst: &mut String,
         last: bool,
     ) -> (DecoderResult, usize) {
-        unsafe {
-            let vec = dst.as_mut_vec();
+        
+            let vec = unsafe {dst.as_mut_vec()};
             let old_len = vec.len();
             let capacity = vec.capacity();
-            vec.set_len(capacity);
+            unsafe {vec.set_len(capacity)};
             let (result, read, written) =
                 self.decode_to_utf8_without_replacement(src, &mut vec[old_len..], last);
-            vec.set_len(old_len + written);
+            unsafe {vec.set_len(old_len + written)};
             (result, read)
-        }
+        
     }
 
     /// Query the worst-case UTF-16 output size (with or without replacement).
@@ -4620,15 +4620,15 @@ impl Encoder {
         dst: &mut Vec<u8>,
         last: bool,
     ) -> (CoderResult, usize, bool) {
-        unsafe {
+        
             let old_len = dst.len();
             let capacity = dst.capacity();
-            dst.set_len(capacity);
+            unsafe {dst.set_len(capacity)};
             let (result, read, written, replaced) =
                 self.encode_from_utf8(src, &mut dst[old_len..], last);
-            dst.set_len(old_len + written);
+            unsafe {dst.set_len(old_len + written)};
             (result, read, replaced)
-        }
+        
     }
 
     /// Incrementally encode into byte stream from UTF-8 _without replacement_.
@@ -4660,15 +4660,15 @@ impl Encoder {
         dst: &mut Vec<u8>,
         last: bool,
     ) -> (EncoderResult, usize) {
-        unsafe {
+        
             let old_len = dst.len();
             let capacity = dst.capacity();
-            dst.set_len(capacity);
+            unsafe {dst.set_len(capacity)};
             let (result, read, written) =
                 self.encode_from_utf8_without_replacement(src, &mut dst[old_len..], last);
-            dst.set_len(old_len + written);
+            unsafe {dst.set_len(old_len + written)};
             (result, read)
-        }
+        
     }
 
     /// Query the worst-case output size when encoding from UTF-16 with

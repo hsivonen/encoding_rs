@@ -111,8 +111,8 @@ impl UnalignedU16Slice {
         use core::mem::MaybeUninit;
 
         assert!(i < self.len);
+        let mut u: MaybeUninit<u16> = MaybeUninit::uninit();
         unsafe {
-            let mut u: MaybeUninit<u16> = MaybeUninit::uninit();
             ::core::ptr::copy_nonoverlapping(self.ptr.add(i * 2), u.as_mut_ptr() as *mut u8, 2);
             u.assume_init()
         }
