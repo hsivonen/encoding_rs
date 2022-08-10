@@ -682,7 +682,7 @@
 //! for discussion about the UTF-16 family.
 
 #![no_std]
-#![cfg_attr(feature = "simd-accel", feature(stdsimd, core_intrinsics))]
+#![cfg_attr(feature = "simd-accel", feature(core_intrinsics))]
 
 #[cfg(feature = "alloc")]
 #[cfg_attr(test, macro_use)]
