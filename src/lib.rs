@@ -169,8 +169,10 @@
 //!
 //! The Encoding Standard doesn't specify encoders for UTF-16LE and UTF-16BE,
 //! __so this crate does not provide encoders for those encodings__!
-//! Along with the replacement encoding, their _output encoding_ is UTF-8,
-//! so you get an UTF-8 encoder if you request an encoder for them.
+//! Along with the replacement encoding, their _output encoding_ (i.e. the
+//! encoding used for form submission and error handling in the query string
+//! of URLs) is UTF-8, so you get an UTF-8 encoder if you request an encoder
+//! for them.
 //!
 //! Additionally, the Encoding Standard factors BOM handling into wrapper
 //! algorithms so that BOM handling isn't part of the definition of the
@@ -2927,6 +2929,9 @@ impl Encoding {
 
     /// Returns the _output encoding_ of this encoding. This is UTF-8 for
     /// UTF-16BE, UTF-16LE and replacement and the encoding itself otherwise.
+    ///
+    /// Note: The _output encoding_ concept is needed for form submission and
+    /// error handling in the query strings of URLs in the Web Platform.
     ///
     /// Available via the C wrapper.
     #[inline]
