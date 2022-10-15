@@ -3217,10 +3217,11 @@ impl Encoding {
         }
     }
 
-    /// Encode complete input to `Cow<'a, [u8]>` with unmappable characters
-    /// replaced with decimal numeric character references when the entire input
-    /// is available as a single buffer (i.e. the end of the buffer marks the
-    /// end of the stream).
+    /// Encode complete input to `Cow<'a, [u8]>` using the
+    /// [_output encoding_](Encoding::output_encoding) of this encoding with
+    /// unmappable characters replaced with decimal numeric character references
+    /// when the entire input is available as a single buffer (i.e. the end of
+    /// the buffer marks the end of the stream).
     ///
     /// This method implements the (non-streaming version of) the
     /// [_encode_](https://encoding.spec.whatwg.org/#encode) spec concept. For
@@ -3230,8 +3231,8 @@ impl Encoding {
     /// method on `UTF_8`.
     ///
     /// The second item in the returned tuple is the encoding that was actually
-    /// used (which may differ from this encoding thanks to some encodings
-    /// having UTF-8 as their output encoding).
+    /// used (*which may differ from this encoding thanks to some encodings
+    /// having UTF-8 as their output encoding*).
     ///
     /// The third item in the returned tuple indicates whether there were
     /// unmappable characters (that were replaced with HTML numeric character
@@ -3358,7 +3359,11 @@ impl Encoding {
         Decoder::new(self, self.new_variant_decoder(), BomHandling::Off)
     }
 
-    /// Instantiates a new encoder for the output encoding of this encoding.
+    /// Instantiates a new encoder for the [_output encoding_](Encoding::output_encoding)
+    /// of this encoding.
+    ///
+    /// Note: The output encoding of UTF-16BE, UTF-16LE and replacement is UTF-8. There
+    /// is no encoder for UTF-16BE, UTF-16LE and replacement themselves.
     ///
     /// Available via the C wrapper.
     #[inline]
