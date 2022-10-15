@@ -3376,7 +3376,7 @@ impl Encoding {
     /// Instantiates a new encoder for the [_output encoding_](Encoding::output_encoding)
     /// of this encoding.
     ///
-    /// Note: The output encoding of UTF-16BE, UTF-16LE and replacement is UTF-8. There
+    /// _Note:_ The output encoding of UTF-16BE, UTF-16LE and replacement is UTF-8. There
     /// is no encoder for UTF-16BE, UTF-16LE and replacement themselves.
     ///
     /// Available via the C wrapper.
