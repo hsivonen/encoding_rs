@@ -198,6 +198,10 @@
 //! family encodings, since they aren't necessary for consuming Web
 //! content.
 //!
+//! While gb18030 is capable of representing U+FEFF, the Encoding
+//! Standard does not treat the gb18030 byte representation of U+FEFF
+//! as a BOM, so neither does this crate.
+//!
 //! ## ISO-8859-1
 //!
 //! ISO-8859-1 does not exist as a distinct encoding from windows-1252 in
@@ -2939,6 +2943,8 @@ impl Encoding {
     /// entire input is available as a single buffer (i.e. the end of the
     /// buffer marks the end of the stream).
     ///
+    /// The BOM, if any, does not appear in the output.
+    ///
     /// This method implements the (non-streaming version of) the
     /// [_decode_](https://encoding.spec.whatwg.org/#decode) spec concept.
     ///
@@ -2984,6 +2990,8 @@ impl Encoding {
     /// malformed sequences replaced with the REPLACEMENT CHARACTER when the
     /// entire input is available as a single buffer (i.e. the end of the
     /// buffer marks the end of the stream).
+    ///
+    /// Only an initial byte sequence that is a BOM for this encoding is removed.
     ///
     /// When invoked on `UTF_8`, this method implements the (non-streaming
     /// version of) the
@@ -3321,7 +3329,8 @@ impl Encoding {
     /// Instantiates a new decoder for this encoding with BOM sniffing enabled.
     ///
     /// BOM sniffing may cause the returned decoder to morph into a decoder
-    /// for UTF-8, UTF-16LE or UTF-16BE instead of this encoding.
+    /// for UTF-8, UTF-16LE or UTF-16BE instead of this encoding. The BOM
+    /// does not appear in the output.
     ///
     /// Available via the C wrapper.
     #[inline]
