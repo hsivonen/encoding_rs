@@ -263,7 +263,8 @@
 //! Normalizing text into Unicode Normalization Form C prior to encoding text
 //! into a legacy encoding minimizes unmappable characters. Text can be
 //! normalized to Unicode Normalization Form C using the
-//! [`unic-normal`](https://crates.io/crates/unic-normal) crate.
+//! [`icu_normalizer`](https://crates.io/crates/icu_normalizer) crate, which
+//! is part of [ICU4X](https://icu4x.unicode.org/).
 //!
 //! The exception is windows-1258, which after normalizing to Unicode
 //! Normalization Form C requires tone marks to be decomposed in order to
