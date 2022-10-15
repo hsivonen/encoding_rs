@@ -2930,7 +2930,7 @@ impl Encoding {
     /// Returns the _output encoding_ of this encoding. This is UTF-8 for
     /// UTF-16BE, UTF-16LE and replacement and the encoding itself otherwise.
     ///
-    /// Note: The _output encoding_ concept is needed for form submission and
+    /// _Note:_ The _output encoding_ concept is needed for form submission and
     /// error handling in the query strings of URLs in the Web Platform.
     ///
     /// Available via the C wrapper.
