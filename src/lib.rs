@@ -2928,7 +2928,7 @@ impl Encoding {
     }
 
     /// Returns the _output encoding_ of this encoding. This is UTF-8 for
-    /// UTF-16BE, UTF-16LE and replacement and the encoding itself otherwise.
+    /// UTF-16BE, UTF-16LE, and replacement and the encoding itself otherwise.
     ///
     /// _Note:_ The _output encoding_ concept is needed for form submission and
     /// error handling in the query strings of URLs in the Web Platform.
@@ -3376,8 +3376,8 @@ impl Encoding {
     /// Instantiates a new encoder for the [_output encoding_](Encoding::output_encoding)
     /// of this encoding.
     ///
-    /// _Note:_ The output encoding of UTF-16BE, UTF-16LE and replacement is UTF-8. There
-    /// is no encoder for UTF-16BE, UTF-16LE and replacement themselves.
+    /// _Note:_ The output encoding of UTF-16BE, UTF-16LE, and replacement is UTF-8. There
+    /// is no encoder for UTF-16BE, UTF-16LE, and replacement themselves.
     ///
     /// Available via the C wrapper.
     #[inline]
