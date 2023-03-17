@@ -1704,7 +1704,10 @@ pub fn convert_utf16_to_utf8(src: &[u16], dst: &mut [u8]) -> usize {
 /// not allocating memory for the worst case up front. Specifically,
 /// if the input starts with or ends with an unpaired surrogate, those are
 /// replaced with the REPLACEMENT CHARACTER.
-pub fn convert_utf16_to_str_partial(src: &[u16], dst: &mut str) -> (usize, usize) {
+/// Safety
+/// The caller must ensure that the content of the slice is valid UTF-8 before the borrow ends and the underlying str is used.
+/// Use of a str whose contents are not valid UTF-8 is undefined behavior.
+pub unsafe fn convert_utf16_to_str_partial(src: &[u16], dst: &mut str) -> (usize, usize) {
     let bytes: &mut [u8] = unsafe { dst.as_bytes_mut() };
     let (read, written) = convert_utf16_to_utf8_partial(src, bytes);
     let len = bytes.len();
@@ -1731,7 +1734,7 @@ pub fn convert_utf16_to_str_partial(src: &[u16], dst: &mut str) -> (usize, usize
 #[inline(always)]
 pub fn convert_utf16_to_str(src: &[u16], dst: &mut str) -> usize {
     assert!(dst.len() >= src.len() * 3);
-    let (read, written) = convert_utf16_to_str_partial(src, dst);
+    let (read, written) = unsafe { convert_utf16_to_str_partial(src, dst) };
     debug_assert_eq!(read, src.len());
     written
 }
@@ -1847,8 +1850,11 @@ pub fn convert_latin1_to_utf8(src: &[u8], dst: &mut [u8]) -> usize {
 /// Returns the number of bytes read and the number of bytes written.
 ///
 /// If the output isn't large enough, not all input is consumed.
+/// Safety
+/// The caller must ensure that the content of the slice is valid UTF-8 before the borrow ends and the underlying str is used.
+/// Use of a str whose contents are not valid UTF-8 is undefined behavior.
 #[inline]
-pub fn convert_latin1_to_str_partial(src: &[u8], dst: &mut str) -> (usize, usize) {
+pub unsafe fn convert_latin1_to_str_partial(src: &[u8], dst: &mut str) -> (usize, usize) {
     let bytes: &mut [u8] = unsafe { dst.as_bytes_mut() };
     let (read, written) = convert_latin1_to_utf8_partial(src, bytes);
     let len = bytes.len();
@@ -1883,7 +1889,7 @@ pub fn convert_latin1_to_str(src: &[u8], dst: &mut str) -> usize {
         dst.len() >= src.len() * 2,
         "Destination must not be shorter than the source times two."
     );
-    let (read, written) = convert_latin1_to_str_partial(src, dst);
+    let (read, written) = unsafe { convert_latin1_to_str_partial(src, dst) };
     debug_assert_eq!(read, src.len());
     written
 }
