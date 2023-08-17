@@ -167,7 +167,7 @@ There are currently these optional cargo features:
 
 ### `simd-accel`
 
-Enables SIMD acceleration using the nightly-dependent `packed_simd_2` crate.
+Enables SIMD acceleration using the nightly-dependent `packed_simd` crate.
 
 This is an opt-in feature, because enabling this feature _opts out_ of Rust's
 guarantees of future compilers compiling old code (aka. "stability story").
@@ -188,7 +188,7 @@ feature.
 _Note!_ If you are compiling for a target that does not have 128-bit SIMD
 enabled as part of the target definition and you are enabling 128-bit SIMD
 using `-C target_feature`, you need to enable the `core_arch` Cargo feature
-for `packed_simd_2` to compile a crates.io snapshot of `core_arch` instead of
+for `packed_simd` to compile a crates.io snapshot of `core_arch` instead of
 using the standard-library copy of `core::arch`, because the `core::arch`
 module of the pre-compiled standard library has been compiled with the
 assumption that the CPU doesn't have 128-bit SIMD. At present this applies
