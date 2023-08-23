@@ -450,6 +450,10 @@ To regenerate the generated code:
 
 ## Release Notes
 
+### 0.8.33
+
+* Use `packed_simd` instead of `packed_simd_2` again now that updates are back under the `packed_simd` name. Only affects the `simd-accel` optional nightly feature.
+
 ### 0.8.32
 
 * Removed `build.rs`. (This removal should resolve false positives reported by some antivirus products. This may break some build configurations that have opted out of Rust's guarantees against future build breakage.)
