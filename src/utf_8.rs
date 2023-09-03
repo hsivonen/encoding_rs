@@ -226,7 +226,10 @@ pub fn utf8_valid_up_to(src: &[u8]) -> usize {
     read
 }
 
-#[cfg_attr(feature = "cargo-clippy", allow(never_loop, cyclomatic_complexity))]
+#[cfg_attr(
+    feature = "cargo-clippy",
+    allow(clippy::never_loop, cyclomatic_complexity)
+)]
 pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usize, usize) {
     let mut read = 0;
     let mut written = 0;
@@ -603,7 +606,7 @@ impl Utf8Decoder {
     );
 }
 
-#[cfg_attr(feature = "cargo-clippy", allow(never_loop))]
+#[cfg_attr(feature = "cargo-clippy", allow(clippy::never_loop))]
 #[inline(never)]
 pub fn convert_utf16_to_utf8_partial_inner(src: &[u16], dst: &mut [u8]) -> (usize, usize) {
     let mut read = 0;
@@ -792,6 +795,7 @@ pub fn convert_utf16_to_utf8_partial_tail(src: &[u16], dst: &mut [u8]) -> (usize
         // Got surrogate
         if unit_minus_surrogate_start <= (0xDBFF - 0xD800) {
             // Got high surrogate
+            #[allow(clippy::branches_sharing_code)]
             if read >= src.len() {
                 // Unpaired high surrogate
                 unit = 0xFFFD;
