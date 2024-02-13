@@ -53,6 +53,9 @@ impl SingleByteDecoder {
                     // statically omit the bound check when accessing
                     // `[u16; 128]` with an index
                     // `non_ascii as usize - 0x80usize`.
+                    //
+                    // Safety: `non_ascii` is a u8 byte >=0x80, from the invariants
+                    // on Utf8Destination::copy_ascii_from_check_space_bmp()
                     let mapped =
                         unsafe { *(self.table.get_unchecked(non_ascii as usize - 0x80usize)) };
                     // let mapped = self.table[non_ascii as usize - 0x80usize];
