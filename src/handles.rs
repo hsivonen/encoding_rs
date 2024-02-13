@@ -646,6 +646,7 @@ impl<'a> Utf16Destination<'a> {
         self.write_bmp_excl_ascii(combined);
         self.write_bmp_excl_ascii(combining);
     }
+    // Safety-usable invariant: CopyAsciiResult::GoOn will only contain bytes >=0x80
     #[inline(always)]
     pub fn copy_ascii_from_check_space_bmp<'b>(
         &'b mut self,
@@ -659,6 +660,7 @@ impl<'a> Utf16Destination<'a> {
             } else {
                 (DecoderResult::InputEmpty, src_remaining.len())
             };
+            // SAFETY TODO: what does this function do?? The implementation is a pile of macros
             match unsafe {
                 ascii_to_basic_latin(src_remaining.as_ptr(), dst_remaining.as_mut_ptr(), length)
             } {
@@ -675,6 +677,7 @@ impl<'a> Utf16Destination<'a> {
                 }
             }
         };
+        // SAFETY TODO: verify the result is indeed non-ascii
         CopyAsciiResult::GoOn((non_ascii_ret, Utf16BmpHandle::new(self)))
     }
     #[inline(always)]
