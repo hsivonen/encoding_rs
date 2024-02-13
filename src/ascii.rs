@@ -51,6 +51,8 @@ cfg_if! {
     }
 }
 
+// Safety invariants for masks: data & mask = 0 for valid ASCII or basic latin utf-16
+
 // `as` truncates, so works on 32-bit, too.
 #[allow(dead_code)]
 pub const ASCII_MASK: usize = 0x8080_8080_8080_8080u64 as usize;
@@ -62,6 +64,9 @@ pub const BASIC_LATIN_MASK: usize = 0xFF80_FF80_FF80_FF80u64 as usize;
 #[allow(unused_macros)]
 macro_rules! ascii_naive {
     ($name:ident, $src_unit:ty, $dst_unit:ty) => {
+        /// Safety: src and dst must have len_unit elements and be aligned
+        /// Safety-usable invariant: will return Some() when it fails
+        /// to convert. The first value will be a u8 that is > 127.
         #[inline(always)]
         pub unsafe fn $name(
             src: *const $src_unit,
@@ -71,10 +76,13 @@ macro_rules! ascii_naive {
             // Yes, manually omitting the bound check here matters
             // a lot for perf.
             for i in 0..len {
+                // Safety: len invariant used here
                 let code_unit = *(src.add(i));
+                // Safety: Upholds safety-usable invariant here
                 if code_unit > 127 {
                     return Some((code_unit, i));
                 }
+                // Safety: len invariant used here
                 *(dst.add(i)) = code_unit as $dst_unit;
             }
             return None;
@@ -85,9 +93,14 @@ macro_rules! ascii_naive {
 #[allow(unused_macros)]
 macro_rules! ascii_alu {
     ($name:ident,
+     // safety invariant: src/dst MUST be u8
      $src_unit:ty,
      $dst_unit:ty,
+     // Safety invariant: stride_fn must consume and produce two usizes, and return the index of the first non-ascii when it fails
      $stride_fn:ident) => {
+        /// Safety: src and dst must have len_unit elements and be aligned
+        /// Safety-usable invariant: will return Some() when it fails
+        /// to convert. The first value will be a u8 that is > 127.
         #[cfg_attr(feature = "cargo-clippy", allow(never_loop, cast_ptr_alignment))]
         #[inline(always)]
         pub unsafe fn $name(
@@ -98,6 +111,7 @@ macro_rules! ascii_alu {
             let mut offset = 0usize;
             // This loop is only broken out of as a `goto` forward
             loop {
+                // Safety: until_alignment becomes the number of bits we need to munch until we are aligned
                 let mut until_alignment = {
                     // Check if the other unit aligns if we move the narrower unit
                     // to alignment.
@@ -106,6 +120,7 @@ macro_rules! ascii_alu {
                     let src_alignment = (src as usize) & ALU_ALIGNMENT_MASK;
                     let dst_alignment = (dst as usize) & ALU_ALIGNMENT_MASK;
                     if src_alignment != dst_alignment {
+                        // Safety: bails early and ends up in the naïve branch where usize-alignment doesn't matter
                         break;
                     }
                     (ALU_ALIGNMENT - src_alignment) & ALU_ALIGNMENT_MASK
@@ -134,25 +149,36 @@ macro_rules! ascii_alu {
                     // x86_64 should be using SSE2 in due course, keeping the move
                     // to alignment here. It would be good to test on more ARM CPUs
                     // and on real MIPS and POWER hardware.
+                    //
+                    // Safety: This is the naïve code once again, for `until_alignment` bytes
                     while until_alignment != 0 {
                         let code_unit = *(src.add(offset));
                         if code_unit > 127 {
+                            // Safety: Upholds safety-usable invariant here
                             return Some((code_unit, offset));
                         }
                         *(dst.add(offset)) = code_unit as $dst_unit;
+                        // Safety: offset is the number of bytes copied so far
                         offset += 1;
                         until_alignment -= 1;
                     }
                     let len_minus_stride = len - ALU_STRIDE_SIZE;
                     loop {
+                        // Safety: num_ascii is known to be a byte index of a non-ascii byte due to stride_fn's invariant
                         if let Some(num_ascii) = $stride_fn(
+                            // Safety: These are known to be valid since we have at least ALU_STRIDE_SIZE data in these buffers,
+                            // and offset is the number of bytes copied so far
                             src.add(offset) as *const usize,
                             dst.add(offset) as *mut usize,
                         ) {
                             offset += num_ascii;
+                            // Safety: Upholds safety-usable invariant here by indexing into non-ascii byte
                             return Some((*(src.add(offset)), offset));
                         }
+                        // Safety: offset continues to be the number of bytes copied so far
                         offset += ALU_STRIDE_SIZE;
+                        // Safety: This is `offset > len - stride. This loop will continue as long as
+                        // `offset <= len - stride`, which means there are `stride` bytes to still be read.
                         if offset > len_minus_stride {
                             break;
                         }
@@ -160,11 +186,17 @@ macro_rules! ascii_alu {
                 }
                 break;
             }
+
+            // Safety: This is the naïve code, same as ascii_naive, and has no requirements
+            // other than src/dst being valid for the the right lens
             while offset < len {
+                // Safety: len invariant used here
                 let code_unit = *(src.add(offset));
                 if code_unit > 127 {
+                    // Safety: Upholds safety-usable invariant here
                     return Some((code_unit, offset));
                 }
+                // Safety: len invariant used here
                 *(dst.add(offset)) = code_unit as $dst_unit;
                 offset += 1;
             }
@@ -175,9 +207,16 @@ macro_rules! ascii_alu {
 
 #[allow(unused_macros)]
 macro_rules! basic_latin_alu {
+    /// Safety: src and dst must have len_unit elements and be aligned
+    /// Safety-usable invariant: will return Some() when it fails
+    /// to convert. The first value will be a u8 that is > 127.
+    /// SAFETY TODO: verify
     ($name:ident,
+    // safety invariant: use u8 for src/dest for ascii, and u16 for basic_latin
      $src_unit:ty,
      $dst_unit:ty,
+    // safety invariant: use a stride function that matches the src->dst relation above
+    // SAFETY TODO: stride_fn is an unsafe function with more invariants
      $stride_fn:ident) => {
         #[cfg_attr(
             feature = "cargo-clippy",
@@ -998,14 +1037,21 @@ cfg_if! {
     } else if #[cfg(all(target_endian = "little", target_pointer_width = "64"))] {
         // Aligned ALU word, little-endian, 64-bit
 
+        /// Safety invariant: this is the amount of bytes consumed by
+        /// unpack_alu. This will be twice the pointer width, as it consumes two usizes.
+        /// This is also the number of bytes produced by pack_alu.
+        /// This is also the number of u16 code units produced/consumed by unpack_alu/pack_alu respectively.
         pub const ALU_STRIDE_SIZE: usize = 16;
 
         pub const MAX_STRIDE_SIZE: usize = 16;
 
+        // Safety invariant: this is the pointer width in bytes
         pub const ALU_ALIGNMENT: usize = 8;
 
+        // Safety invariant: this is a mask for getting the bits of a pointer not aligned to ALU_ALIGNMENT
         pub const ALU_ALIGNMENT_MASK: usize = 7;
 
+        /// Safety: dst must point to valid space for writing four `usize`s
         #[inline(always)]
         unsafe fn unpack_alu(word: usize, second_word: usize, dst: *mut usize) {
             let first = ((0x0000_0000_FF00_0000usize & word) << 24) |
@@ -1024,12 +1070,14 @@ cfg_if! {
                          ((0x00FF_0000_0000_0000usize & second_word) >> 16) |
                          ((0x0000_FF00_0000_0000usize & second_word) >> 24) |
                          ((0x0000_00FF_0000_0000usize & second_word) >> 32);
+            // Safety: fn invariant used here
             *dst = first;
             *(dst.add(1)) = second;
             *(dst.add(2)) = third;
             *(dst.add(3)) = fourth;
         }
 
+        /// Safety: dst must point to valid space for writing two `usize`s
         #[inline(always)]
         unsafe fn pack_alu(first: usize, second: usize, third: usize, fourth: usize, dst: *mut usize) {
             let word = ((0x00FF_0000_0000_0000usize & second) << 8) |
@@ -1048,20 +1096,28 @@ cfg_if! {
                               ((0x0000_00FF_0000_0000usize & third) >> 16) |
                               ((0x0000_0000_00FF_0000usize & third) >> 8) |
                               (0x0000_0000_0000_00FFusize & third);
+            // Safety: fn invariant used here
             *dst = word;
             *(dst.add(1)) = second_word;
         }
     } else if #[cfg(all(target_endian = "little", target_pointer_width = "32"))] {
         // Aligned ALU word, little-endian, 32-bit
 
+        /// Safety invariant: this is the amount of bytes consumed by
+        /// unpack_alu. This will be twice the pointer width, as it consumes two usizes.
+        /// This is also the number of bytes produced by pack_alu.
+        /// This is also the number of u16 code units produced/consumed by unpack_alu/pack_alu respectively.
         pub const ALU_STRIDE_SIZE: usize = 8;
 
         pub const MAX_STRIDE_SIZE: usize = 8;
 
+        // Safety invariant: this is the pointer width in bytes
         pub const ALU_ALIGNMENT: usize = 4;
 
+        // Safety invariant: this is a mask for getting the bits of a pointer not aligned to ALU_ALIGNMENT
         pub const ALU_ALIGNMENT_MASK: usize = 3;
 
+        /// Safety: dst must point to valid space for writing four `usize`s
         #[inline(always)]
         unsafe fn unpack_alu(word: usize, second_word: usize, dst: *mut usize) {
             let first = ((0x0000_FF00usize & word) << 8) |
@@ -1072,12 +1128,14 @@ cfg_if! {
                         (0x0000_00FFusize & second_word);
             let fourth = ((0xFF00_0000usize & second_word) >> 8) |
                          ((0x00FF_0000usize & second_word) >> 16);
+            // Safety: fn invariant used here
             *dst = first;
             *(dst.add(1)) = second;
             *(dst.add(2)) = third;
             *(dst.add(3)) = fourth;
         }
 
+        /// Safety: dst must point to valid space for writing two `usize`s
         #[inline(always)]
         unsafe fn pack_alu(first: usize, second: usize, third: usize, fourth: usize, dst: *mut usize) {
             let word = ((0x00FF_0000usize & second) << 8) |
@@ -1088,20 +1146,28 @@ cfg_if! {
                               ((0x0000_00FFusize & fourth) << 16) |
                               ((0x00FF_0000usize & third) >> 8) |
                               (0x0000_00FFusize & third);
+            // Safety: fn invariant used here
             *dst = word;
             *(dst.add(1)) = second_word;
         }
     } else if #[cfg(all(target_endian = "big", target_pointer_width = "64"))] {
         // Aligned ALU word, big-endian, 64-bit
 
+        /// Safety invariant: this is the amount of bytes consumed by
+        /// unpack_alu. This will be twice the pointer width, as it consumes two usizes.
+        /// This is also the number of bytes produced by pack_alu.
+        /// This is also the number of u16 code units produced/consumed by unpack_alu/pack_alu respectively.
         pub const ALU_STRIDE_SIZE: usize = 16;
 
         pub const MAX_STRIDE_SIZE: usize = 16;
 
+        // Safety invariant: this is the pointer width in bytes
         pub const ALU_ALIGNMENT: usize = 8;
 
+        // Safety invariant: this is a mask for getting the bits of a pointer not aligned to ALU_ALIGNMENT
         pub const ALU_ALIGNMENT_MASK: usize = 7;
 
+        /// Safety: dst must point to valid space for writing four `usize`s
         #[inline(always)]
         unsafe fn unpack_alu(word: usize, second_word: usize, dst: *mut usize) {
             let first = ((0xFF00_0000_0000_0000usize & word) >> 8) |
@@ -1120,12 +1186,14 @@ cfg_if! {
                         ((0x0000_0000_00FF_0000usize & second_word) << 16) |
                         ((0x0000_0000_0000_FF00usize & second_word) << 8) |
                         (0x0000_0000_0000_00FFusize & second_word);
+            // Safety: fn invariant used here
             *dst = first;
             *(dst.add(1)) = second;
             *(dst.add(2)) = third;
             *(dst.add(3)) = fourth;
         }
 
+        /// Safety: dst must point to valid space for writing two `usize`s
         #[inline(always)]
         unsafe fn pack_alu(first: usize, second: usize, third: usize, fourth: usize, dst: *mut usize) {
             let word = ((0x00FF0000_00000000usize & first) << 8) |
@@ -1144,20 +1212,28 @@ cfg_if! {
                               ((0x000000FF_00000000usize & fourth) >> 16) |
                               ((0x00000000_00FF0000usize & fourth) >> 8) |
                               (0x00000000_000000FFusize &  fourth);
+            // Safety: fn invariant used here
             *dst = word;
             *(dst.add(1)) = second_word;
         }
     } else if #[cfg(all(target_endian = "big", target_pointer_width = "32"))] {
         // Aligned ALU word, big-endian, 32-bit
 
+        /// Safety invariant: this is the amount of bytes consumed by
+        /// unpack_alu. This will be twice the pointer width, as it consumes two usizes.
+        /// This is also the number of bytes produced by pack_alu.
+        /// This is also the number of u16 code units produced/consumed by unpack_alu/pack_alu respectively.
         pub const ALU_STRIDE_SIZE: usize = 8;
 
         pub const MAX_STRIDE_SIZE: usize = 8;
 
+        // Safety invariant: this is the pointer width in bytes
         pub const ALU_ALIGNMENT: usize = 4;
 
+        // Safety invariant: this is a mask for getting the bits of a pointer not aligned to ALU_ALIGNMENT
         pub const ALU_ALIGNMENT_MASK: usize = 3;
 
+        /// Safety: dst must point to valid space for writing four `usize`s
         #[inline(always)]
         unsafe fn unpack_alu(word: usize, second_word: usize, dst: *mut usize) {
             let first = ((0xFF00_0000usize & word) >> 8) |
@@ -1168,12 +1244,14 @@ cfg_if! {
                          ((0x00FF_0000usize & second_word) >> 16);
             let fourth = ((0x0000_FF00usize & second_word) << 8) |
                         (0x0000_00FFusize & second_word);
+            // Safety: fn invariant used here
             *dst = first;
             *(dst.add(1)) = second;
             *(dst.add(2)) = third;
             *(dst.add(3)) = fourth;
         }
 
+        /// Safety: dst must point to valid space for writing two `usize`s
         #[inline(always)]
         unsafe fn pack_alu(first: usize, second: usize, third: usize, fourth: usize, dst: *mut usize) {
             let word = ((0x00FF_0000usize & first) << 8) |
@@ -1184,6 +1262,7 @@ cfg_if! {
                               ((0x0000_00FFusize & third) << 16) |
                               ((0x00FF_0000usize & fourth) >> 8) |
                               (0x0000_00FFusize & fourth);
+            // Safety: fn invariant used here
             *dst = word;
             *(dst.add(1)) = second_word;
         }
@@ -1195,6 +1274,8 @@ cfg_if! {
 }
 
 cfg_if! {
+    // Safety-usable invariant: this counts the zeroes from the "first byte" of utf-8 data packed into a usize
+    // with the target endianness
     if #[cfg(target_endian = "little")] {
         #[allow(dead_code)]
         #[inline(always)]
@@ -1340,28 +1421,34 @@ cfg_if! {
             None
         }
     } else {
+        // Safety-usable invariant: returns byte index of first non-ascii byte
         #[inline(always)]
         fn find_non_ascii(word: usize, second_word: usize) -> Option<usize> {
             let word_masked = word & ASCII_MASK;
             let second_masked = second_word & ASCII_MASK;
             if (word_masked | second_masked) == 0 {
+                // Both are ascii, invariant upheld
                 return None;
             }
             if word_masked != 0 {
                 let zeros = count_zeros(word_masked);
-                // `zeros` now contains 7 (for the seven bits of non-ASCII)
+                // `zeros` now contains 0 to 7 (for the seven bits of masked ASCII in little endian,
+                // or up to 7 bits of non-ASCII in big endian if the first byte is non-ASCII)
                 // plus 8 times the number of ASCII in text order before the
                 // non-ASCII byte in the little-endian case or 8 times the number of ASCII in
                 // text order before the non-ASCII byte in the big-endian case.
                 let num_ascii = (zeros >> 3) as usize;
+                // Safety-usable invariant upheld here
                 return Some(num_ascii);
             }
             let zeros = count_zeros(second_masked);
-            // `zeros` now contains 7 (for the seven bits of non-ASCII)
+            // `zeros` now contains 0 to 7 (for the seven bits of masked ASCII in little endian,
+            // or up to 7 bits of non-ASCII in big endian if the first byte is non-ASCII)
             // plus 8 times the number of ASCII in text order before the
             // non-ASCII byte in the little-endian case or 8 times the number of ASCII in
             // text order before the non-ASCII byte in the big-endian case.
             let num_ascii = (zeros >> 3) as usize;
+            // Safety-usable invariant upheld here
             Some(ALU_ALIGNMENT + num_ascii)
         }
 
@@ -1428,36 +1515,47 @@ cfg_if! {
 
         pub const ALU_ALIGNMENT_MASK: usize = 3;
     } else {
+        // Safety: src points to two valid `usize`s, dst points to four valid `usize`s
         #[inline(always)]
         unsafe fn unpack_latin1_stride_alu(src: *const usize, dst: *mut usize) {
+            // Safety: src safety invariant used here
             let word = *src;
             let second_word = *(src.add(1));
+            // Safety: dst safety invariant passed down
             unpack_alu(word, second_word, dst);
         }
 
+        // Safety: src points to four valid `usize`s, dst points to two valid `usize`s
         #[inline(always)]
         unsafe fn pack_latin1_stride_alu(src: *const usize, dst: *mut usize) {
+            // Safety: src safety invariant used here
             let first = *src;
             let second = *(src.add(1));
             let third = *(src.add(2));
             let fourth = *(src.add(3));
+            // Safety: dst safety invariant passed down
             pack_alu(first, second, third, fourth, dst);
         }
 
+        // Safety: src points to two valid `usize`s, dst points to four valid `usize`s
         #[inline(always)]
         unsafe fn ascii_to_basic_latin_stride_alu(src: *const usize, dst: *mut usize) -> bool {
+            // Safety: src safety invariant used here
             let word = *src;
             let second_word = *(src.add(1));
             // Check if the words contains non-ASCII
             if (word & ASCII_MASK) | (second_word & ASCII_MASK) != 0 {
                 return false;
             }
+            // Safety: dst safety invariant passed down
             unpack_alu(word, second_word, dst);
             true
         }
 
+        // Safety: src points four valid `usize`s, dst points to two valid `usize`s
         #[inline(always)]
         unsafe fn basic_latin_to_ascii_stride_alu(src: *const usize, dst: *mut usize) -> bool {
+            // Safety: src safety invariant used here
             let first = *src;
             let second = *(src.add(1));
             let third = *(src.add(2));
@@ -1465,16 +1563,22 @@ cfg_if! {
             if (first & BASIC_LATIN_MASK) | (second & BASIC_LATIN_MASK) | (third & BASIC_LATIN_MASK) | (fourth & BASIC_LATIN_MASK) != 0 {
                 return false;
             }
+            // Safety: dst safety invariant passed down
             pack_alu(first, second, third, fourth, dst);
             true
         }
 
+        // Safety: src, dst both point to two valid `usize`s each
+        // Safety-usable invariant: Will return byte index of first non-ascii byte.
         #[inline(always)]
         unsafe fn ascii_to_ascii_stride(src: *const usize, dst: *mut usize) -> Option<usize> {
+            // Safety: src safety invariant used here
             let word = *src;
             let second_word = *(src.add(1));
+            // Safety: src safety invariant used here
             *dst = word;
             *(dst.add(1)) = second_word;
+            // Relies on safety-usable invariant here
             find_non_ascii(word, second_word)
         }
 
@@ -1482,6 +1586,7 @@ cfg_if! {
         basic_latin_alu!(basic_latin_to_ascii, u16, u8, basic_latin_to_ascii_stride_alu);
         latin1_alu!(unpack_latin1, u8, u16, unpack_latin1_stride_alu);
         latin1_alu!(pack_latin1, u16, u8, pack_latin1_stride_alu);
+        // Safety invariant upheld: ascii_to_ascii_stride will return byte index of first non-ascii if found
         ascii_alu!(ascii_to_ascii, u8, u8, ascii_to_ascii_stride);
     }
 }

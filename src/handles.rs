@@ -660,7 +660,8 @@ impl<'a> Utf16Destination<'a> {
             } else {
                 (DecoderResult::InputEmpty, src_remaining.len())
             };
-            // SAFETY TODO: what does this function do?? The implementation is a pile of macros
+            // Safety: This function is documented as needing valid pointers for src/dest and len, which
+            // is true since we've passed the minumum length of the two
             match unsafe {
                 ascii_to_basic_latin(src_remaining.as_ptr(), dst_remaining.as_mut_ptr(), length)
             } {
@@ -669,17 +670,20 @@ impl<'a> Utf16Destination<'a> {
                     self.pos += length;
                     return CopyAsciiResult::Stop((pending, source.pos, self.pos));
                 }
+                // Safety: the function is documented as returning bytes >=0x80 in the Some
                 Some((non_ascii, consumed)) => {
                     source.pos += consumed;
                     self.pos += consumed;
                     source.pos += 1; // +1 for non_ascii
+                    // Safety: non-ascii bubbled out here
                     non_ascii
                 }
             }
         };
-        // SAFETY TODO: verify the result is indeed non-ascii
+        // Safety: non-ascii returned here
         CopyAsciiResult::GoOn((non_ascii_ret, Utf16BmpHandle::new(self)))
     }
+    // Safety-usable invariant: CopyAsciiResult::GoOn will only contain bytes >=0x80
     #[inline(always)]
     pub fn copy_ascii_from_check_space_astral<'b>(
         &'b mut self,
@@ -694,6 +698,8 @@ impl<'a> Utf16Destination<'a> {
             } else {
                 (DecoderResult::InputEmpty, src_remaining.len())
             };
+            // Safety: This function is documented as needing valid pointers for src/dest and len, which
+            // is true since we've passed the minumum length of the two
             match unsafe {
                 ascii_to_basic_latin(src_remaining.as_ptr(), dst_remaining.as_mut_ptr(), length)
             } {
@@ -702,11 +708,13 @@ impl<'a> Utf16Destination<'a> {
                     self.pos += length;
                     return CopyAsciiResult::Stop((pending, source.pos, self.pos));
                 }
+                // Safety: the function is documented as returning bytes >=0x80 in the Some
                 Some((non_ascii, consumed)) => {
                     source.pos += consumed;
                     self.pos += consumed;
                     if self.pos + 1 < dst_len {
                         source.pos += 1; // +1 for non_ascii
+                        // Safety: non-ascii bubbled out here
                         non_ascii
                     } else {
                         return CopyAsciiResult::Stop((
@@ -718,6 +726,7 @@ impl<'a> Utf16Destination<'a> {
                 }
             }
         };
+        // Safety: non-ascii returned here
         CopyAsciiResult::GoOn((non_ascii_ret, Utf16AstralHandle::new(self)))
     }
     #[inline(always)]
