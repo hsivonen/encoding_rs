@@ -112,7 +112,7 @@ macro_rules! ascii_alu {
             let mut offset = 0usize;
             // This loop is only broken out of as a `goto` forward
             loop {
-                // Safety: until_alignment becomes the number of bits we need to munch until we are aligned
+                // Safety: until_alignment becomes the number of bytes we need to munch until we are aligned to usize
                 let mut until_alignment = {
                     // Check if the other unit aligns if we move the narrower unit
                     // to alignment.
@@ -212,17 +212,17 @@ macro_rules! ascii_alu {
 
 #[allow(unused_macros)]
 macro_rules! basic_latin_alu {
-    /// Safety: src and dst must have len_unit elements and be aligned
-    /// Safety-usable invariant: will return Some() when it fails
-    /// to convert. The first value will be a u8 that is > 127.
-    /// SAFETY TODO: verify
     ($name:ident,
     // safety invariant: use u8 for src/dest for ascii, and u16 for basic_latin
      $src_unit:ty,
      $dst_unit:ty,
-    // safety invariant: use a stride function that matches the src->dst relation above
-    // SAFETY TODO: stride_fn is an unsafe function with more invariants
+    // safety invariant: stride function must munch ALU_STRIDE_SIZE*size(src_unit) bytes off of src and
+    // write ALU_STRIDE_SIZE*size(dst_unit) bytes to dst
      $stride_fn:ident) => {
+        /// Safety: src and dst must have len elements, src is valid for read, dst is valid for
+        /// write
+        /// Safety-usable invariant: will return Some() when it fails
+        /// to convert. The first value will be a u8 that is > 127.
         #[cfg_attr(
             feature = "cargo-clippy",
             allow(never_loop, cast_ptr_alignment, cast_lossless)
@@ -236,6 +236,8 @@ macro_rules! basic_latin_alu {
             let mut offset = 0usize;
             // This loop is only broken out of as a `goto` forward
             loop {
+                // Safety: until_alignment becomes the number of bytes we need to munch from src/dest until we are aligned to usize
+                // We ensure basic-latin has the same alignment as ascii, starting with ascii since it is smaller.
                 let mut until_alignment = {
                     // Check if the other unit aligns if we move the narrower unit
                     // to alignment.
@@ -281,24 +283,37 @@ macro_rules! basic_latin_alu {
                     // x86_64 should be using SSE2 in due course, keeping the move
                     // to alignment here. It would be good to test on more ARM CPUs
                     // and on real MIPS and POWER hardware.
+                    //
+                    // Safety: This is the naïve code once again, for `until_alignment` bytes
                     while until_alignment != 0 {
                         let code_unit = *(src.add(offset));
                         if code_unit > 127 {
+                            // Safety: Upholds safety-usable invariant here
                             return Some((code_unit, offset));
                         }
                         *(dst.add(offset)) = code_unit as $dst_unit;
+                        // Safety: offset is the number of bytes copied so far
                         offset += 1;
                         until_alignment -= 1;
                     }
                     let len_minus_stride = len - ALU_STRIDE_SIZE;
                     loop {
                         if !$stride_fn(
+                            // Safety: These are known to be valid and aligned since we have at
+                            // least ALU_STRIDE_SIZE data in these buffers, and offset is the
+                            // number of elements copied so far, which according to the
+                            // until_alignment calculation above will cause both src and dst to be
+                            // aligned to usize after this add
                             src.add(offset) as *const usize,
                             dst.add(offset) as *mut usize,
                         ) {
                             break;
                         }
+                        // Safety: offset continues to be the number of bytes copied so far, and
+                        // maintains usize alignment for the next loop iteration
                         offset += ALU_STRIDE_SIZE;
+                        // Safety: This is `offset > len - stride. This loop will continue as long as
+                        // `offset <= len - stride`, which means there are `stride` bytes to still be read.
                         if offset > len_minus_stride {
                             break;
                         }
@@ -306,11 +321,15 @@ macro_rules! basic_latin_alu {
                 }
                 break;
             }
+            // Safety: This is the naïve code once again, for leftover bytes
             while offset < len {
+                // Safety: len invariant used here
                 let code_unit = *(src.add(offset));
                 if code_unit > 127 {
+                    // Safety: Upholds safety-usable invariant here
                     return Some((code_unit, offset));
                 }
+                // Safety: len invariant used here
                 *(dst.add(offset)) = code_unit as $dst_unit;
                 offset += 1;
             }
@@ -321,7 +340,11 @@ macro_rules! basic_latin_alu {
 
 #[allow(unused_macros)]
 macro_rules! latin1_alu {
+    // safety invariant: stride function must munch ALU_STRIDE_SIZE*size(src_unit) bytes off of src and
+    // write ALU_STRIDE_SIZE*size(dst_unit) bytes to dst
     ($name:ident, $src_unit:ty, $dst_unit:ty, $stride_fn:ident) => {
+        /// Safety: src and dst must have len elements, src is valid for read, dst is valid for
+        /// write
         #[cfg_attr(
             feature = "cargo-clippy",
             allow(never_loop, cast_ptr_alignment, cast_lossless)
@@ -331,6 +354,8 @@ macro_rules! latin1_alu {
             let mut offset = 0usize;
             // This loop is only broken out of as a `goto` forward
             loop {
+                // Safety: until_alignment becomes the number of bytes we need to munch from src/dest until we are aligned to usize
+                // We ensure the UTF-16 side has the same alignment as the Latin-1 side, starting with Latin-1 since it is smaller.
                 let mut until_alignment = {
                     if ::core::mem::size_of::<$src_unit>() < ::core::mem::size_of::<$dst_unit>() {
                         // unpack
@@ -357,19 +382,30 @@ macro_rules! latin1_alu {
                     }
                 };
                 if until_alignment + ALU_STRIDE_SIZE <= len {
+                    // Safety: This is the naïve code once again, for `until_alignment` bytes
                     while until_alignment != 0 {
                         let code_unit = *(src.add(offset));
                         *(dst.add(offset)) = code_unit as $dst_unit;
+                        // Safety: offset is the number of bytes copied so far
                         offset += 1;
                         until_alignment -= 1;
                     }
                     let len_minus_stride = len - ALU_STRIDE_SIZE;
                     loop {
                         $stride_fn(
+                            // Safety: These are known to be valid and aligned since we have at
+                            // least ALU_STRIDE_SIZE data in these buffers, and offset is the
+                            // number of elements copied so far, which according to the
+                            // until_alignment calculation above will cause both src and dst to be
+                            // aligned to usize after this add
                             src.add(offset) as *const usize,
                             dst.add(offset) as *mut usize,
                         );
+                        // Safety: offset continues to be the number of bytes copied so far, and
+                        // maintains usize alignment for the next loop iteration
                         offset += ALU_STRIDE_SIZE;
+                        // Safety: This is `offset > len - stride. This loop will continue as long as
+                        // `offset <= len - stride`, which means there are `stride` bytes to still be read.
                         if offset > len_minus_stride {
                             break;
                         }
@@ -377,7 +413,9 @@ macro_rules! latin1_alu {
                 }
                 break;
             }
+            // Safety: This is the naïve code once again, for leftover bytes
             while offset < len {
+                // Safety: len invariant used here
                 let code_unit = *(src.add(offset));
                 *(dst.add(offset)) = code_unit as $dst_unit;
                 offset += 1;
@@ -797,6 +835,9 @@ macro_rules! latin1_simd_unalign {
 
 #[allow(unused_macros)]
 macro_rules! ascii_to_ascii_simd_stride {
+    /// Safety: src and dst must be valid for 16 bytes of read/write according to
+    /// the $load/$store fn, which may allow for unaligned reads/writes or require
+    /// alignment to either 16x8 or u8x16.
     ($name:ident, $load:ident, $store:ident) => {
         #[inline(always)]
         pub unsafe fn $name(src: *const u8, dst: *mut u8) -> bool {
@@ -813,6 +854,10 @@ macro_rules! ascii_to_ascii_simd_stride {
 #[allow(unused_macros)]
 macro_rules! ascii_to_ascii_simd_double_stride {
     ($name:ident, $store:ident) => {
+        /// Safety: src must be valid for 32 bytes of aligned u8x16 read
+        /// dst must be valid for 32 bytes of unaligned write according to
+        /// the $store fn, which may allow for unaligned writes or require
+        /// alignment to either 16x8 or u8x16.
         #[inline(always)]
         pub unsafe fn $name(src: *const u8, dst: *mut u8) -> Option<usize> {
             let first = load16_aligned(src);
@@ -836,6 +881,9 @@ macro_rules! ascii_to_ascii_simd_double_stride {
 #[allow(unused_macros)]
 macro_rules! ascii_to_basic_latin_simd_stride {
     ($name:ident, $load:ident, $store:ident) => {
+        /// Safety: src and dst must be valid for 16/32 bytes of read/write according to
+        /// the $load/$store fn, which may allow for unaligned reads/writes or require
+        /// alignment to either 16x8 or u8x16.
         #[inline(always)]
         pub unsafe fn $name(src: *const u8, dst: *mut u16) -> bool {
             let simd = $load(src);
@@ -882,6 +930,9 @@ macro_rules! ascii_to_basic_latin_simd_double_stride {
 #[allow(unused_macros)]
 macro_rules! unpack_simd_stride {
     ($name:ident, $load:ident, $store:ident) => {
+        /// Safety: src and dst must be valid for 16 bytes of read/write according to
+        /// the $load/$store fn, which may allow for unaligned reads/writes or require
+        /// alignment to either 16x8 or u8x16.
         #[inline(always)]
         pub unsafe fn $name(src: *const u8, dst: *mut u16) {
             let simd = $load(src);
@@ -895,6 +946,9 @@ macro_rules! unpack_simd_stride {
 #[allow(unused_macros)]
 macro_rules! basic_latin_to_ascii_simd_stride {
     ($name:ident, $load:ident, $store:ident) => {
+        /// Safety: src and dst must be valid for 32/16 bytes of read/write according to
+        /// the $load/$store fn, which may allow for unaligned reads/writes or require
+        /// alignment to either 16x8 or u8x16.
         #[inline(always)]
         pub unsafe fn $name(src: *const u16, dst: *mut u8) -> bool {
             let first = $load(src);
@@ -912,6 +966,9 @@ macro_rules! basic_latin_to_ascii_simd_stride {
 #[allow(unused_macros)]
 macro_rules! pack_simd_stride {
     ($name:ident, $load:ident, $store:ident) => {
+        /// Safety: src and dst must be valid for 32/16 bytes of read/write according to
+        /// the $load/$store fn, which may allow for unaligned reads/writes or require
+        /// alignment to either 16x8 or u8x16.
         #[inline(always)]
         pub unsafe fn $name(src: *const u16, dst: *mut u8) {
             let first = $load(src);

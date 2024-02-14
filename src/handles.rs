@@ -675,7 +675,7 @@ impl<'a> Utf16Destination<'a> {
                     source.pos += consumed;
                     self.pos += consumed;
                     source.pos += 1; // +1 for non_ascii
-                    // Safety: non-ascii bubbled out here
+                                     // Safety: non-ascii bubbled out here
                     non_ascii
                 }
             }
@@ -714,7 +714,7 @@ impl<'a> Utf16Destination<'a> {
                     self.pos += consumed;
                     if self.pos + 1 < dst_len {
                         source.pos += 1; // +1 for non_ascii
-                        // Safety: non-ascii bubbled out here
+                                         // Safety: non-ascii bubbled out here
                         non_ascii
                     } else {
                         return CopyAsciiResult::Stop((
