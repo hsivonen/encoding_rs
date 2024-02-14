@@ -430,11 +430,19 @@ macro_rules! ascii_simd_check_align {
         $name:ident,
         $src_unit:ty,
         $dst_unit:ty,
+        // Safety: This function must require aligned src/dest that are valid for reading/writing SIMD_STRIDE_SIZE src_unit/dst_unit
         $stride_both_aligned:ident,
+        // Safety: This function must require aligned/unaligned src/dest that are valid for reading/writing SIMD_STRIDE_SIZE src_unit/dst_unit
         $stride_src_aligned:ident,
+        // Safety: This function must require unaligned/aligned src/dest that are valid for reading/writing SIMD_STRIDE_SIZE src_unit/dst_unit
         $stride_dst_aligned:ident,
+        // Safety: This function must require unaligned src/dest that are valid for reading/writing SIMD_STRIDE_SIZE src_unit/dst_unit
         $stride_neither_aligned:ident
     ) => {
+        /// Safety: src/dst must be valid for reads/writes of `len` elements of their units.
+        ///
+        /// Safety-usable invariant: will return Some() when it encounters non-ASCII, with the first element in the Some being
+        /// guaranteed to be non-ASCII (> 127), and the second being the offset where it is found
         #[inline(always)]
         pub unsafe fn $name(
             src: *const $src_unit,
@@ -442,6 +450,7 @@ macro_rules! ascii_simd_check_align {
             len: usize,
         ) -> Option<($src_unit, usize)> {
             let mut offset = 0usize;
+            // Safety: if this check succeeds we're valid for reading/writing at least `SIMD_STRIDE_SIZE` elements.
             if SIMD_STRIDE_SIZE <= len {
                 let len_minus_stride = len - SIMD_STRIDE_SIZE;
                 // XXX Should we first process one stride unconditionally as unaligned to
@@ -450,23 +459,29 @@ macro_rules! ascii_simd_check_align {
                 // on Haswell, it would make sense to just use unaligned and not bother
                 // checking. Need to benchmark older architectures before deciding.
                 let dst_masked = (dst as usize) & SIMD_ALIGNMENT_MASK;
+                // Safety: checking whether src is aligned
                 if ((src as usize) & SIMD_ALIGNMENT_MASK) == 0 {
+                    // Safety: Checking whether dst is aligned
                     if dst_masked == 0 {
                         loop {
+                            // Safety: We're valid to read/write SIMD_STRIDE_SIZE elements and have the appropriate alignments
                             if !$stride_both_aligned(src.add(offset), dst.add(offset)) {
                                 break;
                             }
                             offset += SIMD_STRIDE_SIZE;
+                            // Safety: This is `offset > len - SIMD_STRIDE_SIZE` which means we always have at least `SIMD_STRIDE_SIZE` elements to munch next time.
                             if offset > len_minus_stride {
                                 break;
                             }
                         }
                     } else {
                         loop {
+                            // Safety: We're valid to read/write SIMD_STRIDE_SIZE elements and have the appropriate alignments
                             if !$stride_src_aligned(src.add(offset), dst.add(offset)) {
                                 break;
                             }
                             offset += SIMD_STRIDE_SIZE;
+                            // Safety: This is `offset > len - SIMD_STRIDE_SIZE` which means we always have at least `SIMD_STRIDE_SIZE` elements to munch next time.
                             if offset > len_minus_stride {
                                 break;
                             }
@@ -475,20 +490,24 @@ macro_rules! ascii_simd_check_align {
                 } else {
                     if dst_masked == 0 {
                         loop {
+                            // Safety: We're valid to read/write SIMD_STRIDE_SIZE elements and have the appropriate alignments
                             if !$stride_dst_aligned(src.add(offset), dst.add(offset)) {
                                 break;
                             }
                             offset += SIMD_STRIDE_SIZE;
+                            // Safety: This is `offset > len - SIMD_STRIDE_SIZE` which means we always have at least `SIMD_STRIDE_SIZE` elements to munch next time.
                             if offset > len_minus_stride {
                                 break;
                             }
                         }
                     } else {
                         loop {
+                            // Safety: We're valid to read/write SIMD_STRIDE_SIZE elements and have the appropriate alignments
                             if !$stride_neither_aligned(src.add(offset), dst.add(offset)) {
                                 break;
                             }
                             offset += SIMD_STRIDE_SIZE;
+                            // Safety: This is `offset > len - SIMD_STRIDE_SIZE` which means we always have at least `SIMD_STRIDE_SIZE` elements to munch next time.
                             if offset > len_minus_stride {
                                 break;
                             }
@@ -497,8 +516,10 @@ macro_rules! ascii_simd_check_align {
                 }
             }
             while offset < len {
+                // Safety: uses len invariant here and below
                 let code_unit = *(src.add(offset));
                 if code_unit > 127 {
+                    // Safety: upholds safety-usable invariant
                     return Some((code_unit, offset));
                 }
                 *(dst.add(offset)) = code_unit as $dst_unit;
@@ -515,13 +536,21 @@ macro_rules! ascii_simd_check_align_unrolled {
         $name:ident,
         $src_unit:ty,
         $dst_unit:ty,
+        // Safety: This function must require aligned src/dest that are valid for reading/writing SIMD_STRIDE_SIZE src_unit/dst_unit
         $stride_both_aligned:ident,
+        // Safety: This function must require aligned/unaligned src/dest that are valid for reading/writing SIMD_STRIDE_SIZE src_unit/dst_unit
         $stride_src_aligned:ident,
+        // Safety: This function must require unaligned src/dest that are valid for reading/writing SIMD_STRIDE_SIZE src_unit/dst_unit
         $stride_neither_aligned:ident,
+        // Safety: This function must require aligned src/dest that are valid for reading/writing 2*SIMD_STRIDE_SIZE src_unit/dst_unit
         $double_stride_both_aligned:ident,
+        // Safety: This function must require aligned/unaligned src/dest that are valid for reading/writing 2*SIMD_STRIDE_SIZE src_unit/dst_unit
         $double_stride_src_aligned:ident
     ) => {
-        #[inline(always)]
+        /// Safety: src/dst must be valid for reads/writes of `len` elements of their units.
+        ///
+        /// Safety-usable invariant: will return Some() when it encounters non-ASCII, with the first element in the Some being
+        /// guaranteed to be non-ASCII (> 127), and the second being the offset where it is found        #[inline(always)]
         pub unsafe fn $name(
             src: *const $src_unit,
             dst: *mut $dst_unit,
@@ -532,8 +561,10 @@ macro_rules! ascii_simd_check_align_unrolled {
             // This loop is only broken out of as a goto forward without
             // actually looping
             'outer: loop {
+                // Safety: if this check succeeds we're valid for reading/writing at least `SIMD_STRIDE_SIZE` elements.
                 if SIMD_STRIDE_SIZE <= len {
                     // First, process one unaligned
+                    // Safety: this is safe to call since we're valid for this read/write
                     if !$stride_neither_aligned(src, dst) {
                         break 'outer;
                     }
@@ -543,37 +574,54 @@ macro_rules! ascii_simd_check_align_unrolled {
                     // there will be enough more to justify more expense
                     // in the case of non-ASCII.
                     // Use aligned reads for the sake of old microachitectures.
+                    //
+                    // Safety: this correctly calculates the number of src_units that need to be read before the remaining list is aligned.
+                    // This is less that SIMD_ALIGNMENT, which is also SIMD_STRIDE_SIZE (as documented)
                     let until_alignment = ((SIMD_ALIGNMENT
                         - ((src.add(offset) as usize) & SIMD_ALIGNMENT_MASK))
                         & SIMD_ALIGNMENT_MASK)
                         / unit_size;
-                    // This addition won't overflow, because even in the 32-bit PAE case the
+                    // Safety: This addition won't overflow, because even in the 32-bit PAE case the
                     // address space holds enough code that the slice length can't be that
                     // close to address space size.
                     // offset now equals SIMD_STRIDE_SIZE, hence times 3 below.
+                    //
+                    // Safety: if this check succeeds we're valid for reading/writing at least `2 * SIMD_STRIDE_SIZE` elements plus `until_alignment`.
+                    // The extra SIMD_STRIDE_SIZE in the condition is because `offset` is already `SIMD_STRIDE_SIZE`.
                     if until_alignment + (SIMD_STRIDE_SIZE * 3) <= len {
                         if until_alignment != 0 {
+                            // Safety: this is safe to call since we're valid for this read/write (and more), and don't care about alignment
+                            // This will copy over bytes that get decoded twice since it's not incrementing `offset` by SIMD_STRIDE_SIZE. This is fine.
                             if !$stride_neither_aligned(src.add(offset), dst.add(offset)) {
                                 break;
                             }
                             offset += until_alignment;
                         }
+                        // Safety: At this point we're valid for reading/writing 2*SIMD_STRIDE_SIZE elements
+                        // Safety: Now `offset` is aligned for `src`
                         let len_minus_stride_times_two = len - (SIMD_STRIDE_SIZE * 2);
+                        // Safety: This is whether dst is aligned
                         let dst_masked = (dst.add(offset) as usize) & SIMD_ALIGNMENT_MASK;
                         if dst_masked == 0 {
                             loop {
+                                // Safety: both are aligned, we can call the aligned function. We're valid for reading/writing double stride from the initial condition
+                                // and the loop break condition below
                                 if let Some(advance) =
                                     $double_stride_both_aligned(src.add(offset), dst.add(offset))
                                 {
                                     offset += advance;
                                     let code_unit = *(src.add(offset));
+                                    // Safety: uses safety-usable invariant on ascii_to_ascii_simd_double_stride to return
+                                    // guaranteed non-ascii
                                     return Some((code_unit, offset));
                                 }
                                 offset += SIMD_STRIDE_SIZE * 2;
+                                // Safety: This is `offset > len - 2 * SIMD_STRIDE_SIZE` which means we always have at least `2 * SIMD_STRIDE_SIZE` elements to munch next time.
                                 if offset > len_minus_stride_times_two {
                                     break;
                                 }
                             }
+                            // Safety: We're valid for reading/writing one more, and can still assume alignment
                             if offset + SIMD_STRIDE_SIZE <= len {
                                 if !$stride_both_aligned(src.add(offset), dst.add(offset)) {
                                     break 'outer;
@@ -582,18 +630,25 @@ macro_rules! ascii_simd_check_align_unrolled {
                             }
                         } else {
                             loop {
+                                // Safety: only src is aligned here. We're valid for reading/writing double stride from the initial condition
+                                // and the loop break condition below
                                 if let Some(advance) =
                                     $double_stride_src_aligned(src.add(offset), dst.add(offset))
                                 {
                                     offset += advance;
                                     let code_unit = *(src.add(offset));
+                                    // Safety: uses safety-usable invariant on ascii_to_ascii_simd_double_stride to return
+                                    // guaranteed non-ascii
                                     return Some((code_unit, offset));
                                 }
                                 offset += SIMD_STRIDE_SIZE * 2;
+                                // Safety: This is `offset > len - 2 * SIMD_STRIDE_SIZE` which means we always have at least `2 * SIMD_STRIDE_SIZE` elements to munch next time.
+
                                 if offset > len_minus_stride_times_two {
                                     break;
                                 }
                             }
+                            // Safety: We're valid for reading/writing one more, and can still assume alignment
                             if offset + SIMD_STRIDE_SIZE <= len {
                                 if !$stride_src_aligned(src.add(offset), dst.add(offset)) {
                                     break 'outer;
@@ -604,11 +659,13 @@ macro_rules! ascii_simd_check_align_unrolled {
                     } else {
                         // At most two iterations, so unroll
                         if offset + SIMD_STRIDE_SIZE <= len {
+                            // Safety: The check above ensures we're allowed to read/write this, and we don't use alignment
                             if !$stride_neither_aligned(src.add(offset), dst.add(offset)) {
                                 break;
                             }
                             offset += SIMD_STRIDE_SIZE;
                             if offset + SIMD_STRIDE_SIZE <= len {
+                                // Safety: The check above ensures we're allowed to read/write this, and we don't use alignment
                                 if !$stride_neither_aligned(src.add(offset), dst.add(offset)) {
                                     break;
                                 }
@@ -620,8 +677,10 @@ macro_rules! ascii_simd_check_align_unrolled {
                 break 'outer;
             }
             while offset < len {
+                // Safety: relies straightforwardly on the `len` invariant
                 let code_unit = *(src.add(offset));
                 if code_unit > 127 {
+                    // Safety-usable invariant upheld here
                     return Some((code_unit, offset));
                 }
                 *(dst.add(offset)) = code_unit as $dst_unit;
@@ -638,30 +697,45 @@ macro_rules! latin1_simd_check_align {
         $name:ident,
         $src_unit:ty,
         $dst_unit:ty,
+        // Safety: This function must require aligned src/dest that are valid for reading/writing SIMD_STRIDE_SIZE src_unit/dst_unit
         $stride_both_aligned:ident,
+        // Safety: This function must require aligned/unaligned src/dest that are valid for reading/writing SIMD_STRIDE_SIZE src_unit/dst_unit
         $stride_src_aligned:ident,
+        // Safety: This function must require unaligned/aligned src/dest that are valid for reading/writing SIMD_STRIDE_SIZE src_unit/dst_unit
         $stride_dst_aligned:ident,
+        // Safety: This function must require unaligned src/dest that are valid for reading/writing SIMD_STRIDE_SIZE src_unit/dst_unit
         $stride_neither_aligned:ident
+
     ) => {
+        /// Safety: src/dst must be valid for reads/writes of `len` elements of their units.
         #[inline(always)]
         pub unsafe fn $name(src: *const $src_unit, dst: *mut $dst_unit, len: usize) {
             let mut offset = 0usize;
+            // Safety: if this check succeeds we're valid for reading/writing at least `SIMD_STRIDE_SIZE` elements.
             if SIMD_STRIDE_SIZE <= len {
                 let len_minus_stride = len - SIMD_STRIDE_SIZE;
+                // Whether dst is aligned
                 let dst_masked = (dst as usize) & SIMD_ALIGNMENT_MASK;
+                // Whether src is aligned
                 if ((src as usize) & SIMD_ALIGNMENT_MASK) == 0 {
                     if dst_masked == 0 {
                         loop {
+                            // Safety: Both were aligned, we can use the aligned function
                             $stride_both_aligned(src.add(offset), dst.add(offset));
                             offset += SIMD_STRIDE_SIZE;
+                            // Safety: This is `offset > len - SIMD_STRIDE_SIZE`, which means in the next iteration we're valid for
+                            // reading/writing at least SIMD_STRIDE_SIZE elements.
                             if offset > len_minus_stride {
                                 break;
                             }
                         }
                     } else {
                         loop {
+                            // Safety: src was aligned, dst was not
                             $stride_src_aligned(src.add(offset), dst.add(offset));
                             offset += SIMD_STRIDE_SIZE;
+                            // Safety: This is `offset > len - SIMD_STRIDE_SIZE`, which means in the next iteration we're valid for
+                            // reading/writing at least SIMD_STRIDE_SIZE elements.
                             if offset > len_minus_stride {
                                 break;
                             }
@@ -670,16 +744,22 @@ macro_rules! latin1_simd_check_align {
                 } else {
                     if dst_masked == 0 {
                         loop {
+                            // Safety: src was aligned, dst was not
                             $stride_dst_aligned(src.add(offset), dst.add(offset));
                             offset += SIMD_STRIDE_SIZE;
+                            // Safety: This is `offset > len - SIMD_STRIDE_SIZE`, which means in the next iteration we're valid for
+                            // reading/writing at least SIMD_STRIDE_SIZE elements.
                             if offset > len_minus_stride {
                                 break;
                             }
                         }
                     } else {
                         loop {
+                            // Safety: Neither were aligned
                             $stride_neither_aligned(src.add(offset), dst.add(offset));
                             offset += SIMD_STRIDE_SIZE;
+                            // Safety: This is `offset > len - SIMD_STRIDE_SIZE`, which means in the next iteration we're valid for
+                            // reading/writing at least SIMD_STRIDE_SIZE elements.
                             if offset > len_minus_stride {
                                 break;
                             }
@@ -688,6 +768,7 @@ macro_rules! latin1_simd_check_align {
                 }
             }
             while offset < len {
+                // Safety: relies straightforwardly on the `len` invariant
                 let code_unit = *(src.add(offset));
                 *(dst.add(offset)) = code_unit as $dst_unit;
                 offset += 1;
@@ -702,56 +783,74 @@ macro_rules! latin1_simd_check_align_unrolled {
         $name:ident,
         $src_unit:ty,
         $dst_unit:ty,
+        // Safety: This function must require aligned src/dest that are valid for reading/writing SIMD_STRIDE_SIZE src_unit/dst_unit
         $stride_both_aligned:ident,
+        // Safety: This function must require aligned/unaligned src/dest that are valid for reading/writing SIMD_STRIDE_SIZE src_unit/dst_unit
         $stride_src_aligned:ident,
+        // Safety: This function must require unaligned/aligned src/dest that are valid for reading/writing SIMD_STRIDE_SIZE src_unit/dst_unit
         $stride_dst_aligned:ident,
+        // Safety: This function must require unaligned src/dest that are valid for reading/writing SIMD_STRIDE_SIZE src_unit/dst_unit
         $stride_neither_aligned:ident
     ) => {
+        /// Safety: src/dst must be valid for reads/writes of `len` elements of their units.
         #[inline(always)]
         pub unsafe fn $name(src: *const $src_unit, dst: *mut $dst_unit, len: usize) {
             let unit_size = ::core::mem::size_of::<$src_unit>();
             let mut offset = 0usize;
+            // Safety: if this check succeeds we're valid for reading/writing at least `SIMD_STRIDE_SIZE` elements.
             if SIMD_STRIDE_SIZE <= len {
+                // Safety: this correctly calculates the number of src_units that need to be read before the remaining list is aligned.
+                // This is by definition less than SIMD_STRIDE_SIZE.
                 let mut until_alignment = ((SIMD_STRIDE_SIZE
                     - ((src as usize) & SIMD_ALIGNMENT_MASK))
                     & SIMD_ALIGNMENT_MASK)
                     / unit_size;
                 while until_alignment != 0 {
+                    // Safety: This is a straightforward copy, since until_alignment is < SIMD_STRIDE_SIZE < len, this is in-bounds
                     *(dst.add(offset)) = *(src.add(offset)) as $dst_unit;
                     offset += 1;
                     until_alignment -= 1;
                 }
+                // Safety: here offset will be `until_alignment`, i.e. enough to align `src`.
                 let len_minus_stride = len - SIMD_STRIDE_SIZE;
+                // Safety: if this check succeeds we're valid for reading/writing at least `2 * SIMD_STRIDE_SIZE` elements.
                 if offset + SIMD_STRIDE_SIZE * 2 <= len {
                     let len_minus_stride_times_two = len_minus_stride - SIMD_STRIDE_SIZE;
+                    // Safety: at this point src is known to be aligned at offset, dst is not.
                     if (dst.add(offset) as usize) & SIMD_ALIGNMENT_MASK == 0 {
                         loop {
+                            // Safety: We checked alignment of dst above, we can use the alignment functions. We're allowed to read/write 2*SIMD_STRIDE_SIZE elements, which we do.
                             $stride_both_aligned(src.add(offset), dst.add(offset));
                             offset += SIMD_STRIDE_SIZE;
                             $stride_both_aligned(src.add(offset), dst.add(offset));
                             offset += SIMD_STRIDE_SIZE;
+                            // Safety: This is `offset > len - 2 * SIMD_STRIDE_SIZE` which means we always have at least `2 * SIMD_STRIDE_SIZE` elements to munch next time.
                             if offset > len_minus_stride_times_two {
                                 break;
                             }
                         }
                     } else {
                         loop {
+                            // Safety: we ensured alignment of src already.
                             $stride_src_aligned(src.add(offset), dst.add(offset));
                             offset += SIMD_STRIDE_SIZE;
                             $stride_src_aligned(src.add(offset), dst.add(offset));
                             offset += SIMD_STRIDE_SIZE;
+                            // Safety: This is `offset > len - 2 * SIMD_STRIDE_SIZE` which means we always have at least `2 * SIMD_STRIDE_SIZE` elements to munch next time.
                             if offset > len_minus_stride_times_two {
                                 break;
                             }
                         }
                     }
                 }
+                // Safety: This is `offset > len - SIMD_STRIDE_SIZE` which means we are valid to munch SIMD_STRIDE_SIZE more elements, which we do
                 if offset < len_minus_stride {
                     $stride_src_aligned(src.add(offset), dst.add(offset));
                     offset += SIMD_STRIDE_SIZE;
                 }
             }
             while offset < len {
+                // Safety: uses len invariant here and below
                 let code_unit = *(src.add(offset));
                 // On x86_64, this loop autovectorizes but in the pack
                 // case there are instructions whose purpose is to make sure
@@ -775,7 +874,12 @@ macro_rules! latin1_simd_check_align_unrolled {
 
 #[allow(unused_macros)]
 macro_rules! ascii_simd_unalign {
+    // Safety: stride_neither_aligned must be a function that requires src/dest be valid for unaligned reads/writes for SIMD_STRIDE_SIZE elements of type src_unit/dest_unit
     ($name:ident, $src_unit:ty, $dst_unit:ty, $stride_neither_aligned:ident) => {
+        /// Safety: src and dst must be valid for reads/writes of len elements of type src_unit/dst_unit
+        ///
+        /// Safety-usable invariant: will return Some() when it encounters non-ASCII, with the first element in the Some being
+        /// guaranteed to be non-ASCII (> 127), and the second being the offset where it is found
         #[inline(always)]
         pub unsafe fn $name(
             src: *const $src_unit,
@@ -783,21 +887,26 @@ macro_rules! ascii_simd_unalign {
             len: usize,
         ) -> Option<($src_unit, usize)> {
             let mut offset = 0usize;
+            // Safety: if this check succeeds we're valid for reading/writing at least `stride` elements.
             if SIMD_STRIDE_SIZE <= len {
                 let len_minus_stride = len - SIMD_STRIDE_SIZE;
                 loop {
+                    // Safety: We know we're valid for `stride` reads/writes, so we can call this function. We don't need alignment.
                     if !$stride_neither_aligned(src.add(offset), dst.add(offset)) {
                         break;
                     }
                     offset += SIMD_STRIDE_SIZE;
+                    // This is `offset > len - stride` which means we always have at least `stride` elements to munch next time.
                     if offset > len_minus_stride {
                         break;
                     }
                 }
             }
             while offset < len {
+                // Safety: Uses len invariant here and below
                 let code_unit = *(src.add(offset));
                 if code_unit > 127 {
+                    // Safety-usable invariant upheld here
                     return Some((code_unit, offset));
                 }
                 *(dst.add(offset)) = code_unit as $dst_unit;
@@ -810,21 +919,27 @@ macro_rules! ascii_simd_unalign {
 
 #[allow(unused_macros)]
 macro_rules! latin1_simd_unalign {
+    // Safety: stride_neither_aligned must be a function that requires src/dest be valid for unaligned reads/writes for SIMD_STRIDE_SIZE elements of type src_unit/dest_unit
     ($name:ident, $src_unit:ty, $dst_unit:ty, $stride_neither_aligned:ident) => {
+        /// Safety: src and dst must be valid for unaligned reads/writes of len elements of type src_unit/dst_unit
         #[inline(always)]
         pub unsafe fn $name(src: *const $src_unit, dst: *mut $dst_unit, len: usize) {
             let mut offset = 0usize;
+            // Safety: if this check succeeds we're valid for reading/writing at least `stride` elements.
             if SIMD_STRIDE_SIZE <= len {
                 let len_minus_stride = len - SIMD_STRIDE_SIZE;
                 loop {
+                    // Safety: We know we're valid for `stride` reads/writes, so we can call this function. We don't need alignment.
                     $stride_neither_aligned(src.add(offset), dst.add(offset));
                     offset += SIMD_STRIDE_SIZE;
+                    // This is `offset > len - stride` which means we always have at least `stride` elements to munch next time.
                     if offset > len_minus_stride {
                         break;
                     }
                 }
             }
             while offset < len {
+                // Safety: Uses len invariant here
                 let code_unit = *(src.add(offset));
                 *(dst.add(offset)) = code_unit as $dst_unit;
                 offset += 1;
@@ -835,10 +950,11 @@ macro_rules! latin1_simd_unalign {
 
 #[allow(unused_macros)]
 macro_rules! ascii_to_ascii_simd_stride {
-    /// Safety: src and dst must be valid for 16 bytes of read/write according to
-    /// the $load/$store fn, which may allow for unaligned reads/writes or require
-    /// alignment to either 16x8 or u8x16.
+    // Safety: load/store must be valid for 16 bytes of read/write, which may be unaligned. (candidates: `(load|store)(16|8)_(unaligned|aligned)` functions)
     ($name:ident, $load:ident, $store:ident) => {
+        /// Safety: src and dst must be valid for 16 bytes of read/write according to
+        /// the $load/$store fn, which may allow for unaligned reads/writes or require
+        /// alignment to either 16x8 or u8x16.
         #[inline(always)]
         pub unsafe fn $name(src: *const u8, dst: *mut u8) -> bool {
             let simd = $load(src);
@@ -853,23 +969,32 @@ macro_rules! ascii_to_ascii_simd_stride {
 
 #[allow(unused_macros)]
 macro_rules! ascii_to_ascii_simd_double_stride {
+    // Safety: store must be valid for 32 bytes of write, which may be unaligned (candidates: `store(8|16)_(aligned|unaligned)`)
     ($name:ident, $store:ident) => {
         /// Safety: src must be valid for 32 bytes of aligned u8x16 read
         /// dst must be valid for 32 bytes of unaligned write according to
         /// the $store fn, which may allow for unaligned writes or require
         /// alignment to either 16x8 or u8x16.
+        ///
+        /// Safety-usable invariant: Returns Some(index) if the element at `index` is invalid ASCII
         #[inline(always)]
         pub unsafe fn $name(src: *const u8, dst: *mut u8) -> Option<usize> {
             let first = load16_aligned(src);
             let second = load16_aligned(src.add(SIMD_STRIDE_SIZE));
             $store(dst, first);
             if unlikely(!simd_is_ascii(first | second)) {
+                // Safety: mask_ascii produces a mask of all the high bits.
                 let mask_first = mask_ascii(first);
                 if mask_first != 0 {
+                    // Safety: on little endian systems this will be the number of ascii bytes
+                    // before the first non-ascii, i.e. valid for indexing src
+                    // TODO SAFETY: What about big-endian systems?
                     return Some(mask_first.trailing_zeros() as usize);
                 }
                 $store(dst.add(SIMD_STRIDE_SIZE), second);
                 let mask_second = mask_ascii(second);
+                // Safety: on little endian systems this will be the number of ascii bytes
+                // before the first non-ascii, i.e. valid for indexing src
                 return Some(SIMD_STRIDE_SIZE + mask_second.trailing_zeros() as usize);
             }
             $store(dst.add(SIMD_STRIDE_SIZE), second);
@@ -880,6 +1005,7 @@ macro_rules! ascii_to_ascii_simd_double_stride {
 
 #[allow(unused_macros)]
 macro_rules! ascii_to_basic_latin_simd_stride {
+    // Safety: load/store must be valid for 16 bytes of read/write, which may be unaligned. (candidates: `(load|store)(16|8)_(unaligned|aligned)` functions)
     ($name:ident, $load:ident, $store:ident) => {
         /// Safety: src and dst must be valid for 16/32 bytes of read/write according to
         /// the $load/$store fn, which may allow for unaligned reads/writes or require
@@ -900,13 +1026,18 @@ macro_rules! ascii_to_basic_latin_simd_stride {
 
 #[allow(unused_macros)]
 macro_rules! ascii_to_basic_latin_simd_double_stride {
+    // Safety: store must be valid for 16 bytes of write, which may be unaligned
     ($name:ident, $store:ident) => {
+        /// Safety: src must be valid for 2*SIMD_STRIDE_SIZE bytes of aligned reads,
+        /// aligned to either 16x8 or u8x16.
+        /// dst must be valid for 2*SIMD_STRIDE_SIZE bytes of aligned or unaligned reads
         #[inline(always)]
         pub unsafe fn $name(src: *const u8, dst: *mut u16) -> Option<usize> {
             let first = load16_aligned(src);
             let second = load16_aligned(src.add(SIMD_STRIDE_SIZE));
             let (a, b) = simd_unpack(first);
             $store(dst, a);
+            // Safety: divide by 2 since it's a u16 pointer
             $store(dst.add(SIMD_STRIDE_SIZE / 2), b);
             if unlikely(!simd_is_ascii(first | second)) {
                 let mask_first = mask_ascii(first);
@@ -929,6 +1060,7 @@ macro_rules! ascii_to_basic_latin_simd_double_stride {
 
 #[allow(unused_macros)]
 macro_rules! unpack_simd_stride {
+    // Safety: load/store must be valid for 16 bytes of read/write, which may be unaligned. (candidates: `(load|store)(16|8)_(unaligned|aligned)` functions)
     ($name:ident, $load:ident, $store:ident) => {
         /// Safety: src and dst must be valid for 16 bytes of read/write according to
         /// the $load/$store fn, which may allow for unaligned reads/writes or require
@@ -945,6 +1077,7 @@ macro_rules! unpack_simd_stride {
 
 #[allow(unused_macros)]
 macro_rules! basic_latin_to_ascii_simd_stride {
+    // Safety: load/store must be valid for 16 bytes of read/write, which may be unaligned. (candidates: `(load|store)(16|8)_(unaligned|aligned)` functions)
     ($name:ident, $load:ident, $store:ident) => {
         /// Safety: src and dst must be valid for 32/16 bytes of read/write according to
         /// the $load/$store fn, which may allow for unaligned reads/writes or require
@@ -965,6 +1098,7 @@ macro_rules! basic_latin_to_ascii_simd_stride {
 
 #[allow(unused_macros)]
 macro_rules! pack_simd_stride {
+    // Safety: load/store must be valid for 16 bytes of read/write, which may be unaligned. (candidates: `(load|store)(16|8)_(unaligned|aligned)` functions)
     ($name:ident, $load:ident, $store:ident) => {
         /// Safety: src and dst must be valid for 32/16 bytes of read/write according to
         /// the $load/$store fn, which may allow for unaligned reads/writes or require
@@ -994,6 +1128,8 @@ cfg_if! {
 
         pub const ALU_ALIGNMENT_MASK: usize = 7;
 
+        // Safety for stride macros: We stick to the load8_aligned/etc family of functions. We consistently produce
+        // neither_unaligned variants using only unaligned inputs.
         ascii_to_ascii_simd_stride!(ascii_to_ascii_stride_neither_aligned, load16_unaligned, store16_unaligned);
 
         ascii_to_basic_latin_simd_stride!(ascii_to_basic_latin_stride_neither_aligned, load16_unaligned, store8_unaligned);
@@ -1002,6 +1138,8 @@ cfg_if! {
         basic_latin_to_ascii_simd_stride!(basic_latin_to_ascii_stride_neither_aligned, load8_unaligned, store16_unaligned);
         pack_simd_stride!(pack_stride_neither_aligned, load8_unaligned, store16_unaligned);
 
+        // Safety for conversion macros: We use the unalign macro with unalign functions above. All stride functions were produced
+        // by stride macros that universally munch a single SIMD_STRIDE_SIZE worth of elements.
         ascii_simd_unalign!(ascii_to_ascii, u8, u8, ascii_to_ascii_stride_neither_aligned);
         ascii_simd_unalign!(ascii_to_basic_latin, u8, u16, ascii_to_basic_latin_stride_neither_aligned);
         ascii_simd_unalign!(basic_latin_to_ascii, u16, u8, basic_latin_to_ascii_stride_neither_aligned);
@@ -1019,6 +1157,9 @@ cfg_if! {
         pub const MAX_STRIDE_SIZE: usize = 16;
 
         pub const SIMD_ALIGNMENT_MASK: usize = 15;
+
+        // Safety for stride macros: We stick to the load8_aligned/etc family of functions. We consistently name
+        // aligned/unaligned functions according to src/dst being aligned/unaligned
 
         ascii_to_ascii_simd_stride!(ascii_to_ascii_stride_both_aligned, load16_aligned, store16_aligned);
         ascii_to_ascii_simd_stride!(ascii_to_ascii_stride_src_aligned, load16_aligned, store16_unaligned);
@@ -1045,6 +1186,9 @@ cfg_if! {
         pack_simd_stride!(pack_stride_dst_aligned, load8_unaligned, store16_aligned);
         pack_simd_stride!(pack_stride_neither_aligned, load8_unaligned, store16_unaligned);
 
+        // Safety for conversion macros: We use the correct pattern of both/src/dst/neither here. All stride functions were produced
+        // by stride macros that universally munch a single SIMD_STRIDE_SIZE worth of elements.
+
         ascii_simd_check_align!(ascii_to_ascii, u8, u8, ascii_to_ascii_stride_both_aligned, ascii_to_ascii_stride_src_aligned, ascii_to_ascii_stride_dst_aligned, ascii_to_ascii_stride_neither_aligned);
         ascii_simd_check_align!(ascii_to_basic_latin, u8, u16, ascii_to_basic_latin_stride_both_aligned, ascii_to_basic_latin_stride_src_aligned, ascii_to_basic_latin_stride_dst_aligned, ascii_to_basic_latin_stride_neither_aligned);
         ascii_simd_check_align!(basic_latin_to_ascii, u16, u8, basic_latin_to_ascii_stride_both_aligned, basic_latin_to_ascii_stride_src_aligned, basic_latin_to_ascii_stride_dst_aligned, basic_latin_to_ascii_stride_neither_aligned);
@@ -1059,11 +1203,15 @@ cfg_if! {
 
         pub const SIMD_STRIDE_SIZE: usize = 16;
 
+        /// Safety-usable invariant: This should be identical to SIMD_STRIDE_SIZE (used by ascii_simd_check_align_unrolled)
         pub const SIMD_ALIGNMENT: usize = 16;
 
         pub const MAX_STRIDE_SIZE: usize = 16;
 
         pub const SIMD_ALIGNMENT_MASK: usize = 15;
+
+        // Safety for stride macros: We stick to the load8_aligned/etc family of functions. We consistently name
+        // aligned/unaligned functions according to src/dst being aligned/unaligned
 
         ascii_to_ascii_simd_double_stride!(ascii_to_ascii_simd_double_stride_both_aligned, store16_aligned);
         ascii_to_ascii_simd_double_stride!(ascii_to_ascii_simd_double_stride_src_aligned, store16_unaligned);
@@ -1089,6 +1237,9 @@ cfg_if! {
 
         pack_simd_stride!(pack_stride_both_aligned, load8_aligned, store16_aligned);
         pack_simd_stride!(pack_stride_src_aligned, load8_aligned, store16_unaligned);
+
+        // Safety for conversion macros: We use the correct pattern of both/src/dst/neither/double_both/double_src here. All stride functions were produced
+        // by stride macros that universally munch a single SIMD_STRIDE_SIZE worth of elements.
 
         ascii_simd_check_align_unrolled!(ascii_to_ascii, u8, u8, ascii_to_ascii_stride_both_aligned, ascii_to_ascii_stride_src_aligned, ascii_to_ascii_stride_neither_aligned, ascii_to_ascii_simd_double_stride_both_aligned, ascii_to_ascii_simd_double_stride_src_aligned);
         ascii_simd_check_align_unrolled!(ascii_to_basic_latin, u8, u16, ascii_to_basic_latin_stride_both_aligned, ascii_to_basic_latin_stride_src_aligned, ascii_to_basic_latin_stride_neither_aligned, ascii_to_basic_latin_simd_double_stride_both_aligned, ascii_to_basic_latin_simd_double_stride_src_aligned);
@@ -1355,19 +1506,24 @@ cfg_if! {
 
 cfg_if! {
     if #[cfg(all(feature = "simd-accel", target_endian = "little", target_arch = "disabled"))] {
+        /// Safety-usable invariant: Will return the value and position of the first non-ASCII byte in the slice in a Some if found.
+        /// In other words, the first element of the Some is always `> 127`
         #[inline(always)]
         pub fn validate_ascii(slice: &[u8]) -> Option<(u8, usize)> {
             let src = slice.as_ptr();
             let len = slice.len();
             let mut offset = 0usize;
+            // Safety: if this check succeeds we're valid for reading/writing at least `stride` elements.
             if SIMD_STRIDE_SIZE <= len {
                 let len_minus_stride = len - SIMD_STRIDE_SIZE;
                 loop {
+                    // Safety: src at offset is valid for a `SIMD_STRIDE_SIZE` read
                     let simd = unsafe { load16_unaligned(src.add(offset)) };
                     if !simd_is_ascii(simd) {
                         break;
                     }
                     offset += SIMD_STRIDE_SIZE;
+                    // This is `offset > len - SIMD_STRIDE_SIZE` which means we always have at least `SIMD_STRIDE_SIZE` elements to munch next time.
                     if offset > len_minus_stride {
                         break;
                     }
@@ -1376,6 +1532,7 @@ cfg_if! {
             while offset < len {
                 let code_unit = slice[offset];
                 if code_unit > 127 {
+                    // Safety: Safety-usable invariant upheld here
                     return Some((code_unit, offset));
                 }
                 offset += 1;
@@ -1383,13 +1540,17 @@ cfg_if! {
             None
         }
     } else if #[cfg(all(feature = "simd-accel", target_feature = "sse2"))] {
+        /// Safety-usable invariant: will return Some() when it encounters non-ASCII, with the first element in the Some being
+        /// guaranteed to be non-ASCII (> 127), and the second being the offset where it is found
         #[inline(always)]
         pub fn validate_ascii(slice: &[u8]) -> Option<(u8, usize)> {
             let src = slice.as_ptr();
             let len = slice.len();
             let mut offset = 0usize;
+            // Safety: if this check succeeds we're valid for reading at least `stride` elements.
             if SIMD_STRIDE_SIZE <= len {
                 // First, process one unaligned vector
+                // Safety: src is valid for a `SIMD_STRIDE_SIZE` read
                 let simd = unsafe { load16_unaligned(src) };
                 let mask = mask_ascii(simd);
                 if mask != 0 {
@@ -1398,18 +1559,26 @@ cfg_if! {
                     return Some((non_ascii, offset));
                 }
                 offset = SIMD_STRIDE_SIZE;
+                // Safety: Now that offset has changed we don't yet know how much it is valid for
 
                 // We have now seen 16 ASCII bytes. Let's guess that
                 // there will be enough more to justify more expense
                 // in the case of non-ASCII.
                 // Use aligned reads for the sake of old microachitectures.
+                // Safety: this correctly calculates the number of src_units that need to be read before the remaining list is aligned.
+                // This is by definition less than SIMD_ALIGNMENT, which is defined to be equal to SIMD_STRIDE_SIZE.
                 let until_alignment = unsafe { (SIMD_ALIGNMENT - ((src.add(offset) as usize) & SIMD_ALIGNMENT_MASK)) & SIMD_ALIGNMENT_MASK };
                 // This addition won't overflow, because even in the 32-bit PAE case the
                 // address space holds enough code that the slice length can't be that
                 // close to address space size.
                 // offset now equals SIMD_STRIDE_SIZE, hence times 3 below.
+                //
+                // Safety: if this check succeeds we're valid for reading at least `2 * SIMD_STRIDE_SIZE` elements plus `until_alignment`.
+                // The extra SIMD_STRIDE_SIZE in the condition is because `offset` is already `SIMD_STRIDE_SIZE`.
                 if until_alignment + (SIMD_STRIDE_SIZE * 3) <= len {
                     if until_alignment != 0 {
+                        // Safety: this is safe to call since we're valid for this read (and more), and don't care about alignment
+                        // This will copy over bytes that get decoded twice since it's not incrementing `offset` by SIMD_STRIDE_SIZE. This is fine.
                         let simd = unsafe { load16_unaligned(src.add(offset)) };
                         let mask = mask_ascii(simd);
                         if mask != 0 {
@@ -1419,53 +1588,78 @@ cfg_if! {
                         }
                         offset += until_alignment;
                     }
+                    // Safety: At this point we're valid for reading 2*SIMD_STRIDE_SIZE elements
+                    // Safety: Now `offset` is aligned for `src`
                     let len_minus_stride_times_two = len - (SIMD_STRIDE_SIZE * 2);
                     loop {
+                        // Safety: We were valid for this read, and were aligned.
                         let first = unsafe { load16_aligned(src.add(offset)) };
                         let second = unsafe { load16_aligned(src.add(offset + SIMD_STRIDE_SIZE)) };
                         if !simd_is_ascii(first | second) {
+                            // Safety: mask_ascii produces a mask of all the high bits.
                             let mask_first = mask_ascii(first);
                             if mask_first != 0 {
+                                // Safety: on little endian systems this will be the number of ascii bytes
+                                // before the first non-ascii, i.e. valid for indexing src
+                                // TODO SAFETY: What about big-endian systems?
                                 offset += mask_first.trailing_zeros() as usize;
                             } else {
                                 let mask_second = mask_ascii(second);
+                                // Safety: on little endian systems this will be the number of ascii bytes
+                                // before the first non-ascii, i.e. valid for indexing src
                                 offset += SIMD_STRIDE_SIZE + mask_second.trailing_zeros() as usize;
                             }
+                            // Safety: We know this is non-ASCII, and can uphold the safety-usable invariant here
                             let non_ascii = unsafe { *src.add(offset) };
+
                             return Some((non_ascii, offset));
                         }
                         offset += SIMD_STRIDE_SIZE * 2;
+                        // Safety: This is `offset > len - 2 * SIMD_STRIDE_SIZE` which means we always have at least `2 * SIMD_STRIDE_SIZE` elements to munch next time.
                         if offset > len_minus_stride_times_two {
                             break;
                         }
                     }
+                    // Safety: if this check succeeds we're valid for reading at least `SIMD_STRIDE_SIZE`
                     if offset + SIMD_STRIDE_SIZE <= len {
-                         let simd = unsafe { load16_aligned(src.add(offset)) };
-                         let mask = mask_ascii(simd);
+                        // Safety: We were valid for this read, and were aligned.
+                        let simd = unsafe { load16_aligned(src.add(offset)) };
+                        // Safety: mask_ascii produces a mask of all the high bits.
+                        let mask = mask_ascii(simd);
                         if mask != 0 {
+                            // Safety: on little endian systems this will be the number of ascii bytes
+                            // before the first non-ascii, i.e. valid for indexing src
                             offset += mask.trailing_zeros() as usize;
                             let non_ascii = unsafe { *src.add(offset) };
+                            // Safety: We know this is non-ASCII, and can uphold the safety-usable invariant here
                             return Some((non_ascii, offset));
                         }
                         offset += SIMD_STRIDE_SIZE;
                     }
                 } else {
+                    // Safety: this is the unaligned branch
                     // At most two iterations, so unroll
+                    // Safety: if this check succeeds we're valid for reading at least `SIMD_STRIDE_SIZE`
                     if offset + SIMD_STRIDE_SIZE <= len {
+                        // Safety: We're valid for this read but must use an unaligned read
                         let simd = unsafe { load16_unaligned(src.add(offset)) };
                         let mask = mask_ascii(simd);
                         if mask != 0 {
                             offset += mask.trailing_zeros() as usize;
                             let non_ascii = unsafe { *src.add(offset) };
+                            // Safety-usable invariant upheld here (same as above)
                             return Some((non_ascii, offset));
                         }
                         offset += SIMD_STRIDE_SIZE;
+                        // Safety: if this check succeeds we're valid for reading at least `SIMD_STRIDE_SIZE`
                         if offset + SIMD_STRIDE_SIZE <= len {
+                            // Safety: We're valid for this read but must use an unaligned read
                              let simd = unsafe { load16_unaligned(src.add(offset)) };
                              let mask = mask_ascii(simd);
                             if mask != 0 {
                                 offset += mask.trailing_zeros() as usize;
                                 let non_ascii = unsafe { *src.add(offset) };
+                                // Safety-usable invariant upheld here (same as above)
                                 return Some((non_ascii, offset));
                             }
                             offset += SIMD_STRIDE_SIZE;
@@ -1474,8 +1668,10 @@ cfg_if! {
                 }
             }
             while offset < len {
+                // Safety: relies straightforwardly on the `len` invariant
                 let code_unit = unsafe { *(src.add(offset)) };
                 if code_unit > 127 {
+                    // Safety-usable invariant upheld here
                     return Some((code_unit, offset));
                 }
                 offset += 1;
@@ -1514,6 +1710,9 @@ cfg_if! {
             Some(ALU_ALIGNMENT + num_ascii)
         }
 
+        /// Safety: `src` must be valid for the reads of two `usize`s
+        ///
+        /// Safety-usable invariant: will return byte index of first non-ascii byte
         #[inline(always)]
         unsafe fn validate_ascii_stride(src: *const usize) -> Option<usize> {
             let word = *src;
@@ -1521,6 +1720,8 @@ cfg_if! {
             find_non_ascii(word, second_word)
         }
 
+        /// Safety-usable invariant: will return Some() when it encounters non-ASCII, with the first element in the Some being
+        /// guaranteed to be non-ASCII (> 127), and the second being the offset where it is found
         #[cfg_attr(feature = "cargo-clippy", allow(cast_ptr_alignment))]
         #[inline(always)]
         pub fn validate_ascii(slice: &[u8]) -> Option<(u8, usize)> {
@@ -1528,23 +1729,30 @@ cfg_if! {
             let len = slice.len();
             let mut offset = 0usize;
             let mut until_alignment = (ALU_ALIGNMENT - ((src as usize) & ALU_ALIGNMENT_MASK)) & ALU_ALIGNMENT_MASK;
+            // Safety: If this check fails we're valid to read `until_alignment + ALU_STRIDE_SIZE` elements
             if until_alignment + ALU_STRIDE_SIZE <= len {
                 while until_alignment != 0 {
                     let code_unit = slice[offset];
                     if code_unit > 127 {
+                        // Safety-usable invairant upheld here
                         return Some((code_unit, offset));
                     }
                     offset += 1;
                     until_alignment -= 1;
                 }
+                // Safety: At this point we have read until_alignment elements and
+                // are valid for `ALU_STRIDE_SIZE` more.
                 let len_minus_stride = len - ALU_STRIDE_SIZE;
                 loop {
+                    // Safety: we were valid for this read
                     let ptr = unsafe { src.add(offset) as *const usize };
                     if let Some(num_ascii) = unsafe { validate_ascii_stride(ptr) } {
                         offset += num_ascii;
+                        // Safety-usable invairant upheld here using the invariant from validate_ascii_stride()
                         return Some((unsafe { *(src.add(offset)) }, offset));
                     }
                     offset += ALU_STRIDE_SIZE;
+                    // Safety: This is `offset > ALU_STRIDE_SIZE` which means we always have at least `2 * ALU_STRIDE_SIZE` elements to munch next time.
                     if offset > len_minus_stride {
                         break;
                     }
@@ -1553,6 +1761,7 @@ cfg_if! {
             while offset < len {
                 let code_unit = slice[offset];
                 if code_unit > 127 {
+                    // Safety-usable invairant upheld here
                     return Some((code_unit, offset));
                 }
                 offset += 1;
