@@ -118,6 +118,7 @@ cfg_if! {
 
         // Expose low-level mask instead of higher-level conclusion,
         // because the non-ASCII case would perform less well otherwise.
+        // Safety-usable invariant: This returned value is whether each high bit is set
         #[inline(always)]
         pub fn mask_ascii(s: u8x16) -> i32 {
             unsafe {
