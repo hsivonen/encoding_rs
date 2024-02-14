@@ -98,7 +98,8 @@ macro_rules! ascii_alu {
      $dst_unit:ty,
      // Safety invariant: stride_fn must consume and produce two usizes, and return the index of the first non-ascii when it fails
      $stride_fn:ident) => {
-        /// Safety: src and dst must have len_unit elements and be aligned
+        /// Safety: src and dst must have len elements, src is valid for read, dst is valid for
+        /// write
         /// Safety-usable invariant: will return Some() when it fails
         /// to convert. The first value will be a u8 that is > 127.
         #[cfg_attr(feature = "cargo-clippy", allow(never_loop, cast_ptr_alignment))]
@@ -166,8 +167,11 @@ macro_rules! ascii_alu {
                     loop {
                         // Safety: num_ascii is known to be a byte index of a non-ascii byte due to stride_fn's invariant
                         if let Some(num_ascii) = $stride_fn(
-                            // Safety: These are known to be valid since we have at least ALU_STRIDE_SIZE data in these buffers,
-                            // and offset is the number of bytes copied so far
+                            // Safety: These are known to be valid and aligned since we have at
+                            // least ALU_STRIDE_SIZE data in these buffers, and offset is the
+                            // number of elements copied so far, which according to the
+                            // until_alignment calculation above will cause both src and dst to be
+                            // aligned to usize after this add
                             src.add(offset) as *const usize,
                             dst.add(offset) as *mut usize,
                         ) {
@@ -175,7 +179,8 @@ macro_rules! ascii_alu {
                             // Safety: Upholds safety-usable invariant here by indexing into non-ascii byte
                             return Some((*(src.add(offset)), offset));
                         }
-                        // Safety: offset continues to be the number of bytes copied so far
+                        // Safety: offset continues to be the number of bytes copied so far, and
+                        // maintains usize alignment for the next loop iteration
                         offset += ALU_STRIDE_SIZE;
                         // Safety: This is `offset > len - stride. This loop will continue as long as
                         // `offset <= len - stride`, which means there are `stride` bytes to still be read.
