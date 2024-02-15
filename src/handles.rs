@@ -657,7 +657,7 @@ impl<'a> Utf16Destination<'a> {
         self.write_code_unit((0xDC00 + (astral & 0x3FF)) as u16);
     }
     #[inline(always)]
-    pub fn write_surrogate_pair(&mut self, high: u16, low: u16) {
+    fn write_surrogate_pair(&mut self, high: u16, low: u16) {
         self.write_code_unit(high);
         self.write_code_unit(low);
     }
