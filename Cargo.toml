@@ -12,9 +12,6 @@ repository = "https://github.com/hsivonen/encoding_rs"
 keywords = ["encoding", "web", "unicode", "charset"]
 categories = ["text-processing", "encoding", "web-programming", "internationalization"]
 
-[badges]
-travis-ci = { repository = "hsivonen/encoding_rs" }
-
 [features]
 default = ["alloc"]
 alloc = []
