@@ -148,7 +148,7 @@ cfg_if! {
         pub fn simd_is_ascii(s: u8x16) -> bool {
             unsafe {
                 // Safety: We have cfg()d the correct platform
-                vmaxvq_u8(s.into_bits()) < 0x80
+                vmaxvq_u8(s.into()) < 0x80
             }
         }
     } else {
@@ -177,7 +177,7 @@ cfg_if! {
         pub fn simd_is_str_latin1(s: u8x16) -> bool {
             unsafe {
                 // Safety: We have cfg()d the correct platform
-                vmaxvq_u8(s.into_bits()) < 0xC4
+                vmaxvq_u8(s.into()) < 0xC4
             }
         }
     } else {
@@ -195,7 +195,7 @@ cfg_if! {
         pub fn simd_is_basic_latin(s: u16x8) -> bool {
             unsafe {
                 // Safety: We have cfg()d the correct platform
-                vmaxvq_u16(s.into_bits()) < 0x80
+                vmaxvq_u16(s.into()) < 0x80
             }
         }
 
@@ -203,7 +203,7 @@ cfg_if! {
         pub fn simd_is_latin1(s: u16x8) -> bool {
             unsafe {
                 // Safety: We have cfg()d the correct platform
-                vmaxvq_u16(s.into_bits()) < 0x100
+                vmaxvq_u16(s.into()) < 0x100
             }
         }
     } else {
@@ -237,7 +237,7 @@ cfg_if! {
             ($s:ident) => ({
                 unsafe {
                     // Safety: We have cfg()d the correct platform
-                    if vmaxvq_u16($s.into_bits()) < 0x0590 {
+                    if vmaxvq_u16($s.into()) < 0x0590 {
                         return false;
                     }
                 }
@@ -328,9 +328,9 @@ cfg_if! {
     } else {
         #[inline(always)]
         pub fn simd_pack(a: u16x8, b: u16x8) -> u8x16 {
-            let first: u8x16 = a.into_bits();
-            let second: u8x16 = b.into_bits();
-            shuffle!(
+            let first: u8x16 = a.to_ne_bytes();
+            let second: u8x16 = b.to_ne_bytes();
+            simd_swizzle!(
                 first,
                 second,
                 [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30]
