@@ -11,6 +11,7 @@ homepage = "https://docs.rs/encoding_rs/"
 repository = "https://github.com/hsivonen/encoding_rs"
 keywords = ["encoding", "web", "unicode", "charset"]
 categories = ["text-processing", "encoding", "web-programming", "internationalization"]
+rust-version = "1.36"
 
 [features]
 default = ["alloc"]

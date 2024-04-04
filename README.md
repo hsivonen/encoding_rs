@@ -367,8 +367,9 @@ as semver-breaking, because this crate depends on `cfg-if`, which doesn't
 appear to treat MSRV changes as semver-breaking, so it would be useless for
 this crate to treat MSRV changes as semver-breaking.
 
-As of 2021-02-04, MSRV appears to be Rust 1.36.0 for using the crate and
+As of 2024-04-04, MSRV appears to be Rust 1.36.0 for using the crate and
 1.42.0 for doc tests to pass without errors about the global allocator.
+With the `simd-accel` feature, the MSRV is even higher.
 
 ## Compatibility with rust-encoding
 
@@ -441,6 +442,7 @@ To regenerate the generated code:
 
 * Use the `portable_simd` nightly feature of the standard library instead of the `packed_simd` crate. Only affects the `simd-accel` optional nightly feature.
 * Internal documentation improvements and minor code improvements around `unsafe`.
+* Added `rust-version` to `Cargo.toml`.
 
 ### 0.8.33
 
