@@ -12,7 +12,13 @@ use core::simd::cmp::SimdPartialOrd;
 use core::simd::simd_swizzle;
 use core::simd::u16x8;
 use core::simd::u8x16;
+use core::simd::mask16x8;
+use core::simd::mask8x16;
 use core::simd::ToBytes;
+use any_all_workaround::all_mask8x16;
+use any_all_workaround::any_mask8x16;
+use any_all_workaround::all_mask16x8;
+use any_all_workaround::any_mask16x8;
 
 // TODO: Migrate unaligned access to stdlib code if/when the RFC
 // https://github.com/rust-lang/rfcs/pull/1725 is implemented.
@@ -157,7 +163,7 @@ cfg_if! {
             // This optimizes better on ARM than
             // the lt formulation.
             let highest_ascii = u8x16::splat(0x7F);
-            !s.simd_gt(highest_ascii).any()
+            any_mask8x16(!s.simd_gt(highest_ascii))
         }
     }
 }
@@ -184,7 +190,7 @@ cfg_if! {
         #[inline(always)]
         pub fn simd_is_str_latin1(s: u8x16) -> bool {
             let above_str_latin1 = u8x16::splat(0xC4);
-            s.simd_lt(above_str_latin1).all()
+            all_mask8x16(s.simd_lt(above_str_latin1))
         }
     }
 }
@@ -210,7 +216,7 @@ cfg_if! {
         #[inline(always)]
         pub fn simd_is_basic_latin(s: u16x8) -> bool {
             let above_ascii = u16x8::splat(0x80);
-            s.simd_lt(above_ascii).all()
+            all_mask16x8(s.simd_lt(above_ascii))
         }
 
         #[inline(always)]
@@ -219,7 +225,7 @@ cfg_if! {
             // seems faster in this case while the above
             // function is better the other way round...
             let highest_latin1 = u16x8::splat(0xFF);
-            !s.simd_gt(highest_latin1).any()
+            any_mask16x8(!s.simd_gt(highest_latin1))
         }
     }
 }
@@ -228,7 +234,7 @@ cfg_if! {
 pub fn contains_surrogates(s: u16x8) -> bool {
     let mask = u16x8::splat(0xF800);
     let surrogate_bits = u16x8::splat(0xD800);
-    (s & mask).simd_eq(surrogate_bits).any()
+    any_mask16x8((s & mask).simd_eq(surrogate_bits))
 }
 
 cfg_if! {
@@ -254,7 +260,7 @@ cfg_if! {
 
         macro_rules! non_aarch64_return_false_if_all {
             ($s:ident) => ({
-                if $s.all() {
+                if all_mask16x8($s) {
                     return false;
                 }
             })
@@ -283,13 +289,13 @@ pub fn is_u16x8_bidi(s: u16x8) -> bool {
 
     non_aarch64_return_false_if_all!(below_hebrew);
 
-    if (below_hebrew | in_range16x8!(s, 0x0900, 0x200F) | in_range16x8!(s, 0x2068, 0xD802)).all() {
+    if all_mask16x8(below_hebrew | in_range16x8!(s, 0x0900, 0x200F) | in_range16x8!(s, 0x2068, 0xD802)) {
         return false;
     }
 
     // Quick refutation failed. Let's do the full check.
 
-    (in_range16x8!(s, 0x0590, 0x0900)
+    any_mask16x8((in_range16x8!(s, 0x0590, 0x0900)
         | in_range16x8!(s, 0xFB1D, 0xFE00)
         | in_range16x8!(s, 0xFE70, 0xFEFF)
         | in_range16x8!(s, 0xD802, 0xD804)
@@ -297,8 +303,7 @@ pub fn is_u16x8_bidi(s: u16x8) -> bool {
         | s.simd_eq(u16x8::splat(0x200F))
         | s.simd_eq(u16x8::splat(0x202B))
         | s.simd_eq(u16x8::splat(0x202E))
-        | s.simd_eq(u16x8::splat(0x2067)))
-    .any()
+        | s.simd_eq(u16x8::splat(0x2067))))
 }
 
 #[inline(always)]
