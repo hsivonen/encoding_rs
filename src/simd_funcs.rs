@@ -7,18 +7,18 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
+use any_all_workaround::all_mask16x8;
+use any_all_workaround::all_mask8x16;
+use any_all_workaround::any_mask16x8;
+use any_all_workaround::any_mask8x16;
 use core::simd::cmp::SimdPartialEq;
 use core::simd::cmp::SimdPartialOrd;
+use core::simd::mask16x8;
+use core::simd::mask8x16;
 use core::simd::simd_swizzle;
 use core::simd::u16x8;
 use core::simd::u8x16;
-use core::simd::mask16x8;
-use core::simd::mask8x16;
 use core::simd::ToBytes;
-use any_all_workaround::all_mask8x16;
-use any_all_workaround::any_mask8x16;
-use any_all_workaround::all_mask16x8;
-use any_all_workaround::any_mask16x8;
 
 // TODO: Migrate unaligned access to stdlib code if/when the RFC
 // https://github.com/rust-lang/rfcs/pull/1725 is implemented.
@@ -225,7 +225,7 @@ cfg_if! {
             // seems faster in this case while the above
             // function is better the other way round...
             let highest_latin1 = u16x8::splat(0xFF);
-            any_mask16x8(!s.simd_gt(highest_latin1))
+            !any_mask16x8(s.simd_gt(highest_latin1))
         }
     }
 }
@@ -289,21 +289,25 @@ pub fn is_u16x8_bidi(s: u16x8) -> bool {
 
     non_aarch64_return_false_if_all!(below_hebrew);
 
-    if all_mask16x8(below_hebrew | in_range16x8!(s, 0x0900, 0x200F) | in_range16x8!(s, 0x2068, 0xD802)) {
+    if all_mask16x8(
+        below_hebrew | in_range16x8!(s, 0x0900, 0x200F) | in_range16x8!(s, 0x2068, 0xD802),
+    ) {
         return false;
     }
 
     // Quick refutation failed. Let's do the full check.
 
-    any_mask16x8((in_range16x8!(s, 0x0590, 0x0900)
-        | in_range16x8!(s, 0xFB1D, 0xFE00)
-        | in_range16x8!(s, 0xFE70, 0xFEFF)
-        | in_range16x8!(s, 0xD802, 0xD804)
-        | in_range16x8!(s, 0xD83A, 0xD83C)
-        | s.simd_eq(u16x8::splat(0x200F))
-        | s.simd_eq(u16x8::splat(0x202B))
-        | s.simd_eq(u16x8::splat(0x202E))
-        | s.simd_eq(u16x8::splat(0x2067))))
+    any_mask16x8(
+        (in_range16x8!(s, 0x0590, 0x0900)
+            | in_range16x8!(s, 0xFB1D, 0xFE00)
+            | in_range16x8!(s, 0xFE70, 0xFEFF)
+            | in_range16x8!(s, 0xD802, 0xD804)
+            | in_range16x8!(s, 0xD83A, 0xD83C)
+            | s.simd_eq(u16x8::splat(0x200F))
+            | s.simd_eq(u16x8::splat(0x202B))
+            | s.simd_eq(u16x8::splat(0x202E))
+            | s.simd_eq(u16x8::splat(0x2067))),
+    )
 }
 
 #[inline(always)]
