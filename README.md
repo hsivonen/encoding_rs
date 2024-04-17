@@ -1,6 +1,6 @@
 # encoding_rs
 
-[![Build Status](https://travis-ci.org/hsivonen/encoding_rs.svg?branch=master)](https://travis-ci.org/hsivonen/encoding_rs)
+[![Build Status](https://github.com/hsivonen/encoding_rs/actions/workflows/ci.yml/badge.svg)](https://github.com/hsivonen/encoding_rs/actions/workflows/ci.yml)
 [![crates.io](https://img.shields.io/crates/v/encoding_rs.svg)](https://crates.io/crates/encoding_rs)
 [![docs.rs](https://docs.rs/encoding_rs/badge.svg)](https://docs.rs/encoding_rs/)
 
