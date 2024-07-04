@@ -108,7 +108,7 @@ the Web Platform, but the [`oem_cp`](https://crates.io/crates/oem_cp) crate does
 Normalizing text into Unicode Normalization Form C prior to encoding text into
 a legacy encoding minimizes unmappable characters. Text can be normalized to
 Unicode Normalization Form C using the
-[`unic-normal`](https://crates.io/crates/unic-normal) crate.
+[`icu_normalizer`](https://crates.io/crates/icu_normalizer) crate.
 
 The exception is windows-1258, which after normalizing to Unicode Normalization
 Form C requires tone marks to be decomposed in order to minimize unmappable
