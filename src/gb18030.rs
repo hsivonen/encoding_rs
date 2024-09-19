@@ -9,6 +9,7 @@
 
 use super::*;
 use crate::data::*;
+use crate::gb18030_2022::*;
 use crate::handles::*;
 use crate::variant::*;
 // Rust 1.14.0 requires the following despite the asterisk above.
@@ -347,8 +348,15 @@ fn gbk_encode_non_unified(bmp: u16) -> Option<(usize, usize)> {
         }
         return None;
     }
-    if bmp >= 0xE794 {
-        // Various brackets, all in PUA or full-width regions
+
+    if in_inclusive_range16(bmp, 0xE78D, 0xE864) {
+        // The array is sorted but short, so let's do linear search.
+        if let Some(pos) = position(&GB18030_2022_OVERRIDE_PUA[..], bmp) {
+            let pair = &GB18030_2022_OVERRIDE_BYTES[pos];
+            return Some((pair[0].into(), pair[1].into()));
+        }
+    } else if bmp >= 0xFE17 {
+        // Various brackets, all in full-width regions
         if let Some(pos) = position(&GB2312_SYMBOLS_AFTER_GREEK[..], bmp) {
             return Some((0xA6, pos + (0x9F - 0x60 + 0xA1)));
         }
@@ -380,8 +388,8 @@ fn gbk_encode_non_unified(bmp: u16) -> Option<(usize, usize)> {
         let offset = if other_trail < 0x3F { 0x40 } else { 0x41 };
         return Some((other_lead + (0x81 + 0x20), other_trail + offset));
     }
-    // CJK Radicals Supplement or PUA in GBK_BOTTOM
-    if in_inclusive_range16(bmp, 0x2E81, 0x2ECA) || in_inclusive_range16(bmp, 0xE816, 0xE864) {
+    // CJK Radicals Supplement and U+9FBx ideographs in GBK_BOTTOM
+    if in_inclusive_range16(bmp, 0x2E81, 0x2ECA) || in_inclusive_range16(bmp, 0x9FB4, 0x9FBB) {
         if let Some(pos) = position(&GBK_BOTTOM[21..], bmp) {
             let trail = pos + 16;
             let offset = if trail < 0x3F { 0x40 } else { 0x41 };

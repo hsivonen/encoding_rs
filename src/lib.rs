@@ -761,6 +761,7 @@ mod big5;
 mod euc_jp;
 mod euc_kr;
 mod gb18030;
+mod gb18030_2022;
 mod iso_2022_jp;
 mod replacement;
 mod shift_jis;
