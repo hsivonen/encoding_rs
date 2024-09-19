@@ -438,6 +438,10 @@ To regenerate the generated code:
 
 ## Release Notes
 
+### 0.8.35
+
+* Implement changes for GB18030-2022. (Intentionally not treated as a semver break in practice even if this cound be argued to be a breaking change in theory.)
+
 ### 0.8.34
 
 * Use the `portable_simd` nightly feature of the standard library instead of the `packed_simd` crate. Only affects the `simd-accel` optional nightly feature.
