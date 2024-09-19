@@ -946,9 +946,10 @@ pub static GBK_INIT: Encoding = Encoding {
 ///
 /// The decoder for this encoding is the same as the decoder for gb18030.
 /// The encoder side of this encoding is GBK with Windows code page 936 euro
-/// sign behavior. GBK extends GB2312-80 to cover the CJK Unified Ideographs
-/// Unicode block as well as a handful of ideographs from the CJK Unified
-/// Ideographs Extension A and CJK Compatibility Ideographs blocks.
+/// sign behavior and with the changes to two-byte sequences made in GB18030-2022.
+/// GBK extends GB2312-80 to cover the CJK Unified Ideographs Unicode block as
+/// well as a handful of ideographs from the CJK Unified Ideographs Extension A
+/// and CJK Compatibility Ideographs blocks.
 ///
 /// Unlike e.g. in the case of ISO-8859-1 and windows-1252, GBK encoder wasn't
 /// unified with the gb18030 encoder in the Encoding Standard out of concern
@@ -1690,10 +1691,11 @@ pub static GB18030_INIT: Encoding = Encoding {
 
 /// The gb18030 encoding.
 ///
-/// This encoding matches GB18030-2005 except the two-byte sequence 0xA3 0xA0
-/// maps to U+3000 for compatibility with existing Web content. As a result,
-/// this encoding can represent all of Unicode except for the private-use
-/// character U+E5E5.
+/// This encoding matches GB18030-2022 except the two-byte sequence 0xA3 0xA0
+/// maps to U+3000 for compatibility with existing Web content and the four-byte
+/// sequences for the non-PUA characters that got two-byte sequences still decode
+/// to the same non-PUA characters as in GB18030-2005. As a result, this encoding
+/// can represent all of Unicode except for 19 private-use characters.
 ///
 /// [Index visualization for the two-byte sequences](https://encoding.spec.whatwg.org/gb18030.html),
 /// [Visualization of BMP coverage of the two-byte index](https://encoding.spec.whatwg.org/gb18030-bmp.html)
