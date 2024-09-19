@@ -440,7 +440,7 @@ To regenerate the generated code:
 
 ### 0.8.35
 
-* Implement changes for GB18030-2022. (Intentionally not treated as a semver break in practice even if this cound be argued to be a breaking change in theory.)
+* Implement changes for GB18030-2022. (Intentionally not treated as a semver break in practice even if this could be argued to be a breaking change in theory.)
 
 ### 0.8.34
 
