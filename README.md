@@ -391,10 +391,9 @@ To regenerate the generated code:
    next to the `encoding_rs` directory.
  * Clone [`https://github.com/whatwg/encoding`](https://github.com/whatwg/encoding)
    next to the `encoding_rs` directory.
- * Checkout revision `be3337450e7df1c49dca7872153c4c4670dd8256` of the `encoding` repo.
+ * Checkout revision `1d519bf8e5555cef64cf3a712485f41cd1a6a990` of the `encoding` repo.
    (Note: `f381389` was the revision of `encoding` used from before the `encoding` repo
-   license change. So far, only output changed since then has been updated to
-   the new license legend.)
+   license change.)
  * With the `encoding_rs` directory as the working directory, run
    `python generate-encoding-data.py`.
 
