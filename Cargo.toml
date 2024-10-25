@@ -43,3 +43,6 @@ serde_json = "1.0"
 
 [profile.release]
 lto = true
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(fuzzing)'] }

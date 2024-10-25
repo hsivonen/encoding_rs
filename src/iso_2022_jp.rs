@@ -373,10 +373,7 @@ fn is_kanji_mapped(bmp: u16) -> bool {
 }
 
 #[cfg(not(feature = "fast-kanji-encode"))]
-#[cfg_attr(
-    feature = "cargo-clippy",
-    allow(if_let_redundant_pattern_matching, if_same_then_else)
-)]
+#[allow(clippy::if_let_redundant_pattern_matching, clippy::if_same_then_else)]
 #[inline(always)]
 fn is_kanji_mapped(bmp: u16) -> bool {
     if 0x4EDD == bmp {
@@ -394,10 +391,7 @@ fn is_kanji_mapped(bmp: u16) -> bool {
     }
 }
 
-#[cfg_attr(
-    feature = "cargo-clippy",
-    allow(if_let_redundant_pattern_matching, if_same_then_else)
-)]
+#[allow(clippy::if_let_redundant_pattern_matching, clippy::if_same_then_else)]
 fn is_mapped_for_two_byte_encode(bmp: u16) -> bool {
     // The code below uses else after return to
     // keep the same structure as in EUC-JP.

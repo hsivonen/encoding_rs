@@ -38,9 +38,11 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#![cfg_attr(
-    feature = "cargo-clippy",
-    allow(doc_markdown, inline_always, new_ret_no_self)
+#![allow(
+    clippy::doc_markdown,
+    clippy::inline_always,
+    clippy::new_ret_no_self,
+    clippy::redundant_static_lifetimes
 )]
 
 //! encoding_rs is a Gecko-oriented Free Software / Open Source implementation

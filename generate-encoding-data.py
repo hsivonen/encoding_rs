@@ -542,7 +542,7 @@ for code_point in index[942:19782]:
 for j in xrange(32 - (len(astralness) % 32)):
   astralness.append(0)
 
-data_file.write('''#[cfg_attr(feature = "cargo-clippy", allow(unreadable_literal))]
+data_file.write('''#[allow(clippy::unreadable_literal)]
 static BIG5_ASTRALNESS: [u32; %d] = [
 ''' % (len(astralness) / 32))
 

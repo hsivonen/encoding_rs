@@ -102,7 +102,7 @@ macro_rules! ascii_alu {
         /// write
         /// Safety-usable invariant: will return Some() when it fails
         /// to convert. The first value will be a u8 that is > 127.
-        #[cfg_attr(feature = "cargo-clippy", allow(never_loop, cast_ptr_alignment))]
+        #[allow(clippy::never_loop, clippy::cast_ptr_alignment)]
         #[inline(always)]
         pub unsafe fn $name(
             src: *const $src_unit,
@@ -223,10 +223,7 @@ macro_rules! basic_latin_alu {
         /// write
         /// Safety-usable invariant: will return Some() when it fails
         /// to convert. The first value will be a u8 that is > 127.
-        #[cfg_attr(
-            feature = "cargo-clippy",
-            allow(never_loop, cast_ptr_alignment, cast_lossless)
-        )]
+        #[allow(clippy::never_loop, clippy::cast_ptr_alignment)]
         #[inline(always)]
         pub unsafe fn $name(
             src: *const $src_unit,
@@ -345,10 +342,7 @@ macro_rules! latin1_alu {
     ($name:ident, $src_unit:ty, $dst_unit:ty, $stride_fn:ident) => {
         /// Safety: src and dst must have len elements, src is valid for read, dst is valid for
         /// write
-        #[cfg_attr(
-            feature = "cargo-clippy",
-            allow(never_loop, cast_ptr_alignment, cast_lossless)
-        )]
+        #[allow(clippy::never_loop, clippy::cast_ptr_alignment)]
         #[inline(always)]
         pub unsafe fn $name(src: *const $src_unit, dst: *mut $dst_unit, len: usize) {
             let mut offset = 0usize;
@@ -1505,6 +1499,7 @@ cfg_if! {
 }
 
 cfg_if! {
+/*
     if #[cfg(all(feature = "simd-accel", target_endian = "little", target_arch = "disabled"))] {
         /// Safety-usable invariant: Will return the value and position of the first non-ASCII byte in the slice in a Some if found.
         /// In other words, the first element of the Some is always `> 127`
@@ -1539,7 +1534,9 @@ cfg_if! {
             }
             None
         }
-    } else if #[cfg(all(feature = "simd-accel", target_feature = "sse2"))] {
+    } else
+*/
+    if #[cfg(all(feature = "simd-accel", target_feature = "sse2"))] {
         /// Safety-usable invariant: will return Some() when it encounters non-ASCII, with the first element in the Some being
         /// guaranteed to be non-ASCII (> 127), and the second being the offset where it is found
         #[inline(always)]
@@ -1722,7 +1719,7 @@ cfg_if! {
 
         /// Safety-usable invariant: will return Some() when it encounters non-ASCII, with the first element in the Some being
         /// guaranteed to be non-ASCII (> 127), and the second being the offset where it is found
-        #[cfg_attr(feature = "cargo-clippy", allow(cast_ptr_alignment))]
+        #[allow(clippy::cast_ptr_alignment)]
         #[inline(always)]
         pub fn validate_ascii(slice: &[u8]) -> Option<(u8, usize)> {
             let src = slice.as_ptr();
