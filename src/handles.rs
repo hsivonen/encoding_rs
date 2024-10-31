@@ -1266,9 +1266,8 @@ impl<'a> Utf16Source<'a> {
         dest: &'b mut ByteDestination<'a>,
     ) -> CopyAsciiResult<(EncoderResult, usize, usize), (NonAscii, ByteTwoHandle<'b, 'a>)> {
         let non_ascii_ret = {
-            let dst_len = dest.slice.len();
             let src_remaining = &self.slice[self.pos..];
-            let dst_remaining = &mut dest.slice[dest.pos..];
+            let dst_remaining = dest.remaining();
             let (pending, length) = if dst_remaining.len() < src_remaining.len() {
                 (EncoderResult::OutputFull, dst_remaining.len())
             } else {
@@ -1279,13 +1278,13 @@ impl<'a> Utf16Source<'a> {
             } {
                 None => {
                     self.pos += length;
-                    dest.pos += length;
-                    return CopyAsciiResult::Stop((pending, self.pos, dest.pos));
+                    dest.advance(length);
+                    return CopyAsciiResult::Stop((pending, self.pos, dest.written()));
                 }
                 Some((non_ascii, consumed)) => {
                     self.pos += consumed;
-                    dest.pos += consumed;
-                    if dest.pos + 1 < dst_len {
+                    dest.advance(consumed);
+                    if dest.remaining().len() >= 1 {
                         self.pos += 1; // commit to reading `non_ascii`
                         let unit = non_ascii;
                         let unit_minus_surrogate_start = unit.wrapping_sub(0xD800);
@@ -1322,7 +1321,7 @@ impl<'a> Utf16Source<'a> {
                         return CopyAsciiResult::Stop((
                             EncoderResult::OutputFull,
                             self.pos,
-                            dest.pos,
+                            dest.written(),
                         ));
                     }
                 }
@@ -1336,9 +1335,8 @@ impl<'a> Utf16Source<'a> {
         dest: &'b mut ByteDestination<'a>,
     ) -> CopyAsciiResult<(EncoderResult, usize, usize), (NonAscii, ByteFourHandle<'b, 'a>)> {
         let non_ascii_ret = {
-            let dst_len = dest.slice.len();
             let src_remaining = &self.slice[self.pos..];
-            let dst_remaining = &mut dest.slice[dest.pos..];
+            let dst_remaining = dest.remaining();
             let (pending, length) = if dst_remaining.len() < src_remaining.len() {
                 (EncoderResult::OutputFull, dst_remaining.len())
             } else {
@@ -1349,13 +1347,13 @@ impl<'a> Utf16Source<'a> {
             } {
                 None => {
                     self.pos += length;
-                    dest.pos += length;
-                    return CopyAsciiResult::Stop((pending, self.pos, dest.pos));
+                    dest.advance(length);
+                    return CopyAsciiResult::Stop((pending, self.pos, dest.written()));
                 }
                 Some((non_ascii, consumed)) => {
                     self.pos += consumed;
-                    dest.pos += consumed;
-                    if dest.pos + 3 < dst_len {
+                    dest.advance(consumed);
+                    if dest.remaining().len() >= 3 {
                         self.pos += 1; // commit to reading `non_ascii`
                         let unit = non_ascii;
                         let unit_minus_surrogate_start = unit.wrapping_sub(0xD800);
@@ -1392,7 +1390,7 @@ impl<'a> Utf16Source<'a> {
                         return CopyAsciiResult::Stop((
                             EncoderResult::OutputFull,
                             self.pos,
-                            dest.pos,
+                            dest.written(),
                         ));
                     }
                 }
@@ -1563,7 +1561,7 @@ impl<'a> Utf8Source<'a> {
     ) -> CopyAsciiResult<(EncoderResult, usize, usize), (NonAscii, ByteOneHandle<'b, 'a>)> {
         let non_ascii_ret = {
             let src_remaining = &self.slice[self.pos..];
-            let dst_remaining = &mut dest.slice[dest.pos..];
+            let dst_remaining = dest.remaining();
             let (pending, length) = if dst_remaining.len() < src_remaining.len() {
                 (EncoderResult::OutputFull, dst_remaining.len())
             } else {
@@ -1574,12 +1572,12 @@ impl<'a> Utf8Source<'a> {
             } {
                 None => {
                     self.pos += length;
-                    dest.pos += length;
-                    return CopyAsciiResult::Stop((pending, self.pos, dest.pos));
+                    dest.advance(length);
+                    return CopyAsciiResult::Stop((pending, self.pos, dest.written()));
                 }
                 Some((non_ascii, consumed)) => {
                     self.pos += consumed;
-                    dest.pos += consumed;
+                    dest.advance(consumed);
                     // We don't need to check space in destination, because
                     // `ascii_to_ascii()` already did.
                     if non_ascii < 0xE0 {
@@ -1612,9 +1610,8 @@ impl<'a> Utf8Source<'a> {
         dest: &'b mut ByteDestination<'a>,
     ) -> CopyAsciiResult<(EncoderResult, usize, usize), (NonAscii, ByteTwoHandle<'b, 'a>)> {
         let non_ascii_ret = {
-            let dst_len = dest.slice.len();
             let src_remaining = &self.slice[self.pos..];
-            let dst_remaining = &mut dest.slice[dest.pos..];
+            let dst_remaining = dest.remaining();
             let (pending, length) = if dst_remaining.len() < src_remaining.len() {
                 (EncoderResult::OutputFull, dst_remaining.len())
             } else {
@@ -1625,13 +1622,13 @@ impl<'a> Utf8Source<'a> {
             } {
                 None => {
                     self.pos += length;
-                    dest.pos += length;
-                    return CopyAsciiResult::Stop((pending, self.pos, dest.pos));
+                    dest.advance(length);
+                    return CopyAsciiResult::Stop((pending, self.pos, dest.written()));
                 }
                 Some((non_ascii, consumed)) => {
                     self.pos += consumed;
-                    dest.pos += consumed;
-                    if dest.pos + 1 < dst_len {
+                    dest.advance(consumed);
+                    if dest.remaining().len() >= 1 {
                         if non_ascii < 0xE0 {
                             let point = ((u16::from(non_ascii) & 0x1F) << 6)
                                 | (u16::from(self.slice[self.pos + 1]) & 0x3F);
@@ -1655,7 +1652,7 @@ impl<'a> Utf8Source<'a> {
                         return CopyAsciiResult::Stop((
                             EncoderResult::OutputFull,
                             self.pos,
-                            dest.pos,
+                            dest.written(),
                         ));
                     }
                 }
@@ -1669,9 +1666,8 @@ impl<'a> Utf8Source<'a> {
         dest: &'b mut ByteDestination<'a>,
     ) -> CopyAsciiResult<(EncoderResult, usize, usize), (NonAscii, ByteFourHandle<'b, 'a>)> {
         let non_ascii_ret = {
-            let dst_len = dest.slice.len();
             let src_remaining = &self.slice[self.pos..];
-            let dst_remaining = &mut dest.slice[dest.pos..];
+            let dst_remaining = dest.remaining();
             let (pending, length) = if dst_remaining.len() < src_remaining.len() {
                 (EncoderResult::OutputFull, dst_remaining.len())
             } else {
@@ -1682,13 +1678,13 @@ impl<'a> Utf8Source<'a> {
             } {
                 None => {
                     self.pos += length;
-                    dest.pos += length;
-                    return CopyAsciiResult::Stop((pending, self.pos, dest.pos));
+                    dest.advance(length);
+                    return CopyAsciiResult::Stop((pending, self.pos, dest.written()));
                 }
                 Some((non_ascii, consumed)) => {
                     self.pos += consumed;
-                    dest.pos += consumed;
-                    if dest.pos + 3 < dst_len {
+                    dest.advance(consumed);
+                    if dest.remaining().len() >= 3 {
                         if non_ascii < 0xE0 {
                             let point = ((u16::from(non_ascii) & 0x1F) << 6)
                                 | (u16::from(self.slice[self.pos + 1]) & 0x3F);
@@ -1712,7 +1708,7 @@ impl<'a> Utf8Source<'a> {
                         return CopyAsciiResult::Stop((
                             EncoderResult::OutputFull,
                             self.pos,
-                            dest.pos,
+                            dest.written(),
                         ));
                     }
                 }
@@ -1937,6 +1933,10 @@ impl<'a> ByteDestination<'a> {
         ByteDestination { slice: dst, pos: 0 }
     }
     #[inline(always)]
+    pub fn remaining(&mut self) -> &mut [u8] {
+        &mut self.slice[self.pos..]
+    }
+    #[inline(always)]
     pub fn check_space_one<'b>(&'b mut self) -> Space<ByteOneHandle<'b, 'a>> {
         if self.pos < self.slice.len() {
             Space::Available(ByteOneHandle::new(self))
@@ -1997,5 +1997,11 @@ impl<'a> ByteDestination<'a> {
         self.slice[self.pos + 2] = third;
         self.slice[self.pos + 3] = fourth;
         self.pos += 4;
+    }
+    /// Assume this many bytes have been written
+    #[inline(always)]
+    pub fn advance(&mut self, length: usize) {
+        self.pos += length;
+        debug_assert!(self.pos <= self.slice.len());
     }
 }
