@@ -2566,10 +2566,11 @@ static BIG5_LEVEL1_HANZI_CODE_POINTS: [u16; 5406] = [
     feature = "less-slow-big5-hanzi-encode",
     not(feature = "fast-big5-hanzi-encode")
 ))]
-static BIG5_LEVEL1_HANZI_BYTES: [[u8; 2]; 5406] = [];
+static BIG5_LEVEL1_HANZI_BYTES: &[u8] = include_bytes!("../data/big5_level1_hanzi_bytes.bin");
 
 #[cfg(feature = "fast-big5-hanzi-encode")]
-static BIG5_UNIFIED_IDEOGRAPH_BYTES: [[u8; 2]; 20940] = [];
+static BIG5_UNIFIED_IDEOGRAPH_BYTES: &[u8] =
+    include_bytes!("../data/big5_unified_ideograph_bytes.bin");
 
 pub static JIS0208_LEVEL1_KANJI: [u16; 2965] = [
     0x4E9C, 0x5516, 0x5A03, 0x963F, 0x54C0, 0x611B, 0x6328, 0x59F6, 0x9022, 0x8475, 0x831C, 0x7A50,
@@ -3434,10 +3435,11 @@ static JIS0208_LEVEL1_KANJI_CODE_POINTS: [u16; 2965] = [
 ];
 
 #[cfg(all(feature = "less-slow-kanji-encode", not(feature = "fast-kanji-encode")))]
-static JIS0208_LEVEL1_KANJI_SHIFT_JIS_BYTES: [[u8; 2]; 2965] = [];
+static JIS0208_LEVEL1_KANJI_SHIFT_JIS_BYTES: &[u8] =
+    include_bytes!("../data/jis0208_level1_kanji_shift_jis_bytes.bin");
 
 #[cfg(feature = "fast-kanji-encode")]
-static JIS0208_KANJI_BYTES: [[u8; 2]; 20897] = [];
+static JIS0208_KANJI_BYTES: &[u8] = include_bytes!("../data/jis0208_kanji_bytes.bin");
 
 pub static ISO_2022_JP_HALF_WIDTH_TRAIL: [u8; 63] = [
     0x23, 0x56, 0x57, 0x22, 0x26, 0x72, 0x21, 0x23, 0x25, 0x27, 0x29, 0x63, 0x65, 0x67, 0x43, 0x3C,
@@ -4395,13 +4397,15 @@ pub static KSX1001_OTHER_UNSORTED_OFFSETS: [u16; 77] = [
 ];
 
 #[cfg(feature = "fast-hangul-encode")]
-static CP949_HANGUL_BYTES: [[u8; 2]; 11172] = [];
+static CP949_HANGUL_BYTES: &[u8] = include_bytes!("../data/cp949_hangul_bytes.bin");
 
 #[cfg(feature = "fast-hanja-encode")]
-static KSX1001_UNIFIED_HANJA_BYTES: [[u8; 2]; 20893] = [];
+static KSX1001_UNIFIED_HANJA_BYTES: &[u8] =
+    include_bytes!("../data/ksx1001_unified_hanja_bytes.bin");
 
 #[cfg(feature = "fast-hanja-encode")]
-static KSX1001_COMPATIBILITY_HANJA_BYTES: [[u8; 2]; 268] = [];
+static KSX1001_COMPATIBILITY_HANJA_BYTES: &[u8] =
+    include_bytes!("../data/ksx1001_compatibility_hanja_bytes.bin");
 
 pub static JIS0212_KANJI: [u16; 5801] = [
     0x4E02, 0x4E04, 0x4E05, 0x4E0C, 0x4E12, 0x4E1F, 0x4E23, 0x4E24, 0x4E28, 0x4E2B, 0x4E2E, 0x4E2F,
@@ -6522,10 +6526,10 @@ static GB2312_LEVEL1_HANZI_CODE_POINTS: [u16; 3755] = [
     feature = "less-slow-gb-hanzi-encode",
     not(feature = "fast-gb-hanzi-encode")
 ))]
-static GB2312_LEVEL1_HANZI_BYTES: [[u8; 2]; 3755] = [];
+static GB2312_LEVEL1_HANZI_BYTES: &[u8] = include_bytes!("../data/gb2312_level1_hanzi_bytes.bin");
 
 #[cfg(feature = "fast-gb-hanzi-encode")]
-static GBK_HANZI_BYTES: [[u8; 2]; 20903] = [];
+static GBK_HANZI_BYTES: &[u8] = include_bytes!("../data/gbk_hanzi_bytes.bin");
 
 // END GENERATED CODE
 
@@ -6654,14 +6658,16 @@ pub fn cp949_left_hangul_encode(bmp: u16) -> u16 {
 #[cfg(feature = "fast-hangul-encode")]
 #[inline(always)]
 pub fn cp949_hangul_encode(bmp_minus_start: u16) -> (u8, u8) {
-    let pair = &CP949_HANGUL_BYTES[bmp_minus_start as usize];
+    let start = (bmp_minus_start as usize) * 2;
+    let pair = &CP949_HANGUL_BYTES[start..start + 2];
     (pair[0], pair[1])
 }
 
 #[cfg(feature = "fast-hanja-encode")]
 #[inline(always)]
 pub fn ksx1001_unified_hangul_encode(bmp: u16) -> Option<(u8, u8)> {
-    let pair = &KSX1001_UNIFIED_HANJA_BYTES[bmp as usize - 0x4E00];
+    let start = (bmp as usize - 0x4E00) * 2;
+    let pair = &KSX1001_UNIFIED_HANJA_BYTES[start..start + 2];
     if pair[0] == 0 && pair[1] == 0 {
         return None;
     }
@@ -6671,7 +6677,8 @@ pub fn ksx1001_unified_hangul_encode(bmp: u16) -> Option<(u8, u8)> {
 #[cfg(feature = "fast-hanja-encode")]
 #[inline(always)]
 pub fn ksx1001_compatibility_hangul_encode(bmp: u16) -> (u8, u8) {
-    let pair = &KSX1001_COMPATIBILITY_HANJA_BYTES[bmp as usize - 0xF900];
+    let start = (bmp as usize - 0xF900) * 2;
+    let pair = &KSX1001_COMPATIBILITY_HANJA_BYTES[start..start + 2];
     (pair[0], pair[1])
 }
 
@@ -6714,7 +6721,8 @@ pub fn gb2312_other_encode(bmp: u16) -> Option<u16> {
 #[cfg(feature = "fast-gb-hanzi-encode")]
 #[inline(always)]
 pub fn gbk_hanzi_encode(bmp_minus_start: u16) -> (u8, u8) {
-    let pair = &GBK_HANZI_BYTES[bmp_minus_start as usize];
+    let start = (bmp_minus_start as usize) * 2;
+    let pair = &GBK_HANZI_BYTES[start..start + 2];
     (pair[0], pair[1])
 }
 
@@ -6739,7 +6747,8 @@ pub fn gb2312_level1_hanzi_encode(bmp: u16) -> Option<(u8, u8)> {
 pub fn gb2312_level1_hanzi_encode(bmp: u16) -> Option<(u8, u8)> {
     match GB2312_LEVEL1_HANZI_CODE_POINTS.binary_search(&bmp) {
         Ok(i) => {
-            let pair = &GB2312_LEVEL1_HANZI_BYTES[i];
+            let start = i * 2;
+            let pair = &GB2312_LEVEL1_HANZI_BYTES[start..start + 2];
             Some((pair[0], pair[1]))
         }
         Err(_) => None,
@@ -6774,7 +6783,8 @@ pub fn ksx1001_other_encode(bmp: u16) -> Option<u16> {
 #[cfg(feature = "fast-kanji-encode")]
 #[inline(always)]
 pub fn jis0208_kanji_shift_jis_encode(bmp: u16) -> Option<(u8, u8)> {
-    let pair = &JIS0208_KANJI_BYTES[bmp as usize - 0x4E00];
+    let start = (bmp as usize - 0x4E00) * 2;
+    let pair = &JIS0208_KANJI_BYTES[start..start + 2];
     let lead = pair[0];
     let trail = pair[1];
     if lead == 0 && trail == 0 {
@@ -6811,7 +6821,8 @@ fn shift_jis_to_euc_jp(tuple: (u8, u8)) -> (u8, u8) {
 #[cfg(feature = "fast-kanji-encode")]
 #[inline(always)]
 pub fn jis0208_kanji_euc_jp_encode(bmp: u16) -> Option<(u8, u8)> {
-    let pair = &JIS0208_KANJI_BYTES[bmp as usize - 0x4E00];
+    let start = (bmp as usize - 0x4E00) * 2;
+    let pair = &JIS0208_KANJI_BYTES[start..start + 2];
     let lead = pair[0];
     let trail = pair[1];
     if lead == 0 && trail == 0 {
@@ -6853,7 +6864,8 @@ fn shift_jis_to_iso_2022_jp(tuple: (u8, u8)) -> (u8, u8) {
 #[cfg(feature = "fast-kanji-encode")]
 #[inline(always)]
 pub fn jis0208_kanji_iso_2022_jp_encode(bmp: u16) -> Option<(u8, u8)> {
-    let pair = &JIS0208_KANJI_BYTES[bmp as usize - 0x4E00];
+    let start = (bmp as usize - 0x4E00) * 2;
+    let pair = &JIS0208_KANJI_BYTES[start..start + 2];
     let lead = pair[0];
     let trail = pair[1];
     if lead == 0 && trail == 0 {
@@ -6886,7 +6898,8 @@ pub fn jis0208_level1_kanji_shift_jis_encode(bmp: u16) -> Option<(u8, u8)> {
 pub fn jis0208_level1_kanji_shift_jis_encode(bmp: u16) -> Option<(u8, u8)> {
     match JIS0208_LEVEL1_KANJI_CODE_POINTS.binary_search(&bmp) {
         Ok(i) => {
-            let pair = &JIS0208_LEVEL1_KANJI_SHIFT_JIS_BYTES[i];
+            let start = i * 2;
+            let pair = &JIS0208_LEVEL1_KANJI_SHIFT_JIS_BYTES[start..start + 2];
             Some((pair[0], pair[1]))
         }
         Err(_) => None,
@@ -7107,7 +7120,8 @@ pub fn big5_level1_hanzi_encode(bmp: u16) -> Option<(u8, u8)> {
     if super::in_inclusive_range16(bmp, 0x4E00, 0x9FB1) {
         match BIG5_LEVEL1_HANZI_CODE_POINTS.binary_search(&bmp) {
             Ok(i) => {
-                let pair = &BIG5_LEVEL1_HANZI_BYTES[i];
+                let start = i * 2;
+                let pair = &BIG5_LEVEL1_HANZI_BYTES[start..start + 2];
                 Some((pair[0], pair[1]))
             }
             Err(_) => None,
@@ -7122,7 +7136,8 @@ pub fn big5_level1_hanzi_encode(bmp: u16) -> Option<(u8, u8)> {
 pub fn big5_level1_hanzi_encode(bmp: u16) -> Option<(u8, u8)> {
     let bmp_minus_ideograph_start = (bmp as usize).wrapping_sub(0x4E00);
     if bmp_minus_ideograph_start < BIG5_UNIFIED_IDEOGRAPH_BYTES.len() {
-        let pair = &BIG5_UNIFIED_IDEOGRAPH_BYTES[bmp_minus_ideograph_start];
+        let start = bmp_minus_ideograph_start * 2;
+        let pair = &BIG5_UNIFIED_IDEOGRAPH_BYTES[start..start + 2];
         let lead = pair[0];
         let trail = pair[1];
         if lead == 0 && trail == 0 {
