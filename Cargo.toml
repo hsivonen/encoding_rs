@@ -5,6 +5,7 @@ version = "0.8.35"
 edition = '2018'
 authors = ["Henri Sivonen <hsivonen@hsivonen.fi>"]
 license = "(Apache-2.0 OR MIT) AND BSD-3-Clause"
+include = ["src/**/*.rs", "/data", "Cargo.toml", "COPYRIGHT", "LICENSE*", "README.md"]
 readme = "README.md"
 documentation = "https://docs.rs/encoding_rs/"
 homepage = "https://docs.rs/encoding_rs/"
