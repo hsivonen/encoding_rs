@@ -367,7 +367,7 @@ as semver-breaking, because this crate depends on `cfg-if`, which doesn't
 appear to treat MSRV changes as semver-breaking, so it would be useless for
 this crate to treat MSRV changes as semver-breaking.
 
-As of 2024-04-04, MSRV appears to be Rust 1.36.0 for using the crate and
+As of 2024-11-01, MSRV appears to be Rust 1.40.0 for using the crate and
 1.42.0 for doc tests to pass without errors about the global allocator.
 With the `simd-accel` feature, the MSRV is even higher.
 
