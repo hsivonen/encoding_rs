@@ -96,7 +96,7 @@ impl Iso2022JpDecoder {
     }
 
     decoder_functions!(
-        {
+        preamble = {
             if self.pending_prepended {
                 // lead was set in EscapeStart and "prepended"
                 // in Escape.
@@ -127,8 +127,8 @@ impl Iso2022JpDecoder {
                 }
             }
         },
-        {},
-        {
+        loop_preamble = {},
+        eof = {
             match self.decoder_state {
                 Iso2022JpDecoderState::TrailByte | Iso2022JpDecoderState::EscapeStart => {
                     self.decoder_state = self.output_state;
@@ -142,7 +142,7 @@ impl Iso2022JpDecoder {
                 _ => {}
             }
         },
-        {
+        body = {
             match self.decoder_state {
                 Iso2022JpDecoderState::Ascii => {
                     if b == 0x1Bu8 {
@@ -353,14 +353,14 @@ impl Iso2022JpDecoder {
                 }
             }
         },
-        self,
-        src_consumed,
-        dest,
-        source,
-        b,
-        destination_handle,
-        unread_handle,
-        check_space_bmp
+        self = self,
+        src_consumed = src_consumed,
+        dest = dest,
+        source = source,
+        byte = b,
+        destination_handle = destination_handle,
+        unread_handle = unread_handle,
+        destination_check = check_space_bmp
     );
 }
 

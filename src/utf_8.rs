@@ -496,15 +496,15 @@ impl Utf8Decoder {
     }
 
     decoder_functions!(
-        {},
-        {
+        preamble = {},
+        loop_preamble = {
             // This is the fast path. The rest runs only at the
             // start and end for partial sequences.
             if self.bytes_needed == 0 {
                 dest.copy_utf8_up_to_invalid_from(&mut source);
             }
         },
-        {
+        eof = {
             if self.bytes_needed != 0 {
                 let bad_bytes = (self.bytes_seen + 1) as u8;
                 self.code_point = 0;
@@ -517,7 +517,7 @@ impl Utf8Decoder {
                 );
             }
         },
-        {
+        body = {
             if self.bytes_needed == 0 {
                 if b < 0x80u8 {
                     destination_handle.write_ascii(b);
@@ -592,14 +592,14 @@ impl Utf8Decoder {
             self.bytes_seen = 0;
             continue;
         },
-        self,
-        src_consumed,
-        dest,
-        source,
-        b,
-        destination_handle,
-        unread_handle,
-        check_space_astral
+        self = self,
+        src_consumed = src_consumed,
+        dest = dest,
+        source = source,
+        byte = b,
+        destination_handle = destination_handle,
+        unread_handle = unread_handle,
+        destination_check = check_space_astral
     );
 }
 
