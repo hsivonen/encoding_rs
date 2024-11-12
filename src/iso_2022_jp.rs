@@ -517,7 +517,7 @@ impl Iso2022JpEncoder {
     }
 
     encoder_functions!(
-        {
+        eof = {
             match self.state {
                 Iso2022JpEncoderState::Ascii => {}
                 _ => match dest.check_space_three() {
@@ -531,7 +531,7 @@ impl Iso2022JpEncoder {
                 },
             }
         },
-        {
+        body = {
             match self.state {
                 Iso2022JpEncoderState::Ascii => {
                     if c == '\u{0E}' || c == '\u{0F}' || c == '\u{1B}' {
@@ -734,14 +734,14 @@ impl Iso2022JpEncoder {
                 }
             }
         },
-        self,
-        src_consumed,
-        source,
-        dest,
-        c,
-        destination_handle,
-        unread_handle,
-        check_space_three
+        self = self,
+        src_consumed = src_consumed,
+        source = source,
+        dest = dest,
+        c = c,
+        destination_handle = destination_handle,
+        unread_handle = unread_handle,
+        destination_check = check_space_three
     );
 }
 

@@ -1010,16 +1010,16 @@ macro_rules! encoder_function {
 
 macro_rules! encoder_functions {
     (
-        $eof:block,
-        $body:block,
-        $slf:ident,
-        $src_consumed:ident,
-        $source:ident,
-        $dest:ident,
-        $c:ident,
-        $destination_handle:ident,
-        $unread_handle:ident,
-        $destination_check:ident
+        eof = $eof:block,
+        body = $body:block,
+        self = $slf:ident,
+        src_consumed = $src_consumed:ident,
+        source = $source:ident,
+        dest = $dest:ident,
+        c = $c:ident,
+        destination_handle = $destination_handle:ident,
+        unread_handle = $unread_handle:ident,
+        destination_check = $destination_check:ident
     ) => {
         encoder_function!(
             $eof,
