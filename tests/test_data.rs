@@ -1,3 +1,4 @@
+#[cfg(feature = "alloc")]
 mod test_data {
     mod big5;
     mod euc_jp;
