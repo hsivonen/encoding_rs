@@ -120,8 +120,9 @@ impl SingleByteDecoder {
                                                         Space::Available(
                                                             destination_handle_again,
                                                         ) => {
-                                                            let (b_again, _unread_handle_again) =
+                                                            let (b_again, unread_handle_again) =
                                                                 source_handle_again.read();
+                                                            unread_handle_again.commit();
                                                             b = b_again;
                                                             destination_handle =
                                                                 destination_handle_again;
