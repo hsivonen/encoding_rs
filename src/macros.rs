@@ -258,8 +258,9 @@ macro_rules! ascii_compatible_two_byte_decoder_function {
                                                             }
                                                             Space::Available(destination_handle_again) => {
                                                                 {
-                                                                    let (b_again, _unread_handle_again) =
+                                                                    let (b_again, unread_handle_again) =
                                                                         source_handle_again.read();
+                                                                    unread_handle_again.commit();
                                                                     b = b_again;
                                                                     destination_handle = destination_handle_again;
                                                                     continue 'innermost;
@@ -570,7 +571,8 @@ macro_rules! gb18030_decoder_function {
                                                 dst_written);
                                     }
                                     Space::Available(destination_handle) => {
-                                        let (b, _) = source_handle.read();
+                                        let (b, unread_handle) = source_handle.read();
+                                        unread_handle.commit();
                                         loop {
                                             if b > 127 {
                                                 $non_ascii = b;
@@ -874,7 +876,8 @@ macro_rules! euc_jp_decoder_function {
                                                 dst_written);
                                     }
                                     Space::Available(destination_handle) => {
-                                        let (b, _) = source_handle.read();
+                                        let (b, unread_handle) = source_handle.read();
+                                        unread_handle.commit();
                                         loop {
                                             if b > 127 {
                                                 $non_ascii = b;
@@ -1139,8 +1142,9 @@ macro_rules! ascii_compatible_encoder_function {
                                                             }
                                                             Space::Available(destination_handle_again) => {
                                                                 {
-                                                                    let (c_again, _unread_handle_again) =
+                                                                    let (c_again, unread_handle_again) =
                                                                         source_handle_again.read_enum();
+                                                                    unread_handle_again.commit();
                                                                     c = c_again;
                                                                     destination_handle = destination_handle_again;
                                                                     continue 'innermost;

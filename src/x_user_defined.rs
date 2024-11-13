@@ -49,6 +49,8 @@ impl UserDefinedDecoder {
         {},
         {},
         {
+            unread_handle.commit();
+
             if b < 0x80 {
                 // ASCII run not optimized, because binary data expected
                 destination_handle.write_ascii(b);
@@ -63,7 +65,7 @@ impl UserDefinedDecoder {
         source,
         b,
         destination_handle,
-        _unread_handle,
+        unread_handle,
         check_space_bmp,
         decode_to_utf8_raw,
         u8,

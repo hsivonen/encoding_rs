@@ -1160,17 +1160,12 @@ impl<'a> Utf8Destination<'a> {
 pub struct Utf16Source<'a> {
     slice: &'a [u16],
     pos: usize,
-    old_pos: usize,
 }
 
 impl<'a> Utf16Source<'a> {
     #[inline(always)]
     pub fn new(src: &[u16]) -> Utf16Source {
-        Utf16Source {
-            slice: src,
-            pos: 0,
-            old_pos: 0,
-        }
+        Utf16Source { slice: src, pos: 0 }
     }
     #[inline(always)]
     pub fn check_available<'b>(&'b mut self) -> Space<Utf16ReadHandle<'b, 'a>> {
@@ -1183,7 +1178,6 @@ impl<'a> Utf16Source<'a> {
     #[allow(clippy::collapsible_if)]
     #[inline(always)]
     fn read(&mut self) -> char {
-        self.old_pos = self.pos;
         let unit = self.slice[self.pos];
         self.pos += 1;
         let unit_minus_surrogate_start = unit.wrapping_sub(0xD800);
@@ -1217,7 +1211,6 @@ impl<'a> Utf16Source<'a> {
     #[allow(clippy::collapsible_if)]
     #[inline(always)]
     fn read_enum(&mut self) -> Unicode {
-        self.old_pos = self.pos;
         let unit = self.slice[self.pos];
         self.pos += 1;
         if unit < 0x80 {
@@ -1250,11 +1243,6 @@ impl<'a> Utf16Source<'a> {
         }
         // Unpaired low surrogate
         Unicode::NonAscii(NonAscii::BmpExclAscii(0xFFFDu16))
-    }
-    #[inline(always)]
-    fn unread(&mut self) -> usize {
-        self.pos = self.old_pos;
-        self.pos
     }
     #[inline(always)]
     pub fn consumed(&self) -> usize {
@@ -1417,15 +1405,11 @@ where
     }
     #[inline(always)]
     pub fn read(self) -> (char, Utf16UnreadHandle<'a, 'b>) {
-        let character = self.source.read();
-        let handle = Utf16UnreadHandle::new(self.source);
-        (character, handle)
+        Utf16UnreadHandle::new_char(self.source)
     }
     #[inline(always)]
     pub fn read_enum(self) -> (Unicode, Utf16UnreadHandle<'a, 'b>) {
-        let character = self.source.read_enum();
-        let handle = Utf16UnreadHandle::new(self.source);
-        (character, handle)
+        Utf16UnreadHandle::new_enum(self.source)
     }
     #[inline(always)]
     pub fn consumed(&self) -> usize {
@@ -1438,6 +1422,7 @@ where
     'b: 'a,
 {
     source: &'a mut Utf16Source<'b>,
+    old_pos: usize,
 }
 
 impl<'a, 'b> Utf16UnreadHandle<'a, 'b>
@@ -1445,12 +1430,22 @@ where
     'b: 'a,
 {
     #[inline(always)]
-    fn new(src: &'a mut Utf16Source<'b>) -> Utf16UnreadHandle<'a, 'b> {
-        Utf16UnreadHandle { source: src }
+    fn new_char(source: &'a mut Utf16Source<'b>) -> (char, Self) {
+        let old_pos = source.pos;
+        let character = source.read();
+        (character, Self { source, old_pos })
     }
     #[inline(always)]
+    fn new_enum(source: &'a mut Utf16Source<'b>) -> (Unicode, Self) {
+        let old_pos = source.pos;
+        let character = source.read_enum();
+        (character, Self { source, old_pos })
+    }
+
+    #[inline(always)]
     pub fn unread(self) -> usize {
-        self.source.unread()
+        self.source.pos = self.old_pos;
+        self.old_pos
     }
     #[inline(always)]
     pub fn consumed(&self) -> usize {
@@ -1467,7 +1462,6 @@ where
 pub struct Utf8Source<'a> {
     slice: &'a [u8],
     pos: usize,
-    old_pos: usize,
 }
 
 impl<'a> Utf8Source<'a> {
@@ -1476,7 +1470,6 @@ impl<'a> Utf8Source<'a> {
         Utf8Source {
             slice: src.as_bytes(),
             pos: 0,
-            old_pos: 0,
         }
     }
     #[inline(always)]
@@ -1489,7 +1482,6 @@ impl<'a> Utf8Source<'a> {
     }
     #[inline(always)]
     fn read(&mut self) -> char {
-        self.old_pos = self.pos;
         let unit = self.slice[self.pos];
         if unit < 0x80 {
             self.pos += 1;
@@ -1517,7 +1509,6 @@ impl<'a> Utf8Source<'a> {
     }
     #[inline(always)]
     fn read_enum(&mut self) -> Unicode {
-        self.old_pos = self.pos;
         let unit = self.slice[self.pos];
         if unit < 0x80 {
             self.pos += 1;
@@ -1544,11 +1535,6 @@ impl<'a> Utf8Source<'a> {
         Unicode::NonAscii(NonAscii::Astral(unsafe {
             ::core::char::from_u32_unchecked(point)
         }))
-    }
-    #[inline(always)]
-    fn unread(&mut self) -> usize {
-        self.pos = self.old_pos;
-        self.pos
     }
     #[inline(always)]
     pub fn consumed(&self) -> usize {
@@ -1730,20 +1716,16 @@ where
     'b: 'a,
 {
     #[inline(always)]
-    fn new(src: &'a mut Utf8Source<'b>) -> Utf8ReadHandle<'a, 'b> {
-        Utf8ReadHandle { source: src }
+    fn new(source: &'a mut Utf8Source<'b>) -> Utf8ReadHandle<'a, 'b> {
+        Utf8ReadHandle { source }
     }
     #[inline(always)]
     pub fn read(self) -> (char, Utf8UnreadHandle<'a, 'b>) {
-        let character = self.source.read();
-        let handle = Utf8UnreadHandle::new(self.source);
-        (character, handle)
+        Utf8UnreadHandle::new_char(self.source)
     }
     #[inline(always)]
     pub fn read_enum(self) -> (Unicode, Utf8UnreadHandle<'a, 'b>) {
-        let character = self.source.read_enum();
-        let handle = Utf8UnreadHandle::new(self.source);
-        (character, handle)
+        Utf8UnreadHandle::new_enum(self.source)
     }
     #[inline(always)]
     pub fn consumed(&self) -> usize {
@@ -1756,6 +1738,7 @@ where
     'b: 'a,
 {
     source: &'a mut Utf8Source<'b>,
+    old_pos: usize,
 }
 
 impl<'a, 'b> Utf8UnreadHandle<'a, 'b>
@@ -1763,12 +1746,21 @@ where
     'b: 'a,
 {
     #[inline(always)]
-    fn new(src: &'a mut Utf8Source<'b>) -> Utf8UnreadHandle<'a, 'b> {
-        Utf8UnreadHandle { source: src }
+    fn new_char(source: &'a mut Utf8Source<'b>) -> (char, Self) {
+        let old_pos = source.pos;
+        let character = source.read();
+        (character, Self { source, old_pos })
+    }
+    #[inline(always)]
+    fn new_enum(source: &'a mut Utf8Source<'b>) -> (Unicode, Self) {
+        let old_pos = source.pos;
+        let character = source.read_enum();
+        (character, Self { source, old_pos })
     }
     #[inline(always)]
     pub fn unread(self) -> usize {
-        self.source.unread()
+        self.source.pos = self.old_pos;
+        self.old_pos
     }
     #[inline(always)]
     pub fn consumed(&self) -> usize {
