@@ -349,6 +349,7 @@ cfg_if! {
 }
 
 #[cfg(test)]
+#[cfg(feature = "alloc")]
 mod tests {
     use super::*;
     use alloc::vec::Vec;
