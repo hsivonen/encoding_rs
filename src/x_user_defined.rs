@@ -173,8 +173,8 @@ impl UserDefinedEncoder {
     }
 
     encoder_functions!(
-        {},
-        {
+        eof = {},
+        body = {
             if c <= '\u{7F}' {
                 // TODO optimize ASCII run
                 destination_handle.write_one(c as u8);
@@ -190,14 +190,14 @@ impl UserDefinedEncoder {
             destination_handle.write_one((u32::from(c) - 0xF700) as u8);
             continue;
         },
-        self,
-        src_consumed,
-        source,
-        dest,
-        c,
-        destination_handle,
-        unread_handle,
-        check_space_one
+        self = self,
+        src_consumed = src_consumed,
+        source = source,
+        dest = dest,
+        c = c,
+        destination_handle = destination_handle,
+        unread_handle = unread_handle,
+        destination_check = check_space_one
     );
 }
 

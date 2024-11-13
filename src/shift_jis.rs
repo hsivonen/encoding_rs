@@ -49,7 +49,7 @@ impl ShiftJisDecoder {
     }
 
     ascii_compatible_two_byte_decoder_functions!(
-        {
+        lead = {
            // If lead is between 0x81 and 0x9F, inclusive,
            // subtract offset 0x81. Else if lead is
            // between 0xE0 and 0xFC, inclusive, subtract
@@ -80,7 +80,7 @@ impl ShiftJisDecoder {
             }
             non_ascii_minus_offset
         },
-        {
+        trail = {
             // If trail is between 0x40 and 0x7E, inclusive,
             // subtract offset 0x40. Else if trail is
             // between 0x80 and 0xFC, inclusive, subtract
@@ -158,17 +158,17 @@ impl ShiftJisDecoder {
                 }
             }
         },
-        self,
-        non_ascii,
-        byte,
-        lead_minus_offset,
-        unread_handle_trail,
-        source,
-        handle,
-        'outermost,
-        copy_ascii_from_check_space_bmp,
-        check_space_bmp,
-        false);
+        self = self,
+        non_ascii = non_ascii,
+        byte = byte,
+        lead_minus_offset = lead_minus_offset,
+        unread_handle_trail = unread_handle_trail,
+        source = source,
+        handle = handle,
+        outermost = 'outermost,
+        copy_ascii = copy_ascii_from_check_space_bmp,
+        destination_check = check_space_bmp,
+        ascii_punctuation = false);
 }
 
 #[cfg(feature = "fast-kanji-encode")]

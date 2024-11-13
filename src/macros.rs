@@ -9,7 +9,7 @@
 
 macro_rules! decoder_function {
     ($preamble:block,
-     $loop_preable:block,
+     $loop_preamble:block,
      $eof:block,
      $body:block,
      $slf:ident,
@@ -38,7 +38,7 @@ macro_rules! decoder_function {
             }
             loop {
                 {
-                    $loop_preable
+                    $loop_preamble
                 }
                 match $source.check_available() {
                     Space::Full($src_consumed) => {
@@ -72,22 +72,22 @@ macro_rules! decoder_function {
 
 macro_rules! decoder_functions {
     (
-        $preamble:block,
-        $loop_preable:block,
-        $eof:block,
-        $body:block,
-        $slf:ident,
-        $src_consumed:ident,
-        $dest:ident,
-        $source:ident,
-        $b:ident,
-        $destination_handle:ident,
-        $unread_handle:ident,
-        $destination_check:ident
+        preamble = $preamble:block,
+        loop_preamble = $loop_preamble:block,
+        eof = $eof:block,
+        body = $body:block,
+        self = $slf:ident,
+        src_consumed = $src_consumed:ident,
+        dest = $dest:ident,
+        source = $source:ident,
+        byte = $b:ident,
+        destination_handle = $destination_handle:ident,
+        unread_handle = $unread_handle:ident,
+        destination_check = $destination_check:ident
     ) => {
         decoder_function!(
             $preamble,
-            $loop_preable,
+            $loop_preamble,
             $eof,
             $body,
             $slf,
@@ -104,7 +104,7 @@ macro_rules! decoder_functions {
         );
         decoder_function!(
             $preamble,
-            $loop_preable,
+            $loop_preamble,
             $eof,
             $body,
             $slf,
@@ -286,19 +286,19 @@ macro_rules! ascii_compatible_two_byte_decoder_function {
 
 macro_rules! ascii_compatible_two_byte_decoder_functions {
     (
-        $lead:block,
-        $trail:block,
-        $slf:ident,
-        $non_ascii:ident,
-        $byte:ident,
-        $lead_minus_offset:ident,
-        $unread_handle_trail:ident,
-        $source:ident,
-        $handle:ident,
-        $outermost:tt,
-        $copy_ascii:ident,
-        $destination_check:ident,
-        $ascii_punctuation:expr
+        lead = $lead:block,
+        trail = $trail:block,
+        self = $slf:ident,
+        non_ascii = $non_ascii:ident,
+        byte = $byte:ident,
+        lead_minus_offset = $lead_minus_offset:ident,
+        unread_handle_trail = $unread_handle_trail:ident,
+        source = $source:ident,
+        handle = $handle:ident,
+        outermost = $outermost:tt,
+        copy_ascii = $copy_ascii:ident,
+        destination_check = $destination_check:ident,
+        ascii_punctuation = $ascii_punctuation:expr
     ) => {
         ascii_compatible_two_byte_decoder_function!(
             $lead,
@@ -1013,16 +1013,16 @@ macro_rules! encoder_function {
 
 macro_rules! encoder_functions {
     (
-        $eof:block,
-        $body:block,
-        $slf:ident,
-        $src_consumed:ident,
-        $source:ident,
-        $dest:ident,
-        $c:ident,
-        $destination_handle:ident,
-        $unread_handle:ident,
-        $destination_check:ident
+        eof = $eof:block,
+        body = $body:block,
+        self = $slf:ident,
+        src_consumed = $src_consumed:ident,
+        source = $source:ident,
+        dest = $dest:ident,
+        c = $c:ident,
+        destination_handle = $destination_handle:ident,
+        unread_handle = $unread_handle:ident,
+        destination_check = $destination_check:ident
     ) => {
         encoder_function!(
             $eof,

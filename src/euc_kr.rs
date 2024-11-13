@@ -50,7 +50,7 @@ impl EucKrDecoder {
     }
 
     ascii_compatible_two_byte_decoder_functions!(
-        {
+        lead = {
             // If lead is between 0x81 and 0xFE, inclusive,
             // subtract offset 0x81.
             let non_ascii_minus_offset =
@@ -62,7 +62,7 @@ impl EucKrDecoder {
             }
             non_ascii_minus_offset
         },
-        {
+        trail = {
             if lead_minus_offset >= 0x20 {
                 // Not the extension range above KS X 1001
                 let trail_minus_offset =
@@ -172,17 +172,17 @@ impl EucKrDecoder {
                 handle.write_upper_bmp(upper_bmp)
             }
         },
-        self,
-        non_ascii,
-        byte,
-        lead_minus_offset,
-        unread_handle_trail,
-        source,
-        handle,
-        'outermost,
-        copy_ascii_from_check_space_bmp,
-        check_space_bmp,
-        true);
+        self = self,
+        non_ascii = non_ascii,
+        byte = byte,
+        lead_minus_offset = lead_minus_offset,
+        unread_handle_trail = unread_handle_trail,
+        source = source,
+        handle = handle,
+        outermost = 'outermost,
+        copy_ascii = copy_ascii_from_check_space_bmp,
+        destination_check = check_space_bmp,
+        ascii_punctuation = true);
 }
 
 fn ksx1001_encode_misc(bmp: u16) -> Option<(usize, usize)> {
