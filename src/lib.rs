@@ -2662,7 +2662,7 @@ static ENCODINGS_IN_LABEL_SORT: [&'static Encoding; 228] = [
 /// # Streaming vs. Non-Streaming
 ///
 /// When you have the entire input in a single buffer, you can use the
-/// methods [`decode()`][3], [`decode_with_bom_removal()`][3],
+/// methods [`decode()`][3], [`decode_with_bom_removal()`][4],
 /// [`decode_without_bom_handling()`][5],
 /// [`decode_without_bom_handling_and_without_replacement()`][6] and
 /// [`encode()`][7]. (These methods are available to Rust callers only and are
