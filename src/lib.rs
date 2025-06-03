@@ -1662,7 +1662,7 @@ pub static UTF_8_INIT: Encoding = Encoding {
 
 /// The UTF-8 encoding.
 ///
-/// This is the encoding that should be used for all new development it can
+/// This is the encoding that should be used for all new development as it can
 /// represent all of Unicode.
 ///
 /// This encoding matches the Windows code page 65001, except Windows differs
