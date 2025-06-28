@@ -255,7 +255,7 @@ fn ksx1001_encode_hangul(bmp: u16, _: u16) -> (u8, u8) {
             } else {
                 0x41
             };
-            (lead as u8, (cp949_trail + offset) as u8)
+            (lead, (cp949_trail + offset))
         }
     }
 }

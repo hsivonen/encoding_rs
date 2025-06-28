@@ -2079,7 +2079,7 @@ pub fn utf8_latin1_up_to(buffer: &[u8]) -> usize {
 /// Returns the index of first byte that starts a non-Latin1 byte
 /// sequence, or the length of the string if there are none.
 pub fn str_latin1_up_to(buffer: &str) -> usize {
-    is_str_latin1_impl(buffer).unwrap_or_else(|| buffer.len())
+    is_str_latin1_impl(buffer).unwrap_or(buffer.len())
 }
 
 /// Replaces unpaired surrogates in the input with the REPLACEMENT CHARACTER.
