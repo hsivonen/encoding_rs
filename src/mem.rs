@@ -2017,10 +2017,8 @@ pub fn decode_latin1<'a>(bytes: &'a [u8]) -> Cow<'a, str> {
     let (head, tail) = bytes.split_at(up_to);
     let capacity = head.len() + tail.len() * 2;
     let mut vec = Vec::with_capacity(capacity);
-    unsafe {
-        vec.set_len(capacity);
-    }
-    (&mut vec[..up_to]).copy_from_slice(head);
+    vec.extend(head);
+    vec.resize(capacity, 0);
     let written = convert_latin1_to_utf8(tail, &mut vec[up_to..]);
     vec.truncate(up_to + written);
     Cow::Owned(unsafe { String::from_utf8_unchecked(vec) })
@@ -2054,10 +2052,8 @@ pub fn encode_latin1_lossy<'a>(string: &'a str) -> Cow<'a, [u8]> {
     let (head, tail) = bytes.split_at(up_to);
     let capacity = bytes.len();
     let mut vec = Vec::with_capacity(capacity);
-    unsafe {
-        vec.set_len(capacity);
-    }
-    (&mut vec[..up_to]).copy_from_slice(head);
+    vec.extend(head);
+    vec.resize(capacity, 0);
     let written = convert_utf8_to_latin1_lossy(tail, &mut vec[up_to..]);
     vec.truncate(up_to + written);
     Cow::Owned(vec)
