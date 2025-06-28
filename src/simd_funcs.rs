@@ -20,16 +20,10 @@ use core::simd::u16x8;
 use core::simd::u8x16;
 use core::simd::ToBytes;
 
-// TODO: Migrate unaligned access to stdlib code if/when the RFC
-// https://github.com/rust-lang/rfcs/pull/1725 is implemented.
-
 /// Safety invariant: ptr must be valid for an unaligned read of 16 bytes
 #[inline(always)]
 pub unsafe fn load16_unaligned(ptr: *const u8) -> u8x16 {
-    let mut simd = ::core::mem::MaybeUninit::<u8x16>::uninit();
-    ::core::ptr::copy_nonoverlapping(ptr, simd.as_mut_ptr() as *mut u8, 16);
-    // Safety: copied 16 bytes of initialized memory into this, it is now initialized
-    simd.assume_init()
+    ::core::ptr::read_unaligned(ptr as *const u8x16)
 }
 
 /// Safety invariant: ptr must be valid for an aligned-for-u8x16 read of 16 bytes
@@ -42,7 +36,7 @@ pub unsafe fn load16_aligned(ptr: *const u8) -> u8x16 {
 /// Safety invariant: ptr must be valid for an unaligned store of 16 bytes
 #[inline(always)]
 pub unsafe fn store16_unaligned(ptr: *mut u8, s: u8x16) {
-    ::core::ptr::copy_nonoverlapping(&s as *const u8x16 as *const u8, ptr, 16);
+    ::core::ptr::write_unaligned(ptr as *mut u8x16, s);
 }
 
 /// Safety invariant: ptr must be valid for an aligned-for-u8x16 store of 16 bytes
@@ -55,10 +49,7 @@ pub unsafe fn store16_aligned(ptr: *mut u8, s: u8x16) {
 /// Safety invariant: ptr must be valid for an unaligned read of 16 bytes
 #[inline(always)]
 pub unsafe fn load8_unaligned(ptr: *const u16) -> u16x8 {
-    let mut simd = ::core::mem::MaybeUninit::<u16x8>::uninit();
-    ::core::ptr::copy_nonoverlapping(ptr as *const u8, simd.as_mut_ptr() as *mut u8, 16);
-    // Safety: copied 16 bytes of initialized memory into this, it is now initialized
-    simd.assume_init()
+    ::core::ptr::read_unaligned(ptr as *const u16x8)
 }
 
 /// Safety invariant: ptr must be valid for an aligned-for-u16x8 read of 16 bytes
@@ -71,7 +62,7 @@ pub unsafe fn load8_aligned(ptr: *const u16) -> u16x8 {
 /// Safety invariant: ptr must be valid for an unaligned store of 16 bytes
 #[inline(always)]
 pub unsafe fn store8_unaligned(ptr: *mut u16, s: u16x8) {
-    ::core::ptr::copy_nonoverlapping(&s as *const u16x8 as *const u8, ptr as *mut u8, 16);
+    ::core::ptr::write_unaligned(ptr as *mut u16x8, s);
 }
 
 /// Safety invariant: ptr must be valid for an aligned-for-u16x8 store of 16 bytes
