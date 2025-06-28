@@ -7,18 +7,14 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-use any_all_workaround::all_mask16x8;
-use any_all_workaround::all_mask8x16;
-use any_all_workaround::any_mask16x8;
-use any_all_workaround::any_mask8x16;
+#[allow(unused)]
+use any_all_workaround::{all_mask16x8, all_mask8x16, any_mask16x8, any_mask8x16};
 use core::simd::cmp::SimdPartialEq;
 use core::simd::cmp::SimdPartialOrd;
-use core::simd::mask16x8;
-use core::simd::mask8x16;
 use core::simd::simd_swizzle;
-use core::simd::u16x8;
-use core::simd::u8x16;
 use core::simd::ToBytes;
+#[allow(unused)]
+use core::simd::{mask16x8, mask8x16, u16x8, u8x16};
 
 /// Safety invariant: ptr must be valid for an unaligned read of 16 bytes
 #[inline(always)]
@@ -74,10 +70,12 @@ pub unsafe fn store8_aligned(ptr: *mut u16, s: u16x8) {
 
 cfg_if! {
     if #[cfg(all(target_feature = "sse2", target_arch = "x86_64"))] {
+        #[allow(unused)]
         use core::arch::x86_64::__m128i;
         use core::arch::x86_64::_mm_movemask_epi8;
         use core::arch::x86_64::_mm_packus_epi16;
     } else if #[cfg(all(target_feature = "sse2", target_arch = "x86"))] {
+        #[allow(unused)]
         use core::arch::x86::__m128i;
         use core::arch::x86::_mm_movemask_epi8;
         use core::arch::x86::_mm_packus_epi16;
