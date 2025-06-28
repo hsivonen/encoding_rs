@@ -229,7 +229,7 @@ macro_rules! by_unit_check_simd {
                     let mut simd_accu = $splat;
                     while offset <= len_minus_stride {
                         // Safety: the above check lets us perform one $simd_ty read.
-                        simd_accu = simd_accu | unsafe { *(src.add(offset) as *const $simd_ty) };
+                        simd_accu |= unsafe { *(src.add(offset) as *const $simd_ty) };
                         offset += SIMD_STRIDE_SIZE / unit_size;
                     }
                     if !$func(simd_accu) {
@@ -412,12 +412,7 @@ cfg_if! {
                     }
                 }
             }
-            for i in offset..len {
-                if bytes[i] > 0xC3 {
-                    return Some(i);
-                }
-            }
-            None
+            bytes[offset..len].iter().position(|&byte| byte > 0xC3)
         }
     } else {
         #[inline(always)]
