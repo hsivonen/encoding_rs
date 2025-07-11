@@ -1780,7 +1780,7 @@ pub fn convert_latin1_to_utf16(src: &[u8], dst: &mut [u16]) {
 /// # Safety
 ///
 /// If you want to convert into a `&mut str`, use
-/// `convert_utf16_to_str_partial()` instead of using this function
+/// `convert_latin1_to_str_partial()` instead of using this function
 /// together with the `unsafe` method `as_bytes_mut()` on `&mut str`.
 pub fn convert_latin1_to_utf8_partial(src: &[u8], dst: &mut [u8]) -> (usize, usize) {
     let src_len = src.len();
