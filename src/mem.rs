@@ -1956,15 +1956,24 @@ pub fn convert_latin1_to_str(src: &[u8], dst: &mut str) -> usize {
 ///
 /// If debug assertions are enabled (and not fuzzing) and the input is
 /// not in the range U+0000 to U+00FF, inclusive.
+#[inline]
 pub fn convert_utf8_to_latin1_lossy(src: &[u8], dst: &mut [u8]) -> usize {
+    // SAFETY: `dst.as_mut_ptr()`  can be written to within its length.
+    unsafe { convert_utf8_to_latin1_lossy_raw(src, dst.as_mut_ptr(), dst.len()) }
+}
+
+/// # Safety
+/// dst_ptr must be valid for writes at offsets `0..dst_len`.
+///
+/// NOTE: this method does not read values from `dst_ptr`, so `dst_ptr` can point to uninitialized memory.
+unsafe fn convert_utf8_to_latin1_lossy_raw(src: &[u8], dst_ptr: *mut u8, dst_len: usize) -> usize {
     assert!(
-        dst.len() >= src.len(),
+        dst_len >= src.len(),
         "Destination must not be shorter than the source."
     );
     non_fuzz_debug_assert!(is_utf8_latin1(src));
     let src_len = src.len();
     let src_ptr = src.as_ptr();
-    let dst_ptr = dst.as_mut_ptr();
     let mut total_read = 0usize;
     let mut total_written = 0usize;
     loop {
@@ -1987,7 +1996,9 @@ pub fn convert_utf8_to_latin1_lossy(src: &[u8], dst: &mut [u8]) -> usize {
             let trail = src[total_read];
             total_read += 1;
 
-            dst[total_written] = ((non_ascii & 0x1F) << 6) | (trail & 0x3F);
+            dst_ptr
+                .add(total_written)
+                .write(((non_ascii & 0x1F) << 6) | (trail & 0x3F));
             total_written += 1;
             continue;
         }
@@ -2091,11 +2102,13 @@ pub fn encode_latin1_lossy<'a>(string: &'a str) -> Cow<'a, [u8]> {
     }
     let (head, tail) = bytes.split_at(up_to);
     let capacity = bytes.len();
-    let mut vec = Vec::with_capacity(capacity);
+    let mut vec = Vec::<u8>::with_capacity(capacity);
     vec.extend(head);
-    vec.resize(capacity, 0);
-    let written = convert_utf8_to_latin1_lossy(tail, &mut vec[up_to..]);
-    vec.truncate(up_to + written);
+    // SAFETY: these pointers and lengths are valid for the required reads and writes.
+    let written = unsafe {
+        convert_utf8_to_latin1_lossy_raw(tail, vec.as_mut_ptr().add(up_to), capacity - up_to)
+    };
+    unsafe { vec.set_len(up_to + written) };
     Cow::Owned(vec)
 }
 
