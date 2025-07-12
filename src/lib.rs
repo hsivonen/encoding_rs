@@ -4582,10 +4582,21 @@ impl Encoder {
     /// methods collectively.
     ///
     /// Available via the C wrapper.
+    #[inline]
     pub fn encode_from_utf8(
         &mut self,
         src: &str,
         dst: &mut [u8],
+        last: bool,
+    ) -> (CoderResult, usize, usize, bool) {
+        // SAFETY: we only write initialized values to the slice.
+        let dst = unsafe { as_slice_of_maybeuninit(dst) };
+        self.encode_from_utf8_maybeuninit(src, dst, last)
+    }
+    pub fn encode_from_utf8_maybeuninit(
+        &mut self,
+        src: &str,
+        dst: &mut [MaybeUninit<u8>],
         last: bool,
     ) -> (CoderResult, usize, usize, bool) {
         let dst_len = dst.len();
@@ -4604,7 +4615,7 @@ impl Encoder {
         let mut total_read = 0usize;
         let mut total_written = 0usize;
         loop {
-            let (result, read, written) = self.encode_from_utf8_without_replacement(
+            let (result, read, written) = self.variant.encode_from_utf8_raw(
                 &src[total_read..],
                 &mut dst[total_written..effective_dst_len],
                 last,
@@ -4673,11 +4684,9 @@ impl Encoder {
         last: bool,
     ) -> (CoderResult, usize, bool) {
         let old_len = dst.len();
-        let capacity = dst.capacity();
-        dst.resize(capacity, 0);
-        let (result, read, written, replaced) =
-            self.encode_from_utf8(src, &mut dst[old_len..], last);
-        dst.truncate(old_len + written);
+        let spare = spare_capacity_mut(dst);
+        let (result, read, written, replaced) = self.encode_from_utf8_maybeuninit(src, spare, last);
+        unsafe { dst.set_len(old_len + written) };
         (result, read, replaced)
     }
 
@@ -4713,11 +4722,9 @@ impl Encoder {
         last: bool,
     ) -> (EncoderResult, usize) {
         let old_len = dst.len();
-        let capacity = dst.capacity();
-        dst.resize(capacity, 0);
-        let (result, read, written) =
-            self.encode_from_utf8_without_replacement(src, &mut dst[old_len..], last);
-        dst.truncate(old_len + written);
+        let spare = spare_capacity_mut(dst);
+        let (result, read, written) = self.variant.encode_from_utf8_raw(src, spare, last);
+        unsafe { dst.set_len(old_len + written) };
         (result, read)
     }
 
@@ -4816,6 +4823,8 @@ impl Encoder {
                 EncoderResult::Unmappable(unmappable) => {
                     had_unmappables = true;
                     debug_assert!(dst.len() - total_written >= NCR_EXTRA);
+                    // SAFETY: we only write initialized values to the slice.
+                    let dst_maybeuninit = unsafe { as_slice_of_maybeuninit(dst) };
                     // There are no UTF-16 encoders and even if there were,
                     // they'd never have unmappables.
                     debug_assert_ne!(self.encoding(), UTF_16BE);
@@ -4826,7 +4835,7 @@ impl Encoder {
                     // ISO-2022-JP and come here, the encoder is in either the
                     // ASCII or the Roman state. We are allowed to generate any
                     // printable ASCII excluding \ and ~.
-                    total_written += write_ncr(unmappable, &mut dst[total_written..]);
+                    total_written += write_ncr(unmappable, &mut dst_maybeuninit[total_written..]);
                     if total_written >= effective_dst_len {
                         if total_read == src.len() && !(last && self.has_pending_state()) {
                             return (
@@ -4867,7 +4876,7 @@ impl Encoder {
 }
 
 /// Format an unmappable as NCR without heap allocation.
-fn write_ncr(unmappable: char, dst: &mut [u8]) -> usize {
+fn write_ncr(unmappable: char, dst: &mut [MaybeUninit<u8>]) -> usize {
     // len is the number of decimal digits needed to represent unmappable plus
     // 3 (the length of "&#" and ";").
     let mut number = unmappable as u32;
@@ -4889,19 +4898,19 @@ fn write_ncr(unmappable: char, dst: &mut [u8]) -> usize {
     debug_assert!(number >= 10u32);
     debug_assert!(len <= dst.len());
     let mut pos = len - 1;
-    dst[pos] = b';';
+    dst[pos].write(b';');
     pos -= 1;
     loop {
         let rightmost = number % 10;
-        dst[pos] = rightmost as u8 + b'0';
+        dst[pos].write(rightmost as u8 + b'0');
         pos -= 1;
         if number < 10 {
             break;
         }
         number /= 10;
     }
-    dst[1] = b'#';
-    dst[0] = b'&';
+    dst[1].write(b'#');
+    dst[0].write(b'&');
     len
 }
 
