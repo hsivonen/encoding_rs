@@ -24,6 +24,8 @@
 //! The FFI binding for this module are in the
 //! [encoding_c_mem crate](https://github.com/hsivonen/encoding_c_mem).
 
+use core::mem::MaybeUninit;
+
 #[cfg(feature = "alloc")]
 use alloc::borrow::Cow;
 #[cfg(feature = "alloc")]
@@ -37,6 +39,7 @@ use super::in_inclusive_range8;
 use super::in_range16;
 use super::in_range32;
 use super::DecoderResult;
+use crate::as_slice_of_maybeuninit;
 use crate::ascii::*;
 use crate::utf_8::*;
 
@@ -1488,6 +1491,12 @@ pub fn check_utf16_for_latin1_and_bidi(buffer: &[u16]) -> Latin1Bidi {
 ///
 /// Panics if the destination buffer is shorter than stated above.
 pub fn convert_utf8_to_utf16(src: &[u8], dst: &mut [u16]) -> usize {
+    // SAFETY:
+    let dst = unsafe { core::mem::transmute::<&mut [u16], &mut [MaybeUninit<u16>]>(dst) };
+    convert_utf8_to_utf16_maybeuninit(src, dst)
+}
+
+pub fn convert_utf8_to_utf16_maybeuninit(src: &[u8], dst: &mut [MaybeUninit<u16>]) -> usize {
     // TODO: Can the requirement for dst to be at least one unit longer
     // be eliminated?
     assert!(dst.len() > src.len());
@@ -1509,7 +1518,7 @@ pub fn convert_utf8_to_utf16(src: &[u8], dst: &mut [u16]) -> usize {
             DecoderResult::Malformed(_, _) => {
                 // There should always be space for the U+FFFD, because
                 // otherwise we'd have gotten OutputFull already.
-                dst[total_written] = 0xFFFD;
+                dst[total_written].write(0xFFFD);
                 total_written += 1;
             }
         }
@@ -1625,7 +1634,15 @@ pub fn convert_str_to_utf16(src: &str, dst: &mut [u16]) -> usize {
 /// # Panics
 ///
 /// Panics if the destination buffer is shorter than stated above.
+#[inline]
 pub fn convert_utf8_to_utf16_without_replacement(src: &[u8], dst: &mut [u16]) -> Option<usize> {
+    let dst = unsafe { core::mem::transmute::<&mut [u16], &mut [MaybeUninit<u16>]>(dst) };
+    convert_utf8_to_utf16_without_replacement_internal(src, dst)
+}
+fn convert_utf8_to_utf16_without_replacement_internal(
+    src: &[u8],
+    dst: &mut [MaybeUninit<u16>],
+) -> Option<usize> {
     assert!(
         dst.len() >= src.len(),
         "Destination must not be shorter than the source."
@@ -1664,6 +1681,16 @@ pub fn convert_utf8_to_utf16_without_replacement(src: &[u8], dst: &mut [u16]) ->
 /// together with the `unsafe` method `as_bytes_mut()` on `&mut str`.
 #[inline(always)]
 pub fn convert_utf16_to_utf8_partial(src: &[u16], dst: &mut [u8]) -> (usize, usize) {
+    // SAFETY: we only write initialized values to the slice.
+    let dst = unsafe { as_slice_of_maybeuninit(dst) };
+    convert_utf16_to_utf8_partial_maybeuninit(src, dst)
+}
+
+#[inline(always)]
+pub(crate) fn convert_utf16_to_utf8_partial_maybeuninit(
+    src: &[u16],
+    dst: &mut [MaybeUninit<u8>],
+) -> (usize, usize) {
     // The two functions called below are marked `inline(never)` to make
     // transitions from the hot part (first function) into the cold part
     // (second function) go through a return and another call to discouge

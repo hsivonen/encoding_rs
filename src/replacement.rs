@@ -34,7 +34,7 @@ impl ReplacementDecoder {
     pub fn decode_to_utf16_raw(
         &mut self,
         src: &[u8],
-        dst: &mut [u16],
+        dst: &mut [MaybeUninit<u16>],
         _last: bool,
     ) -> (DecoderResult, usize, usize) {
         // Don't err if the input stream is empty. See
@@ -53,7 +53,7 @@ impl ReplacementDecoder {
     pub fn decode_to_utf8_raw(
         &mut self,
         src: &[u8],
-        dst: &mut [u8],
+        dst: &mut [MaybeUninit<u8>],
         _last: bool,
     ) -> (DecoderResult, usize, usize) {
         // Don't err if the input stream is empty. See

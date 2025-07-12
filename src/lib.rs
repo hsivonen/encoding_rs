@@ -793,6 +793,7 @@ use alloc::vec::Vec;
 use core::cmp::Ordering;
 use core::hash::Hash;
 use core::hash::Hasher;
+use core::mem::MaybeUninit;
 
 #[cfg(feature = "serde")]
 use serde::de::Visitor;
@@ -3959,17 +3960,28 @@ impl Decoder {
     /// methods collectively.
     ///
     /// Available via the C wrapper.
+    #[inline]
     pub fn decode_to_utf8(
         &mut self,
         src: &[u8],
         dst: &mut [u8],
         last: bool,
     ) -> (CoderResult, usize, usize, bool) {
+        // SAFETY: we only write initialized values to the slice.
+        let dst = unsafe { as_slice_of_maybeuninit(dst) };
+        self.decode_to_utf8_maybeuninit(src, dst, last)
+    }
+    fn decode_to_utf8_maybeuninit(
+        &mut self,
+        src: &[u8],
+        dst: &mut [MaybeUninit<u8>],
+        last: bool,
+    ) -> (CoderResult, usize, usize, bool) {
         let mut had_errors = false;
         let mut total_read = 0usize;
         let mut total_written = 0usize;
         loop {
-            let (result, read, written) = self.decode_to_utf8_without_replacement(
+            let (result, read, written) = self.decode_to_utf8_maybeuninit_without_replacement(
                 &src[total_read..],
                 &mut dst[total_written..],
                 last,
@@ -3999,11 +4011,11 @@ impl Decoder {
                     // otherwise we'd have gotten OutputFull already.
                     // XXX: is the above comment actually true for UTF-8 itself?
                     // TODO: Consider having fewer bound checks here.
-                    dst[total_written] = 0xEFu8;
+                    dst[total_written].write(0xEFu8);
                     total_written += 1;
-                    dst[total_written] = 0xBFu8;
+                    dst[total_written].write(0xBFu8);
                     total_written += 1;
-                    dst[total_written] = 0xBDu8;
+                    dst[total_written].write(0xBDu8);
                     total_written += 1;
                 }
             }
@@ -4093,6 +4105,7 @@ impl Decoder {
                             /// Available via the C wrapper.
                             ,
                             decode_to_utf8_without_replacement,
+                            decode_to_utf8_maybeuninit_without_replacement,
                             decode_to_utf8_raw,
                             decode_to_utf8_checking_end,
                             decode_to_utf8_after_one_potential_bom_byte,
@@ -4321,6 +4334,7 @@ impl Decoder {
                             /// Available via the C wrapper.
                             ,
                             decode_to_utf16_without_replacement,
+                            decode_to_utf16_maybeuninit_without_replacement,
                             decode_to_utf16_raw,
                             decode_to_utf16_checking_end,
                             decode_to_utf16_after_one_potential_bom_byte,
@@ -4681,6 +4695,8 @@ impl Encoder {
         dst: &mut [u8],
         last: bool,
     ) -> (EncoderResult, usize, usize) {
+        // SAFETY: we only write initialized values to the slice.
+        let dst = unsafe { as_slice_of_maybeuninit(dst) };
         self.variant.encode_from_utf8_raw(src, dst, last)
     }
 
@@ -4846,6 +4862,8 @@ impl Encoder {
         dst: &mut [u8],
         last: bool,
     ) -> (EncoderResult, usize, usize) {
+        // SAFETY: we only write initialized values to the slice.
+        let dst = unsafe { as_slice_of_maybeuninit(dst) };
         self.variant.encode_from_utf16_raw(src, dst, last)
     }
 }
@@ -4973,6 +4991,40 @@ fn checked_min(one: Option<usize>, other: Option<usize>) -> Option<usize> {
     } else {
         other
     }
+}
+
+/// like slice::copy_from_slice, but with a [MaybeUninit<T>] destination.
+pub(crate) trait MaybeUninitSliceInitFromSlice<T: Copy> {
+    fn init_from_slice(&mut self, slice: &[T]);
+}
+
+impl<T: Copy> MaybeUninitSliceInitFromSlice<T> for [MaybeUninit<T>] {
+    fn init_from_slice(&mut self, slice: &[T]) {
+        // SAFETY: `MaybeUninit<T>` has the same layout as `T`.
+        // Note also that both `T` and `MaybeUninit<T>` are `Copy`.
+        let slice = unsafe { core::mem::transmute::<&[T], &[MaybeUninit<T>]>(slice) };
+        self.copy_from_slice(slice);
+    }
+}
+
+/// Helper trait to make `*mut MaybeUninit<T>`` to `*mut T`` conversions less error prone than
+/// using the `as` operator directly, which requires writing the `T` out explicitly (and correctly!)
+pub(crate) trait PointerStripMaybeUninit {
+    /// *mut T
+    type P;
+    fn strip_maybeuninit(self) -> Self::P;
+}
+impl<T> PointerStripMaybeUninit for *mut MaybeUninit<T> {
+    type P = *mut T;
+    fn strip_maybeuninit(self) -> Self::P {
+        self as Self::P
+    }
+}
+
+/// # Safety
+/// Caller must only write valid, initialized values into the slice.
+unsafe fn as_slice_of_maybeuninit<T>(slice: &mut [T]) -> &mut [MaybeUninit<T>] {
+    core::mem::transmute::<&mut [T], &mut [MaybeUninit<T>]>(slice)
 }
 
 // ############## TESTS ###############

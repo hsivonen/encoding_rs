@@ -12,8 +12,9 @@ use crate::ascii::ascii_to_basic_latin;
 use crate::ascii::basic_latin_to_ascii;
 use crate::ascii::validate_ascii;
 use crate::handles::*;
-use crate::mem::convert_utf16_to_utf8_partial;
+use crate::mem::convert_utf16_to_utf8_partial_maybeuninit;
 use crate::variant::*;
+use core::mem::MaybeUninit;
 
 cfg_if! {
     if #[cfg(feature = "simd-accel")] {
@@ -227,7 +228,10 @@ pub fn utf8_valid_up_to(src: &[u8]) -> usize {
 }
 
 #[allow(clippy::never_loop, clippy::cognitive_complexity)]
-pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usize, usize) {
+pub fn convert_utf8_to_utf16_up_to_invalid(
+    src: &[u8],
+    dst: &mut [MaybeUninit<u16>],
+) -> (usize, usize) {
     let mut read = 0;
     let mut written = 0;
     'outer: loop {
@@ -236,7 +240,11 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
             let dst_remaining = &mut dst[written..];
             let length = ::core::cmp::min(src_remaining.len(), dst_remaining.len());
             match unsafe {
-                ascii_to_basic_latin(src_remaining.as_ptr(), dst_remaining.as_mut_ptr(), length)
+                ascii_to_basic_latin(
+                    src_remaining.as_ptr(),
+                    dst_remaining.as_mut_ptr().strip_maybeuninit(),
+                    length,
+                )
             } {
                 None => {
                     read += length;
@@ -272,10 +280,8 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
                     if !in_inclusive_range8(second, 0x80, 0xBF) {
                         break 'outer;
                     }
-                    unsafe {
-                        *(dst.get_unchecked_mut(written)) =
-                            ((u16::from(byte) & 0x1F) << 6) | (u16::from(second) & 0x3F)
-                    };
+                    unsafe { dst.get_unchecked_mut(written) }
+                        .write(((u16::from(byte) & 0x1F) << 6) | (u16::from(second) & 0x3F));
                     read += 2;
                     written += 1;
 
@@ -286,7 +292,7 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
                     if likely(read + 4 <= src.len()) {
                         byte = unsafe { *(src.get_unchecked(read)) };
                         if byte < 0x80 {
-                            unsafe { *(dst.get_unchecked_mut(written)) = u16::from(byte) };
+                            unsafe { dst.get_unchecked_mut(written) }.write(u16::from(byte));
                             read += 1;
                             written += 1;
                             continue 'outer;
@@ -310,7 +316,7 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
                         let point = ((u16::from(byte) & 0xF) << 12)
                             | ((u16::from(second) & 0x3F) << 6)
                             | (u16::from(third) & 0x3F);
-                        unsafe { *(dst.get_unchecked_mut(written)) = point };
+                        unsafe { dst.get_unchecked_mut(written) }.write(point);
                         read += 3;
                         written += 1;
 
@@ -324,7 +330,7 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
                                 continue 'three;
                             }
                             if likely(byte < 0x80) {
-                                unsafe { *(dst.get_unchecked_mut(written)) = u16::from(byte) };
+                                unsafe { dst.get_unchecked_mut(written) }.write(u16::from(byte));
                                 read += 1;
                                 written += 1;
                                 continue 'outer;
@@ -354,10 +360,9 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
                     | ((u32::from(second) & 0x3F) << 12)
                     | ((u32::from(third) & 0x3F) << 6)
                     | (u32::from(fourth) & 0x3F);
-                unsafe { *(dst.get_unchecked_mut(written)) = (0xD7C0 + (point >> 10)) as u16 };
-                unsafe {
-                    *(dst.get_unchecked_mut(written + 1)) = (0xDC00 + (point & 0x3FF)) as u16
-                };
+                unsafe { dst.get_unchecked_mut(written) }.write((0xD7C0 + (point >> 10)) as u16);
+                unsafe { dst.get_unchecked_mut(written + 1) }
+                    .write((0xDC00 + (point & 0x3FF)) as u16);
                 read += 4;
                 written += 2;
 
@@ -368,7 +373,7 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
                 if likely(read + 4 <= src.len()) {
                     byte = unsafe { *(src.get_unchecked(read)) };
                     if byte < 0x80 {
-                        unsafe { *(dst.get_unchecked_mut(written)) = u16::from(byte) };
+                        unsafe { dst.get_unchecked_mut(written) }.write(u16::from(byte));
                         read += 1;
                         written += 1;
                         continue 'outer;
@@ -392,7 +397,7 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
             // Inspecting the lead byte directly is faster than what the
             // std lib does!
             if byte < 0x80 {
-                dst[written] = u16::from(byte);
+                dst[written].write(u16::from(byte));
                 read += 1;
                 written += 1;
                 continue 'tail;
@@ -407,7 +412,7 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
                 if !in_inclusive_range8(second, 0x80, 0xBF) {
                     break 'outer;
                 }
-                dst[written] = ((u16::from(byte) & 0x1F) << 6) | (u16::from(second) & 0x3F);
+                dst[written].write(((u16::from(byte) & 0x1F) << 6) | (u16::from(second) & 0x3F));
                 read += 2;
                 written += 1;
                 continue 'tail;
@@ -432,7 +437,7 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
                 let point = ((u16::from(byte) & 0xF) << 12)
                     | ((u16::from(second) & 0x3F) << 6)
                     | (u16::from(third) & 0x3F);
-                dst[written] = point;
+                dst[written].write(point);
                 read += 3;
                 written += 1;
                 // `'tail` handles sequences shorter than 4, so
@@ -605,7 +610,10 @@ impl Utf8Decoder {
 
 #[allow(clippy::never_loop)]
 #[inline(never)]
-pub fn convert_utf16_to_utf8_partial_inner(src: &[u16], dst: &mut [u8]) -> (usize, usize) {
+pub fn convert_utf16_to_utf8_partial_inner(
+    src: &[u16],
+    dst: &mut [MaybeUninit<u8>],
+) -> (usize, usize) {
     let mut read = 0;
     let mut written = 0;
     'outer: loop {
@@ -618,7 +626,11 @@ pub fn convert_utf16_to_utf8_partial_inner(src: &[u16], dst: &mut [u8]) -> (usiz
                 src_remaining.len()
             };
             match unsafe {
-                basic_latin_to_ascii(src_remaining.as_ptr(), dst_remaining.as_mut_ptr(), length)
+                basic_latin_to_ascii(
+                    src_remaining.as_ptr(),
+                    dst_remaining.as_mut_ptr().strip_maybeuninit(),
+                    length,
+                )
             } {
                 None => {
                     read += length;
@@ -644,9 +656,11 @@ pub fn convert_utf16_to_utf8_partial_inner(src: &[u16], dst: &mut [u8]) -> (usiz
                 read += 1;
                 if unit < 0x800 {
                     unsafe {
-                        *(dst.get_unchecked_mut(written)) = (unit >> 6) as u8 | 0xC0u8;
+                        dst.get_unchecked_mut(written)
+                            .write((unit >> 6) as u8 | 0xC0u8);
                         written += 1;
-                        *(dst.get_unchecked_mut(written)) = (unit & 0x3F) as u8 | 0x80u8;
+                        dst.get_unchecked_mut(written)
+                            .write((unit & 0x3F) as u8 | 0x80u8);
                         written += 1;
                     }
                     break;
@@ -654,11 +668,14 @@ pub fn convert_utf16_to_utf8_partial_inner(src: &[u16], dst: &mut [u8]) -> (usiz
                 let unit_minus_surrogate_start = unit.wrapping_sub(0xD800);
                 if likely(unit_minus_surrogate_start > (0xDFFF - 0xD800)) {
                     unsafe {
-                        *(dst.get_unchecked_mut(written)) = (unit >> 12) as u8 | 0xE0u8;
+                        dst.get_unchecked_mut(written)
+                            .write((unit >> 12) as u8 | 0xE0u8);
                         written += 1;
-                        *(dst.get_unchecked_mut(written)) = ((unit & 0xFC0) >> 6) as u8 | 0x80u8;
+                        dst.get_unchecked_mut(written)
+                            .write(((unit & 0xFC0) >> 6) as u8 | 0x80u8);
                         written += 1;
-                        *(dst.get_unchecked_mut(written)) = (unit & 0x3F) as u8 | 0x80u8;
+                        dst.get_unchecked_mut(written)
+                            .write((unit & 0x3F) as u8 | 0x80u8);
                         written += 1;
                     }
                     break;
@@ -671,11 +688,11 @@ pub fn convert_utf16_to_utf8_partial_inner(src: &[u16], dst: &mut [u8]) -> (usiz
                         debug_assert_eq!(read, src.len());
                         // Unpaired surrogate at the end of the buffer.
                         unsafe {
-                            *(dst.get_unchecked_mut(written)) = 0xEFu8;
+                            dst.get_unchecked_mut(written).write(0xEFu8);
                             written += 1;
-                            *(dst.get_unchecked_mut(written)) = 0xBFu8;
+                            dst.get_unchecked_mut(written).write(0xBFu8);
                             written += 1;
-                            *(dst.get_unchecked_mut(written)) = 0xBDu8;
+                            dst.get_unchecked_mut(written).write(0xBDu8);
                             written += 1;
                         }
                         return (read, written);
@@ -688,15 +705,17 @@ pub fn convert_utf16_to_utf8_partial_inner(src: &[u16], dst: &mut [u8]) -> (usiz
                         let astral = (u32::from(unit) << 10) + u32::from(second)
                             - (((0xD800u32 << 10) - 0x10000u32) + 0xDC00u32);
                         unsafe {
-                            *(dst.get_unchecked_mut(written)) = (astral >> 18) as u8 | 0xF0u8;
+                            dst.get_unchecked_mut(written)
+                                .write((astral >> 18) as u8 | 0xF0u8);
                             written += 1;
-                            *(dst.get_unchecked_mut(written)) =
-                                ((astral & 0x3F000u32) >> 12) as u8 | 0x80u8;
+                            dst.get_unchecked_mut(written)
+                                .write(((astral & 0x3F000u32) >> 12) as u8 | 0x80u8);
                             written += 1;
-                            *(dst.get_unchecked_mut(written)) =
-                                ((astral & 0xFC0u32) >> 6) as u8 | 0x80u8;
+                            dst.get_unchecked_mut(written)
+                                .write(((astral & 0xFC0u32) >> 6) as u8 | 0x80u8);
                             written += 1;
-                            *(dst.get_unchecked_mut(written)) = (astral & 0x3F) as u8 | 0x80u8;
+                            dst.get_unchecked_mut(written)
+                                .write((astral & 0x3F) as u8 | 0x80u8);
                             written += 1;
                         }
                         break;
@@ -707,11 +726,11 @@ pub fn convert_utf16_to_utf8_partial_inner(src: &[u16], dst: &mut [u8]) -> (usiz
                 }
                 // Unpaired low surrogate
                 unsafe {
-                    *(dst.get_unchecked_mut(written)) = 0xEFu8;
+                    dst.get_unchecked_mut(written).write(0xEFu8);
                     written += 1;
-                    *(dst.get_unchecked_mut(written)) = 0xBFu8;
+                    dst.get_unchecked_mut(written).write(0xBFu8);
                     written += 1;
-                    *(dst.get_unchecked_mut(written)) = 0xBDu8;
+                    dst.get_unchecked_mut(written).write(0xBDu8);
                     written += 1;
                 }
                 break;
@@ -731,7 +750,7 @@ pub fn convert_utf16_to_utf8_partial_inner(src: &[u16], dst: &mut [u8]) -> (usiz
                     debug_assert_eq!(written, dst.len());
                     return (read, written);
                 }
-                dst[written] = unit as u8;
+                dst[written].write(unit as u8);
                 read += 1;
                 written += 1;
                 // Mysteriously, adding a punctuation check here makes
@@ -744,7 +763,10 @@ pub fn convert_utf16_to_utf8_partial_inner(src: &[u16], dst: &mut [u8]) -> (usiz
 }
 
 #[inline(never)]
-pub fn convert_utf16_to_utf8_partial_tail(src: &[u16], dst: &mut [u8]) -> (usize, usize) {
+pub fn convert_utf16_to_utf8_partial_tail(
+    src: &[u16],
+    dst: &mut [MaybeUninit<u8>],
+) -> (usize, usize) {
     // Everything below is cold code!
     let mut read = 0;
     let mut written = 0;
@@ -758,16 +780,16 @@ pub fn convert_utf16_to_utf8_partial_tail(src: &[u16], dst: &mut [u8]) -> (usize
                     return (read, written);
                 }
                 read += 1;
-                dst[written] = unit as u8;
+                dst[written].write(unit as u8);
                 written += 1;
             } else if unit < 0x800 {
                 if written + 2 > dst.len() {
                     return (read, written);
                 }
                 read += 1;
-                dst[written] = (unit >> 6) as u8 | 0xC0u8;
+                dst[written].write((unit >> 6) as u8 | 0xC0u8);
                 written += 1;
-                dst[written] = (unit & 0x3F) as u8 | 0x80u8;
+                dst[written].write((unit & 0x3F) as u8 | 0x80u8);
                 written += 1;
             } else {
                 return (read, written);
@@ -810,11 +832,11 @@ pub fn convert_utf16_to_utf8_partial_tail(src: &[u16], dst: &mut [u8]) -> (usize
             unit = 0xFFFD;
         }
     }
-    dst[written] = (unit >> 12) as u8 | 0xE0u8;
+    dst[written].write((unit >> 12) as u8 | 0xE0u8);
     written += 1;
-    dst[written] = ((unit & 0xFC0) >> 6) as u8 | 0x80u8;
+    dst[written].write(((unit & 0xFC0) >> 6) as u8 | 0x80u8);
     written += 1;
-    dst[written] = (unit & 0x3F) as u8 | 0x80u8;
+    dst[written].write((unit & 0x3F) as u8 | 0x80u8);
     written += 1;
     debug_assert_eq!(written, dst.len());
     (read, written)
@@ -844,10 +866,10 @@ impl Utf8Encoder {
     pub fn encode_from_utf16_raw(
         &mut self,
         src: &[u16],
-        dst: &mut [u8],
+        dst: &mut [MaybeUninit<u8>],
         _last: bool,
     ) -> (EncoderResult, usize, usize) {
-        let (read, written) = convert_utf16_to_utf8_partial(src, dst);
+        let (read, written) = convert_utf16_to_utf8_partial_maybeuninit(src, dst);
         (
             if read == src.len() {
                 EncoderResult::InputEmpty
@@ -862,13 +884,13 @@ impl Utf8Encoder {
     pub fn encode_from_utf8_raw(
         &mut self,
         src: &str,
-        dst: &mut [u8],
+        dst: &mut [MaybeUninit<u8>],
         _last: bool,
     ) -> (EncoderResult, usize, usize) {
         let bytes = src.as_bytes();
         let mut to_write = bytes.len();
         if to_write <= dst.len() {
-            (&mut dst[..to_write]).copy_from_slice(bytes);
+            dst[..to_write].init_from_slice(bytes);
             return (EncoderResult::InputEmpty, to_write, to_write);
         }
         to_write = dst.len();
@@ -876,7 +898,7 @@ impl Utf8Encoder {
         while (bytes[to_write] & 0xC0) == 0x80 {
             to_write -= 1;
         }
-        (&mut dst[..to_write]).copy_from_slice(&bytes[..to_write]);
+        dst[..to_write].init_from_slice(&bytes[..to_write]);
         (EncoderResult::OutputFull, to_write, to_write)
     }
 }

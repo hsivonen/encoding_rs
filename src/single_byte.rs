@@ -7,6 +7,8 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
+use core::mem::MaybeUninit;
+
 use super::*;
 use crate::ascii::*;
 use crate::data::position;
@@ -37,7 +39,7 @@ impl SingleByteDecoder {
     pub fn decode_to_utf8_raw(
         &mut self,
         src: &[u8],
-        dst: &mut [u8],
+        dst: &mut [core::mem::MaybeUninit<u8>],
         _last: bool,
     ) -> (DecoderResult, usize, usize) {
         let mut source = ByteSource::new(src);
@@ -147,7 +149,7 @@ impl SingleByteDecoder {
     pub fn decode_to_utf16_raw(
         &mut self,
         src: &[u8],
-        dst: &mut [u16],
+        dst: &mut [MaybeUninit<u16>],
         _last: bool,
     ) -> (DecoderResult, usize, usize) {
         let (pending, length) = if dst.len() < src.len() {
@@ -163,7 +165,7 @@ impl SingleByteDecoder {
                 // Safety: length is the minimum length, `src/dst + x` will always be valid for reads/writes of `len - x`
                 ascii_to_basic_latin(
                     src.as_ptr().add(converted),
-                    dst.as_mut_ptr().add(converted),
+                    dst.as_mut_ptr().add(converted).strip_maybeuninit(),
                     length - converted,
                 )
             } {
@@ -198,10 +200,9 @@ impl SingleByteDecoder {
                                 converted,
                             );
                         }
-                        unsafe {
-                            // Safety: As mentioned above, `converted < length`
-                            *(dst.get_unchecked_mut(converted)) = mapped;
-                        }
+                        // Safety: As mentioned above, `converted < length`
+                        unsafe { dst.get_unchecked_mut(converted) }.write(mapped);
+
                         // Safety: `converted <= length` upheld, since `converted < length` before this
                         converted += 1;
                         // Next, handle ASCII punctuation and non-ASCII without
@@ -227,10 +228,9 @@ impl SingleByteDecoder {
                             // Testing on Haswell says that we should write the
                             // byte unconditionally instead of trying to unread it
                             // to make it part of the next SIMD stride.
-                            unsafe {
-                                // Safety: `converted < length` is true for this loop
-                                *(dst.get_unchecked_mut(converted)) = u16::from(b);
-                            }
+                            // Safety: `converted < length` is true for this loop
+                            unsafe { dst.get_unchecked_mut(converted) }.write(u16::from(b));
+
                             // Safety: We are now at `converted <= length`. We should *not* `continue`
                             // the loop without reverifying
                             converted += 1;
@@ -403,7 +403,7 @@ impl SingleByteEncoder {
     pub fn encode_from_utf16_raw(
         &mut self,
         src: &[u16],
-        dst: &mut [u8],
+        dst: &mut [MaybeUninit<u8>],
         _last: bool,
     ) -> (EncoderResult, usize, usize) {
         let (pending, length) = if dst.len() < src.len() {
@@ -419,7 +419,7 @@ impl SingleByteEncoder {
                 // Safety: length is the minimum length, `src/dst + x` will always be valid for reads/writes of `len - x`
                 basic_latin_to_ascii(
                     src.as_ptr().add(converted),
-                    dst.as_mut_ptr().add(converted),
+                    dst.as_mut_ptr().add(converted).strip_maybeuninit(),
                     length - converted,
                 )
             } {
@@ -438,10 +438,9 @@ impl SingleByteEncoder {
                         // `converted` doesn't count the reading of `non_ascii` yet.
                         match self.encode_u16(non_ascii) {
                             Some(byte) => {
-                                unsafe {
-                                    // Safety: we're allowed this access since `converted < length`
-                                    *(dst.get_unchecked_mut(converted)) = byte;
-                                }
+                                // Safety: we're allowed this access since `converted < length`
+                                unsafe { dst.get_unchecked_mut(converted) }.write(byte);
+
                                 converted += 1;
                                 // `converted <= length` now
                             }
@@ -535,10 +534,9 @@ impl SingleByteEncoder {
                             // Testing on Haswell says that we should write the
                             // byte unconditionally instead of trying to unread it
                             // to make it part of the next SIMD stride.
-                            unsafe {
-                                // Safety: Can rely on converted < length
-                                *(dst.get_unchecked_mut(converted)) = unit as u8;
-                            }
+                            // Safety: Can rely on converted < length
+                            unsafe { dst.get_unchecked_mut(converted) }.write(unit as u8);
+
                             converted += 1;
                             // `converted <= length` here
                             if unit < 60 {

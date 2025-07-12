@@ -76,7 +76,7 @@ impl UserDefinedDecoder {
     pub fn decode_to_utf16_raw(
         &mut self,
         src: &[u8],
-        dst: &mut [u16],
+        dst: &mut [MaybeUninit<u16>],
         _last: bool,
     ) -> (DecoderResult, usize, usize) {
         let (pending, length) = if dst.len() < src.len() {
@@ -90,14 +90,14 @@ impl UserDefinedDecoder {
             .iter()
             .zip(dst_trim.iter_mut())
             .for_each(|(from, to)| {
-                *to = {
+                to.write({
                     let unit = *from;
                     if unit < 0x80 {
                         u16::from(unit)
                     } else {
                         u16::from(unit) + 0xF700
                     }
-                }
+                });
             });
         (pending, length, length)
     }
