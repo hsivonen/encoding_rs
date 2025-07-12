@@ -201,7 +201,7 @@ impl SingleByteDecoder {
                             );
                         }
                         // Safety: As mentioned above, `converted < length`
-                        unsafe { dst.get_unchecked_mut(converted) }.write(mapped);
+                        *unsafe { dst.get_unchecked_mut(converted) } = MaybeUninit::new(mapped);
 
                         // Safety: `converted <= length` upheld, since `converted < length` before this
                         converted += 1;
@@ -229,7 +229,8 @@ impl SingleByteDecoder {
                             // byte unconditionally instead of trying to unread it
                             // to make it part of the next SIMD stride.
                             // Safety: `converted < length` is true for this loop
-                            unsafe { dst.get_unchecked_mut(converted) }.write(u16::from(b));
+                            *unsafe { dst.get_unchecked_mut(converted) } =
+                                MaybeUninit::new(u16::from(b));
 
                             // Safety: We are now at `converted <= length`. We should *not* `continue`
                             // the loop without reverifying
@@ -439,7 +440,8 @@ impl SingleByteEncoder {
                         match self.encode_u16(non_ascii) {
                             Some(byte) => {
                                 // Safety: we're allowed this access since `converted < length`
-                                unsafe { dst.get_unchecked_mut(converted) }.write(byte);
+                                *unsafe { dst.get_unchecked_mut(converted) } =
+                                    MaybeUninit::new(byte);
 
                                 converted += 1;
                                 // `converted <= length` now
@@ -535,7 +537,8 @@ impl SingleByteEncoder {
                             // byte unconditionally instead of trying to unread it
                             // to make it part of the next SIMD stride.
                             // Safety: Can rely on converted < length
-                            unsafe { dst.get_unchecked_mut(converted) }.write(unit as u8);
+                            *unsafe { dst.get_unchecked_mut(converted) } =
+                                MaybeUninit::new(unit as u8);
 
                             converted += 1;
                             // `converted <= length` here

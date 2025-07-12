@@ -90,7 +90,7 @@ impl UserDefinedDecoder {
             .iter()
             .zip(dst_trim.iter_mut())
             .for_each(|(from, to)| {
-                to.write({
+                *to = MaybeUninit::new({
                     let unit = *from;
                     if unit < 0x80 {
                         u16::from(unit)

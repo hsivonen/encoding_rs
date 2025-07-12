@@ -1518,7 +1518,7 @@ pub fn convert_utf8_to_utf16_maybeuninit(src: &[u8], dst: &mut [MaybeUninit<u16>
             DecoderResult::Malformed(_, _) => {
                 // There should always be space for the U+FFFD, because
                 // otherwise we'd have gotten OutputFull already.
-                dst[total_written].write(0xFFFD);
+                dst[total_written] = MaybeUninit::new(0xFFFD);
                 total_written += 1;
             }
         }

@@ -280,8 +280,9 @@ pub fn convert_utf8_to_utf16_up_to_invalid(
                     if !in_inclusive_range8(second, 0x80, 0xBF) {
                         break 'outer;
                     }
-                    unsafe { dst.get_unchecked_mut(written) }
-                        .write(((u16::from(byte) & 0x1F) << 6) | (u16::from(second) & 0x3F));
+                    *unsafe { dst.get_unchecked_mut(written) } = MaybeUninit::new(
+                        ((u16::from(byte) & 0x1F) << 6) | (u16::from(second) & 0x3F),
+                    );
                     read += 2;
                     written += 1;
 
@@ -292,7 +293,8 @@ pub fn convert_utf8_to_utf16_up_to_invalid(
                     if likely(read + 4 <= src.len()) {
                         byte = unsafe { *(src.get_unchecked(read)) };
                         if byte < 0x80 {
-                            unsafe { dst.get_unchecked_mut(written) }.write(u16::from(byte));
+                            *unsafe { dst.get_unchecked_mut(written) } =
+                                MaybeUninit::new(u16::from(byte));
                             read += 1;
                             written += 1;
                             continue 'outer;
@@ -316,7 +318,7 @@ pub fn convert_utf8_to_utf16_up_to_invalid(
                         let point = ((u16::from(byte) & 0xF) << 12)
                             | ((u16::from(second) & 0x3F) << 6)
                             | (u16::from(third) & 0x3F);
-                        unsafe { dst.get_unchecked_mut(written) }.write(point);
+                        *unsafe { dst.get_unchecked_mut(written) } = MaybeUninit::new(point);
                         read += 3;
                         written += 1;
 
@@ -330,7 +332,8 @@ pub fn convert_utf8_to_utf16_up_to_invalid(
                                 continue 'three;
                             }
                             if likely(byte < 0x80) {
-                                unsafe { dst.get_unchecked_mut(written) }.write(u16::from(byte));
+                                *unsafe { dst.get_unchecked_mut(written) } =
+                                    MaybeUninit::new(u16::from(byte));
                                 read += 1;
                                 written += 1;
                                 continue 'outer;
@@ -360,9 +363,10 @@ pub fn convert_utf8_to_utf16_up_to_invalid(
                     | ((u32::from(second) & 0x3F) << 12)
                     | ((u32::from(third) & 0x3F) << 6)
                     | (u32::from(fourth) & 0x3F);
-                unsafe { dst.get_unchecked_mut(written) }.write((0xD7C0 + (point >> 10)) as u16);
-                unsafe { dst.get_unchecked_mut(written + 1) }
-                    .write((0xDC00 + (point & 0x3FF)) as u16);
+                *unsafe { dst.get_unchecked_mut(written) } =
+                    MaybeUninit::new((0xD7C0 + (point >> 10)) as u16);
+                *unsafe { dst.get_unchecked_mut(written + 1) } =
+                    MaybeUninit::new((0xDC00 + (point & 0x3FF)) as u16);
                 read += 4;
                 written += 2;
 
@@ -373,7 +377,8 @@ pub fn convert_utf8_to_utf16_up_to_invalid(
                 if likely(read + 4 <= src.len()) {
                     byte = unsafe { *(src.get_unchecked(read)) };
                     if byte < 0x80 {
-                        unsafe { dst.get_unchecked_mut(written) }.write(u16::from(byte));
+                        *unsafe { dst.get_unchecked_mut(written) } =
+                            MaybeUninit::new(u16::from(byte));
                         read += 1;
                         written += 1;
                         continue 'outer;
@@ -397,7 +402,7 @@ pub fn convert_utf8_to_utf16_up_to_invalid(
             // Inspecting the lead byte directly is faster than what the
             // std lib does!
             if byte < 0x80 {
-                dst[written].write(u16::from(byte));
+                dst[written] = MaybeUninit::new(u16::from(byte));
                 read += 1;
                 written += 1;
                 continue 'tail;
@@ -412,7 +417,8 @@ pub fn convert_utf8_to_utf16_up_to_invalid(
                 if !in_inclusive_range8(second, 0x80, 0xBF) {
                     break 'outer;
                 }
-                dst[written].write(((u16::from(byte) & 0x1F) << 6) | (u16::from(second) & 0x3F));
+                dst[written] =
+                    MaybeUninit::new(((u16::from(byte) & 0x1F) << 6) | (u16::from(second) & 0x3F));
                 read += 2;
                 written += 1;
                 continue 'tail;
@@ -437,7 +443,7 @@ pub fn convert_utf8_to_utf16_up_to_invalid(
                 let point = ((u16::from(byte) & 0xF) << 12)
                     | ((u16::from(second) & 0x3F) << 6)
                     | (u16::from(third) & 0x3F);
-                dst[written].write(point);
+                dst[written] = MaybeUninit::new(point);
                 read += 3;
                 written += 1;
                 // `'tail` handles sequences shorter than 4, so
@@ -656,11 +662,11 @@ pub fn convert_utf16_to_utf8_partial_inner(
                 read += 1;
                 if unit < 0x800 {
                     unsafe {
-                        dst.get_unchecked_mut(written)
-                            .write((unit >> 6) as u8 | 0xC0u8);
+                        *dst.get_unchecked_mut(written) =
+                            MaybeUninit::new((unit >> 6) as u8 | 0xC0u8);
                         written += 1;
-                        dst.get_unchecked_mut(written)
-                            .write((unit & 0x3F) as u8 | 0x80u8);
+                        *dst.get_unchecked_mut(written) =
+                            MaybeUninit::new((unit & 0x3F) as u8 | 0x80u8);
                         written += 1;
                     }
                     break;
@@ -668,14 +674,14 @@ pub fn convert_utf16_to_utf8_partial_inner(
                 let unit_minus_surrogate_start = unit.wrapping_sub(0xD800);
                 if likely(unit_minus_surrogate_start > (0xDFFF - 0xD800)) {
                     unsafe {
-                        dst.get_unchecked_mut(written)
-                            .write((unit >> 12) as u8 | 0xE0u8);
+                        *dst.get_unchecked_mut(written) =
+                            MaybeUninit::new((unit >> 12) as u8 | 0xE0u8);
                         written += 1;
-                        dst.get_unchecked_mut(written)
-                            .write(((unit & 0xFC0) >> 6) as u8 | 0x80u8);
+                        *dst.get_unchecked_mut(written) =
+                            MaybeUninit::new(((unit & 0xFC0) >> 6) as u8 | 0x80u8);
                         written += 1;
-                        dst.get_unchecked_mut(written)
-                            .write((unit & 0x3F) as u8 | 0x80u8);
+                        *dst.get_unchecked_mut(written) =
+                            MaybeUninit::new((unit & 0x3F) as u8 | 0x80u8);
                         written += 1;
                     }
                     break;
@@ -688,11 +694,11 @@ pub fn convert_utf16_to_utf8_partial_inner(
                         debug_assert_eq!(read, src.len());
                         // Unpaired surrogate at the end of the buffer.
                         unsafe {
-                            dst.get_unchecked_mut(written).write(0xEFu8);
+                            *dst.get_unchecked_mut(written) = MaybeUninit::new(0xEFu8);
                             written += 1;
-                            dst.get_unchecked_mut(written).write(0xBFu8);
+                            *dst.get_unchecked_mut(written) = MaybeUninit::new(0xBFu8);
                             written += 1;
-                            dst.get_unchecked_mut(written).write(0xBDu8);
+                            *dst.get_unchecked_mut(written) = MaybeUninit::new(0xBDu8);
                             written += 1;
                         }
                         return (read, written);
@@ -705,17 +711,17 @@ pub fn convert_utf16_to_utf8_partial_inner(
                         let astral = (u32::from(unit) << 10) + u32::from(second)
                             - (((0xD800u32 << 10) - 0x10000u32) + 0xDC00u32);
                         unsafe {
-                            dst.get_unchecked_mut(written)
-                                .write((astral >> 18) as u8 | 0xF0u8);
+                            *dst.get_unchecked_mut(written) =
+                                MaybeUninit::new((astral >> 18) as u8 | 0xF0u8);
                             written += 1;
-                            dst.get_unchecked_mut(written)
-                                .write(((astral & 0x3F000u32) >> 12) as u8 | 0x80u8);
+                            *dst.get_unchecked_mut(written) =
+                                MaybeUninit::new(((astral & 0x3F000u32) >> 12) as u8 | 0x80u8);
                             written += 1;
-                            dst.get_unchecked_mut(written)
-                                .write(((astral & 0xFC0u32) >> 6) as u8 | 0x80u8);
+                            *dst.get_unchecked_mut(written) =
+                                MaybeUninit::new(((astral & 0xFC0u32) >> 6) as u8 | 0x80u8);
                             written += 1;
-                            dst.get_unchecked_mut(written)
-                                .write((astral & 0x3F) as u8 | 0x80u8);
+                            *dst.get_unchecked_mut(written) =
+                                MaybeUninit::new((astral & 0x3F) as u8 | 0x80u8);
                             written += 1;
                         }
                         break;
@@ -726,11 +732,11 @@ pub fn convert_utf16_to_utf8_partial_inner(
                 }
                 // Unpaired low surrogate
                 unsafe {
-                    dst.get_unchecked_mut(written).write(0xEFu8);
+                    *dst.get_unchecked_mut(written) = MaybeUninit::new(0xEFu8);
                     written += 1;
-                    dst.get_unchecked_mut(written).write(0xBFu8);
+                    *dst.get_unchecked_mut(written) = MaybeUninit::new(0xBFu8);
                     written += 1;
-                    dst.get_unchecked_mut(written).write(0xBDu8);
+                    *dst.get_unchecked_mut(written) = MaybeUninit::new(0xBDu8);
                     written += 1;
                 }
                 break;
@@ -750,7 +756,7 @@ pub fn convert_utf16_to_utf8_partial_inner(
                     debug_assert_eq!(written, dst.len());
                     return (read, written);
                 }
-                dst[written].write(unit as u8);
+                dst[written] = MaybeUninit::new(unit as u8);
                 read += 1;
                 written += 1;
                 // Mysteriously, adding a punctuation check here makes
@@ -780,16 +786,16 @@ pub fn convert_utf16_to_utf8_partial_tail(
                     return (read, written);
                 }
                 read += 1;
-                dst[written].write(unit as u8);
+                dst[written] = MaybeUninit::new(unit as u8);
                 written += 1;
             } else if unit < 0x800 {
                 if written + 2 > dst.len() {
                     return (read, written);
                 }
                 read += 1;
-                dst[written].write((unit >> 6) as u8 | 0xC0u8);
+                dst[written] = MaybeUninit::new((unit >> 6) as u8 | 0xC0u8);
                 written += 1;
-                dst[written].write((unit & 0x3F) as u8 | 0x80u8);
+                dst[written] = MaybeUninit::new((unit & 0x3F) as u8 | 0x80u8);
                 written += 1;
             } else {
                 return (read, written);
@@ -832,11 +838,11 @@ pub fn convert_utf16_to_utf8_partial_tail(
             unit = 0xFFFD;
         }
     }
-    dst[written].write((unit >> 12) as u8 | 0xE0u8);
+    dst[written] = MaybeUninit::new((unit >> 12) as u8 | 0xE0u8);
     written += 1;
-    dst[written].write(((unit & 0xFC0) >> 6) as u8 | 0x80u8);
+    dst[written] = MaybeUninit::new(((unit & 0xFC0) >> 6) as u8 | 0x80u8);
     written += 1;
-    dst[written].write((unit & 0x3F) as u8 | 0x80u8);
+    dst[written] = MaybeUninit::new((unit & 0x3F) as u8 | 0x80u8);
     written += 1;
     debug_assert_eq!(written, dst.len());
     (read, written)

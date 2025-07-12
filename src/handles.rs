@@ -200,7 +200,7 @@ impl UnalignedU16Slice {
         assert!(self.len <= other.len());
         for (i, target) in other.iter_mut().enumerate().take(self.len) {
             let unit = swap_if_opposite_endian::<E>(self.at(i));
-            target.write(unit);
+            *target = MaybeUninit::new(unit);
             if super::in_range16(unit, 0xD800, 0xE000) {
                 return Some((unit, i));
             }
@@ -225,7 +225,7 @@ fn copy_unaligned_basic_latin_to_ascii_alu<E: Endian>(
         if unit > 0x7F {
             return CopyAsciiResult::GoOn((unit, i + offset));
         }
-        dst[i].write(unit as u8);
+        dst[i] = MaybeUninit::new(unit as u8);
         i += 1;
     }
 }
@@ -321,16 +321,16 @@ fn convert_unaligned_utf16_to_utf8<E: Endian>(
             let non_ascii_minus_surrogate_start = non_ascii.wrapping_sub(0xD800);
             if non_ascii_minus_surrogate_start > (0xDFFF - 0xD800) {
                 if non_ascii < 0x800 {
-                    dst[dst_pos].write(((non_ascii >> 6) | 0xC0) as u8);
+                    dst[dst_pos] = MaybeUninit::new(((non_ascii >> 6) | 0xC0) as u8);
                     dst_pos += 1;
-                    dst[dst_pos].write(((non_ascii & 0x3F) | 0x80) as u8);
+                    dst[dst_pos] = MaybeUninit::new(((non_ascii & 0x3F) | 0x80) as u8);
                     dst_pos += 1;
                 } else {
-                    dst[dst_pos].write(((non_ascii >> 12) | 0xE0) as u8);
+                    dst[dst_pos] = MaybeUninit::new(((non_ascii >> 12) | 0xE0) as u8);
                     dst_pos += 1;
-                    dst[dst_pos].write((((non_ascii & 0xFC0) >> 6) | 0x80) as u8);
+                    dst[dst_pos] = MaybeUninit::new((((non_ascii & 0xFC0) >> 6) | 0x80) as u8);
                     dst_pos += 1;
-                    dst[dst_pos].write(((non_ascii & 0x3F) | 0x80) as u8);
+                    dst[dst_pos] = MaybeUninit::new(((non_ascii & 0x3F) | 0x80) as u8);
                     dst_pos += 1;
                 }
             } else if non_ascii_minus_surrogate_start <= (0xDBFF - 0xD800) {
@@ -344,13 +344,15 @@ fn convert_unaligned_utf16_to_utf8<E: Endian>(
                         let point = (u32::from(non_ascii) << 10) + u32::from(second)
                             - (((0xD800u32 << 10) - 0x10000u32) + 0xDC00u32);
 
-                        dst[dst_pos].write(((point >> 18) | 0xF0u32) as u8);
+                        dst[dst_pos] = MaybeUninit::new(((point >> 18) | 0xF0u32) as u8);
                         dst_pos += 1;
-                        dst[dst_pos].write((((point & 0x3F000u32) >> 12) | 0x80u32) as u8);
+                        dst[dst_pos] =
+                            MaybeUninit::new((((point & 0x3F000u32) >> 12) | 0x80u32) as u8);
                         dst_pos += 1;
-                        dst[dst_pos].write((((point & 0xFC0u32) >> 6) | 0x80u32) as u8);
+                        dst[dst_pos] =
+                            MaybeUninit::new((((point & 0xFC0u32) >> 6) | 0x80u32) as u8);
                         dst_pos += 1;
-                        dst[dst_pos].write(((point & 0x3Fu32) | 0x80u32) as u8);
+                        dst[dst_pos] = MaybeUninit::new(((point & 0x3Fu32) | 0x80u32) as u8);
                         dst_pos += 1;
                     } else {
                         // The next code unit is not a low surrogate. Don't advance
@@ -374,7 +376,7 @@ fn convert_unaligned_utf16_to_utf8<E: Endian>(
                 non_ascii = unit;
                 continue 'inner;
             }
-            dst[dst_pos].write(unit as u8);
+            dst[dst_pos] = MaybeUninit::new(unit as u8);
             dst_pos += 1;
             continue 'outer;
         }
@@ -623,10 +625,8 @@ impl<'a> Utf16Destination<'a> {
     }
     #[inline(always)]
     fn write_code_unit(&mut self, u: u16) {
-        unsafe {
-            // OK, because we checked before handing out a handle.
-            (self.slice.get_unchecked_mut(self.pos)).write(u);
-        }
+        // SAFETY: OK, because we checked before handing out a handle.
+        *unsafe { self.slice.get_unchecked_mut(self.pos) } = MaybeUninit::new(u);
         self.pos += 1;
     }
     #[inline(always)]
@@ -816,7 +816,7 @@ impl<'a> Utf16Destination<'a> {
                     return Some((source.pos, self.pos));
                 }
                 // `surrogate` was already speculatively written
-                dst_remaining[second_pos].write(second);
+                dst_remaining[second_pos] = MaybeUninit::new(second);
                 offset += 2;
                 continue;
             } else {
@@ -977,7 +977,7 @@ impl<'a> Utf8Destination<'a> {
     #[inline(always)]
     fn write_code_unit(&mut self, u: u8) {
         // SAFETY: OK, because we checked before handing out a handle.
-        unsafe { self.slice.get_unchecked_mut(self.pos) }.write(u);
+        *unsafe { self.slice.get_unchecked_mut(self.pos) } = MaybeUninit::new(u);
 
         self.pos += 1;
     }
@@ -2014,24 +2014,24 @@ impl<'a> ByteDestination<'a> {
         let (dst, rest) = core::mem::take(&mut self.slice).split_first_mut().unwrap();
         self.slice = rest;
 
-        dst.write(first);
+        *dst = MaybeUninit::new(first);
     }
     #[inline(always)]
     fn write_two(&mut self, first: u8, second: u8) {
         let (dst, rest) = core::mem::take(&mut self.slice).split_at_mut(2);
         self.slice = rest;
 
-        dst[0].write(first);
-        dst[1].write(second);
+        dst[0] = MaybeUninit::new(first);
+        dst[1] = MaybeUninit::new(second);
     }
     #[inline(always)]
     fn write_three(&mut self, first: u8, second: u8, third: u8) {
         let (dst, rest) = core::mem::take(&mut self.slice).split_at_mut(3);
         self.slice = rest;
 
-        dst[0].write(first);
-        dst[1].write(second);
-        dst[2].write(third);
+        dst[0] = MaybeUninit::new(first);
+        dst[1] = MaybeUninit::new(second);
+        dst[2] = MaybeUninit::new(third);
     }
     #[inline(always)]
     fn write_four(&mut self, first: u8, second: u8, third: u8, fourth: u8) {
@@ -2039,10 +2039,10 @@ impl<'a> ByteDestination<'a> {
         let (dst, rest) = core::mem::take(&mut self.slice).split_at_mut(4);
         self.slice = rest;
 
-        dst[0].write(first);
-        dst[1].write(second);
-        dst[2].write(third);
-        dst[3].write(fourth);
+        dst[0] = MaybeUninit::new(first);
+        dst[1] = MaybeUninit::new(second);
+        dst[2] = MaybeUninit::new(third);
+        dst[3] = MaybeUninit::new(fourth);
     }
     /// Assume this many bytes have been written
     #[inline(always)]

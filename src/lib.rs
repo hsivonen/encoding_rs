@@ -4011,11 +4011,11 @@ impl Decoder {
                     // otherwise we'd have gotten OutputFull already.
                     // XXX: is the above comment actually true for UTF-8 itself?
                     // TODO: Consider having fewer bound checks here.
-                    dst[total_written].write(0xEFu8);
+                    dst[total_written] = MaybeUninit::new(0xEFu8);
                     total_written += 1;
-                    dst[total_written].write(0xBFu8);
+                    dst[total_written] = MaybeUninit::new(0xBFu8);
                     total_written += 1;
-                    dst[total_written].write(0xBDu8);
+                    dst[total_written] = MaybeUninit::new(0xBDu8);
                     total_written += 1;
                 }
             }
@@ -4898,19 +4898,19 @@ fn write_ncr(unmappable: char, dst: &mut [MaybeUninit<u8>]) -> usize {
     debug_assert!(number >= 10u32);
     debug_assert!(len <= dst.len());
     let mut pos = len - 1;
-    dst[pos].write(b';');
+    dst[pos] = MaybeUninit::new(b';');
     pos -= 1;
     loop {
         let rightmost = number % 10;
-        dst[pos].write(rightmost as u8 + b'0');
+        dst[pos] = MaybeUninit::new(rightmost as u8 + b'0');
         pos -= 1;
         if number < 10 {
             break;
         }
         number /= 10;
     }
-    dst[1].write(b'#');
-    dst[0].write(b'&');
+    dst[1] = MaybeUninit::new(b'#');
+    dst[0] = MaybeUninit::new(b'&');
     len
 }
 
