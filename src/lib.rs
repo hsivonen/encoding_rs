@@ -4088,10 +4088,9 @@ impl Decoder {
     ) -> (CoderResult, usize, bool) {
         let vec = unsafe { dst.as_mut_vec() };
         let old_len = vec.len();
-        let capacity = vec.capacity();
-        vec.resize(capacity, 0);
-        let (result, read, written, replaced) = self.decode_to_utf8(src, &mut vec[old_len..], last);
-        vec.truncate(old_len + written);
+        let spare = spare_capacity_mut(vec);
+        let (result, read, written, replaced) = self.decode_to_utf8_maybeuninit(src, spare, last);
+        unsafe { vec.set_len(old_len + written) };
         (result, read, replaced)
     }
 
@@ -4176,11 +4175,10 @@ impl Decoder {
     ) -> (DecoderResult, usize) {
         let vec = unsafe { dst.as_mut_vec() };
         let old_len = vec.len();
-        let capacity = vec.capacity();
-        vec.resize(capacity, 0);
+        let spare = spare_capacity_mut(vec);
         let (result, read, written) =
-            self.decode_to_utf8_without_replacement(src, &mut vec[old_len..], last);
-        vec.truncate(old_len + written);
+            self.decode_to_utf8_maybeuninit_without_replacement(src, spare, last);
+        unsafe { vec.set_len(old_len + written) };
         (result, read)
     }
 
@@ -5004,6 +5002,28 @@ impl<T: Copy> MaybeUninitSliceInitFromSlice<T> for [MaybeUninit<T>] {
         // Note also that both `T` and `MaybeUninit<T>` are `Copy`.
         let slice = unsafe { core::mem::transmute::<&[T], &[MaybeUninit<T>]>(slice) };
         self.copy_from_slice(slice);
+    }
+}
+
+/// Returns the remaining spare capacity of the vector as a slice of
+/// `MaybeUninit<T>`.
+///
+/// The returned slice can be used to fill the vector with data (e.g. by
+/// reading from a file) before marking the data as initialized using the
+/// [`set_len`] method.
+///
+/// [`set_len`]: Vec::set_len
+#[inline]
+fn spare_capacity_mut<T>(vec: &mut Vec<T>) -> &mut [MaybeUninit<T>] {
+    // Note: this function is copy-pasted from Rust std, as it is not yet stable.
+    // Note:
+    // This method is not implemented in terms of `split_at_spare_mut`,
+    // to prevent invalidation of pointers to the buffer.
+    unsafe {
+        core::slice::from_raw_parts_mut(
+            vec.as_mut_ptr().add(vec.len()) as *mut MaybeUninit<T>,
+            vec.capacity() - vec.len(),
+        )
     }
 }
 
