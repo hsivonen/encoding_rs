@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 
 # Copyright Mozilla Foundation. See the COPYRIGHT
 # file at the top-level directory of this distribution.
