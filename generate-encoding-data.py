@@ -13,6 +13,7 @@ import json
 import subprocess
 import sys
 import os.path
+from functools import cmp_to_key
 
 if (not os.path.isfile("../encoding/encodings.json")) or (not os.path.isfile("../encoding/indexes.json")):
   sys.stderr.write("This script needs a clone of https://github.com/whatwg/encoding/ (preferably at revision 2c3853e461afd718be198772170d024e427aee21) next to the encoding_rs directory.\n");
@@ -25,6 +26,12 @@ if not os.path.isfile("../encoding_c/src/lib.rs"):
 if not os.path.isfile("../codepage/src/lib.rs"):
   sys.stderr.write("This script also writes the generated parts of the codepage crate and needs a clone of https://github.com/hsivonen/codepage next to the encoding_rs directory.\n");
   sys.exit(-1)
+
+def cmp(one, other):
+  '''
+  Python 3 removed cmp, but cmp_from_end still uses it for now.
+  '''
+  return (one > other) - (one < other)
 
 def cmp_from_end(one, other):
   c = cmp(len(one), len(other))
@@ -43,8 +50,8 @@ class Label:
   def __init__(self, label, preferred):
     self.label = label
     self.preferred = preferred
-  def __cmp__(self, other):
-    return cmp_from_end(self.label, other.label)
+  def __lt__(self, other):
+    return cmp_from_end(self.label, other.label) < 0
 
 def static_u16_table(name, data):
   data_file.write('''pub static %s: [u16; %d] = [
@@ -313,7 +320,7 @@ for name in preferred:
 
 preferred.sort()
 labels.sort()
-dom.sort(cmp=cmp_from_end)
+dom.sort(key=cmp_to_key(cmp_from_end))
 
 longest_label_length = 0
 longest_name_length = 0
