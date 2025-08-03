@@ -1612,7 +1612,7 @@ utf_8_file.close()
 
 # Unit tests
 
-TEST_HEADER = '''Generated from WHATWG indexes.json; see LICENSE-WHATWG.
+TEST_HEADER = b'''Generated from WHATWG indexes.json; see LICENSE-WHATWG.
 
 This is a generated file. Please do not edit.
 Instead, please regenerate using generate-encoding-data.py
@@ -1620,16 +1620,16 @@ Instead, please regenerate using generate-encoding-data.py
 
 index = indexes["jis0208"]
 
-jis0208_in_file = open("tests/test_data/jis0208_in.txt", "w")
+jis0208_in_file = open("tests/test_data/jis0208_in.txt", "wb")
 jis0208_in_file.write(TEST_HEADER)
 for pointer in range(0, 94 * 94):
   (lead, trail) = divmod(pointer, 94)
   lead += 0xA1
   trail += 0xA1
-  jis0208_in_file.write("%s%s\n" % (chr(lead), chr(trail)))
+  jis0208_in_file.write(b"%c%c\n" % (lead, trail))
 jis0208_in_file.close()
 
-jis0208_in_ref_file = open("tests/test_data/jis0208_in_ref.txt", "w")
+jis0208_in_ref_file = open("tests/test_data/jis0208_in_ref.txt", "wb")
 jis0208_in_ref_file.write(TEST_HEADER)
 for pointer in range(0, 94 * 94):
   code_point = index[pointer]
@@ -1639,8 +1639,8 @@ for pointer in range(0, 94 * 94):
     jis0208_in_ref_file.write("\uFFFD\n".encode("utf-8"))
 jis0208_in_ref_file.close()
 
-jis0208_out_file = open("tests/test_data/jis0208_out.txt", "w")
-jis0208_out_ref_file = open("tests/test_data/jis0208_out_ref.txt", "w")
+jis0208_out_file = open("tests/test_data/jis0208_out.txt", "wb")
+jis0208_out_ref_file = open("tests/test_data/jis0208_out_ref.txt", "wb")
 jis0208_out_file.write(TEST_HEADER)
 jis0208_out_ref_file.write(TEST_HEADER)
 for pointer in range(0, 94 * 94):
@@ -1652,21 +1652,21 @@ for pointer in range(0, 94 * 94):
     (lead, trail) = divmod(revised_pointer, 94)
     lead += 0xA1
     trail += 0xA1
-    jis0208_out_ref_file.write("%s%s\n" % (chr(lead), chr(trail)))
+    jis0208_out_ref_file.write(b"%c%c\n" % (lead, trail))
     jis0208_out_file.write(("%s\n" % chr(code_point)).encode("utf-8"))
 jis0208_out_file.close()
 jis0208_out_ref_file.close()
 
-shift_jis_in_file = open("tests/test_data/shift_jis_in.txt", "w")
+shift_jis_in_file = open("tests/test_data/shift_jis_in.txt", "wb")
 shift_jis_in_file.write(TEST_HEADER)
 for pointer in range(0, len(index)):
   (lead, trail) = divmod(pointer, 188)
   lead += 0x81 if lead < 0x1F else 0xC1
   trail += 0x40 if trail < 0x3F else 0x41
-  shift_jis_in_file.write("%s%s\n" % (chr(lead), chr(trail)))
+  shift_jis_in_file.write(b"%c%c\n" % (lead, trail))
 shift_jis_in_file.close()
 
-shift_jis_in_ref_file = open("tests/test_data/shift_jis_in_ref.txt", "w")
+shift_jis_in_ref_file = open("tests/test_data/shift_jis_in_ref.txt", "wb")
 shift_jis_in_ref_file.write(TEST_HEADER)
 for pointer in range(0, len(index)):
   code_point = 0xE000 - 8836 + pointer if pointer >= 8836 and pointer <= 10715 else index[pointer]
@@ -1681,8 +1681,8 @@ for pointer in range(0, len(index)):
       shift_jis_in_ref_file.write("\uFFFD\n".encode("utf-8"))
 shift_jis_in_ref_file.close()
 
-shift_jis_out_file = open("tests/test_data/shift_jis_out.txt", "w")
-shift_jis_out_ref_file = open("tests/test_data/shift_jis_out_ref.txt", "w")
+shift_jis_out_file = open("tests/test_data/shift_jis_out.txt", "wb")
+shift_jis_out_ref_file = open("tests/test_data/shift_jis_out_ref.txt", "wb")
 shift_jis_out_file.write(TEST_HEADER)
 shift_jis_out_ref_file.write(TEST_HEADER)
 for pointer in range(0, 8272):
@@ -1694,7 +1694,7 @@ for pointer in range(0, 8272):
     (lead, trail) = divmod(revised_pointer, 188)
     lead += 0x81 if lead < 0x1F else 0xC1
     trail += 0x40 if trail < 0x3F else 0x41
-    shift_jis_out_ref_file.write("%s%s\n" % (chr(lead), chr(trail)))
+    shift_jis_out_ref_file.write(b"%c%c\n" % (lead, trail))
     shift_jis_out_file.write(("%s\n" % chr(code_point)).encode("utf-8"))
 for pointer in range(8836, len(index)):
   code_point = index[pointer]
@@ -1705,21 +1705,21 @@ for pointer in range(8836, len(index)):
     (lead, trail) = divmod(revised_pointer, 188)
     lead += 0x81 if lead < 0x1F else 0xC1
     trail += 0x40 if trail < 0x3F else 0x41
-    shift_jis_out_ref_file.write("%s%s\n" % (chr(lead), chr(trail)))
+    shift_jis_out_ref_file.write(b"%c%c\n" % (lead, trail))
     shift_jis_out_file.write(("%s\n" % chr(code_point)).encode("utf-8"))
 shift_jis_out_file.close()
 shift_jis_out_ref_file.close()
 
-iso_2022_jp_in_file = open("tests/test_data/iso_2022_jp_in.txt", "w")
+iso_2022_jp_in_file = open("tests/test_data/iso_2022_jp_in.txt", "wb")
 iso_2022_jp_in_file.write(TEST_HEADER)
 for pointer in range(0, 94 * 94):
   (lead, trail) = divmod(pointer, 94)
   lead += 0x21
   trail += 0x21
-  iso_2022_jp_in_file.write("\x1B$B%s%s\x1B(B\n" % (chr(lead), chr(trail)))
+  iso_2022_jp_in_file.write(b"\x1B$B%c%c\x1B(B\n" % (lead, trail))
 iso_2022_jp_in_file.close()
 
-iso_2022_jp_in_ref_file = open("tests/test_data/iso_2022_jp_in_ref.txt", "w")
+iso_2022_jp_in_ref_file = open("tests/test_data/iso_2022_jp_in_ref.txt", "wb")
 iso_2022_jp_in_ref_file.write(TEST_HEADER)
 for pointer in range(0, 94 * 94):
   code_point = index[pointer]
@@ -1729,8 +1729,8 @@ for pointer in range(0, 94 * 94):
     iso_2022_jp_in_ref_file.write("\uFFFD\n".encode("utf-8"))
 iso_2022_jp_in_ref_file.close()
 
-iso_2022_jp_out_file = open("tests/test_data/iso_2022_jp_out.txt", "w")
-iso_2022_jp_out_ref_file = open("tests/test_data/iso_2022_jp_out_ref.txt", "w")
+iso_2022_jp_out_file = open("tests/test_data/iso_2022_jp_out.txt", "wb")
+iso_2022_jp_out_ref_file = open("tests/test_data/iso_2022_jp_out_ref.txt", "wb")
 iso_2022_jp_out_file.write(TEST_HEADER)
 iso_2022_jp_out_ref_file.write(TEST_HEADER)
 for pointer in range(0, 94 * 94):
@@ -1742,7 +1742,7 @@ for pointer in range(0, 94 * 94):
     (lead, trail) = divmod(revised_pointer, 94)
     lead += 0x21
     trail += 0x21
-    iso_2022_jp_out_ref_file.write("\x1B$B%s%s\x1B(B\n" % (chr(lead), chr(trail)))
+    iso_2022_jp_out_ref_file.write(b"\x1B$B%c%c\x1B(B\n" % (lead, trail))
     iso_2022_jp_out_file.write(("%s\n" % chr(code_point)).encode("utf-8"))
 for i in range(len(half_width_index)):
   code_point = i + 0xFF61
@@ -1751,23 +1751,23 @@ for i in range(len(half_width_index)):
   (lead, trail) = divmod(pointer, 94)
   lead += 0x21
   trail += 0x21
-  iso_2022_jp_out_ref_file.write("\x1B$B%s%s\x1B(B\n" % (chr(lead), chr(trail)))
+  iso_2022_jp_out_ref_file.write(b"\x1B$B%c%c\x1B(B\n" % (lead, trail))
   iso_2022_jp_out_file.write(("%s\n" % chr(code_point)).encode("utf-8"))
 iso_2022_jp_out_file.close()
 iso_2022_jp_out_ref_file.close()
 
 index = indexes["euc-kr"]
 
-euc_kr_in_file = open("tests/test_data/euc_kr_in.txt", "w")
+euc_kr_in_file = open("tests/test_data/euc_kr_in.txt", "wb")
 euc_kr_in_file.write(TEST_HEADER)
 for pointer in range(0, len(index)):
   (lead, trail) = divmod(pointer, 190)
   lead += 0x81
   trail += 0x41
-  euc_kr_in_file.write("%s%s\n" % (chr(lead), chr(trail)))
+  euc_kr_in_file.write(b"%c%c\n" % (lead, trail))
 euc_kr_in_file.close()
 
-euc_kr_in_ref_file = open("tests/test_data/euc_kr_in_ref.txt", "w")
+euc_kr_in_ref_file = open("tests/test_data/euc_kr_in_ref.txt", "wb")
 euc_kr_in_ref_file.write(TEST_HEADER)
 for pointer in range(0, len(index)):
   code_point = index[pointer]
@@ -1782,8 +1782,8 @@ for pointer in range(0, len(index)):
       euc_kr_in_ref_file.write("\uFFFD\n".encode("utf-8"))
 euc_kr_in_ref_file.close()
 
-euc_kr_out_file = open("tests/test_data/euc_kr_out.txt", "w")
-euc_kr_out_ref_file = open("tests/test_data/euc_kr_out_ref.txt", "w")
+euc_kr_out_file = open("tests/test_data/euc_kr_out.txt", "wb")
+euc_kr_out_ref_file = open("tests/test_data/euc_kr_out_ref.txt", "wb")
 euc_kr_out_file.write(TEST_HEADER)
 euc_kr_out_ref_file.write(TEST_HEADER)
 for pointer in range(0, len(index)):
@@ -1792,23 +1792,23 @@ for pointer in range(0, len(index)):
     (lead, trail) = divmod(pointer, 190)
     lead += 0x81
     trail += 0x41
-    euc_kr_out_ref_file.write("%s%s\n" % (chr(lead), chr(trail)))
+    euc_kr_out_ref_file.write(b"%c%c\n" % (lead, trail))
     euc_kr_out_file.write(("%s\n" % chr(code_point)).encode("utf-8"))
 euc_kr_out_file.close()
 euc_kr_out_ref_file.close()
 
 index = indexes["gb18030"]
 
-gb18030_in_file = open("tests/test_data/gb18030_in.txt", "w")
+gb18030_in_file = open("tests/test_data/gb18030_in.txt", "wb")
 gb18030_in_file.write(TEST_HEADER)
 for pointer in range(0, len(index)):
   (lead, trail) = divmod(pointer, 190)
   lead += 0x81
   trail += 0x40 if trail < 0x3F else 0x41
-  gb18030_in_file.write("%s%s\n" % (chr(lead), chr(trail)))
+  gb18030_in_file.write(b"%c%c\n" % (lead, trail))
 gb18030_in_file.close()
 
-gb18030_in_ref_file = open("tests/test_data/gb18030_in_ref.txt", "w")
+gb18030_in_ref_file = open("tests/test_data/gb18030_in_ref.txt", "wb")
 gb18030_in_ref_file.write(TEST_HEADER)
 for pointer in range(0, len(index)):
   code_point = index[pointer]
@@ -1823,8 +1823,8 @@ for pointer in range(0, len(index)):
       gb18030_in_ref_file.write("\uFFFD\n".encode("utf-8"))
 gb18030_in_ref_file.close()
 
-gb18030_out_file = open("tests/test_data/gb18030_out.txt", "w")
-gb18030_out_ref_file = open("tests/test_data/gb18030_out_ref.txt", "w")
+gb18030_out_file = open("tests/test_data/gb18030_out.txt", "wb")
+gb18030_out_ref_file = open("tests/test_data/gb18030_out_ref.txt", "wb")
 gb18030_out_file.write(TEST_HEADER)
 gb18030_out_ref_file.write(TEST_HEADER)
 for pointer in range(0, len(index)):
@@ -1835,20 +1835,20 @@ for pointer in range(0, len(index)):
     (lead, trail) = divmod(pointer, 190)
     lead += 0x81
     trail += 0x40 if trail < 0x3F else 0x41
-    gb18030_out_ref_file.write("%s%s\n" % (chr(lead), chr(trail)))
+    gb18030_out_ref_file.write(b"%c%c\n" % (lead, trail))
     gb18030_out_file.write(("%s\n" % chr(code_point)).encode("utf-8"))
 gb18030_out_file.close()
 gb18030_out_ref_file.close()
 
 index = indexes["big5"]
 
-big5_in_file = open("tests/test_data/big5_in.txt", "w")
+big5_in_file = open("tests/test_data/big5_in.txt", "wb")
 big5_in_file.write(TEST_HEADER)
 for pointer in range(0, len(index)):
   (lead, trail) = divmod(pointer, 157)
   lead += 0x81
   trail += 0x40 if trail < 0x3F else 0x62
-  big5_in_file.write("%s%s\n" % (chr(lead), chr(trail)))
+  big5_in_file.write(b"%c%c\n" % (lead, trail))
 big5_in_file.close()
 
 big5_two_characters = {
@@ -1858,7 +1858,7 @@ big5_two_characters = {
   1166: "\u00EA\u030C",
 }
 
-big5_in_ref_file = open("tests/test_data/big5_in_ref.txt", "w")
+big5_in_ref_file = open("tests/test_data/big5_in_ref.txt", "wb")
 big5_in_ref_file.write(TEST_HEADER)
 for pointer in range(0, len(index)):
   if pointer in list(big5_two_characters.keys()):
@@ -1895,8 +1895,8 @@ for code_point in prefer_last:
        pointer_for_prefer_last.append(i)
        break
 
-big5_out_file = open("tests/test_data/big5_out.txt", "w")
-big5_out_ref_file = open("tests/test_data/big5_out_ref.txt", "w")
+big5_out_file = open("tests/test_data/big5_out.txt", "wb")
+big5_out_ref_file = open("tests/test_data/big5_out_ref.txt", "wb")
 big5_out_file.write(TEST_HEADER)
 big5_out_ref_file.write(TEST_HEADER)
 for pointer in range(((0xA1 - 0x81) * 157), len(index)):
@@ -1911,23 +1911,23 @@ for pointer in range(((0xA1 - 0x81) * 157), len(index)):
     (lead, trail) = divmod(pointer, 157)
     lead += 0x81
     trail += 0x40 if trail < 0x3F else 0x62
-    big5_out_ref_file.write("%s%s\n" % (chr(lead), chr(trail)))
+    big5_out_ref_file.write(b"%c%c\n" % (lead, trail))
     big5_out_file.write(("%s\n" % chr(code_point)).encode("utf-8"))
 big5_out_file.close()
 big5_out_ref_file.close()
 
 index = indexes["jis0212"]
 
-jis0212_in_file = open("tests/test_data/jis0212_in.txt", "w")
+jis0212_in_file = open("tests/test_data/jis0212_in.txt", "wb")
 jis0212_in_file.write(TEST_HEADER)
 for pointer in range(0, len(index)):
   (lead, trail) = divmod(pointer, 94)
   lead += 0xA1
   trail += 0xA1
-  jis0212_in_file.write("\x8F%s%s\n" % (chr(lead), chr(trail)))
+  jis0212_in_file.write(b"\x8F%c%c\n" % (lead, trail))
 jis0212_in_file.close()
 
-jis0212_in_ref_file = open("tests/test_data/jis0212_in_ref.txt", "w")
+jis0212_in_ref_file = open("tests/test_data/jis0212_in_ref.txt", "wb")
 jis0212_in_ref_file.write(TEST_HEADER)
 for pointer in range(0, len(index)):
   code_point = index[pointer]
