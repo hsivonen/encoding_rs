@@ -46,13 +46,6 @@ class Label:
   def __cmp__(self, other):
     return cmp_from_end(self.label, other.label)
 
-class CodePage:
-  def __init__(self, code_page, preferred):
-    self.code_page = code_page
-    self.preferred = preferred
-  def __cmp__(self, other):
-    return self.code_page, other.code_page
-
 def static_u16_table(name, data):
   data_file.write('''pub static %s: [u16; %d] = [
   ''' % (name, len(data)))
