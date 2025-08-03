@@ -115,9 +115,9 @@ dom = []
 
 labels = []
 
-data = json.load(open("../encoding/encodings.json", "r"))
+data = json.load(open("../encoding/encodings.json", "r", encoding="utf-8"))
 
-indexes = json.load(open("../encoding/indexes.json", "r"))
+indexes = json.load(open("../encoding/indexes.json", "r", encoding="utf-8"))
 
 single_byte = []
 
@@ -363,7 +363,7 @@ def is_single_byte(name):
   return False
 
 def read_non_generated(path):
-  partially_generated_file = open(path, "r")
+  partially_generated_file = open(path, "r", encoding="utf-8")
   full = partially_generated_file.read()
   partially_generated_file.close()
 
@@ -384,7 +384,7 @@ def read_non_generated(path):
 
 (lib_rs_begin, lib_rs_end) = read_non_generated("src/lib.rs")
 
-label_file = open("src/lib.rs", "w")
+label_file = open("src/lib.rs", "w", encoding="utf-8")
 
 label_file.write(lib_rs_begin)
 label_file.write("""
@@ -402,7 +402,7 @@ for name in preferred:
   else:
     variant = to_camel_name(name)
 
-  docfile = open("doc/%s.txt" % name, "r")
+  docfile = open("doc/%s.txt" % name, "r", encoding="utf-8")
   doctext = docfile.read()
   docfile.close()
 
@@ -454,7 +454,7 @@ label_file.write('''];
 label_file.write(lib_rs_end)
 label_file.close()
 
-label_test_file = open("src/test_labels_names.rs", "w")
+label_test_file = open("src/test_labels_names.rs", "w", encoding="utf-8")
 label_test_file.write('''// Any copyright to the test code below this comment is dedicated to the
 // Public Domain. http://creativecommons.org/publicdomain/zero/1.0/
 
@@ -481,7 +481,7 @@ def null_to_zero(code_point):
 
 (data_rs_begin, data_rs_end) = read_non_generated("src/data.rs")
 
-data_file = open("src/data.rs", "w")
+data_file = open("src/data.rs", "w", encoding="utf-8")
 data_file.write(data_rs_begin)
 data_file.write('''
 // Instead, please regenerate using generate-encoding-data.py
@@ -1170,7 +1170,7 @@ data_file.close()
 
 # Variant
 
-variant_file = open("src/variant.rs", "w")
+variant_file = open("src/variant.rs", "w", encoding="utf-8")
 variant_file.write('''// Copyright Mozilla Foundation. See the COPYRIGHT
 // file at the top-level directory of this distribution.
 //
@@ -1414,7 +1414,7 @@ variant_file.close()
 
 (ffi_rs_begin, ffi_rs_end) = read_non_generated("../encoding_c/src/lib.rs")
 
-ffi_file = open("../encoding_c/src/lib.rs", "w")
+ffi_file = open("../encoding_c/src/lib.rs", "w", encoding="utf-8")
 
 ffi_file.write(ffi_rs_begin)
 ffi_file.write("""
@@ -1437,7 +1437,7 @@ ffi_file.close()
 
 (single_byte_rs_begin, single_byte_rs_end) = read_non_generated("src/single_byte.rs")
 
-single_byte_file = open("src/single_byte.rs", "w")
+single_byte_file = open("src/single_byte.rs", "w", encoding="utf-8")
 
 single_byte_file.write(single_byte_rs_begin)
 single_byte_file.write("""
@@ -1491,7 +1491,7 @@ single_byte_file.write("""
 single_byte_file.write(single_byte_rs_end)
 single_byte_file.close()
 
-static_file = open("../encoding_c/include/encoding_rs_statics.h", "w")
+static_file = open("../encoding_c/include/encoding_rs_statics.h", "w", encoding="utf-8")
 
 static_file.write("""// Copyright Mozilla Foundation. See the COPYRIGHT
 // file at the top-level directory of this distribution.
@@ -1557,7 +1557,7 @@ static_file.close()
 
 (utf_8_rs_begin, utf_8_rs_end) = read_non_generated("src/utf_8.rs")
 
-utf_8_file = open("src/utf_8.rs", "w")
+utf_8_file = open("src/utf_8.rs", "w", encoding="utf-8")
 
 utf_8_file.write(utf_8_rs_begin)
 utf_8_file.write("""
@@ -1939,7 +1939,7 @@ jis0212_in_ref_file.close()
 
 (codepage_begin, codepage_end) = read_non_generated("../codepage/src/lib.rs")
 
-codepage_file = open("../codepage/src/lib.rs", "w")
+codepage_file = open("../codepage/src/lib.rs", "w", encoding="utf-8")
 
 codepage_file.write(codepage_begin)
 codepage_file.write("""
@@ -1971,7 +1971,7 @@ codepage_file.close()
 
 (codepage_test_begin, codepage_test_end) = read_non_generated("../codepage/src/tests.rs")
 
-codepage_test_file = open("../codepage/src/tests.rs", "w")
+codepage_test_file = open("../codepage/src/tests.rs", "w", encoding="utf-8")
 
 codepage_test_file.write(codepage_test_begin)
 codepage_test_file.write("""
