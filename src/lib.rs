@@ -107,7 +107,7 @@
 //! }
 //! ```
 //!
-//! Decode using the streaming API with minimal `unsafe`:
+//! Decode using the streaming API:
 //!
 //! ```
 //! use encoding_rs::*;
