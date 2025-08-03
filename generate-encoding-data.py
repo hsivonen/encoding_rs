@@ -544,7 +544,7 @@ for j in range(32 - (len(astralness) % 32)):
 
 data_file.write('''#[allow(clippy::unreadable_literal)]
 static BIG5_ASTRALNESS: [u32; %d] = [
-''' % (len(astralness) / 32))
+''' % (len(astralness) // 32))
 
 i = 0
 while i < len(astralness):
@@ -566,7 +566,7 @@ static_u16_table("BIG5_LOW_BITS", low_bits)
 level1_hanzi_index = index[5495:10896]
 level1_hanzi_pairs = []
 for i in range(len(level1_hanzi_index)):
-  hanzi_lead = (i / 157) + 0xA4
+  hanzi_lead = (i // 157) + 0xA4
   hanzi_trail = (i % 157)
   hanzi_trail += 0x40 if hanzi_trail < 0x3F else 0x62
   level1_hanzi_pairs.append((level1_hanzi_index[i], (hanzi_lead, hanzi_trail)))
@@ -1143,7 +1143,7 @@ static_u16_table("GB18030_RANGE_OFFSETS", offsets)
 level1_hanzi_index = hanzi_index[:(94 * (0xD8 - 0xB0) - 5)]
 level1_hanzi_pairs = []
 for i in range(len(level1_hanzi_index)):
-  hanzi_lead = (i / 94) + 0xB0
+  hanzi_lead = (i // 94) + 0xB0
   hanzi_trail = (i % 94) + 0xA1
   level1_hanzi_pairs.append((level1_hanzi_index[i], (hanzi_lead, hanzi_trail)))
 level1_hanzi_pairs.sort(key=lambda x: x[0])
