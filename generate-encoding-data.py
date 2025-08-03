@@ -15,7 +15,7 @@ import sys
 import os.path
 
 if (not os.path.isfile("../encoding/encodings.json")) or (not os.path.isfile("../encoding/indexes.json")):
-  sys.stderr.write("This script needs a clone of https://github.com/whatwg/encoding/ (preferably at revision 1d519bf8e5555cef64cf3a712485f41cd1a6a990 ) next to the encoding_rs directory.\n");
+  sys.stderr.write("This script needs a clone of https://github.com/whatwg/encoding/ (preferably at revision 2c3853e461afd718be198772170d024e427aee21) next to the encoding_rs directory.\n");
   sys.exit(-1)
 
 if not os.path.isfile("../encoding_c/src/lib.rs"):
