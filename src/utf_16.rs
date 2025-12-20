@@ -145,7 +145,7 @@ impl Utf16Decoder {
                             // The previous high surrogate was in
                             // error and this one becomes the new
                             // pending one.
-                            self.lead_surrogate = code_unit as u16;
+                            self.lead_surrogate = code_unit;
                             return (
                                 DecoderResult::Malformed(2, 2),
                                 unread_handle.consumed(),

@@ -229,7 +229,7 @@ macro_rules! by_unit_check_simd {
                     let mut simd_accu = $splat;
                     while offset <= len_minus_stride {
                         // Safety: the above check lets us perform one $simd_ty read.
-                        simd_accu = simd_accu | unsafe { *(src.add(offset) as *const $simd_ty) };
+                        simd_accu |= unsafe { *(src.add(offset) as *const $simd_ty) };
                         offset += SIMD_STRIDE_SIZE / unit_size;
                     }
                     if !$func(simd_accu) {
@@ -412,12 +412,7 @@ cfg_if! {
                     }
                 }
             }
-            for i in offset..len {
-                if bytes[i] > 0xC3 {
-                    return Some(i);
-                }
-            }
-            None
+            bytes[offset..len].iter().position(|&byte| byte > 0xC3)
         }
     } else {
         #[inline(always)]
@@ -566,7 +561,7 @@ cfg_if! {
                     }
                 }
             }
-            let mut iter = (&buffer[offset..]).iter();
+            let mut iter = buffer[offset..].iter();
             loop {
                 if let Some(&u) = iter.next() {
                     if u > 0xFF {
@@ -623,7 +618,7 @@ cfg_if! {
                     }
                 }
             }
-            let mut iter = (&buffer[offset..]).iter();
+            let mut iter = buffer[offset..].iter();
             loop {
                 if let Some(&u) = iter.next() {
                     if u > 0xFF {
@@ -1785,7 +1780,7 @@ pub fn convert_latin1_to_utf16(src: &[u8], dst: &mut [u16]) {
 /// # Safety
 ///
 /// If you want to convert into a `&mut str`, use
-/// `convert_utf16_to_str_partial()` instead of using this function
+/// `convert_latin1_to_str_partial()` instead of using this function
 /// together with the `unsafe` method `as_bytes_mut()` on `&mut str`.
 pub fn convert_latin1_to_utf8_partial(src: &[u8], dst: &mut [u8]) -> (usize, usize) {
     let src_len = src.len();
@@ -2079,7 +2074,7 @@ pub fn utf8_latin1_up_to(buffer: &[u8]) -> usize {
 /// Returns the index of first byte that starts a non-Latin1 byte
 /// sequence, or the length of the string if there are none.
 pub fn str_latin1_up_to(buffer: &str) -> usize {
-    is_str_latin1_impl(buffer).unwrap_or_else(|| buffer.len())
+    is_str_latin1_impl(buffer).unwrap_or(buffer.len())
 }
 
 /// Replaces unpaired surrogates in the input with the REPLACEMENT CHARACTER.

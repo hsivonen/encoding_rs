@@ -7,29 +7,19 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-use any_all_workaround::all_mask16x8;
-use any_all_workaround::all_mask8x16;
-use any_all_workaround::any_mask16x8;
-use any_all_workaround::any_mask8x16;
+#[allow(unused)]
+use any_all_workaround::{all_mask16x8, all_mask8x16, any_mask16x8, any_mask8x16};
 use core::simd::cmp::SimdPartialEq;
 use core::simd::cmp::SimdPartialOrd;
-use core::simd::mask16x8;
-use core::simd::mask8x16;
 use core::simd::simd_swizzle;
-use core::simd::u16x8;
-use core::simd::u8x16;
 use core::simd::ToBytes;
-
-// TODO: Migrate unaligned access to stdlib code if/when the RFC
-// https://github.com/rust-lang/rfcs/pull/1725 is implemented.
+#[allow(unused)]
+use core::simd::{mask16x8, mask8x16, u16x8, u8x16};
 
 /// Safety invariant: ptr must be valid for an unaligned read of 16 bytes
 #[inline(always)]
 pub unsafe fn load16_unaligned(ptr: *const u8) -> u8x16 {
-    let mut simd = ::core::mem::MaybeUninit::<u8x16>::uninit();
-    ::core::ptr::copy_nonoverlapping(ptr, simd.as_mut_ptr() as *mut u8, 16);
-    // Safety: copied 16 bytes of initialized memory into this, it is now initialized
-    simd.assume_init()
+    ::core::ptr::read_unaligned(ptr as *const u8x16)
 }
 
 /// Safety invariant: ptr must be valid for an aligned-for-u8x16 read of 16 bytes
@@ -42,7 +32,7 @@ pub unsafe fn load16_aligned(ptr: *const u8) -> u8x16 {
 /// Safety invariant: ptr must be valid for an unaligned store of 16 bytes
 #[inline(always)]
 pub unsafe fn store16_unaligned(ptr: *mut u8, s: u8x16) {
-    ::core::ptr::copy_nonoverlapping(&s as *const u8x16 as *const u8, ptr, 16);
+    ::core::ptr::write_unaligned(ptr as *mut u8x16, s);
 }
 
 /// Safety invariant: ptr must be valid for an aligned-for-u8x16 store of 16 bytes
@@ -55,10 +45,7 @@ pub unsafe fn store16_aligned(ptr: *mut u8, s: u8x16) {
 /// Safety invariant: ptr must be valid for an unaligned read of 16 bytes
 #[inline(always)]
 pub unsafe fn load8_unaligned(ptr: *const u16) -> u16x8 {
-    let mut simd = ::core::mem::MaybeUninit::<u16x8>::uninit();
-    ::core::ptr::copy_nonoverlapping(ptr as *const u8, simd.as_mut_ptr() as *mut u8, 16);
-    // Safety: copied 16 bytes of initialized memory into this, it is now initialized
-    simd.assume_init()
+    ::core::ptr::read_unaligned(ptr as *const u16x8)
 }
 
 /// Safety invariant: ptr must be valid for an aligned-for-u16x8 read of 16 bytes
@@ -71,7 +58,7 @@ pub unsafe fn load8_aligned(ptr: *const u16) -> u16x8 {
 /// Safety invariant: ptr must be valid for an unaligned store of 16 bytes
 #[inline(always)]
 pub unsafe fn store8_unaligned(ptr: *mut u16, s: u16x8) {
-    ::core::ptr::copy_nonoverlapping(&s as *const u16x8 as *const u8, ptr as *mut u8, 16);
+    ::core::ptr::write_unaligned(ptr as *mut u16x8, s);
 }
 
 /// Safety invariant: ptr must be valid for an aligned-for-u16x8 store of 16 bytes
@@ -83,10 +70,12 @@ pub unsafe fn store8_aligned(ptr: *mut u16, s: u16x8) {
 
 cfg_if! {
     if #[cfg(all(target_feature = "sse2", target_arch = "x86_64"))] {
+        #[allow(unused)]
         use core::arch::x86_64::__m128i;
         use core::arch::x86_64::_mm_movemask_epi8;
         use core::arch::x86_64::_mm_packus_epi16;
     } else if #[cfg(all(target_feature = "sse2", target_arch = "x86"))] {
+        #[allow(unused)]
         use core::arch::x86::__m128i;
         use core::arch::x86::_mm_movemask_epi8;
         use core::arch::x86::_mm_packus_epi16;
@@ -298,7 +287,7 @@ pub fn is_u16x8_bidi(s: u16x8) -> bool {
     // Quick refutation failed. Let's do the full check.
 
     any_mask16x8(
-        (in_range16x8!(s, 0x0590, 0x0900)
+        in_range16x8!(s, 0x0590, 0x0900)
             | in_range16x8!(s, 0xFB1D, 0xFE00)
             | in_range16x8!(s, 0xFE70, 0xFEFF)
             | in_range16x8!(s, 0xD802, 0xD804)
@@ -306,7 +295,7 @@ pub fn is_u16x8_bidi(s: u16x8) -> bool {
             | s.simd_eq(u16x8::splat(0x200F))
             | s.simd_eq(u16x8::splat(0x202B))
             | s.simd_eq(u16x8::splat(0x202E))
-            | s.simd_eq(u16x8::splat(0x2067))),
+            | s.simd_eq(u16x8::splat(0x2067)),
     )
 }
 

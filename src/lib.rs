@@ -42,7 +42,9 @@
     clippy::doc_markdown,
     clippy::inline_always,
     clippy::new_ret_no_self,
-    clippy::redundant_static_lifetimes
+    clippy::redundant_static_lifetimes,
+    clippy::len_zero,
+    clippy::manual_range_contains
 )]
 
 //! encoding_rs is a Gecko-oriented Free Software / Open Source implementation
@@ -105,7 +107,7 @@
 //! }
 //! ```
 //!
-//! Decode using the streaming API with minimal `unsafe`:
+//! Decode using the streaming API:
 //!
 //! ```
 //! use encoding_rs::*;
@@ -2746,7 +2748,7 @@ impl Encoding {
     pub fn for_label(label: &[u8]) -> Option<&'static Encoding> {
         let mut trimmed = [0u8; LONGEST_LABEL_LENGTH];
         let mut trimmed_pos = 0usize;
-        let mut iter = label.into_iter();
+        let mut iter = label.iter();
         // before
         loop {
             match iter.next() {
@@ -3452,7 +3454,7 @@ impl Encoding {
 impl PartialEq for Encoding {
     #[inline]
     fn eq(&self, other: &Encoding) -> bool {
-        (self as *const Encoding) == (other as *const Encoding)
+        ::core::ptr::eq(self, other)
     }
 }
 
@@ -4352,9 +4354,7 @@ impl Decoder {
     /// Available via the C wrapper.
     pub fn latin1_byte_compatible_up_to(&self, bytes: &[u8]) -> Option<usize> {
         match self.life_cycle {
-            DecoderLifeCycle::Converting => {
-                return self.variant.latin1_byte_compatible_up_to(bytes);
-            }
+            DecoderLifeCycle::Converting => self.variant.latin1_byte_compatible_up_to(bytes),
             DecoderLifeCycle::Finished => panic!("Must not use a decoder that has finished."),
             _ => None,
         }
