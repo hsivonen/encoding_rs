@@ -25,7 +25,7 @@ macro_rules! decoder_function {
      $dest_struct:ident) => (
     pub fn $name(&mut $slf,
                  src: &[u8],
-                 dst: &mut [$code_unit],
+                 dst: &mut [core::mem::MaybeUninit<$code_unit>],
                  last: bool)
                  -> (DecoderResult, usize, usize) {
         let mut $source = ByteSource::new(src);
@@ -141,7 +141,7 @@ macro_rules! ascii_compatible_two_byte_decoder_function {
      $ascii_punctuation:expr) => (
     pub fn $name(&mut $slf,
                  src: &[u8],
-                 dst: &mut [$code_unit],
+                 dst: &mut [core::mem::MaybeUninit<$code_unit>],
                  last: bool)
                  -> (DecoderResult, usize, usize) {
         let mut $source = ByteSource::new(src);
@@ -365,7 +365,7 @@ macro_rules! gb18030_decoder_function {
     #[allow(clippy::never_loop)]
     pub fn $name(&mut $slf,
                  src: &[u8],
-                 dst: &mut [$code_unit],
+                 dst: &mut [core::mem::MaybeUninit<$code_unit>],
                  last: bool)
                  -> (DecoderResult, usize, usize) {
         let mut $source = ByteSource::new(src);
@@ -691,7 +691,7 @@ macro_rules! euc_jp_decoder_function {
     #[allow(clippy::never_loop)]
     pub fn $name(&mut $slf,
                  src: &[u8],
-                 dst: &mut [$code_unit],
+                 dst: &mut [core::mem::MaybeUninit<$code_unit>],
                  last: bool)
                  -> (DecoderResult, usize, usize) {
         let mut $source = ByteSource::new(src);
@@ -976,7 +976,7 @@ macro_rules! encoder_function {
      $source_struct:ident) => (
     pub fn $name(&mut $slf,
                  src: &$input,
-                 dst: &mut [u8],
+                 dst: &mut [core::mem::MaybeUninit<u8>],
                  last: bool)
                  -> (EncoderResult, usize, usize) {
         let mut $source = $source_struct::new(src);
@@ -1073,7 +1073,7 @@ macro_rules! ascii_compatible_encoder_function {
      $ascii_punctuation:expr) => (
     pub fn $name(&mut $slf,
                  src: &$input,
-                 dst: &mut [u8],
+                 dst: &mut [core::mem::MaybeUninit<u8>],
                  _last: bool)
                  -> (EncoderResult, usize, usize) {
         let mut $source = $source_struct::new(src);
@@ -1287,18 +1287,28 @@ macro_rules! ascii_compatible_bmp_encoder_functions {
 macro_rules! public_decode_function{
     ($(#[$meta:meta])*,
      $decode_to_utf:ident,
+     $decode_to_utf_maybeuninit:ident,
      $decode_to_utf_raw:ident,
      $decode_to_utf_checking_end:ident,
      $decode_to_utf_after_one_potential_bom_byte:ident,
      $decode_to_utf_after_two_potential_bom_bytes:ident,
      $decode_to_utf_checking_end_with_offset:ident,
      $code_unit:ty) => (
-    $(#[$meta])*
     pub fn $decode_to_utf(&mut self,
-                           src: &[u8],
-                           dst: &mut [$code_unit],
-                           last: bool)
-                           -> (DecoderResult, usize, usize) {
+                        src: &[u8],
+                        dst: &mut [$code_unit],
+                        last: bool)
+                        -> (DecoderResult, usize, usize) {
+        // SAFETY: we only write initialized values to the slice.
+        let dst = unsafe { as_slice_of_maybeuninit(dst) };
+        self.$decode_to_utf_maybeuninit(src, dst, last)
+    }
+    $(#[$meta])*
+    pub(crate) fn $decode_to_utf_maybeuninit(&mut self,
+                        src: &[u8],
+                        dst: &mut [MaybeUninit<$code_unit>],
+                        last: bool)
+                        -> (DecoderResult, usize, usize) {
         let mut offset = 0usize;
         loop {
             match self.life_cycle {
@@ -1507,7 +1517,7 @@ macro_rules! public_decode_function{
 
     fn $decode_to_utf_after_one_potential_bom_byte(&mut self,
                                                    src: &[u8],
-                                                   dst: &mut [$code_unit],
+                                                   dst: &mut [MaybeUninit<$code_unit>],
                                                    last: bool,
                                                    offset: usize,
                                                    first_byte: u8)
@@ -1544,7 +1554,7 @@ macro_rules! public_decode_function{
 
     fn $decode_to_utf_after_two_potential_bom_bytes(&mut self,
                                                     src: &[u8],
-                                                    dst: &mut [$code_unit],
+                                                     dst: &mut [MaybeUninit<$code_unit>],
                                                     last: bool,
                                                     offset: usize)
                                                     -> (DecoderResult, usize, usize) {
@@ -1597,7 +1607,7 @@ macro_rules! public_decode_function{
     /// as having been consumed.
     fn $decode_to_utf_checking_end_with_offset(&mut self,
                                                src: &[u8],
-                                               dst: &mut [$code_unit],
+                                               dst: &mut [MaybeUninit<$code_unit>],
                                                last: bool,
                                                offset: usize)
                                                -> (DecoderResult, usize, usize) {
@@ -1610,7 +1620,7 @@ macro_rules! public_decode_function{
     /// `true` and result is `DecoderResult::InputEmpty`.
     fn $decode_to_utf_checking_end(&mut self,
                                    src: &[u8],
-                                   dst: &mut [$code_unit],
+                                   dst: &mut [MaybeUninit<$code_unit>],
                                    last: bool)
                                    -> (DecoderResult, usize, usize) {
         debug_assert_eq!(self.life_cycle, DecoderLifeCycle::Converting);

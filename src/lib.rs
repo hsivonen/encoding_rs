@@ -793,6 +793,7 @@ use alloc::vec::Vec;
 use core::cmp::Ordering;
 use core::hash::Hash;
 use core::hash::Hasher;
+use core::mem::MaybeUninit;
 
 #[cfg(feature = "serde")]
 use serde::de::Visitor;
@@ -3131,8 +3132,8 @@ impl Encoding {
             );
             unsafe {
                 let vec = string.as_mut_vec();
-                vec.set_len(valid_up_to);
                 core::ptr::copy_nonoverlapping(bytes.as_ptr(), vec.as_mut_ptr(), valid_up_to);
+                vec.set_len(valid_up_to);
             }
             (decoder, string, valid_up_to)
         } else {
@@ -3232,8 +3233,8 @@ impl Encoding {
             );
             unsafe {
                 let vec = string.as_mut_vec();
-                vec.set_len(valid_up_to);
                 core::ptr::copy_nonoverlapping(bytes.as_ptr(), vec.as_mut_ptr(), valid_up_to);
+                vec.set_len(valid_up_to);
             }
             (decoder, string, &bytes[valid_up_to..])
         } else {
@@ -3323,8 +3324,8 @@ impl Encoding {
             .next_power_of_two(),
         );
         unsafe {
-            vec.set_len(valid_up_to);
             core::ptr::copy_nonoverlapping(bytes.as_ptr(), vec.as_mut_ptr(), valid_up_to);
+            vec.set_len(valid_up_to);
         }
         let mut total_read = valid_up_to;
         let mut total_had_errors = false;
@@ -3959,17 +3960,28 @@ impl Decoder {
     /// methods collectively.
     ///
     /// Available via the C wrapper.
+    #[inline]
     pub fn decode_to_utf8(
         &mut self,
         src: &[u8],
         dst: &mut [u8],
         last: bool,
     ) -> (CoderResult, usize, usize, bool) {
+        // SAFETY: we only write initialized values to the slice.
+        let dst = unsafe { as_slice_of_maybeuninit(dst) };
+        self.decode_to_utf8_maybeuninit(src, dst, last)
+    }
+    fn decode_to_utf8_maybeuninit(
+        &mut self,
+        src: &[u8],
+        dst: &mut [MaybeUninit<u8>],
+        last: bool,
+    ) -> (CoderResult, usize, usize, bool) {
         let mut had_errors = false;
         let mut total_read = 0usize;
         let mut total_written = 0usize;
         loop {
-            let (result, read, written) = self.decode_to_utf8_without_replacement(
+            let (result, read, written) = self.decode_to_utf8_maybeuninit_without_replacement(
                 &src[total_read..],
                 &mut dst[total_written..],
                 last,
@@ -3999,11 +4011,11 @@ impl Decoder {
                     // otherwise we'd have gotten OutputFull already.
                     // XXX: is the above comment actually true for UTF-8 itself?
                     // TODO: Consider having fewer bound checks here.
-                    dst[total_written] = 0xEFu8;
+                    dst[total_written] = MaybeUninit::new(0xEFu8);
                     total_written += 1;
-                    dst[total_written] = 0xBFu8;
+                    dst[total_written] = MaybeUninit::new(0xBFu8);
                     total_written += 1;
-                    dst[total_written] = 0xBDu8;
+                    dst[total_written] = MaybeUninit::new(0xBDu8);
                     total_written += 1;
                 }
             }
@@ -4074,16 +4086,12 @@ impl Decoder {
         dst: &mut String,
         last: bool,
     ) -> (CoderResult, usize, bool) {
-        unsafe {
-            let vec = dst.as_mut_vec();
-            let old_len = vec.len();
-            let capacity = vec.capacity();
-            vec.set_len(capacity);
-            let (result, read, written, replaced) =
-                self.decode_to_utf8(src, &mut vec[old_len..], last);
-            vec.set_len(old_len + written);
-            (result, read, replaced)
-        }
+        let vec = unsafe { dst.as_mut_vec() };
+        let old_len = vec.len();
+        let spare = spare_capacity_mut(vec);
+        let (result, read, written, replaced) = self.decode_to_utf8_maybeuninit(src, spare, last);
+        unsafe { vec.set_len(old_len + written) };
+        (result, read, replaced)
     }
 
     public_decode_function!(/// Incrementally decode a byte stream into UTF-8
@@ -4096,6 +4104,7 @@ impl Decoder {
                             /// Available via the C wrapper.
                             ,
                             decode_to_utf8_without_replacement,
+                            decode_to_utf8_maybeuninit_without_replacement,
                             decode_to_utf8_raw,
                             decode_to_utf8_checking_end,
                             decode_to_utf8_after_one_potential_bom_byte,
@@ -4164,16 +4173,13 @@ impl Decoder {
         dst: &mut String,
         last: bool,
     ) -> (DecoderResult, usize) {
-        unsafe {
-            let vec = dst.as_mut_vec();
-            let old_len = vec.len();
-            let capacity = vec.capacity();
-            vec.set_len(capacity);
-            let (result, read, written) =
-                self.decode_to_utf8_without_replacement(src, &mut vec[old_len..], last);
-            vec.set_len(old_len + written);
-            (result, read)
-        }
+        let vec = unsafe { dst.as_mut_vec() };
+        let old_len = vec.len();
+        let spare = spare_capacity_mut(vec);
+        let (result, read, written) =
+            self.decode_to_utf8_maybeuninit_without_replacement(src, spare, last);
+        unsafe { vec.set_len(old_len + written) };
+        (result, read)
     }
 
     /// Query the worst-case UTF-16 output size (with or without replacement).
@@ -4326,6 +4332,7 @@ impl Decoder {
                             /// Available via the C wrapper.
                             ,
                             decode_to_utf16_without_replacement,
+                            decode_to_utf16_maybeuninit_without_replacement,
                             decode_to_utf16_raw,
                             decode_to_utf16_checking_end,
                             decode_to_utf16_after_one_potential_bom_byte,
@@ -4575,10 +4582,21 @@ impl Encoder {
     /// methods collectively.
     ///
     /// Available via the C wrapper.
+    #[inline]
     pub fn encode_from_utf8(
         &mut self,
         src: &str,
         dst: &mut [u8],
+        last: bool,
+    ) -> (CoderResult, usize, usize, bool) {
+        // SAFETY: we only write initialized values to the slice.
+        let dst = unsafe { as_slice_of_maybeuninit(dst) };
+        self.encode_from_utf8_maybeuninit(src, dst, last)
+    }
+    pub fn encode_from_utf8_maybeuninit(
+        &mut self,
+        src: &str,
+        dst: &mut [MaybeUninit<u8>],
         last: bool,
     ) -> (CoderResult, usize, usize, bool) {
         let dst_len = dst.len();
@@ -4597,7 +4615,7 @@ impl Encoder {
         let mut total_read = 0usize;
         let mut total_written = 0usize;
         loop {
-            let (result, read, written) = self.encode_from_utf8_without_replacement(
+            let (result, read, written) = self.variant.encode_from_utf8_raw(
                 &src[total_read..],
                 &mut dst[total_written..effective_dst_len],
                 last,
@@ -4665,15 +4683,11 @@ impl Encoder {
         dst: &mut Vec<u8>,
         last: bool,
     ) -> (CoderResult, usize, bool) {
-        unsafe {
-            let old_len = dst.len();
-            let capacity = dst.capacity();
-            dst.set_len(capacity);
-            let (result, read, written, replaced) =
-                self.encode_from_utf8(src, &mut dst[old_len..], last);
-            dst.set_len(old_len + written);
-            (result, read, replaced)
-        }
+        let old_len = dst.len();
+        let spare = spare_capacity_mut(dst);
+        let (result, read, written, replaced) = self.encode_from_utf8_maybeuninit(src, spare, last);
+        unsafe { dst.set_len(old_len + written) };
+        (result, read, replaced)
     }
 
     /// Incrementally encode into byte stream from UTF-8 _without replacement_.
@@ -4688,6 +4702,8 @@ impl Encoder {
         dst: &mut [u8],
         last: bool,
     ) -> (EncoderResult, usize, usize) {
+        // SAFETY: we only write initialized values to the slice.
+        let dst = unsafe { as_slice_of_maybeuninit(dst) };
         self.variant.encode_from_utf8_raw(src, dst, last)
     }
 
@@ -4705,15 +4721,11 @@ impl Encoder {
         dst: &mut Vec<u8>,
         last: bool,
     ) -> (EncoderResult, usize) {
-        unsafe {
-            let old_len = dst.len();
-            let capacity = dst.capacity();
-            dst.set_len(capacity);
-            let (result, read, written) =
-                self.encode_from_utf8_without_replacement(src, &mut dst[old_len..], last);
-            dst.set_len(old_len + written);
-            (result, read)
-        }
+        let old_len = dst.len();
+        let spare = spare_capacity_mut(dst);
+        let (result, read, written) = self.variant.encode_from_utf8_raw(src, spare, last);
+        unsafe { dst.set_len(old_len + written) };
+        (result, read)
     }
 
     /// Query the worst-case output size when encoding from UTF-16 with
@@ -4811,6 +4823,8 @@ impl Encoder {
                 EncoderResult::Unmappable(unmappable) => {
                     had_unmappables = true;
                     debug_assert!(dst.len() - total_written >= NCR_EXTRA);
+                    // SAFETY: we only write initialized values to the slice.
+                    let dst_maybeuninit = unsafe { as_slice_of_maybeuninit(dst) };
                     // There are no UTF-16 encoders and even if there were,
                     // they'd never have unmappables.
                     debug_assert_ne!(self.encoding(), UTF_16BE);
@@ -4821,7 +4835,7 @@ impl Encoder {
                     // ISO-2022-JP and come here, the encoder is in either the
                     // ASCII or the Roman state. We are allowed to generate any
                     // printable ASCII excluding \ and ~.
-                    total_written += write_ncr(unmappable, &mut dst[total_written..]);
+                    total_written += write_ncr(unmappable, &mut dst_maybeuninit[total_written..]);
                     if total_written >= effective_dst_len {
                         if total_read == src.len() && !(last && self.has_pending_state()) {
                             return (
@@ -4855,12 +4869,14 @@ impl Encoder {
         dst: &mut [u8],
         last: bool,
     ) -> (EncoderResult, usize, usize) {
+        // SAFETY: we only write initialized values to the slice.
+        let dst = unsafe { as_slice_of_maybeuninit(dst) };
         self.variant.encode_from_utf16_raw(src, dst, last)
     }
 }
 
 /// Format an unmappable as NCR without heap allocation.
-fn write_ncr(unmappable: char, dst: &mut [u8]) -> usize {
+fn write_ncr(unmappable: char, dst: &mut [MaybeUninit<u8>]) -> usize {
     // len is the number of decimal digits needed to represent unmappable plus
     // 3 (the length of "&#" and ";").
     let mut number = unmappable as u32;
@@ -4882,19 +4898,19 @@ fn write_ncr(unmappable: char, dst: &mut [u8]) -> usize {
     debug_assert!(number >= 10u32);
     debug_assert!(len <= dst.len());
     let mut pos = len - 1;
-    dst[pos] = b';';
+    dst[pos] = MaybeUninit::new(b';');
     pos -= 1;
     loop {
         let rightmost = number % 10;
-        dst[pos] = rightmost as u8 + b'0';
+        dst[pos] = MaybeUninit::new(rightmost as u8 + b'0');
         pos -= 1;
         if number < 10 {
             break;
         }
         number /= 10;
     }
-    dst[1] = b'#';
-    dst[0] = b'&';
+    dst[1] = MaybeUninit::new(b'#');
+    dst[0] = MaybeUninit::new(b'&');
     len
 }
 
@@ -4982,6 +4998,62 @@ fn checked_min(one: Option<usize>, other: Option<usize>) -> Option<usize> {
     } else {
         other
     }
+}
+
+/// like slice::copy_from_slice, but with a [MaybeUninit<T>] destination.
+pub(crate) trait MaybeUninitSliceInitFromSlice<T: Copy> {
+    fn init_from_slice(&mut self, slice: &[T]);
+}
+
+impl<T: Copy> MaybeUninitSliceInitFromSlice<T> for [MaybeUninit<T>] {
+    fn init_from_slice(&mut self, slice: &[T]) {
+        // SAFETY: `MaybeUninit<T>` has the same layout as `T`.
+        // Note also that both `T` and `MaybeUninit<T>` are `Copy`.
+        let slice = unsafe { core::mem::transmute::<&[T], &[MaybeUninit<T>]>(slice) };
+        self.copy_from_slice(slice);
+    }
+}
+
+/// Returns the remaining spare capacity of the vector as a slice of
+/// `MaybeUninit<T>`.
+///
+/// The returned slice can be used to fill the vector with data (e.g. by
+/// reading from a file) before marking the data as initialized using the
+/// [`set_len`] method.
+///
+/// [`set_len`]: Vec::set_len
+#[inline]
+fn spare_capacity_mut<T>(vec: &mut Vec<T>) -> &mut [MaybeUninit<T>] {
+    // Note: this function is copy-pasted from Rust std, as it is not yet stable.
+    // Note:
+    // This method is not implemented in terms of `split_at_spare_mut`,
+    // to prevent invalidation of pointers to the buffer.
+    unsafe {
+        core::slice::from_raw_parts_mut(
+            vec.as_mut_ptr().add(vec.len()) as *mut MaybeUninit<T>,
+            vec.capacity() - vec.len(),
+        )
+    }
+}
+
+/// Helper trait to make `*mut MaybeUninit<T>`` to `*mut T`` conversions less error prone than
+/// using the `as` operator directly, which requires writing the `T` out explicitly (and correctly!)
+pub(crate) trait PointerStripMaybeUninit {
+    /// *mut T
+    type P;
+    fn strip_maybeuninit(self) -> Self::P;
+}
+impl<T> PointerStripMaybeUninit for *mut MaybeUninit<T> {
+    type P = *mut T;
+    fn strip_maybeuninit(self) -> Self::P {
+        self as Self::P
+    }
+}
+
+/// # Safety
+/// Caller must only write valid, initialized values into the slice.
+unsafe fn as_slice_of_maybeuninit<T>(slice: &mut [T]) -> &mut [MaybeUninit<T>] {
+    core::mem::transmute::<&mut [T], &mut [MaybeUninit<T>]>(slice)
 }
 
 // ############## TESTS ###############

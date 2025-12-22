@@ -19,6 +19,8 @@
 //! The purpose of making `Decoder` and `Encoder` `Sized` is to allow stack
 //! allocation in Rust code, including the convenience methods on `Encoding`.
 
+use core::mem::MaybeUninit;
+
 use super::*;
 use big5::*;
 use euc_jp::*;
@@ -120,7 +122,7 @@ impl VariantDecoder {
     pub fn decode_to_utf16_raw(
         &mut self,
         src: &[u8],
-        dst: &mut [u16],
+        dst: &mut [MaybeUninit<u16>],
         last: bool,
     ) -> (DecoderResult, usize, usize) {
         match *self {
@@ -141,7 +143,7 @@ impl VariantDecoder {
     pub fn decode_to_utf8_raw(
         &mut self,
         src: &[u8],
-        dst: &mut [u8],
+        dst: &mut [MaybeUninit<u8>],
         last: bool,
     ) -> (DecoderResult, usize, usize) {
         match *self {
@@ -301,7 +303,7 @@ impl VariantEncoder {
     pub fn encode_from_utf16_raw(
         &mut self,
         src: &[u16],
-        dst: &mut [u8],
+        dst: &mut [MaybeUninit<u8>],
         last: bool,
     ) -> (EncoderResult, usize, usize) {
         match *self {
@@ -320,7 +322,7 @@ impl VariantEncoder {
     pub fn encode_from_utf8_raw(
         &mut self,
         src: &str,
-        dst: &mut [u8],
+        dst: &mut [MaybeUninit<u8>],
         last: bool,
     ) -> (EncoderResult, usize, usize) {
         match *self {

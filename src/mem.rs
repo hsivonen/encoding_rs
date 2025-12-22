@@ -24,6 +24,8 @@
 //! The FFI binding for this module are in the
 //! [encoding_c_mem crate](https://github.com/hsivonen/encoding_c_mem).
 
+use core::mem::MaybeUninit;
+
 #[cfg(feature = "alloc")]
 use alloc::borrow::Cow;
 #[cfg(feature = "alloc")]
@@ -37,6 +39,7 @@ use super::in_inclusive_range8;
 use super::in_range16;
 use super::in_range32;
 use super::DecoderResult;
+use crate::as_slice_of_maybeuninit;
 use crate::ascii::*;
 use crate::utf_8::*;
 
@@ -1488,6 +1491,12 @@ pub fn check_utf16_for_latin1_and_bidi(buffer: &[u16]) -> Latin1Bidi {
 ///
 /// Panics if the destination buffer is shorter than stated above.
 pub fn convert_utf8_to_utf16(src: &[u8], dst: &mut [u16]) -> usize {
+    // SAFETY:
+    let dst = unsafe { core::mem::transmute::<&mut [u16], &mut [MaybeUninit<u16>]>(dst) };
+    convert_utf8_to_utf16_maybeuninit(src, dst)
+}
+
+pub fn convert_utf8_to_utf16_maybeuninit(src: &[u8], dst: &mut [MaybeUninit<u16>]) -> usize {
     // TODO: Can the requirement for dst to be at least one unit longer
     // be eliminated?
     assert!(dst.len() > src.len());
@@ -1509,7 +1518,7 @@ pub fn convert_utf8_to_utf16(src: &[u8], dst: &mut [u16]) -> usize {
             DecoderResult::Malformed(_, _) => {
                 // There should always be space for the U+FFFD, because
                 // otherwise we'd have gotten OutputFull already.
-                dst[total_written] = 0xFFFD;
+                dst[total_written] = MaybeUninit::new(0xFFFD);
                 total_written += 1;
             }
         }
@@ -1625,7 +1634,15 @@ pub fn convert_str_to_utf16(src: &str, dst: &mut [u16]) -> usize {
 /// # Panics
 ///
 /// Panics if the destination buffer is shorter than stated above.
+#[inline]
 pub fn convert_utf8_to_utf16_without_replacement(src: &[u8], dst: &mut [u16]) -> Option<usize> {
+    let dst = unsafe { core::mem::transmute::<&mut [u16], &mut [MaybeUninit<u16>]>(dst) };
+    convert_utf8_to_utf16_without_replacement_internal(src, dst)
+}
+fn convert_utf8_to_utf16_without_replacement_internal(
+    src: &[u8],
+    dst: &mut [MaybeUninit<u16>],
+) -> Option<usize> {
     assert!(
         dst.len() >= src.len(),
         "Destination must not be shorter than the source."
@@ -1664,6 +1681,16 @@ pub fn convert_utf8_to_utf16_without_replacement(src: &[u8], dst: &mut [u16]) ->
 /// together with the `unsafe` method `as_bytes_mut()` on `&mut str`.
 #[inline(always)]
 pub fn convert_utf16_to_utf8_partial(src: &[u16], dst: &mut [u8]) -> (usize, usize) {
+    // SAFETY: we only write initialized values to the slice.
+    let dst = unsafe { as_slice_of_maybeuninit(dst) };
+    convert_utf16_to_utf8_partial_maybeuninit(src, dst)
+}
+
+#[inline(always)]
+pub(crate) fn convert_utf16_to_utf8_partial_maybeuninit(
+    src: &[u16],
+    dst: &mut [MaybeUninit<u8>],
+) -> (usize, usize) {
     // The two functions called below are marked `inline(never)` to make
     // transitions from the hot part (first function) into the cold part
     // (second function) go through a return and another call to discouge
@@ -1787,11 +1814,26 @@ pub fn convert_latin1_to_utf16(src: &[u8], dst: &mut [u16]) {
 /// If you want to convert into a `&mut str`, use
 /// `convert_utf16_to_str_partial()` instead of using this function
 /// together with the `unsafe` method `as_bytes_mut()` on `&mut str`.
+#[inline]
 pub fn convert_latin1_to_utf8_partial(src: &[u8], dst: &mut [u8]) -> (usize, usize) {
-    let src_len = src.len();
     let src_ptr = src.as_ptr();
+    let src_len = src.len();
     let dst_ptr = dst.as_mut_ptr();
     let dst_len = dst.len();
+    unsafe { convert_latin1_to_utf8_partial_raw(src_ptr, src_len, dst_ptr, dst_len) }
+}
+
+/// # Safety
+/// src_ptr must be valid for reads at offsets `0..src_len`.
+/// dst_ptr must be valid for writes at offsets `0..dst_len`.
+///
+/// NOTE: this method does not read values from `dst_ptr`, so `dst_ptr` can point to uninitialized memory.
+unsafe fn convert_latin1_to_utf8_partial_raw(
+    src_ptr: *const u8,
+    src_len: usize,
+    dst_ptr: *mut u8,
+    dst_len: usize,
+) -> (usize, usize) {
     let mut total_read = 0usize;
     let mut total_written = 0usize;
     loop {
@@ -1814,9 +1856,9 @@ pub fn convert_latin1_to_utf8_partial(src: &[u8], dst: &mut [u8]) -> (usize, usi
 
             total_read += 1; // consume `non_ascii`
 
-            dst[total_written] = (non_ascii >> 6) | 0xC0;
+            dst_ptr.add(total_written).write((non_ascii >> 6) | 0xC0);
             total_written += 1;
-            dst[total_written] = (non_ascii & 0x3F) | 0x80;
+            dst_ptr.add(total_written).write((non_ascii & 0x3F) | 0x80);
             total_written += 1;
             continue;
         }
@@ -1844,12 +1886,28 @@ pub fn convert_latin1_to_utf8_partial(src: &[u8], dst: &mut [u8]) -> (usize, usi
 /// a `&mut str`, use `convert_utf16_to_str()` instead of this function.
 #[inline]
 pub fn convert_latin1_to_utf8(src: &[u8], dst: &mut [u8]) -> usize {
+    // SAFETY: `src` is valid for reads within it, as is `dst` for writes within it.
+    unsafe { convert_latin1_to_utf8_raw(src.as_ptr(), src.len(), dst.as_mut_ptr(), dst.len()) }
+}
+
+/// # Safety
+/// src_ptr must be valid for reads at offsets `0..src_len`.
+/// dst_ptr must be valid for writes at offsets `0..dst_len`.
+///
+/// NOTE: this method does not read values from `dst_ptr`, so `dst_ptr` can point to uninitialized memory.
+#[inline]
+unsafe fn convert_latin1_to_utf8_raw(
+    src_ptr: *const u8,
+    src_len: usize,
+    dst_ptr: *mut u8,
+    dst_len: usize,
+) -> usize {
     assert!(
-        dst.len() >= src.len() * 2,
+        dst_len >= src_len * 2,
         "Destination must not be shorter than the source times two."
     );
-    let (read, written) = convert_latin1_to_utf8_partial(src, dst);
-    debug_assert_eq!(read, src.len());
+    let (read, written) = convert_latin1_to_utf8_partial_raw(src_ptr, src_len, dst_ptr, dst_len);
+    debug_assert_eq!(read, src_len);
     written
 }
 
@@ -1925,15 +1983,24 @@ pub fn convert_latin1_to_str(src: &[u8], dst: &mut str) -> usize {
 ///
 /// If debug assertions are enabled (and not fuzzing) and the input is
 /// not in the range U+0000 to U+00FF, inclusive.
+#[inline]
 pub fn convert_utf8_to_latin1_lossy(src: &[u8], dst: &mut [u8]) -> usize {
+    // SAFETY: `dst.as_mut_ptr()`  can be written to within its length.
+    unsafe { convert_utf8_to_latin1_lossy_raw(src, dst.as_mut_ptr(), dst.len()) }
+}
+
+/// # Safety
+/// dst_ptr must be valid for writes at offsets `0..dst_len`.
+///
+/// NOTE: this method does not read values from `dst_ptr`, so `dst_ptr` can point to uninitialized memory.
+unsafe fn convert_utf8_to_latin1_lossy_raw(src: &[u8], dst_ptr: *mut u8, dst_len: usize) -> usize {
     assert!(
-        dst.len() >= src.len(),
+        dst_len >= src.len(),
         "Destination must not be shorter than the source."
     );
     non_fuzz_debug_assert!(is_utf8_latin1(src));
     let src_len = src.len();
     let src_ptr = src.as_ptr();
-    let dst_ptr = dst.as_mut_ptr();
     let mut total_read = 0usize;
     let mut total_written = 0usize;
     loop {
@@ -1956,7 +2023,9 @@ pub fn convert_utf8_to_latin1_lossy(src: &[u8], dst: &mut [u8]) -> usize {
             let trail = src[total_read];
             total_read += 1;
 
-            dst[total_written] = ((non_ascii & 0x1F) << 6) | (trail & 0x3F);
+            dst_ptr
+                .add(total_written)
+                .write(((non_ascii & 0x1F) << 6) | (trail & 0x3F));
             total_written += 1;
             continue;
         }
@@ -2016,13 +2085,20 @@ pub fn decode_latin1<'a>(bytes: &'a [u8]) -> Cow<'a, str> {
     }
     let (head, tail) = bytes.split_at(up_to);
     let capacity = head.len() + tail.len() * 2;
-    let mut vec = Vec::with_capacity(capacity);
-    unsafe {
-        vec.set_len(capacity);
-    }
-    (&mut vec[..up_to]).copy_from_slice(head);
-    let written = convert_latin1_to_utf8(tail, &mut vec[up_to..]);
-    vec.truncate(up_to + written);
+    let mut vec = Vec::<u8>::with_capacity(capacity);
+    vec.extend(head);
+    // SAFETY: these pointers and lengths are valid for the required reads and writes.
+    let written = unsafe {
+        convert_latin1_to_utf8_raw(
+            tail.as_ptr(),
+            tail.len(),
+            vec.as_mut_ptr().add(up_to),
+            capacity - up_to,
+        )
+    };
+    // SAFETY: convert_latin1_to_utf8_raw initialized `written` valid values into the `vec`.
+    unsafe { vec.set_len(up_to + written) };
+    // SAFETY: `vec` contains only valid UTF-8
     Cow::Owned(unsafe { String::from_utf8_unchecked(vec) })
 }
 
@@ -2053,13 +2129,13 @@ pub fn encode_latin1_lossy<'a>(string: &'a str) -> Cow<'a, [u8]> {
     }
     let (head, tail) = bytes.split_at(up_to);
     let capacity = bytes.len();
-    let mut vec = Vec::with_capacity(capacity);
-    unsafe {
-        vec.set_len(capacity);
-    }
-    (&mut vec[..up_to]).copy_from_slice(head);
-    let written = convert_utf8_to_latin1_lossy(tail, &mut vec[up_to..]);
-    vec.truncate(up_to + written);
+    let mut vec = Vec::<u8>::with_capacity(capacity);
+    vec.extend(head);
+    // SAFETY: these pointers and lengths are valid for the required reads and writes.
+    let written = unsafe {
+        convert_utf8_to_latin1_lossy_raw(tail, vec.as_mut_ptr().add(up_to), capacity - up_to)
+    };
+    unsafe { vec.set_len(up_to + written) };
     Cow::Owned(vec)
 }
 

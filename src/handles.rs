@@ -16,6 +16,8 @@
 //! the plan is to replace the internals with unsafe code that omits the
 //! bound check at the read/write time.
 
+use core::mem::MaybeUninit;
+
 #[cfg(all(
     feature = "simd-accel",
     any(
@@ -25,6 +27,8 @@
     )
 ))]
 use crate::simd_funcs::*;
+use crate::MaybeUninitSliceInitFromSlice;
+use crate::PointerStripMaybeUninit;
 
 #[cfg(all(
     feature = "simd-accel",
@@ -153,7 +157,7 @@ impl UnalignedU16Slice {
 
     #[cfg(feature = "simd-accel")]
     #[inline(always)]
-    pub fn copy_bmp_to<E: Endian>(&self, other: &mut [u16]) -> Option<(u16, usize)> {
+    pub fn copy_bmp_to<E: Endian>(&self, other: &mut [MaybeUninit<u16>]) -> Option<(u16, usize)> {
         assert!(self.len <= other.len());
         let mut offset = 0;
         // Safety: SIMD_STRIDE_SIZE is measured in bytes, whereas len is in u16s. We check we can
@@ -167,7 +171,7 @@ impl UnalignedU16Slice {
                 }
                 // Safety: we have enough space on the other side to write this
                 unsafe {
-                    store8_unaligned(other.as_mut_ptr().add(offset), simd);
+                    store8_unaligned(other.as_mut_ptr().add(offset).strip_maybeuninit(), simd);
                 }
                 if contains_surrogates(simd) {
                     break;
@@ -192,11 +196,11 @@ impl UnalignedU16Slice {
 
     #[cfg(not(feature = "simd-accel"))]
     #[inline(always)]
-    fn copy_bmp_to<E: Endian>(&self, other: &mut [u16]) -> Option<(u16, usize)> {
+    fn copy_bmp_to<E: Endian>(&self, other: &mut [MaybeUninit<u16>]) -> Option<(u16, usize)> {
         assert!(self.len <= other.len());
         for (i, target) in other.iter_mut().enumerate().take(self.len) {
             let unit = swap_if_opposite_endian::<E>(self.at(i));
-            *target = unit;
+            *target = MaybeUninit::new(unit);
             if super::in_range16(unit, 0xD800, 0xE000) {
                 return Some((unit, i));
             }
@@ -208,7 +212,7 @@ impl UnalignedU16Slice {
 #[inline(always)]
 fn copy_unaligned_basic_latin_to_ascii_alu<E: Endian>(
     src: UnalignedU16Slice,
-    dst: &mut [u8],
+    dst: &mut [MaybeUninit<u8>],
     offset: usize,
 ) -> CopyAsciiResult<usize, (u16, usize)> {
     let len = ::core::cmp::min(src.len(), dst.len());
@@ -221,7 +225,7 @@ fn copy_unaligned_basic_latin_to_ascii_alu<E: Endian>(
         if unit > 0x7F {
             return CopyAsciiResult::GoOn((unit, i + offset));
         }
-        dst[i] = unit as u8;
+        dst[i] = MaybeUninit::new(unit as u8);
         i += 1;
     }
 }
@@ -239,7 +243,7 @@ fn swap_if_opposite_endian<E: Endian>(unit: u16) -> u16 {
 #[inline(always)]
 fn copy_unaligned_basic_latin_to_ascii<E: Endian>(
     src: UnalignedU16Slice,
-    dst: &mut [u8],
+    dst: &mut [MaybeUninit<u8>],
 ) -> CopyAsciiResult<usize, (u16, usize)> {
     copy_unaligned_basic_latin_to_ascii_alu::<E>(src, dst, 0)
 }
@@ -248,7 +252,7 @@ fn copy_unaligned_basic_latin_to_ascii<E: Endian>(
 #[inline(always)]
 fn copy_unaligned_basic_latin_to_ascii<E: Endian>(
     src: UnalignedU16Slice,
-    dst: &mut [u8],
+    dst: &mut [MaybeUninit<u8>],
 ) -> CopyAsciiResult<usize, (u16, usize)> {
     let len = ::core::cmp::min(src.len(), dst.len());
     let mut offset = 0;
@@ -284,7 +288,7 @@ fn copy_unaligned_basic_latin_to_ascii<E: Endian>(
 #[inline(always)]
 fn convert_unaligned_utf16_to_utf8<E: Endian>(
     src: UnalignedU16Slice,
-    dst: &mut [u8],
+    dst: &mut [MaybeUninit<u8>],
 ) -> (usize, usize, bool) {
     if dst.len() < 4 {
         return (0, 0, false);
@@ -317,16 +321,16 @@ fn convert_unaligned_utf16_to_utf8<E: Endian>(
             let non_ascii_minus_surrogate_start = non_ascii.wrapping_sub(0xD800);
             if non_ascii_minus_surrogate_start > (0xDFFF - 0xD800) {
                 if non_ascii < 0x800 {
-                    dst[dst_pos] = ((non_ascii >> 6) | 0xC0) as u8;
+                    dst[dst_pos] = MaybeUninit::new(((non_ascii >> 6) | 0xC0) as u8);
                     dst_pos += 1;
-                    dst[dst_pos] = ((non_ascii & 0x3F) | 0x80) as u8;
+                    dst[dst_pos] = MaybeUninit::new(((non_ascii & 0x3F) | 0x80) as u8);
                     dst_pos += 1;
                 } else {
-                    dst[dst_pos] = ((non_ascii >> 12) | 0xE0) as u8;
+                    dst[dst_pos] = MaybeUninit::new(((non_ascii >> 12) | 0xE0) as u8);
                     dst_pos += 1;
-                    dst[dst_pos] = (((non_ascii & 0xFC0) >> 6) | 0x80) as u8;
+                    dst[dst_pos] = MaybeUninit::new((((non_ascii & 0xFC0) >> 6) | 0x80) as u8);
                     dst_pos += 1;
-                    dst[dst_pos] = ((non_ascii & 0x3F) | 0x80) as u8;
+                    dst[dst_pos] = MaybeUninit::new(((non_ascii & 0x3F) | 0x80) as u8);
                     dst_pos += 1;
                 }
             } else if non_ascii_minus_surrogate_start <= (0xDBFF - 0xD800) {
@@ -340,13 +344,15 @@ fn convert_unaligned_utf16_to_utf8<E: Endian>(
                         let point = (u32::from(non_ascii) << 10) + u32::from(second)
                             - (((0xD800u32 << 10) - 0x10000u32) + 0xDC00u32);
 
-                        dst[dst_pos] = ((point >> 18) | 0xF0u32) as u8;
+                        dst[dst_pos] = MaybeUninit::new(((point >> 18) | 0xF0u32) as u8);
                         dst_pos += 1;
-                        dst[dst_pos] = (((point & 0x3F000u32) >> 12) | 0x80u32) as u8;
+                        dst[dst_pos] =
+                            MaybeUninit::new((((point & 0x3F000u32) >> 12) | 0x80u32) as u8);
                         dst_pos += 1;
-                        dst[dst_pos] = (((point & 0xFC0u32) >> 6) | 0x80u32) as u8;
+                        dst[dst_pos] =
+                            MaybeUninit::new((((point & 0xFC0u32) >> 6) | 0x80u32) as u8);
                         dst_pos += 1;
-                        dst[dst_pos] = ((point & 0x3Fu32) | 0x80u32) as u8;
+                        dst[dst_pos] = MaybeUninit::new(((point & 0x3Fu32) | 0x80u32) as u8);
                         dst_pos += 1;
                     } else {
                         // The next code unit is not a low surrogate. Don't advance
@@ -370,7 +376,7 @@ fn convert_unaligned_utf16_to_utf8<E: Endian>(
                 non_ascii = unit;
                 continue 'inner;
             }
-            dst[dst_pos] = unit as u8;
+            dst[dst_pos] = MaybeUninit::new(unit as u8);
             dst_pos += 1;
             continue 'outer;
         }
@@ -588,13 +594,13 @@ where
 }
 
 pub struct Utf16Destination<'a> {
-    slice: &'a mut [u16],
+    slice: &'a mut [MaybeUninit<u16>],
     pos: usize,
 }
 
 impl<'a> Utf16Destination<'a> {
     #[inline(always)]
-    pub fn new(dst: &mut [u16]) -> Utf16Destination {
+    pub fn new(dst: &'a mut [MaybeUninit<u16>]) -> Utf16Destination<'a> {
         Utf16Destination { slice: dst, pos: 0 }
     }
     #[inline(always)]
@@ -619,10 +625,8 @@ impl<'a> Utf16Destination<'a> {
     }
     #[inline(always)]
     fn write_code_unit(&mut self, u: u16) {
-        unsafe {
-            // OK, because we checked before handing out a handle.
-            *(self.slice.get_unchecked_mut(self.pos)) = u;
-        }
+        // SAFETY: OK, because we checked before handing out a handle.
+        *unsafe { self.slice.get_unchecked_mut(self.pos) } = MaybeUninit::new(u);
         self.pos += 1;
     }
     #[inline(always)]
@@ -683,7 +687,11 @@ impl<'a> Utf16Destination<'a> {
             // Safety: This function is documented as needing valid pointers for src/dest and len, which
             // is true since we've passed the minumum length of the two
             match unsafe {
-                ascii_to_basic_latin(src_remaining.as_ptr(), dst_remaining.as_mut_ptr(), length)
+                ascii_to_basic_latin(
+                    src_remaining.as_ptr(),
+                    dst_remaining.as_mut_ptr().strip_maybeuninit(),
+                    length,
+                )
             } {
                 None => {
                     source.pos += length;
@@ -721,7 +729,11 @@ impl<'a> Utf16Destination<'a> {
             // Safety: This function is documented as needing valid pointers for src/dest and len, which
             // is true since we've passed the minumum length of the two
             match unsafe {
-                ascii_to_basic_latin(src_remaining.as_ptr(), dst_remaining.as_mut_ptr(), length)
+                ascii_to_basic_latin(
+                    src_remaining.as_ptr(),
+                    dst_remaining.as_mut_ptr().strip_maybeuninit(),
+                    length,
+                )
             } {
                 None => {
                     source.pos += length;
@@ -804,7 +816,7 @@ impl<'a> Utf16Destination<'a> {
                     return Some((source.pos, self.pos));
                 }
                 // `surrogate` was already speculatively written
-                dst_remaining[second_pos] = second;
+                dst_remaining[second_pos] = MaybeUninit::new(second);
                 offset += 2;
                 continue;
             } else {
@@ -933,13 +945,13 @@ where
 }
 
 pub struct Utf8Destination<'a> {
-    slice: &'a mut [u8],
+    slice: &'a mut [MaybeUninit<u8>],
     pos: usize,
 }
 
 impl<'a> Utf8Destination<'a> {
     #[inline(always)]
-    pub fn new(dst: &mut [u8]) -> Utf8Destination {
+    pub fn new(dst: &'a mut [MaybeUninit<u8>]) -> Utf8Destination<'a> {
         Utf8Destination { slice: dst, pos: 0 }
     }
     #[inline(always)]
@@ -964,10 +976,9 @@ impl<'a> Utf8Destination<'a> {
     }
     #[inline(always)]
     fn write_code_unit(&mut self, u: u8) {
-        unsafe {
-            // OK, because we checked before handing out a handle.
-            *(self.slice.get_unchecked_mut(self.pos)) = u;
-        }
+        // SAFETY: OK, because we checked before handing out a handle.
+        *unsafe { self.slice.get_unchecked_mut(self.pos) } = MaybeUninit::new(u);
+
         self.pos += 1;
     }
     #[inline(always)]
@@ -1043,7 +1054,11 @@ impl<'a> Utf8Destination<'a> {
                 (DecoderResult::InputEmpty, src_remaining.len())
             };
             match unsafe {
-                ascii_to_ascii(src_remaining.as_ptr(), dst_remaining.as_mut_ptr(), length)
+                ascii_to_ascii(
+                    src_remaining.as_ptr(),
+                    dst_remaining.as_mut_ptr().strip_maybeuninit(),
+                    length,
+                )
             } {
                 None => {
                     source.pos += length;
@@ -1083,7 +1098,11 @@ impl<'a> Utf8Destination<'a> {
                 (DecoderResult::InputEmpty, src_remaining.len())
             };
             match unsafe {
-                ascii_to_ascii(src_remaining.as_ptr(), dst_remaining.as_mut_ptr(), length)
+                ascii_to_ascii(
+                    src_remaining.as_ptr(),
+                    dst_remaining.as_mut_ptr().strip_maybeuninit(),
+                    length,
+                )
             } {
                 None => {
                     source.pos += length;
@@ -1116,7 +1135,7 @@ impl<'a> Utf8Destination<'a> {
         // Validate first, then memcpy to let memcpy do its thing even for
         // non-ASCII. (And potentially do something better than SSE2 for ASCII.)
         let valid_len = utf8_valid_up_to(&src_remaining[..min_len]);
-        (&mut dst_remaining[..valid_len]).copy_from_slice(&src_remaining[..valid_len]);
+        dst_remaining[..valid_len].init_from_slice(&src_remaining[..valid_len]);
         source.pos += valid_len;
         self.pos += valid_len;
     }
@@ -1262,7 +1281,11 @@ impl<'a> Utf16Source<'a> {
                 (EncoderResult::InputEmpty, src_remaining.len())
             };
             match unsafe {
-                basic_latin_to_ascii(src_remaining.as_ptr(), dst_remaining.as_mut_ptr(), length)
+                basic_latin_to_ascii(
+                    src_remaining.as_ptr(),
+                    dst_remaining.as_mut_ptr().strip_maybeuninit(),
+                    length,
+                )
             } {
                 None => {
                     self.pos += length;
@@ -1331,7 +1354,11 @@ impl<'a> Utf16Source<'a> {
                 (EncoderResult::InputEmpty, src_remaining.len())
             };
             match unsafe {
-                basic_latin_to_ascii(src_remaining.as_ptr(), dst_remaining.as_mut_ptr(), length)
+                basic_latin_to_ascii(
+                    src_remaining.as_ptr(),
+                    dst_remaining.as_mut_ptr().strip_maybeuninit(),
+                    length,
+                )
             } {
                 None => {
                     self.pos += length;
@@ -1554,7 +1581,11 @@ impl<'a> Utf8Source<'a> {
                 (EncoderResult::InputEmpty, src_remaining.len())
             };
             match unsafe {
-                ascii_to_ascii(src_remaining.as_ptr(), dst_remaining.as_mut_ptr(), length)
+                ascii_to_ascii(
+                    src_remaining.as_ptr(),
+                    dst_remaining.as_mut_ptr().strip_maybeuninit(),
+                    length,
+                )
             } {
                 None => {
                     self.pos += length;
@@ -1604,7 +1635,11 @@ impl<'a> Utf8Source<'a> {
                 (EncoderResult::InputEmpty, src_remaining.len())
             };
             match unsafe {
-                ascii_to_ascii(src_remaining.as_ptr(), dst_remaining.as_mut_ptr(), length)
+                ascii_to_ascii(
+                    src_remaining.as_ptr(),
+                    dst_remaining.as_mut_ptr().strip_maybeuninit(),
+                    length,
+                )
             } {
                 None => {
                     self.pos += length;
@@ -1660,7 +1695,11 @@ impl<'a> Utf8Source<'a> {
                 (EncoderResult::InputEmpty, src_remaining.len())
             };
             match unsafe {
-                ascii_to_ascii(src_remaining.as_ptr(), dst_remaining.as_mut_ptr(), length)
+                ascii_to_ascii(
+                    src_remaining.as_ptr(),
+                    dst_remaining.as_mut_ptr().strip_maybeuninit(),
+                    length,
+                )
             } {
                 None => {
                     self.pos += length;
@@ -1915,22 +1954,22 @@ where
 }
 
 pub struct ByteDestination<'a> {
-    slice: &'a mut [u8],
+    slice: &'a mut [MaybeUninit<u8>],
     /// Pointer to the original start of the slice. It's never dereferenced.
-    start: *const u8,
+    start: *const MaybeUninit<u8>,
 }
 
 impl<'a> ByteDestination<'a> {
     #[inline(always)]
-    pub fn new(dst: &mut [u8]) -> ByteDestination {
+    pub fn new(dst: &'a mut [MaybeUninit<u8>]) -> ByteDestination<'a> {
         ByteDestination {
             start: dst.as_ptr(),
             slice: dst,
         }
     }
     #[inline(always)]
-    pub fn remaining(&mut self) -> &mut [u8] {
-        &mut self.slice
+    pub fn remaining(&mut self) -> &mut [MaybeUninit<u8>] {
+        self.slice
     }
     #[inline(always)]
     pub fn check_space_one<'b>(&'b mut self) -> Space<ByteOneHandle<'b, 'a>> {
@@ -1975,24 +2014,24 @@ impl<'a> ByteDestination<'a> {
         let (dst, rest) = core::mem::take(&mut self.slice).split_first_mut().unwrap();
         self.slice = rest;
 
-        *dst = first;
+        *dst = MaybeUninit::new(first);
     }
     #[inline(always)]
     fn write_two(&mut self, first: u8, second: u8) {
         let (dst, rest) = core::mem::take(&mut self.slice).split_at_mut(2);
         self.slice = rest;
 
-        dst[0] = first;
-        dst[1] = second;
+        dst[0] = MaybeUninit::new(first);
+        dst[1] = MaybeUninit::new(second);
     }
     #[inline(always)]
     fn write_three(&mut self, first: u8, second: u8, third: u8) {
         let (dst, rest) = core::mem::take(&mut self.slice).split_at_mut(3);
         self.slice = rest;
 
-        dst[0] = first;
-        dst[1] = second;
-        dst[2] = third;
+        dst[0] = MaybeUninit::new(first);
+        dst[1] = MaybeUninit::new(second);
+        dst[2] = MaybeUninit::new(third);
     }
     #[inline(always)]
     fn write_four(&mut self, first: u8, second: u8, third: u8, fourth: u8) {
@@ -2000,10 +2039,10 @@ impl<'a> ByteDestination<'a> {
         let (dst, rest) = core::mem::take(&mut self.slice).split_at_mut(4);
         self.slice = rest;
 
-        dst[0] = first;
-        dst[1] = second;
-        dst[2] = third;
-        dst[3] = fourth;
+        dst[0] = MaybeUninit::new(first);
+        dst[1] = MaybeUninit::new(second);
+        dst[2] = MaybeUninit::new(third);
+        dst[3] = MaybeUninit::new(fourth);
     }
     /// Assume this many bytes have been written
     #[inline(always)]
