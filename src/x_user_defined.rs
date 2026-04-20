@@ -16,6 +16,7 @@ cfg_if! {
         use simd_funcs::*;
         use core::simd::u16x8;
         use core::simd::cmp::SimdPartialOrd;
+        #[rustversion::since(1.95)]
         use core::simd::Select;
 
         #[inline(always)]
