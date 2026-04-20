@@ -16,6 +16,7 @@ cfg_if! {
         use simd_funcs::*;
         use core::simd::u16x8;
         use core::simd::cmp::SimdPartialOrd;
+        use core::simd::Select;
 
         #[inline(always)]
         fn shift_upper(unpacked: u16x8) -> u16x8 {
