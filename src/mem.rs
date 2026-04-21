@@ -76,6 +76,8 @@ pub enum Latin1Bidi {
     Bidi = 2,
 }
 
+/*
+
 // `as` truncates, so works on 32-bit, too.
 #[allow(dead_code)]
 const LATIN1_MASK: usize = 0xFF00_FF00_FF00_FF00u64 as usize;
@@ -323,57 +325,6 @@ cfg_if! {
         by_unit_check_alu!(is_basic_latin_impl, u16, 0x80, BASIC_LATIN_MASK);
         by_unit_check_alu!(is_utf16_latin1_impl, u16, 0x100, LATIN1_MASK);
 
-        #[inline(always)]
-        fn utf16_valid_up_to_impl(buffer: &[u16]) -> usize {
-            let (up_to, _) = utf16_valid_up_to_alu(buffer);
-            up_to
-        }
-    }
-}
-
-/// The second return value is true iff the last code unit of the slice was
-/// reached and turned out to be a low surrogate that is part of a valid pair.
-#[allow(clippy::collapsible_if)]
-#[inline(always)]
-fn utf16_valid_up_to_alu(buffer: &[u16]) -> (usize, bool) {
-    let len = buffer.len();
-    if len == 0 {
-        return (0, false);
-    }
-    let mut offset = 0usize;
-    loop {
-        let unit = buffer[offset];
-        let next = offset + 1;
-        let unit_minus_surrogate_start = unit.wrapping_sub(0xD800);
-        if unit_minus_surrogate_start > (0xDFFF - 0xD800) {
-            // Not a surrogate
-            offset = next;
-            if offset == len {
-                return (offset, false);
-            }
-            continue;
-        }
-        if unit_minus_surrogate_start <= (0xDBFF - 0xD800) {
-            // high surrogate
-            if next < len {
-                let second = buffer[next];
-                let second_minus_low_surrogate_start = second.wrapping_sub(0xDC00);
-                if second_minus_low_surrogate_start <= (0xDFFF - 0xDC00) {
-                    // The next code unit is a low surrogate. Advance position.
-                    offset = next + 1;
-                    if offset == len {
-                        return (offset, true);
-                    }
-                    continue;
-                }
-                // The next code unit is not a low surrogate. Don't advance
-                // position and treat the high surrogate as unpaired.
-                // fall through
-            }
-            // Unpaired, fall through
-        }
-        // Unpaired surrogate
-        return (offset, false);
     }
 }
 
@@ -420,49 +371,6 @@ cfg_if! {
             None
         }
     } else {
-        #[inline(always)]
-        fn is_str_latin1_impl(buffer: &str) -> Option<usize> {
-            let mut bytes = buffer.as_bytes();
-            let mut total = 0;
-            loop {
-                if let Some((byte, offset)) = validate_ascii(bytes) {
-                    total += offset;
-                    if byte > 0xC3 {
-                        return Some(total);
-                    }
-                    bytes = &bytes[offset + 2..];
-                    total += 2;
-                } else {
-                    return None;
-                }
-            }
-        }
-    }
-}
-
-#[inline(always)]
-fn is_utf8_latin1_impl(buffer: &[u8]) -> Option<usize> {
-    let mut bytes = buffer;
-    let mut total = 0;
-    loop {
-        if let Some((byte, offset)) = validate_ascii(bytes) {
-            total += offset;
-            if in_inclusive_range8(byte, 0xC2, 0xC3) {
-                let next = offset + 1;
-                if next == bytes.len() {
-                    return Some(total);
-                }
-                if bytes[next] & 0xC0 != 0x80 {
-                    return Some(total);
-                }
-                bytes = &bytes[offset + 2..];
-                total += 2;
-            } else {
-                return Some(total);
-            }
-        } else {
-            return None;
-        }
     }
 }
 
@@ -644,6 +552,157 @@ cfg_if! {
                 }
             }
         }
+    }
+}
+*/
+
+/// The second return value is true iff the last code unit of the slice was
+/// reached and turned out to be a low surrogate that is part of a valid pair.
+#[allow(clippy::collapsible_if)]
+#[inline(always)]
+fn utf16_valid_up_to_alu(buffer: &[u16]) -> (usize, bool) {
+    let len = buffer.len();
+    if len == 0 {
+        return (0, false);
+    }
+    let mut offset = 0usize;
+    loop {
+        let unit = buffer[offset];
+        let next = offset + 1;
+        let unit_minus_surrogate_start = unit.wrapping_sub(0xD800);
+        if unit_minus_surrogate_start > (0xDFFF - 0xD800) {
+            // Not a surrogate
+            offset = next;
+            if offset == len {
+                return (offset, false);
+            }
+            continue;
+        }
+        if unit_minus_surrogate_start <= (0xDBFF - 0xD800) {
+            // high surrogate
+            if next < len {
+                let second = buffer[next];
+                let second_minus_low_surrogate_start = second.wrapping_sub(0xDC00);
+                if second_minus_low_surrogate_start <= (0xDFFF - 0xDC00) {
+                    // The next code unit is a low surrogate. Advance position.
+                    offset = next + 1;
+                    if offset == len {
+                        return (offset, true);
+                    }
+                    continue;
+                }
+                // The next code unit is not a low surrogate. Don't advance
+                // position and treat the high surrogate as unpaired.
+                // fall through
+            }
+            // Unpaired, fall through
+        }
+        // Unpaired surrogate
+        return (offset, false);
+    }
+}
+
+#[inline(always)]
+fn check_utf16_for_latin1_and_bidi_impl(buffer: &[u16]) -> Latin1Bidi {
+    let mut iter = buffer.iter();
+    loop {
+        let Some(u) = iter.next() else {
+            return Latin1Bidi::Latin1;
+        };
+        if *u < 0x100 {
+            continue;
+        }
+        if is_utf16_code_unit_bidi(*u) {
+            return Latin1Bidi::Bidi;
+        }
+        loop {
+            let Some(u) = iter.next() else {
+                return Latin1Bidi::LeftToRight;
+            };
+            if is_utf16_code_unit_bidi(*u) {
+                return Latin1Bidi::Bidi;
+            }
+        }
+    }
+}
+
+#[inline(always)]
+fn utf16_valid_up_to_impl(buffer: &[u16]) -> usize {
+    let (up_to, _) = utf16_valid_up_to_alu(buffer);
+    up_to
+}
+
+fn is_ascii_impl(buffer: &[u8]) -> bool {
+    buffer.is_ascii()
+}
+
+fn is_basic_latin_impl(buffer: &[u16]) -> bool {
+    buffer.iter().all(|c| *c < 0x80)
+}
+
+fn is_utf16_latin1_impl(buffer: &[u16]) -> bool {
+    buffer.iter().all(|c| *c < 0x100)
+}
+
+fn is_utf16_bidi_impl(buffer: &[u16]) -> bool {
+    buffer.iter().any(|c| is_utf16_code_unit_bidi(*c))
+}
+
+#[inline(always)]
+fn is_utf8_latin1_impl(buffer: &[u8]) -> Option<usize> {
+    let mut bytes = buffer;
+    let mut total = 0;
+    loop {
+        if let Some((byte, offset)) = validate_ascii(bytes) {
+            total += offset;
+            if in_inclusive_range8(byte, 0xC2, 0xC3) {
+                let next = offset + 1;
+                if next == bytes.len() {
+                    return Some(total);
+                }
+                if bytes[next] & 0xC0 != 0x80 {
+                    return Some(total);
+                }
+                bytes = &bytes[offset + 2..];
+                total += 2;
+            } else {
+                return Some(total);
+            }
+        } else {
+            return None;
+        }
+    }
+}
+
+#[inline(always)]
+fn is_str_latin1_impl(buffer: &str) -> Option<usize> {
+    let mut bytes = buffer.as_bytes();
+    let mut total = 0;
+    loop {
+        if let Some((byte, offset)) = validate_ascii(bytes) {
+            total += offset;
+            if byte > 0xC3 {
+                return Some(total);
+            }
+            bytes = &bytes[offset + 2..];
+            total += 2;
+        } else {
+            return None;
+        }
+    }
+}
+
+#[inline(always)]
+fn unpack_latin1(src: &[u8], dst: &mut [u16]) {
+    for (src_slot, dst_slot) in src.iter().zip(dst.iter_mut()) {
+        *dst_slot = u16::from(*src_slot)
+    }
+}
+
+#[inline(always)]
+fn pack_latin1(src: &[u16], dst: &mut [u8]) {
+    for (src_slot, dst_slot) in src.iter().zip(dst.iter_mut()) {
+        *dst_slot = *src_slot as u8;
     }
 }
 
@@ -1539,8 +1598,8 @@ pub fn convert_str_to_utf16(src: &str, dst: &mut [u16]) -> usize {
             let src_remaining = &bytes[read..];
             let dst_remaining = &mut dst[written..];
             let length = src_remaining.len();
-            match unsafe {
-                ascii_to_basic_latin(src_remaining.as_ptr(), dst_remaining.as_mut_ptr(), length)
+            match {
+                ascii_to_basic_latin(src_remaining, dst_remaining)
             } {
                 None => {
                     written += length;
@@ -1766,12 +1825,7 @@ pub fn convert_latin1_to_utf16(src: &[u8], dst: &mut [u16]) {
         dst.len() >= src.len(),
         "Destination must not be shorter than the source."
     );
-    // TODO: On aarch64, the safe version autovectorizes to the same unpacking
-    // instructions and this code, but, yet, the autovectorized version is
-    // faster.
-    unsafe {
-        unpack_latin1(src.as_ptr(), dst.as_mut_ptr(), src.len());
-    }
+    unpack_latin1(src, dst);
 }
 
 /// Converts bytes whose unsigned value is interpreted as Unicode code point
@@ -1789,8 +1843,6 @@ pub fn convert_latin1_to_utf16(src: &[u8], dst: &mut [u16]) {
 /// together with the `unsafe` method `as_bytes_mut()` on `&mut str`.
 pub fn convert_latin1_to_utf8_partial(src: &[u8], dst: &mut [u8]) -> (usize, usize) {
     let src_len = src.len();
-    let src_ptr = src.as_ptr();
-    let dst_ptr = dst.as_mut_ptr();
     let dst_len = dst.len();
     let mut total_read = 0usize;
     let mut total_written = 0usize;
@@ -1799,11 +1851,10 @@ pub fn convert_latin1_to_utf8_partial(src: &[u8], dst: &mut [u8]) -> (usize, usi
         let src_left = src_len - total_read;
         let dst_left = dst_len - total_written;
         let min_left = ::core::cmp::min(src_left, dst_left);
-        if let Some((non_ascii, consumed)) = unsafe {
+        if let Some((non_ascii, consumed)) = {
             ascii_to_ascii(
-                src_ptr.add(total_read),
-                dst_ptr.add(total_written),
-                min_left,
+                &src[total_read..],
+                &mut dst[total_written..]
             )
         } {
             total_read += consumed;
@@ -1932,18 +1983,15 @@ pub fn convert_utf8_to_latin1_lossy(src: &[u8], dst: &mut [u8]) -> usize {
     );
     non_fuzz_debug_assert!(is_utf8_latin1(src));
     let src_len = src.len();
-    let src_ptr = src.as_ptr();
-    let dst_ptr = dst.as_mut_ptr();
     let mut total_read = 0usize;
     let mut total_written = 0usize;
     loop {
         // dst can't advance more than src
         let src_left = src_len - total_read;
-        if let Some((non_ascii, consumed)) = unsafe {
+        if let Some((non_ascii, consumed)) = {
             ascii_to_ascii(
-                src_ptr.add(total_read),
-                dst_ptr.add(total_written),
-                src_left,
+                &src[total_read..],
+                &mut dst[total_written..]
             )
         } {
             total_read += consumed + 1;
@@ -1993,9 +2041,7 @@ pub fn convert_utf16_to_latin1_lossy(src: &[u16], dst: &mut [u8]) {
         "Destination must not be shorter than the source."
     );
     // non_fuzz_debug_assert!(is_utf16_latin1(src));
-    unsafe {
-        pack_latin1(src.as_ptr(), dst.as_mut_ptr(), src.len());
-    }
+    pack_latin1(src, dst);
 }
 
 /// Converts bytes whose unsigned value is interpreted as Unicode code point
@@ -2113,7 +2159,7 @@ pub fn copy_ascii_to_ascii(src: &[u8], dst: &mut [u8]) -> usize {
         "Destination must not be shorter than the source."
     );
     if let Some((_, consumed)) =
-        unsafe { ascii_to_ascii(src.as_ptr(), dst.as_mut_ptr(), src.len()) }
+        { ascii_to_ascii(src, dst) }
     {
         consumed
     } else {
@@ -2139,7 +2185,7 @@ pub fn copy_ascii_to_basic_latin(src: &[u8], dst: &mut [u16]) -> usize {
         "Destination must not be shorter than the source."
     );
     if let Some((_, consumed)) =
-        unsafe { ascii_to_basic_latin(src.as_ptr(), dst.as_mut_ptr(), src.len()) }
+        { ascii_to_basic_latin(src, dst) }
     {
         consumed
     } else {
@@ -2165,7 +2211,7 @@ pub fn copy_basic_latin_to_ascii(src: &[u16], dst: &mut [u8]) -> usize {
         "Destination must not be shorter than the source."
     );
     if let Some((_, consumed)) =
-        unsafe { basic_latin_to_ascii(src.as_ptr(), dst.as_mut_ptr(), src.len()) }
+        { basic_latin_to_ascii(src, dst) }
     {
         consumed
     } else {
