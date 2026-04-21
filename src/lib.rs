@@ -777,7 +777,7 @@ mod data;
 mod handles;
 mod variant;
 
-pub mod mem;
+// pub mod mem;
 
 use crate::ascii::ascii_valid_up_to;
 use crate::ascii::iso_2022_jp_ascii_valid_up_to;

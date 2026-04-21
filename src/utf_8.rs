@@ -12,8 +12,12 @@ use crate::ascii::ascii_to_basic_latin;
 use crate::ascii::basic_latin_to_ascii;
 use crate::ascii::validate_ascii;
 use crate::handles::*;
-use crate::mem::convert_utf16_to_utf8_partial;
+//use crate::mem::convert_utf16_to_utf8_partial;
 use crate::variant::*;
+
+fn convert_utf16_to_utf8_partial(src: &[u16], dst: &mut [u8]) -> (usize, usize) {
+    (0, 0)
+}
 
 cfg_if! {
     if #[cfg(feature = "simd-accel")] {
@@ -235,8 +239,8 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
             let src_remaining = &src[read..];
             let dst_remaining = &mut dst[written..];
             let length = ::core::cmp::min(src_remaining.len(), dst_remaining.len());
-            match unsafe {
-                ascii_to_basic_latin(src_remaining.as_ptr(), dst_remaining.as_mut_ptr(), length)
+            match {
+                ascii_to_basic_latin(src_remaining, dst_remaining)
             } {
                 None => {
                     read += length;
@@ -617,8 +621,8 @@ pub fn convert_utf16_to_utf8_partial_inner(src: &[u16], dst: &mut [u8]) -> (usiz
             } else {
                 src_remaining.len()
             };
-            match unsafe {
-                basic_latin_to_ascii(src_remaining.as_ptr(), dst_remaining.as_mut_ptr(), length)
+            match {
+                basic_latin_to_ascii(src_remaining, dst_remaining)
             } {
                 None => {
                     read += length;

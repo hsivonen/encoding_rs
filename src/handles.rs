@@ -682,8 +682,8 @@ impl<'a> Utf16Destination<'a> {
             };
             // Safety: This function is documented as needing valid pointers for src/dest and len, which
             // is true since we've passed the minumum length of the two
-            match unsafe {
-                ascii_to_basic_latin(src_remaining.as_ptr(), dst_remaining.as_mut_ptr(), length)
+            match {
+                ascii_to_basic_latin(src_remaining, dst_remaining)
             } {
                 None => {
                     source.pos += length;
@@ -720,8 +720,8 @@ impl<'a> Utf16Destination<'a> {
             };
             // Safety: This function is documented as needing valid pointers for src/dest and len, which
             // is true since we've passed the minumum length of the two
-            match unsafe {
-                ascii_to_basic_latin(src_remaining.as_ptr(), dst_remaining.as_mut_ptr(), length)
+            match {
+                ascii_to_basic_latin(src_remaining, dst_remaining)
             } {
                 None => {
                     source.pos += length;
@@ -1042,8 +1042,8 @@ impl<'a> Utf8Destination<'a> {
             } else {
                 (DecoderResult::InputEmpty, src_remaining.len())
             };
-            match unsafe {
-                ascii_to_ascii(src_remaining.as_ptr(), dst_remaining.as_mut_ptr(), length)
+            match {
+                ascii_to_ascii(src_remaining, dst_remaining)
             } {
                 None => {
                     source.pos += length;
@@ -1082,8 +1082,8 @@ impl<'a> Utf8Destination<'a> {
             } else {
                 (DecoderResult::InputEmpty, src_remaining.len())
             };
-            match unsafe {
-                ascii_to_ascii(src_remaining.as_ptr(), dst_remaining.as_mut_ptr(), length)
+            match {
+                ascii_to_ascii(src_remaining, dst_remaining)
             } {
                 None => {
                     source.pos += length;
@@ -1261,8 +1261,8 @@ impl<'a> Utf16Source<'a> {
             } else {
                 (EncoderResult::InputEmpty, src_remaining.len())
             };
-            match unsafe {
-                basic_latin_to_ascii(src_remaining.as_ptr(), dst_remaining.as_mut_ptr(), length)
+            match {
+                basic_latin_to_ascii(src_remaining, dst_remaining)
             } {
                 None => {
                     self.pos += length;
@@ -1330,8 +1330,8 @@ impl<'a> Utf16Source<'a> {
             } else {
                 (EncoderResult::InputEmpty, src_remaining.len())
             };
-            match unsafe {
-                basic_latin_to_ascii(src_remaining.as_ptr(), dst_remaining.as_mut_ptr(), length)
+            match {
+                basic_latin_to_ascii(src_remaining, dst_remaining)
             } {
                 None => {
                     self.pos += length;
@@ -1553,8 +1553,8 @@ impl<'a> Utf8Source<'a> {
             } else {
                 (EncoderResult::InputEmpty, src_remaining.len())
             };
-            match unsafe {
-                ascii_to_ascii(src_remaining.as_ptr(), dst_remaining.as_mut_ptr(), length)
+            match {
+                ascii_to_ascii(src_remaining, dst_remaining)
             } {
                 None => {
                     self.pos += length;
@@ -1603,8 +1603,8 @@ impl<'a> Utf8Source<'a> {
             } else {
                 (EncoderResult::InputEmpty, src_remaining.len())
             };
-            match unsafe {
-                ascii_to_ascii(src_remaining.as_ptr(), dst_remaining.as_mut_ptr(), length)
+            match {
+                ascii_to_ascii(src_remaining, dst_remaining)
             } {
                 None => {
                     self.pos += length;
@@ -1659,8 +1659,8 @@ impl<'a> Utf8Source<'a> {
             } else {
                 (EncoderResult::InputEmpty, src_remaining.len())
             };
-            match unsafe {
-                ascii_to_ascii(src_remaining.as_ptr(), dst_remaining.as_mut_ptr(), length)
+            match {
+                ascii_to_ascii(src_remaining, dst_remaining)
             } {
                 None => {
                     self.pos += length;

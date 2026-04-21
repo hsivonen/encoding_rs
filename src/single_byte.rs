@@ -159,12 +159,11 @@ impl SingleByteDecoder {
         // which will be separately marked.
         let mut converted = 0usize;
         'outermost: loop {
-            match unsafe {
+            match {
                 // Safety: length is the minimum length, `src/dst + x` will always be valid for reads/writes of `len - x`
                 ascii_to_basic_latin(
-                    src.as_ptr().add(converted),
-                    dst.as_mut_ptr().add(converted),
-                    length - converted,
+                    &src[converted..],
+                    &mut dst[converted..]
                 )
             } {
                 None => {
@@ -415,12 +414,11 @@ impl SingleByteEncoder {
         // which will be separately marked.
         let mut converted = 0usize;
         'outermost: loop {
-            match unsafe {
+            match {
                 // Safety: length is the minimum length, `src/dst + x` will always be valid for reads/writes of `len - x`
                 basic_latin_to_ascii(
-                    src.as_ptr().add(converted),
-                    dst.as_mut_ptr().add(converted),
-                    length - converted,
+                    &src[converted..],
+                    &mut dst[converted..]
                 )
             } {
                 None => {
