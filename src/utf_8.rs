@@ -12,12 +12,8 @@ use crate::ascii::ascii_to_basic_latin;
 use crate::ascii::basic_latin_to_ascii;
 use crate::ascii::validate_ascii;
 use crate::handles::*;
-//use crate::mem::convert_utf16_to_utf8_partial;
+use crate::mem::convert_utf16_to_utf8_partial;
 use crate::variant::*;
-
-fn convert_utf16_to_utf8_partial(src: &[u16], dst: &mut [u8]) -> (usize, usize) {
-    (0, 0)
-}
 
 cfg_if! {
     if #[cfg(feature = "simd-accel")] {
