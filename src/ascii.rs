@@ -7,20 +7,6 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-// It's assumed that in due course Rust will have explicit SIMD but will not
-// be good at run-time selection of SIMD vs. no-SIMD. In such a future,
-// x86_64 will always use SSE2 and 32-bit x86 will use SSE2 when compiled with
-// a Mozilla-shipped rustc. SIMD support and especially detection on ARM is a
-// mess. Under the circumstances, it seems to make sense to optimize the ALU
-// case for ARMv7 rather than x86. Annoyingly, I was unable to get useful
-// numbers of the actual ARMv7 CPU I have access to, because (thermal?)
-// throttling kept interfering. Since Raspberry Pi 3 (ARMv8 core but running
-// ARMv7 code) produced reproducible performance numbers, that's the ARM
-// computer that this code ended up being optimized for in the ALU case.
-// Less popular CPU architectures simply get the approach that was chosen based
-// on Raspberry Pi 3 measurements. The UTF-16 and UTF-8 ALU cases take
-// different approaches based on benchmarking on Raspberry Pi 3.
-
 #[cfg(all(
     feature = "simd-accel",
     any(
@@ -33,6 +19,135 @@ use crate::simd_funcs::*;
 
 pub(crate) const MAX_STRIDE_SIZE: usize = 16;
 
+const STRIDE: usize = 16;
+
+macro_rules! ascii_copy {
+    ($name:ident, $stride:ident, $src_unit:ty, $dst_unit:ty) => {
+        pub fn $name(src: &[$src_unit], dst: &mut [$dst_unit]) -> Option<($src_unit, usize)> {
+            let mut consumed = 0usize;
+            let (src_strides, _) = src.as_chunks::<STRIDE>();
+            let (dst_strides, _) = dst.as_chunks_mut::<STRIDE>();
+            for (src_stride, dst_stride) in src_strides.iter().zip(dst_strides.iter_mut()) {
+                if let Some((non_ascii, pos)) = $stride(src_stride, dst_stride) {
+                    return Some((non_ascii, consumed + pos));
+                }
+                consumed += STRIDE;
+            }
+            let src_tail = &src[consumed..];
+            let dst_tail = &mut dst[consumed..];
+            for (src_slot, dst_slot) in src_tail.iter().zip(dst_tail.iter_mut()) {
+                let c = *src_slot;
+                if c >= 0x80 {
+                    return Some((c, consumed));
+                }
+                *dst_slot = c as $dst_unit;
+                consumed += 1;
+            }
+            None
+        }
+    }
+}
+
+ascii_copy!(ascii_to_ascii, ascii_to_ascii_stride, u8, u8);
+ascii_copy!(ascii_to_basic_latin, ascii_to_basic_latin_stride, u8, u16);
+ascii_copy!(basic_latin_to_ascii, basic_latin_to_ascii_stride, u16, u8);
+
+fn ascii_to_ascii_stride(src_stride: &[u8; STRIDE], dst_stride: &mut [u8; STRIDE]) -> Option<(u8, usize)> {
+    copy_stride(src_stride, dst_stride);
+    validate_ascii_stride(src_stride)
+}
+
+fn ascii_to_basic_latin_stride(src_stride: &[u8; STRIDE], dst_stride: &mut [u16; STRIDE]) -> Option<(u8, usize)> {
+    unpack_stride(src_stride, dst_stride);
+    validate_ascii_stride(src_stride)
+}
+
+fn basic_latin_to_ascii_stride(src_stride: &[u16; STRIDE], dst_stride: &mut [u8; STRIDE]) -> Option<(u16, usize)> {
+    pack_stride(src_stride, dst_stride);
+    validate_basic_latin_stride(src_stride)
+}
+
+macro_rules! ascii_validate_stride {
+    ($name:ident, $src_unit:ty) => {
+        #[inline(always)]
+        fn $name(src_stride: &[$src_unit; STRIDE]) -> Option<($src_unit, usize)> {
+            if (src_stride[0] < 0x80) &&
+                (src_stride[1] < 0x80) &&
+                (src_stride[2] < 0x80) &&
+                (src_stride[3] < 0x80) &&
+                (src_stride[4] < 0x80) &&
+                (src_stride[5] < 0x80) &&
+                (src_stride[6] < 0x80) &&
+                (src_stride[7] < 0x80) &&
+                (src_stride[8] < 0x80) &&
+                (src_stride[9] < 0x80) &&
+                (src_stride[10] < 0x80) &&
+                (src_stride[11] < 0x80) &&
+                (src_stride[12] < 0x80) &&
+                (src_stride[13] < 0x80) &&
+                (src_stride[14] < 0x80) &&
+                (src_stride[15] < 0x80)
+            {
+                return None;
+            }
+            for i in 0..STRIDE {
+                let c = src_stride[i];
+                if c >= 0x80 {
+                    return Some((c, i));
+                }
+            }
+            debug_assert!(false);
+            None
+        }
+    }
+}
+
+ascii_validate_stride!(validate_ascii_stride, u8);
+ascii_validate_stride!(validate_basic_latin_stride, u16);
+
+fn copy_stride(src_stride: &[u8; STRIDE], dst_stride: &mut [u8; STRIDE]) {
+    *dst_stride = *src_stride;
+}
+
+fn unpack_stride(src_stride: &[u8; STRIDE], dst_stride: &mut [u16; STRIDE]) {
+    dst_stride[0] = src_stride[0] as u16;
+    dst_stride[1] = src_stride[1] as u16;
+    dst_stride[2] = src_stride[2] as u16;
+    dst_stride[3] = src_stride[3] as u16;
+    dst_stride[4] = src_stride[4] as u16;
+    dst_stride[5] = src_stride[5] as u16;
+    dst_stride[6] = src_stride[6] as u16;
+    dst_stride[7] = src_stride[7] as u16;
+    dst_stride[8] = src_stride[8] as u16;
+    dst_stride[9] = src_stride[9] as u16;
+    dst_stride[10] = src_stride[10] as u16;
+    dst_stride[11] = src_stride[11] as u16;
+    dst_stride[12] = src_stride[12] as u16;
+    dst_stride[13] = src_stride[13] as u16;
+    dst_stride[14] = src_stride[14] as u16;
+    dst_stride[15] = src_stride[15] as u16;
+}
+
+fn pack_stride(src_stride: &[u16; STRIDE], dst_stride: &mut [u8; STRIDE]) {
+    dst_stride[0] = src_stride[0] as u8;
+    dst_stride[1] = src_stride[1] as u8;
+    dst_stride[2] = src_stride[2] as u8;
+    dst_stride[3] = src_stride[3] as u8;
+    dst_stride[4] = src_stride[4] as u8;
+    dst_stride[5] = src_stride[5] as u8;
+    dst_stride[6] = src_stride[6] as u8;
+    dst_stride[7] = src_stride[7] as u8;
+    dst_stride[8] = src_stride[8] as u8;
+    dst_stride[9] = src_stride[9] as u8;
+    dst_stride[10] = src_stride[10] as u8;
+    dst_stride[11] = src_stride[11] as u8;
+    dst_stride[12] = src_stride[12] as u8;
+    dst_stride[13] = src_stride[13] as u8;
+    dst_stride[14] = src_stride[14] as u8;
+    dst_stride[15] = src_stride[15] as u8;
+}
+
+/*
 pub fn ascii_to_ascii(src: &[u8], dst: &mut [u8]) -> Option<(u8, usize)> {
     let mut copied = 0;
     for (src_slot, dst_slot) in src.iter().zip(dst.iter_mut()) {
@@ -84,6 +199,27 @@ pub fn validate_ascii(src: &[u8]) -> Option<(u8, usize)> {
     None
 }
 
+*/
+
+pub fn validate_ascii(bytes: &[u8]) -> Option<(u8, usize)> {
+    let mut consumed = 0usize;
+    let (strides, _) = bytes.as_chunks::<STRIDE>();
+    for stride in strides.iter() {
+        if let Some((non_ascii, pos)) = validate_ascii_stride(stride) {
+            return Some((non_ascii, consumed + pos));
+        }
+        consumed += STRIDE;
+    }
+    let tail = &bytes[consumed..];
+    for slot in tail.iter() {
+        let c = *slot;
+        if c >= 0x80 {
+            return Some((c, consumed));
+        }
+        consumed += 1;
+    }
+    None
+}
 
 pub fn ascii_valid_up_to(bytes: &[u8]) -> usize {
     match validate_ascii(bytes) {
