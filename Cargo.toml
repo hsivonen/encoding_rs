@@ -2,7 +2,7 @@
 name = "encoding_rs"
 description = "A Gecko-oriented implementation of the Encoding Standard"
 version = "0.8.35"
-edition = '2021'
+edition = '2024'
 authors = ["Henri Sivonen <hsivonen@hsivonen.fi>"]
 license = "(Apache-2.0 OR MIT) AND BSD-3-Clause"
 include = ["src/**/*.rs", "/data", "Cargo.toml", "COPYRIGHT", "LICENSE*", "README.md"]
