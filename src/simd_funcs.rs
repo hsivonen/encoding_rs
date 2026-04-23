@@ -7,18 +7,18 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-use any_all_workaround::all_mask16x8;
 use any_all_workaround::all_mask8x16;
-use any_all_workaround::any_mask16x8;
+use any_all_workaround::all_mask16x8;
 use any_all_workaround::any_mask8x16;
+use any_all_workaround::any_mask16x8;
+use core::simd::ToBytes;
 use core::simd::cmp::SimdPartialEq;
 use core::simd::cmp::SimdPartialOrd;
-use core::simd::mask16x8;
 use core::simd::mask8x16;
+use core::simd::mask16x8;
 use core::simd::simd_swizzle;
-use core::simd::u16x8;
 use core::simd::u8x16;
-use core::simd::ToBytes;
+use core::simd::u16x8;
 
 // TODO: Migrate unaligned access to stdlib code if/when the RFC
 // https://github.com/rust-lang/rfcs/pull/1725 is implemented.

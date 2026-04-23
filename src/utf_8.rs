@@ -235,9 +235,7 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
             let src_remaining = &src[read..];
             let dst_remaining = &mut dst[written..];
             let length = ::core::cmp::min(src_remaining.len(), dst_remaining.len());
-            match {
-                ascii_to_basic_latin(src_remaining, dst_remaining)
-            } {
+            match { ascii_to_basic_latin(src_remaining, dst_remaining) } {
                 None => {
                     read += length;
                     written += length;
@@ -617,9 +615,7 @@ pub fn convert_utf16_to_utf8_partial_inner(src: &[u16], dst: &mut [u8]) -> (usiz
             } else {
                 src_remaining.len()
             };
-            match {
-                basic_latin_to_ascii(src_remaining, dst_remaining)
-            } {
+            match { basic_latin_to_ascii(src_remaining, dst_remaining) } {
                 None => {
                     read += length;
                     written += length;

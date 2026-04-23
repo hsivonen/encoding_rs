@@ -45,24 +45,33 @@ macro_rules! ascii_copy {
             }
             None
         }
-    }
+    };
 }
 
 ascii_copy!(ascii_to_ascii, ascii_to_ascii_stride, u8, u8);
 ascii_copy!(ascii_to_basic_latin, ascii_to_basic_latin_stride, u8, u16);
 ascii_copy!(basic_latin_to_ascii, basic_latin_to_ascii_stride, u16, u8);
 
-fn ascii_to_ascii_stride(src_stride: &[u8; STRIDE], dst_stride: &mut [u8; STRIDE]) -> Option<(u8, usize)> {
+fn ascii_to_ascii_stride(
+    src_stride: &[u8; STRIDE],
+    dst_stride: &mut [u8; STRIDE],
+) -> Option<(u8, usize)> {
     copy_stride(src_stride, dst_stride);
     validate_ascii_stride(src_stride)
 }
 
-fn ascii_to_basic_latin_stride(src_stride: &[u8; STRIDE], dst_stride: &mut [u16; STRIDE]) -> Option<(u8, usize)> {
+fn ascii_to_basic_latin_stride(
+    src_stride: &[u8; STRIDE],
+    dst_stride: &mut [u16; STRIDE],
+) -> Option<(u8, usize)> {
     unpack_stride(src_stride, dst_stride);
     validate_ascii_stride(src_stride)
 }
 
-fn basic_latin_to_ascii_stride(src_stride: &[u16; STRIDE], dst_stride: &mut [u8; STRIDE]) -> Option<(u16, usize)> {
+fn basic_latin_to_ascii_stride(
+    src_stride: &[u16; STRIDE],
+    dst_stride: &mut [u8; STRIDE],
+) -> Option<(u16, usize)> {
     pack_stride(src_stride, dst_stride);
     validate_basic_latin_stride(src_stride)
 }
@@ -71,22 +80,22 @@ macro_rules! ascii_validate_stride {
     ($name:ident, $src_unit:ty) => {
         #[inline(always)]
         fn $name(src_stride: &[$src_unit; STRIDE]) -> Option<($src_unit, usize)> {
-            if (src_stride[0] < 0x80) &&
-                (src_stride[1] < 0x80) &&
-                (src_stride[2] < 0x80) &&
-                (src_stride[3] < 0x80) &&
-                (src_stride[4] < 0x80) &&
-                (src_stride[5] < 0x80) &&
-                (src_stride[6] < 0x80) &&
-                (src_stride[7] < 0x80) &&
-                (src_stride[8] < 0x80) &&
-                (src_stride[9] < 0x80) &&
-                (src_stride[10] < 0x80) &&
-                (src_stride[11] < 0x80) &&
-                (src_stride[12] < 0x80) &&
-                (src_stride[13] < 0x80) &&
-                (src_stride[14] < 0x80) &&
-                (src_stride[15] < 0x80)
+            if (src_stride[0] < 0x80)
+                && (src_stride[1] < 0x80)
+                && (src_stride[2] < 0x80)
+                && (src_stride[3] < 0x80)
+                && (src_stride[4] < 0x80)
+                && (src_stride[5] < 0x80)
+                && (src_stride[6] < 0x80)
+                && (src_stride[7] < 0x80)
+                && (src_stride[8] < 0x80)
+                && (src_stride[9] < 0x80)
+                && (src_stride[10] < 0x80)
+                && (src_stride[11] < 0x80)
+                && (src_stride[12] < 0x80)
+                && (src_stride[13] < 0x80)
+                && (src_stride[14] < 0x80)
+                && (src_stride[15] < 0x80)
             {
                 return None;
             }
@@ -99,7 +108,7 @@ macro_rules! ascii_validate_stride {
             debug_assert!(false);
             None
         }
-    }
+    };
 }
 
 ascii_validate_stride!(validate_ascii_stride, u8);
