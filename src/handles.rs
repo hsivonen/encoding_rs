@@ -387,7 +387,7 @@ pub struct ByteSource<'a> {
 
 impl<'a> ByteSource<'a> {
     #[inline(always)]
-    pub fn new(src: &[u8]) -> ByteSource {
+    pub fn new(src: &[u8]) -> ByteSource<'_> {
         ByteSource { slice: src, pos: 0 }
     }
     #[inline(always)]
@@ -594,7 +594,7 @@ pub struct Utf16Destination<'a> {
 
 impl<'a> Utf16Destination<'a> {
     #[inline(always)]
-    pub fn new(dst: &mut [u16]) -> Utf16Destination {
+    pub fn new(dst: &mut [u16]) -> Utf16Destination<'_> {
         Utf16Destination { slice: dst, pos: 0 }
     }
     #[inline(always)]
@@ -935,7 +935,7 @@ pub struct Utf8Destination<'a> {
 
 impl<'a> Utf8Destination<'a> {
     #[inline(always)]
-    pub fn new(dst: &mut [u8]) -> Utf8Destination {
+    pub fn new(dst: &mut [u8]) -> Utf8Destination<'_> {
         Utf8Destination { slice: dst, pos: 0 }
     }
     #[inline(always)]
@@ -1156,7 +1156,7 @@ pub struct Utf16Source<'a> {
 
 impl<'a> Utf16Source<'a> {
     #[inline(always)]
-    pub fn new(src: &[u16]) -> Utf16Source {
+    pub fn new(src: &[u16]) -> Utf16Source<'_> {
         Utf16Source { slice: src, pos: 0 }
     }
     #[inline(always)]
@@ -1454,7 +1454,7 @@ pub struct Utf8Source<'a> {
 
 impl<'a> Utf8Source<'a> {
     #[inline(always)]
-    pub fn new(src: &str) -> Utf8Source {
+    pub fn new(src: &str) -> Utf8Source<'_> {
         Utf8Source {
             slice: src.as_bytes(),
             pos: 0,
@@ -1904,7 +1904,7 @@ pub struct ByteDestination<'a> {
 
 impl<'a> ByteDestination<'a> {
     #[inline(always)]
-    pub fn new(dst: &mut [u8]) -> ByteDestination {
+    pub fn new(dst: &mut [u8]) -> ByteDestination<'_> {
         ByteDestination {
             start: dst.as_ptr(),
             slice: dst,
