@@ -31,12 +31,12 @@ use alloc::string::String;
 #[cfg(feature = "alloc")]
 use alloc::vec::Vec;
 
+use super::DecoderResult;
+use super::in_inclusive_range8;
 use super::in_inclusive_range16;
 use super::in_inclusive_range32;
-use super::in_inclusive_range8;
 use super::in_range16;
 use super::in_range32;
-use super::DecoderResult;
 use crate::ascii::*;
 use crate::utf_8::*;
 
@@ -1598,9 +1598,7 @@ pub fn convert_str_to_utf16(src: &str, dst: &mut [u16]) -> usize {
             let src_remaining = &bytes[read..];
             let dst_remaining = &mut dst[written..];
             let length = src_remaining.len();
-            match {
-                ascii_to_basic_latin(src_remaining, dst_remaining)
-            } {
+            match { ascii_to_basic_latin(src_remaining, dst_remaining) } {
                 None => {
                     written += length;
                     return written;
@@ -1851,12 +1849,9 @@ pub fn convert_latin1_to_utf8_partial(src: &[u8], dst: &mut [u8]) -> (usize, usi
         let src_left = src_len - total_read;
         let dst_left = dst_len - total_written;
         let min_left = ::core::cmp::min(src_left, dst_left);
-        if let Some((non_ascii, consumed)) = {
-            ascii_to_ascii(
-                &src[total_read..],
-                &mut dst[total_written..]
-            )
-        } {
+        if let Some((non_ascii, consumed)) =
+            { ascii_to_ascii(&src[total_read..], &mut dst[total_written..]) }
+        {
             total_read += consumed;
             total_written += consumed;
             if total_written.checked_add(2).unwrap() > dst_len {
@@ -1988,12 +1983,9 @@ pub fn convert_utf8_to_latin1_lossy(src: &[u8], dst: &mut [u8]) -> usize {
     loop {
         // dst can't advance more than src
         let src_left = src_len - total_read;
-        if let Some((non_ascii, consumed)) = {
-            ascii_to_ascii(
-                &src[total_read..],
-                &mut dst[total_written..]
-            )
-        } {
+        if let Some((non_ascii, consumed)) =
+            { ascii_to_ascii(&src[total_read..], &mut dst[total_written..]) }
+        {
             total_read += consumed + 1;
             total_written += consumed;
 
@@ -2179,9 +2171,7 @@ pub fn copy_ascii_to_ascii(src: &[u8], dst: &mut [u8]) -> usize {
         dst.len() >= src.len(),
         "Destination must not be shorter than the source."
     );
-    if let Some((_, consumed)) =
-        { ascii_to_ascii(src, dst) }
-    {
+    if let Some((_, consumed)) = { ascii_to_ascii(src, dst) } {
         consumed
     } else {
         src.len()
@@ -2205,9 +2195,7 @@ pub fn copy_ascii_to_basic_latin(src: &[u8], dst: &mut [u16]) -> usize {
         dst.len() >= src.len(),
         "Destination must not be shorter than the source."
     );
-    if let Some((_, consumed)) =
-        { ascii_to_basic_latin(src, dst) }
-    {
+    if let Some((_, consumed)) = { ascii_to_basic_latin(src, dst) } {
         consumed
     } else {
         src.len()
@@ -2231,9 +2219,7 @@ pub fn copy_basic_latin_to_ascii(src: &[u16], dst: &mut [u8]) -> usize {
         dst.len() >= src.len(),
         "Destination must not be shorter than the source."
     );
-    if let Some((_, consumed)) =
-        { basic_latin_to_ascii(src, dst) }
-    {
+    if let Some((_, consumed)) = { basic_latin_to_ascii(src, dst) } {
         consumed
     } else {
         src.len()

@@ -682,9 +682,7 @@ impl<'a> Utf16Destination<'a> {
             };
             // Safety: This function is documented as needing valid pointers for src/dest and len, which
             // is true since we've passed the minumum length of the two
-            match {
-                ascii_to_basic_latin(src_remaining, dst_remaining)
-            } {
+            match { ascii_to_basic_latin(src_remaining, dst_remaining) } {
                 None => {
                     source.pos += length;
                     self.pos += length;
@@ -695,7 +693,7 @@ impl<'a> Utf16Destination<'a> {
                     source.pos += consumed;
                     self.pos += consumed;
                     source.pos += 1; // +1 for non_ascii
-                                     // Safety: non-ascii bubbled out here
+                    // Safety: non-ascii bubbled out here
                     non_ascii
                 }
             }
@@ -720,9 +718,7 @@ impl<'a> Utf16Destination<'a> {
             };
             // Safety: This function is documented as needing valid pointers for src/dest and len, which
             // is true since we've passed the minumum length of the two
-            match {
-                ascii_to_basic_latin(src_remaining, dst_remaining)
-            } {
+            match { ascii_to_basic_latin(src_remaining, dst_remaining) } {
                 None => {
                     source.pos += length;
                     self.pos += length;
@@ -734,7 +730,7 @@ impl<'a> Utf16Destination<'a> {
                     self.pos += consumed;
                     if self.pos + 1 < dst_len {
                         source.pos += 1; // +1 for non_ascii
-                                         // Safety: non-ascii bubbled out here
+                        // Safety: non-ascii bubbled out here
                         non_ascii
                     } else {
                         return CopyAsciiResult::Stop((
@@ -1042,9 +1038,7 @@ impl<'a> Utf8Destination<'a> {
             } else {
                 (DecoderResult::InputEmpty, src_remaining.len())
             };
-            match {
-                ascii_to_ascii(src_remaining, dst_remaining)
-            } {
+            match { ascii_to_ascii(src_remaining, dst_remaining) } {
                 None => {
                     source.pos += length;
                     self.pos += length;
@@ -1082,9 +1076,7 @@ impl<'a> Utf8Destination<'a> {
             } else {
                 (DecoderResult::InputEmpty, src_remaining.len())
             };
-            match {
-                ascii_to_ascii(src_remaining, dst_remaining)
-            } {
+            match { ascii_to_ascii(src_remaining, dst_remaining) } {
                 None => {
                     source.pos += length;
                     self.pos += length;
@@ -1261,9 +1253,7 @@ impl<'a> Utf16Source<'a> {
             } else {
                 (EncoderResult::InputEmpty, src_remaining.len())
             };
-            match {
-                basic_latin_to_ascii(src_remaining, dst_remaining)
-            } {
+            match { basic_latin_to_ascii(src_remaining, dst_remaining) } {
                 None => {
                     self.pos += length;
                     dest.advance(length);
@@ -1330,9 +1320,7 @@ impl<'a> Utf16Source<'a> {
             } else {
                 (EncoderResult::InputEmpty, src_remaining.len())
             };
-            match {
-                basic_latin_to_ascii(src_remaining, dst_remaining)
-            } {
+            match { basic_latin_to_ascii(src_remaining, dst_remaining) } {
                 None => {
                     self.pos += length;
                     dest.advance(length);
@@ -1553,9 +1541,7 @@ impl<'a> Utf8Source<'a> {
             } else {
                 (EncoderResult::InputEmpty, src_remaining.len())
             };
-            match {
-                ascii_to_ascii(src_remaining, dst_remaining)
-            } {
+            match { ascii_to_ascii(src_remaining, dst_remaining) } {
                 None => {
                     self.pos += length;
                     dest.advance(length);
@@ -1603,9 +1589,7 @@ impl<'a> Utf8Source<'a> {
             } else {
                 (EncoderResult::InputEmpty, src_remaining.len())
             };
-            match {
-                ascii_to_ascii(src_remaining, dst_remaining)
-            } {
+            match { ascii_to_ascii(src_remaining, dst_remaining) } {
                 None => {
                     self.pos += length;
                     dest.advance(length);
@@ -1659,9 +1643,7 @@ impl<'a> Utf8Source<'a> {
             } else {
                 (EncoderResult::InputEmpty, src_remaining.len())
             };
-            match {
-                ascii_to_ascii(src_remaining, dst_remaining)
-            } {
+            match { ascii_to_ascii(src_remaining, dst_remaining) } {
                 None => {
                     self.pos += length;
                     dest.advance(length);

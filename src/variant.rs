@@ -28,8 +28,8 @@ use iso_2022_jp::*;
 use replacement::*;
 use shift_jis::*;
 use single_byte::*;
-use utf_16::*;
 use utf_8::*;
+use utf_16::*;
 use x_user_defined::*;
 
 pub enum VariantDecoder {

@@ -161,10 +161,7 @@ impl SingleByteDecoder {
         'outermost: loop {
             match {
                 // Safety: length is the minimum length, `src/dst + x` will always be valid for reads/writes of `len - x`
-                ascii_to_basic_latin(
-                    &src[converted..],
-                    &mut dst[converted..]
-                )
+                ascii_to_basic_latin(&src[converted..], &mut dst[converted..])
             } {
                 None => {
                     return (pending, length, length);
@@ -416,10 +413,7 @@ impl SingleByteEncoder {
         'outermost: loop {
             match {
                 // Safety: length is the minimum length, `src/dst + x` will always be valid for reads/writes of `len - x`
-                basic_latin_to_ascii(
-                    &src[converted..],
-                    &mut dst[converted..]
-                )
+                basic_latin_to_ascii(&src[converted..], &mut dst[converted..])
             } {
                 None => {
                     return (pending, length, length);

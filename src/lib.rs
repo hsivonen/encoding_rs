@@ -5636,11 +5636,13 @@ mod tests {
 
     #[test]
     fn test_decode_bomful_invalid_utf8_to_cow_without_bom_handling_and_without_replacement() {
-        assert!(UTF_8
-            .decode_without_bom_handling_and_without_replacement(
-                b"\xEF\xBB\xBF\xE2\x82\xAC\x80\xC3\xA4"
-            )
-            .is_none());
+        assert!(
+            UTF_8
+                .decode_without_bom_handling_and_without_replacement(
+                    b"\xEF\xBB\xBF\xE2\x82\xAC\x80\xC3\xA4"
+                )
+                .is_none()
+        );
     }
 
     #[test]
@@ -5658,9 +5660,11 @@ mod tests {
 
     #[test]
     fn test_decode_invalid_windows_1257_to_cow_without_bom_handling_and_without_replacement() {
-        assert!(WINDOWS_1257
-            .decode_without_bom_handling_and_without_replacement(b"abc\x80\xA1\xE4")
-            .is_none());
+        assert!(
+            WINDOWS_1257
+                .decode_without_bom_handling_and_without_replacement(b"abc\x80\xA1\xE4")
+                .is_none()
+        );
     }
 
     #[test]
@@ -6071,10 +6075,12 @@ mod tests {
                 .unwrap(),
             1
         );
-        assert!(REPLACEMENT
-            .new_decoder_without_bom_handling()
-            .latin1_byte_compatible_up_to(buffer)
-            .is_none());
+        assert!(
+            REPLACEMENT
+                .new_decoder_without_bom_handling()
+                .latin1_byte_compatible_up_to(buffer)
+                .is_none()
+        );
         assert_eq!(
             SHIFT_JIS
                 .new_decoder_without_bom_handling()
@@ -6089,14 +6095,18 @@ mod tests {
                 .unwrap(),
             1
         );
-        assert!(UTF_16BE
-            .new_decoder_without_bom_handling()
-            .latin1_byte_compatible_up_to(buffer)
-            .is_none());
-        assert!(UTF_16LE
-            .new_decoder_without_bom_handling()
-            .latin1_byte_compatible_up_to(buffer)
-            .is_none());
+        assert!(
+            UTF_16BE
+                .new_decoder_without_bom_handling()
+                .latin1_byte_compatible_up_to(buffer)
+                .is_none()
+        );
+        assert!(
+            UTF_16LE
+                .new_decoder_without_bom_handling()
+                .latin1_byte_compatible_up_to(buffer)
+                .is_none()
+        );
         assert_eq!(
             ISO_2022_JP
                 .new_decoder_without_bom_handling()
@@ -6309,10 +6319,12 @@ mod tests {
             1
         );
 
-        assert!(UTF_8
-            .new_decoder()
-            .latin1_byte_compatible_up_to(buffer)
-            .is_none());
+        assert!(
+            UTF_8
+                .new_decoder()
+                .latin1_byte_compatible_up_to(buffer)
+                .is_none()
+        );
 
         let mut decoder = UTF_8.new_decoder();
         let mut output = [0u16; 4];
