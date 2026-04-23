@@ -1,3 +1,5 @@
+// Any copyright to the test code below this comment is dedicated to the
+// Public Domain. http://creativecommons.org/publicdomain/zero/1.0/
 use encoding_rs::*;
 
 fn decode_chunks_to_utf8(encoding: &'static Encoding, chunks: &[&[u8]]) -> (String, bool) {
