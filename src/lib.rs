@@ -4398,9 +4398,7 @@ impl Decoder {
     /// Available via the C wrapper.
     pub fn latin1_byte_compatible_up_to(&self, bytes: &[u8]) -> Option<usize> {
         match self.life_cycle {
-            DecoderLifeCycle::Converting => {
-                return self.variant.latin1_byte_compatible_up_to(bytes);
-            }
+            DecoderLifeCycle::Converting => self.variant.latin1_byte_compatible_up_to(bytes),
             DecoderLifeCycle::Finished => panic!("Must not use a decoder that has finished."),
             _ => None,
         }
