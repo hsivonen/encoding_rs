@@ -352,7 +352,7 @@ cfg_if! {
         }
 
         #[inline(always)]
-        pub fn validate_basic_latin_simd(first_simd: u16x8, second_simd: u16x8) -> Option<usize> {
+        fn validate_basic_latin_simd(first_simd: u16x8, second_simd: u16x8) -> Option<usize> {
             let bound = u16x8::splat(0x7F);
             let first_mask = movemask(first_simd.simd_gt(bound).to_simd().into());
             let second_mask = movemask(second_simd.simd_gt(bound).to_simd().into());
@@ -363,6 +363,18 @@ cfg_if! {
             Some((combined.trailing_zeros() / 2) as usize)
         }
 
+        #[inline(always)]
+        fn validate_bmp_simd(first_simd: u16x8, second_simd: u16x8) -> Option<usize> {
+            let surrogate_bits = u16x8::splat(0xD800);
+            let mask = u16x8::splat(0xF800);
+            let first_mask = movemask((first_simd & mask).simd_eq(surrogate_bits).to_simd().into());
+            let second_mask = movemask((second_simd & mask).simd_eq(surrogate_bits).to_simd().into());
+            let combined = (second_mask << 16) | first_mask;
+            if combined == 0 {
+                return None;
+            }
+            Some((combined.trailing_zeros() / 2) as usize)
+        }
     } else {
         #[inline(always)]
         pub fn simd_pack(a: u16x8, b: u16x8) -> u8x16 {
@@ -380,17 +392,52 @@ cfg_if! {
             (low.simd_gt(u8x16::splat(0x7F)) | high.simd_ne(u8x16::splat(0))).first_set()
         }
 
+        #[inline(always)]
+        fn validate_bmp_simd(first_simd: u16x8, second_simd: u16x8) -> Option<usize> {
+            let first: u8x16 = first_simd.to_ne_bytes();
+            let second: u8x16 = second_simd.to_ne_bytes();
+            let (_, high) = first.deinterleave(second);
+            (high & u8x16::splat(0xF8)).simd_eq(u8x16::splat(0xD8)).first_set()
+        }
+    }
+}
+
+cfg_if! {
+    if #[cfg(target_feature = "sse2")] {
+        #[inline(always)]
+        pub fn validate_latin1_str_simd(s: u8x16) -> Option<usize> {
+            if simd_is_ascii(s) {
+                return None;
+            }
+            s.simd_gt(u8x16::splat(0xC3)).first_set()
+        }
+    } else if #[cfg(target_arch = "aarch64")]{
+        #[inline(always)]
+        pub fn validate_latin1_str_simd(s: u8x16) -> Option<usize> {
+            if unsafe {
+                // Safety: We have cfg()d the correct platform
+                vmaxvq_u8(s.into()) < 0xC4
+            } {
+                return None;
+            }
+            s.simd_gt(u8x16::splat(0xC3)).first_set()
+        }
+    } else {
+        #[inline(always)]
+        pub fn validate_latin1_str_simd(s: u8x16) -> Option<usize> {
+            s.simd_gt(u8x16::splat(0xC3)).first_set()
+        }
     }
 }
 
 #[inline(always)]
-fn split_basic_latin(stride: &[u16; STRIDE]) -> (&[u16; HALF_STRIDE], &[u16; HALF_STRIDE]) {
+fn split_u16_stride(stride: &[u16; STRIDE]) -> (&[u16; HALF_STRIDE], &[u16; HALF_STRIDE]) {
     let (chunks, _) = stride.as_chunks::<HALF_STRIDE>();
     (&chunks[0], &chunks[1])
 }
 
 #[inline(always)]
-fn split_basic_latin_mut(
+fn split_u16_stride_mut(
     stride: &mut [u16; STRIDE],
 ) -> (&mut [u16; HALF_STRIDE], &mut [u16; HALF_STRIDE]) {
     // Can't take two mutable references to output of `as_chunks_mut`.
@@ -405,7 +452,7 @@ fn split_basic_latin_mut(
 #[inline(always)]
 fn unpack_simd_to(src_simd: u8x16, dst_stride: &mut [u16; STRIDE]) {
     let (first, second) = simd_unpack(src_simd);
-    let (dst_first, dst_second) = split_basic_latin_mut(dst_stride);
+    let (dst_first, dst_second) = split_u16_stride_mut(dst_stride);
     *dst_first = first.to_array();
     *dst_second = second.to_array();
 }
@@ -447,7 +494,7 @@ pub(crate) fn basic_latin_to_ascii_stride(
     src_stride: &[u16; STRIDE],
     dst_stride: &mut [u8; STRIDE],
 ) -> Option<usize> {
-    let (src_first, src_second) = split_basic_latin(src_stride);
+    let (src_first, src_second) = split_u16_stride(src_stride);
     let first_simd: u16x8 = (*src_first).into();
     let second_simd: u16x8 = (*src_second).into();
     pack_simd_to(first_simd, second_simd, dst_stride);
@@ -461,10 +508,18 @@ pub(crate) fn validate_ascii_stride(stride: &[u8; STRIDE]) -> Option<usize> {
 }
 
 #[inline(always)]
-pub(crate) fn unpack_stride(src_stride: &[u8; STRIDE], dst_stride: &mut [u16; STRIDE]) {}
+pub(crate) fn validate_bmp_stride(stride: &[u16; STRIDE]) -> Option<usize> {
+    let (first, second) = split_u16_stride(stride);
+    let first_simd: u16x8 = (*first).into();
+    let second_simd: u16x8 = (*second).into();
+    validate_bmp_simd(first_simd, second_simd)
+}
 
 #[inline(always)]
-pub(crate) fn pack_stride(src_stride: &[u16; STRIDE], dst_stride: &mut [u8; STRIDE]) {}
+pub(crate) fn validate_latin1_str_stride(stride: &[u8; STRIDE]) -> Option<usize> {
+    let simd: u8x16 = (*stride).into();
+    validate_latin1_str_simd(simd)
+}
 
 #[cfg(test)]
 #[cfg(feature = "alloc")]

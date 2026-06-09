@@ -78,256 +78,6 @@ pub enum Latin1Bidi {
 
 /*
 
-// `as` truncates, so works on 32-bit, too.
-#[allow(dead_code)]
-const LATIN1_MASK: usize = 0xFF00_FF00_FF00_FF00u64 as usize;
-
-#[allow(unused_macros)]
-macro_rules! by_unit_check_alu {
-    ($name:ident, $unit:ty, $bound:expr, $mask:ident) => {
-        #[allow(clippy::cast_ptr_alignment)]
-        #[inline(always)]
-        fn $name(buffer: &[$unit]) -> bool {
-            let mut offset = 0usize;
-            let mut accu = 0usize;
-            let unit_size = ::core::mem::size_of::<$unit>();
-            let len = buffer.len();
-            if len >= ALU_ALIGNMENT / unit_size {
-                // The most common reason to return `false` is for the first code
-                // unit to fail the test, so check that first.
-                if buffer[0] >= $bound {
-                    return false;
-                }
-                let src = buffer.as_ptr();
-                let mut until_alignment = ((ALU_ALIGNMENT - ((src as usize) & ALU_ALIGNMENT_MASK))
-                    & ALU_ALIGNMENT_MASK)
-                    / unit_size;
-                if until_alignment + ALU_ALIGNMENT / unit_size <= len {
-                    if until_alignment != 0 {
-                        accu |= buffer[offset] as usize;
-                        offset += 1;
-                        until_alignment -= 1;
-                        while until_alignment != 0 {
-                            accu |= buffer[offset] as usize;
-                            offset += 1;
-                            until_alignment -= 1;
-                        }
-                        if accu >= $bound {
-                            return false;
-                        }
-                    }
-                    let len_minus_stride = len - ALU_ALIGNMENT / unit_size;
-                    if offset + (4 * (ALU_ALIGNMENT / unit_size)) <= len {
-                        // Safety: the above check lets us perform 4 consecutive reads of
-                        // length ALU_ALIGNMENT / unit_size. ALU_ALIGNMENT is the size of usize, and unit_size
-                        // is the size of the `src` pointer, so this is equal to performing four usize reads.
-                        //
-                        // This invariant is upheld on all loop iterations
-                        let len_minus_unroll = len - (4 * (ALU_ALIGNMENT / unit_size));
-                        loop {
-                            let unroll_accu = unsafe { *(src.add(offset) as *const usize) }
-                                | unsafe {
-                                    *(src.add(offset + (ALU_ALIGNMENT / unit_size)) as *const usize)
-                                }
-                                | unsafe {
-                                    *(src.add(offset + (2 * (ALU_ALIGNMENT / unit_size)))
-                                        as *const usize)
-                                }
-                                | unsafe {
-                                    *(src.add(offset + (3 * (ALU_ALIGNMENT / unit_size)))
-                                        as *const usize)
-                                };
-                            if unroll_accu & $mask != 0 {
-                                return false;
-                            }
-                            offset += 4 * (ALU_ALIGNMENT / unit_size);
-                            // Safety: this check lets us continue to perform the 4 reads earlier
-                            if offset > len_minus_unroll {
-                                break;
-                            }
-                        }
-                    }
-                    while offset <= len_minus_stride {
-                        // Safety: the above check lets us perform one usize read.
-                        accu |= unsafe { *(src.add(offset) as *const usize) };
-                        offset += ALU_ALIGNMENT / unit_size;
-                    }
-                }
-            }
-            for &unit in &buffer[offset..] {
-                accu |= unit as usize;
-            }
-            accu & $mask == 0
-        }
-    };
-}
-
-#[allow(unused_macros)]
-macro_rules! by_unit_check_simd {
-    ($name:ident, $unit:ty, $splat:expr, $simd_ty:ty, $bound:expr, $func:ident) => {
-        #[inline(always)]
-        fn $name(buffer: &[$unit]) -> bool {
-            let mut offset = 0usize;
-            let mut accu = 0usize;
-            let unit_size = ::core::mem::size_of::<$unit>();
-            let len = buffer.len();
-            if len >= SIMD_STRIDE_SIZE / unit_size {
-                // The most common reason to return `false` is for the first code
-                // unit to fail the test, so check that first.
-                if buffer[0] >= $bound {
-                    return false;
-                }
-                let src = buffer.as_ptr();
-                let mut until_alignment = ((SIMD_ALIGNMENT
-                    - ((src as usize) & SIMD_ALIGNMENT_MASK))
-                    & SIMD_ALIGNMENT_MASK)
-                    / unit_size;
-                if until_alignment + SIMD_STRIDE_SIZE / unit_size <= len {
-                    if until_alignment != 0 {
-                        accu |= buffer[offset] as usize;
-                        offset += 1;
-                        until_alignment -= 1;
-                        while until_alignment != 0 {
-                            accu |= buffer[offset] as usize;
-                            offset += 1;
-                            until_alignment -= 1;
-                        }
-                        if accu >= $bound {
-                            return false;
-                        }
-                    }
-                    let len_minus_stride = len - SIMD_STRIDE_SIZE / unit_size;
-                    if offset + (4 * (SIMD_STRIDE_SIZE / unit_size)) <= len {
-                        // Safety: the above check lets us perform 4 consecutive reads of
-                        // length SIMD_STRIDE_SIZE / unit_size. SIMD_STRIDE_SIZE is the size of $simd_ty, and unit_size
-                        // is the size of the `src` pointer, so this is equal to performing four $simd_ty reads.
-                        //
-                        // This invariant is upheld on all loop iterations
-                        let len_minus_unroll = len - (4 * (SIMD_STRIDE_SIZE / unit_size));
-                        loop {
-                            let unroll_accu = unsafe { *(src.add(offset) as *const $simd_ty) }
-                                | unsafe {
-                                    *(src.add(offset + (SIMD_STRIDE_SIZE / unit_size))
-                                        as *const $simd_ty)
-                                }
-                                | unsafe {
-                                    *(src.add(offset + (2 * (SIMD_STRIDE_SIZE / unit_size)))
-                                        as *const $simd_ty)
-                                }
-                                | unsafe {
-                                    *(src.add(offset + (3 * (SIMD_STRIDE_SIZE / unit_size)))
-                                        as *const $simd_ty)
-                                };
-                            if !$func(unroll_accu) {
-                                return false;
-                            }
-                            offset += 4 * (SIMD_STRIDE_SIZE / unit_size);
-                            // Safety: this check lets us continue to perform the 4 reads earlier
-                            if offset > len_minus_unroll {
-                                break;
-                            }
-                        }
-                    }
-                    let mut simd_accu = $splat;
-                    while offset <= len_minus_stride {
-                        // Safety: the above check lets us perform one $simd_ty read.
-                        simd_accu = simd_accu | unsafe { *(src.add(offset) as *const $simd_ty) };
-                        offset += SIMD_STRIDE_SIZE / unit_size;
-                    }
-                    if !$func(simd_accu) {
-                        return false;
-                    }
-                }
-            }
-            for &unit in &buffer[offset..] {
-                accu |= unit as usize;
-            }
-            accu < $bound
-        }
-    };
-}
-
-cfg_if! {
-    if #[cfg(all(feature = "simd-accel", any(target_feature = "sse2", all(target_endian = "little", target_arch = "aarch64"), all(target_endian = "little", target_feature = "neon"))))] {
-        use crate::simd_funcs::*;
-        use core::simd::u8x16;
-        use core::simd::u16x8;
-
-        const SIMD_ALIGNMENT: usize = 16;
-
-        const SIMD_ALIGNMENT_MASK: usize = 15;
-
-        by_unit_check_simd!(is_ascii_impl, u8, u8x16::splat(0), u8x16, 0x80, simd_is_ascii);
-        by_unit_check_simd!(is_basic_latin_impl, u16, u16x8::splat(0), u16x8, 0x80, simd_is_basic_latin);
-        by_unit_check_simd!(is_utf16_latin1_impl, u16, u16x8::splat(0), u16x8, 0x100, simd_is_latin1);
-
-        #[inline(always)]
-        fn utf16_valid_up_to_impl(buffer: &[u16]) -> usize {
-            // This function is a mess, because it simultaneously tries to do
-            // only aligned SIMD (perhaps misguidedly) and needs to deal with
-            // the last code unit in a SIMD stride being part of a valid
-            // surrogate pair.
-            let unit_size = ::core::mem::size_of::<u16>();
-            let src = buffer.as_ptr();
-            let len = buffer.len();
-            let mut offset = 0usize;
-            'outer: loop {
-                let until_alignment = ((SIMD_ALIGNMENT - ((unsafe { src.add(offset) } as usize) & SIMD_ALIGNMENT_MASK)) &
-                                        SIMD_ALIGNMENT_MASK) / unit_size;
-                if until_alignment == 0 {
-                    if offset + SIMD_STRIDE_SIZE / unit_size > len {
-                        break;
-                    }
-                } else {
-                    let offset_plus_until_alignment = offset + until_alignment;
-                    let offset_plus_until_alignment_plus_one = offset_plus_until_alignment + 1;
-                    if offset_plus_until_alignment_plus_one + SIMD_STRIDE_SIZE / unit_size > len {
-                        break;
-                    }
-                    let (up_to, last_valid_low) = utf16_valid_up_to_alu(&buffer[offset..offset_plus_until_alignment_plus_one]);
-                    if up_to < until_alignment {
-                        return offset + up_to;
-                    }
-                    if last_valid_low {
-                        offset = offset_plus_until_alignment_plus_one;
-                        continue;
-                    }
-                    offset = offset_plus_until_alignment;
-                }
-                let len_minus_stride = len - SIMD_STRIDE_SIZE / unit_size;
-                loop {
-                    let offset_plus_stride = offset + SIMD_STRIDE_SIZE / unit_size;
-                    if contains_surrogates(unsafe { *(src.add(offset) as *const u16x8) }) {
-                        if offset_plus_stride == len {
-                            break 'outer;
-                        }
-                        let offset_plus_stride_plus_one = offset_plus_stride + 1;
-                        let (up_to, last_valid_low) = utf16_valid_up_to_alu(&buffer[offset..offset_plus_stride_plus_one]);
-                        if up_to < SIMD_STRIDE_SIZE / unit_size {
-                            return offset + up_to;
-                        }
-                        if last_valid_low {
-                            offset = offset_plus_stride_plus_one;
-                            continue 'outer;
-                        }
-                    }
-                    offset = offset_plus_stride;
-                    if offset > len_minus_stride {
-                        break 'outer;
-                    }
-                }
-            }
-            let (up_to, _) = utf16_valid_up_to_alu(&buffer[offset..]);
-            offset + up_to
-        }
-    } else {
-        by_unit_check_alu!(is_ascii_impl, u8, 0x80, ASCII_MASK);
-        by_unit_check_alu!(is_basic_latin_impl, u16, 0x80, BASIC_LATIN_MASK);
-        by_unit_check_alu!(is_utf16_latin1_impl, u16, 0x100, LATIN1_MASK);
-
-    }
-}
-
 cfg_if! {
     if #[cfg(all(feature = "simd-accel", any(target_feature = "sse2", all(target_endian = "little", target_arch = "aarch64"), all(target_endian = "little", target_feature = "neon"))))] {
         #[inline(always)]
@@ -626,12 +376,6 @@ fn check_utf16_for_latin1_and_bidi_impl(buffer: &[u16]) -> Latin1Bidi {
     }
 }
 
-#[inline(always)]
-fn utf16_valid_up_to_impl(buffer: &[u16]) -> usize {
-    let (up_to, _) = utf16_valid_up_to_alu(buffer);
-    up_to
-}
-
 fn is_ascii_impl(buffer: &[u8]) -> bool {
     buffer.is_ascii()
 }
@@ -668,24 +412,6 @@ fn is_utf8_latin1_impl(buffer: &[u8]) -> Option<usize> {
             } else {
                 return Some(total);
             }
-        } else {
-            return None;
-        }
-    }
-}
-
-#[inline(always)]
-fn is_str_latin1_impl(buffer: &str) -> Option<usize> {
-    let mut bytes = buffer.as_bytes();
-    let mut total = 0;
-    loop {
-        if let Some((byte, offset)) = validate_ascii(bytes) {
-            total += offset;
-            if byte > 0xC3 {
-                return Some(total);
-            }
-            bytes = &bytes[offset + 2..];
-            total += 2;
         } else {
             return None;
         }
@@ -2101,10 +1827,153 @@ pub fn encode_latin1_lossy<'a>(string: &'a str) -> Cow<'a, [u8]> {
     Cow::Owned(vec)
 }
 
+cfg_if! {
+    if #[cfg(all(feature = "simd-accel", any(target_feature = "sse2", all(target_endian = "little", target_arch = "aarch64"), all(target_endian = "little", target_feature = "neon"))))] {
+        pub(crate) use crate::simd_funcs::validate_bmp_stride;
+        pub(crate) use crate::simd_funcs::validate_latin1_str_stride;
+
+        #[inline(always)]
+        fn is_str_latin1_impl(buffer: &str) -> Option<usize> {
+            let mut consumed = 0;
+            let (strides, tail) = buffer.as_bytes().as_chunks::<STRIDE>();
+            for stride in strides.iter() {
+                if let Some(pos) = validate_latin1_str_stride(stride) {
+                    return Some(consumed + pos);
+                }
+                consumed += STRIDE;
+            }
+            for slot in tail.iter() {
+                if *slot > 0xC3 {
+                    return Some(consumed);
+                }
+                consumed += 1;
+            }
+            None
+        }
+    } else {
+        #[inline(always)]
+        pub(crate) fn validate_bmp_stride(stride: &[u16; STRIDE]) -> Option<usize> {
+            if (stride[0] & 0xF800 != 0xD800)
+                && (stride[1] & 0xF800 != 0xD800)
+                && (stride[2] & 0xF800 != 0xD800)
+                && (stride[3] & 0xF800 != 0xD800)
+                && (stride[4] & 0xF800 != 0xD800)
+                && (stride[5] & 0xF800 != 0xD800)
+                && (stride[6] & 0xF800 != 0xD800)
+                && (stride[7] & 0xF800 != 0xD800)
+                && (stride[8] & 0xF800 != 0xD800)
+                && (stride[9] & 0xF800 != 0xD800)
+                && (stride[10] & 0xF800 != 0xD800)
+                && (stride[11] & 0xF800 != 0xD800)
+                && (stride[12] & 0xF800 != 0xD800)
+                && (stride[13] & 0xF800 != 0xD800)
+                && (stride[14] & 0xF800 != 0xD800)
+                && (stride[15] & 0xF800 != 0xD800)
+            {
+                return None;
+            }
+            for i in 0..STRIDE {
+                let c = stride[i];
+                if c & 0xF800 == 0xD800 {
+                    return Some(i);
+                }
+            }
+            debug_assert!(false);
+            None
+        }
+
+        #[inline(always)]
+        fn is_str_latin1_impl(buffer: &str) -> Option<usize> {
+            let mut bytes = buffer.as_bytes();
+            let mut total = 0;
+            loop {
+                if let Some((byte, offset)) = validate_ascii(bytes) {
+                    total += offset;
+                    if byte > 0xC3 {
+                        return Some(total);
+                    }
+                    bytes = &bytes[offset + 2..];
+                    total += 2;
+                } else {
+                    return None;
+                }
+            }
+        }
+    }
+}
+
 /// Returns the index of the first unpaired surrogate or, if the input is
 /// valid UTF-16 in its entirety, the length of the input.
 pub fn utf16_valid_up_to(buffer: &[u16]) -> usize {
-    utf16_valid_up_to_impl(buffer)
+    let mut consumed = 0usize;
+    'outer: loop {
+        let (strides, tail) = &buffer[consumed..].as_chunks::<STRIDE>();
+        // This loop is only broken out of as goto forward.
+        #[allow(clippy::never_loop)]
+        'bmp: loop {
+            for stride in strides.iter() {
+                if let Some(pos) = validate_bmp_stride(stride) {
+                    consumed += pos;
+                    break 'bmp;
+                }
+                consumed += STRIDE;
+            }
+            for slot in tail.iter() {
+                if *slot & 0xF800 == 0xD800 {
+                    break 'bmp;
+                }
+                consumed += 1;
+            }
+            debug_assert_eq!(consumed, buffer.len());
+            return consumed;
+        }
+        // `buffer[consumed]` is now in range and is a surrogate.
+        let mut unit = buffer[consumed];
+        let mut unit_minus_surrogate_start = unit.wrapping_sub(0xD800);
+        debug_assert!(unit_minus_surrogate_start <= (0xDFFF - 0xD800));
+        'surrogate: loop {
+            if unit_minus_surrogate_start > (0xDBFF - 0xD800) {
+                // Not high surrogate. Must be unpaired low surrogate.
+                return consumed;
+            }
+            // high surrogate
+            let next = consumed + 1;
+            if next == buffer.len() {
+                // Buffer ends with unpaired high surrogate
+                return consumed;
+            }
+            let second = buffer[next];
+            let second_minus_low_surrogate_start = second.wrapping_sub(0xDC00);
+            if second_minus_low_surrogate_start > (0xDFFF - 0xDC00) {
+                // The next unit is not a low surrogate. We had an unpaired.
+                // high surrogate.
+                return consumed;
+            }
+            // The next code unit is a low surrogate. Advance position.
+            consumed = next + 1;
+            // We could just do `continue 'outer;` here, and that would
+            // be optimal for emoji and the occasional non-BMP Hanzi.
+            // However, that would be bad for non-BMP scripts.
+            loop {
+                if consumed == buffer.len() {
+                    // End of buffer.
+                    return consumed;
+                }
+                unit = buffer[consumed];
+                unit_minus_surrogate_start = unit.wrapping_sub(0xD800);
+                if unit_minus_surrogate_start <= (0xDFFF - 0xD800) {
+                    continue 'surrogate;
+                }
+                // We got a non-surrogate.
+                consumed += 1;
+                // Avoid bouncing to SIMD for ASCII spaces.
+                if unit == 0x0020 {
+                    continue;
+                }
+                continue 'outer;
+            }
+        }
+    }
 }
 
 /// Returns the index of first byte that starts an invalid byte
