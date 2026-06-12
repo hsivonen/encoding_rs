@@ -34,27 +34,11 @@ pub unsafe fn load16_unaligned(ptr: *const u8) -> u8x16 {
     }
 }
 
-/// Safety invariant: ptr must be valid for an aligned-for-u8x16 read of 16 bytes
-#[allow(dead_code)]
-#[inline(always)]
-pub unsafe fn load16_aligned(ptr: *const u8) -> u8x16 {
-    unsafe { *(ptr as *const u8x16) }
-}
-
 /// Safety invariant: ptr must be valid for an unaligned store of 16 bytes
 #[inline(always)]
 pub unsafe fn store16_unaligned(ptr: *mut u8, s: u8x16) {
     unsafe {
         ::core::ptr::copy_nonoverlapping(&s as *const u8x16 as *const u8, ptr, 16);
-    }
-}
-
-/// Safety invariant: ptr must be valid for an aligned-for-u8x16 store of 16 bytes
-#[allow(dead_code)]
-#[inline(always)]
-pub unsafe fn store16_aligned(ptr: *mut u8, s: u8x16) {
-    unsafe {
-        *(ptr as *mut u8x16) = s;
     }
 }
 
@@ -69,27 +53,11 @@ pub unsafe fn load8_unaligned(ptr: *const u16) -> u16x8 {
     }
 }
 
-/// Safety invariant: ptr must be valid for an aligned-for-u16x8 read of 16 bytes
-#[allow(dead_code)]
-#[inline(always)]
-pub unsafe fn load8_aligned(ptr: *const u16) -> u16x8 {
-    unsafe { *(ptr as *const u16x8) }
-}
-
 /// Safety invariant: ptr must be valid for an unaligned store of 16 bytes
 #[inline(always)]
 pub unsafe fn store8_unaligned(ptr: *mut u16, s: u16x8) {
     unsafe {
         ::core::ptr::copy_nonoverlapping(&s as *const u16x8 as *const u8, ptr as *mut u8, 16);
-    }
-}
-
-/// Safety invariant: ptr must be valid for an aligned-for-u16x8 store of 16 bytes
-#[allow(dead_code)]
-#[inline(always)]
-pub unsafe fn store8_aligned(ptr: *mut u16, s: u16x8) {
-    unsafe {
-        *(ptr as *mut u16x8) = s;
     }
 }
 
@@ -595,6 +563,20 @@ pub(crate) fn validate_ascii_double_stride(double_stride: &[[u8; STRIDE]; 2]) ->
     }
     debug_assert!(false);
     None
+}
+
+#[inline(always)]
+pub(crate) fn unpack_stride(src_stride: &[u8; STRIDE], dst_stride: &mut [u16; STRIDE]) {
+    let src_simd: u8x16 = (*src_stride).into();
+    unpack_simd_to(src_simd, dst_stride);
+}
+
+#[inline(always)]
+pub(crate) fn pack_stride(src_stride: &[u16; STRIDE], dst_stride: &mut [u8; STRIDE]) {
+    let (src_first, src_second) = split_u16_stride(src_stride);
+    let first_simd: u16x8 = (*src_first).into();
+    let second_simd: u16x8 = (*src_second).into();
+    pack_simd_to(first_simd, second_simd, dst_stride);
 }
 
 #[inline(always)]

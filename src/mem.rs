@@ -76,236 +76,6 @@ pub enum Latin1Bidi {
     Bidi = 2,
 }
 
-/*
-
-cfg_if! {
-    if #[cfg(all(feature = "simd-accel", any(target_feature = "sse2", all(target_endian = "little", target_arch = "aarch64"), all(target_endian = "little", target_feature = "neon"))))] {
-        #[inline(always)]
-        fn is_str_latin1_impl(buffer: &str) -> Option<usize> {
-            let mut offset = 0usize;
-            let bytes = buffer.as_bytes();
-            let len = bytes.len();
-            if len >= SIMD_STRIDE_SIZE {
-                let src = bytes.as_ptr();
-                let mut until_alignment = (SIMD_ALIGNMENT - ((src as usize) & SIMD_ALIGNMENT_MASK)) &
-                                           SIMD_ALIGNMENT_MASK;
-                if until_alignment + SIMD_STRIDE_SIZE <= len {
-                    while until_alignment != 0 {
-                        if bytes[offset] > 0xC3 {
-                            return Some(offset);
-                        }
-                        offset += 1;
-                        until_alignment -= 1;
-                    }
-                    let len_minus_stride = len - SIMD_STRIDE_SIZE;
-                    loop {
-                        if !simd_is_str_latin1(unsafe { *(src.add(offset) as *const u8x16) }) {
-                            // TODO: Ensure this compiles away when inlined into `is_str_latin1()`.
-                            while bytes[offset] & 0xC0 == 0x80 {
-                                offset += 1;
-                            }
-                            return Some(offset);
-                        }
-                        offset += SIMD_STRIDE_SIZE;
-                        if offset > len_minus_stride {
-                            break;
-                        }
-                    }
-                }
-            }
-            for i in offset..len {
-                if bytes[i] > 0xC3 {
-                    return Some(i);
-                }
-            }
-            None
-        }
-    } else {
-    }
-}
-
-cfg_if! {
-    if #[cfg(all(feature = "simd-accel", any(target_feature = "sse2", all(target_endian = "little", target_arch = "aarch64"), all(target_endian = "little", target_feature = "neon"))))] {
-        #[inline(always)]
-        fn is_utf16_bidi_impl(buffer: &[u16]) -> bool {
-            let mut offset = 0usize;
-            let len = buffer.len();
-            if len >= SIMD_STRIDE_SIZE / 2 {
-                let src = buffer.as_ptr();
-                let mut until_alignment = ((SIMD_ALIGNMENT - ((src as usize) & SIMD_ALIGNMENT_MASK)) &
-                                           SIMD_ALIGNMENT_MASK) / 2;
-                if until_alignment + (SIMD_STRIDE_SIZE / 2) <= len {
-                    while until_alignment != 0 {
-                        if is_utf16_code_unit_bidi(buffer[offset]) {
-                            return true;
-                        }
-                        offset += 1;
-                        until_alignment -= 1;
-                    }
-                    let len_minus_stride = len - (SIMD_STRIDE_SIZE / 2);
-                    loop {
-                        if is_u16x8_bidi(unsafe { *(src.add(offset) as *const u16x8) }) {
-                            return true;
-                        }
-                        offset += SIMD_STRIDE_SIZE / 2;
-                        if offset > len_minus_stride {
-                            break;
-                        }
-                    }
-                }
-            }
-            for &u in &buffer[offset..] {
-                if is_utf16_code_unit_bidi(u) {
-                    return true;
-                }
-            }
-            false
-        }
-    } else {
-        #[inline(always)]
-        fn is_utf16_bidi_impl(buffer: &[u16]) -> bool {
-            for &u in buffer {
-                if is_utf16_code_unit_bidi(u) {
-                    return true;
-                }
-            }
-            false
-        }
-    }
-}
-
-cfg_if! {
-    if #[cfg(all(feature = "simd-accel", any(target_feature = "sse2", all(target_endian = "little", target_arch = "aarch64"), all(target_endian = "little", target_feature = "neon"))))] {
-        #[inline(always)]
-        fn check_utf16_for_latin1_and_bidi_impl(buffer: &[u16]) -> Latin1Bidi {
-            let mut offset = 0usize;
-            let len = buffer.len();
-            if len >= SIMD_STRIDE_SIZE / 2 {
-                let src = buffer.as_ptr();
-                let mut until_alignment = ((SIMD_ALIGNMENT - ((src as usize) & SIMD_ALIGNMENT_MASK)) &
-                                           SIMD_ALIGNMENT_MASK) / 2;
-                if until_alignment + (SIMD_STRIDE_SIZE / 2) <= len {
-                    while until_alignment != 0 {
-                        if buffer[offset] > 0xFF {
-                            // This transition isn't optimal, since the aligment is recomputing
-                            // but not tweaking further today.
-                            if is_utf16_bidi_impl(&buffer[offset..]) {
-                                return Latin1Bidi::Bidi;
-                            }
-                            return Latin1Bidi::LeftToRight;
-                        }
-                        offset += 1;
-                        until_alignment -= 1;
-                    }
-                    let len_minus_stride = len - (SIMD_STRIDE_SIZE / 2);
-                    loop {
-                        let mut s = unsafe { *(src.add(offset) as *const u16x8) };
-                        if !simd_is_latin1(s) {
-                            loop {
-                                if is_u16x8_bidi(s) {
-                                    return Latin1Bidi::Bidi;
-                                }
-                                offset += SIMD_STRIDE_SIZE / 2;
-                                if offset > len_minus_stride {
-                                    for &u in &buffer[offset..] {
-                                        if is_utf16_code_unit_bidi(u) {
-                                            return Latin1Bidi::Bidi;
-                                        }
-                                    }
-                                    return Latin1Bidi::LeftToRight;
-                                }
-                                s = unsafe { *(src.add(offset) as *const u16x8) };
-                            }
-                        }
-                        offset += SIMD_STRIDE_SIZE / 2;
-                        if offset > len_minus_stride {
-                            break;
-                        }
-                    }
-                }
-            }
-            let mut iter = (&buffer[offset..]).iter();
-            loop {
-                if let Some(&u) = iter.next() {
-                    if u > 0xFF {
-                        let mut inner_u = u;
-                        loop {
-                            if is_utf16_code_unit_bidi(inner_u) {
-                                return Latin1Bidi::Bidi;
-                            }
-                            if let Some(&code_unit) = iter.next() {
-                                inner_u = code_unit;
-                            } else {
-                                return Latin1Bidi::LeftToRight;
-                            }
-                        }
-                    }
-                } else {
-                    return Latin1Bidi::Latin1;
-                }
-            }
-        }
-    } else {
-        #[allow(clippy::cast_ptr_alignment)]
-        #[inline(always)]
-        fn check_utf16_for_latin1_and_bidi_impl(buffer: &[u16]) -> Latin1Bidi {
-            let mut offset = 0usize;
-            let len = buffer.len();
-            if len >= ALU_ALIGNMENT / 2 {
-                let src = buffer.as_ptr();
-                let mut until_alignment = ((ALU_ALIGNMENT - ((src as usize) & ALU_ALIGNMENT_MASK)) &
-                                           ALU_ALIGNMENT_MASK) / 2;
-                if until_alignment + ALU_ALIGNMENT / 2 <= len {
-                    while until_alignment != 0 {
-                        if buffer[offset] > 0xFF {
-                            if is_utf16_bidi_impl(&buffer[offset..]) {
-                                return Latin1Bidi::Bidi;
-                            }
-                            return Latin1Bidi::LeftToRight;
-                        }
-                        offset += 1;
-                        until_alignment -= 1;
-                    }
-                    let len_minus_stride = len - ALU_ALIGNMENT / 2;
-                    loop {
-                        if unsafe { *(src.add(offset) as *const usize) } & LATIN1_MASK != 0 {
-                            if is_utf16_bidi_impl(&buffer[offset..]) {
-                                return Latin1Bidi::Bidi;
-                            }
-                            return Latin1Bidi::LeftToRight;
-                        }
-                        offset += ALU_ALIGNMENT / 2;
-                        if offset > len_minus_stride {
-                            break;
-                        }
-                    }
-                }
-            }
-            let mut iter = (&buffer[offset..]).iter();
-            loop {
-                if let Some(&u) = iter.next() {
-                    if u > 0xFF {
-                        let mut inner_u = u;
-                        loop {
-                            if is_utf16_code_unit_bidi(inner_u) {
-                                return Latin1Bidi::Bidi;
-                            }
-                            if let Some(&code_unit) = iter.next() {
-                                inner_u = code_unit;
-                            } else {
-                                return Latin1Bidi::LeftToRight;
-                            }
-                        }
-                    }
-                } else {
-                    return Latin1Bidi::Latin1;
-                }
-            }
-        }
-    }
-}
-*/
-
 /// The second return value is true iff the last code unit of the slice was
 /// reached and turned out to be a low surrogate that is part of a valid pair.
 #[allow(clippy::collapsible_if)]
@@ -418,19 +188,53 @@ fn is_utf8_latin1_impl(buffer: &[u8]) -> Option<usize> {
     }
 }
 
-#[inline(always)]
-fn unpack_latin1(src: &[u8], dst: &mut [u16]) {
-    for (src_slot, dst_slot) in src.iter().zip(dst.iter_mut()) {
-        *dst_slot = u16::from(*src_slot)
+macro_rules! copy_impl {
+    ($name:ident, $stride:ident, $src_unit:ty, $dst_unit:ty) => {
+        #[inline(always)]
+        fn $name(src: &[$src_unit], dst: &mut [$dst_unit]) {
+            // Make both the same length here to have the chunks and tail match.
+            let len = core::cmp::min(src.len(), dst.len());
+            let (src_strides, src_tail) = src[..len].as_chunks::<STRIDE>();
+            let (dst_strides, dst_tail) = dst[..len].as_chunks_mut::<STRIDE>();
+            let (src_double_strides, src_single_stride) = src_strides.as_chunks::<2>();
+            let (dst_double_strides, dst_single_stride) = dst_strides.as_chunks_mut::<2>();
+            for (src_double_stride, dst_double_stride) in
+                src_double_strides.iter().zip(dst_double_strides.iter_mut())
+            {
+                $stride(&src_double_stride[0], &mut dst_double_stride[0]);
+                $stride(&src_double_stride[1], &mut dst_double_stride[1]);
+            }
+            for (src_stride, dst_stride) in
+                src_single_stride.iter().zip(dst_single_stride.iter_mut())
+            {
+                $stride(src_stride, dst_stride);
+            }
+            for (src_slot, dst_slot) in src_tail.iter().zip(dst_tail.iter_mut()) {
+                *dst_slot = *src_slot as $dst_unit;
+            }
+        }
+    };
+}
+
+cfg_if! {
+    if #[cfg(all(
+        feature = "simd-accel",
+        any(
+            target_feature = "sse2",
+            all(target_endian = "little", target_arch = "aarch64"),
+            all(target_endian = "little", target_feature = "neon")
+        )
+    ))] {
+        use crate::simd_funcs::unpack_stride;
+        use crate::simd_funcs::pack_stride;
+    } else {
+        use crate::ascii::unpack_stride;
+        use crate::ascii::pack_stride;
     }
 }
 
-#[inline(always)]
-fn pack_latin1(src: &[u16], dst: &mut [u8]) {
-    for (src_slot, dst_slot) in src.iter().zip(dst.iter_mut()) {
-        *dst_slot = *src_slot as u8;
-    }
-}
+copy_impl!(unpack_latin1, unpack_stride, u8, u16);
+copy_impl!(pack_latin1, pack_stride, u16, u8);
 
 /// Checks whether the buffer is all-ASCII.
 ///

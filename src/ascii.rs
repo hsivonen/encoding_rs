@@ -56,6 +56,7 @@ cfg_if! {
                 }
                 *d = *s;
             }
+            debug_assert!(false);
             0
         }
 
@@ -67,6 +68,7 @@ cfg_if! {
                 }
                 *d = *s as u16;
             }
+            debug_assert!(false);
             0
         }
 
@@ -78,6 +80,29 @@ cfg_if! {
                 }
                 *d = *s as u8;
             }
+            debug_assert!(false);
+            0
+        }
+
+        #[inline(never)]
+        fn validate_ascii_stride_tail(stride: &[u8; 16]) -> usize {
+            for (i, s) in stride.iter().enumerate() {
+                if *s >= 0x80 {
+                    return i;
+                }
+            }
+            debug_assert!(false);
+            0
+        }
+
+        #[inline(never)]
+        fn validate_basic_latin_stride_tail(stride: &[u16; 16]) -> usize {
+            for (i, s) in stride.iter().enumerate() {
+                if *s >= 0x80 {
+                    return i;
+                }
+            }
+            debug_assert!(false);
             0
         }
 
@@ -117,43 +142,25 @@ cfg_if! {
             Some(pack_stride_tail(src_stride, dst_stride))
         }
 
-        macro_rules! ascii_validate_stride {
-            ($name:ident, $src_unit:ty) => {
-                #[inline(always)]
-                fn $name(src_stride: &[$src_unit; STRIDE]) -> Option<usize> {
-                    if (src_stride[0] < 0x80)
-                        && (src_stride[1] < 0x80)
-                        && (src_stride[2] < 0x80)
-                        && (src_stride[3] < 0x80)
-                        && (src_stride[4] < 0x80)
-                        && (src_stride[5] < 0x80)
-                        && (src_stride[6] < 0x80)
-                        && (src_stride[7] < 0x80)
-                        && (src_stride[8] < 0x80)
-                        && (src_stride[9] < 0x80)
-                        && (src_stride[10] < 0x80)
-                        && (src_stride[11] < 0x80)
-                        && (src_stride[12] < 0x80)
-                        && (src_stride[13] < 0x80)
-                        && (src_stride[14] < 0x80)
-                        && (src_stride[15] < 0x80)
-                    {
-                        return None;
-                    }
-                    for i in 0..STRIDE {
-                        let c = src_stride[i];
-                        if c >= 0x80 {
-                            return Some(i);
-                        }
-                    }
-                    debug_assert!(false);
-                    None
-                }
-            };
+        #[inline(always)]
+        fn validate_ascii_stride(
+            stride: &[u8; STRIDE],
+        ) -> Option<usize> {
+            if is_ascii(stride) {
+                return None;
+            }
+            Some(validate_ascii_stride_tail(stride))
         }
 
-        ascii_validate_stride!(validate_ascii_stride, u8);
-        ascii_validate_stride!(validate_basic_latin_stride, u16);
+        #[inline(always)]
+        fn validate_basic_latin_stride(
+            stride: &[u16; STRIDE],
+        ) -> Option<usize> {
+            if is_basic_latin(stride) {
+                return None;
+            }
+            Some(validate_basic_latin_stride_tail(stride))
+        }
     }
 }
 
@@ -167,7 +174,7 @@ cfg_if! {
         macro_rules! ascii_copy_impl {
             ($name:ident, $stride:ident, $double_stride:ident, $src_unit:ty, $dst_unit:ty) => {
                 #[inline(always)]
-                pub fn $name(src: &[$src_unit], dst: &mut [$dst_unit]) -> Option<usize> {
+                pub(crate) fn $name(src: &[$src_unit], dst: &mut [$dst_unit]) -> Option<usize> {
                     // Make both the same length here to have the chunks and tail match.
                     let len = core::cmp::min(src.len(), dst.len());
                     let mut consumed = 0usize;
@@ -329,7 +336,10 @@ ascii_copy_impl!(
 macro_rules! ascii_copy {
     ($name:ident, $impl:ident, $src_unit:ty, $dst_unit:ty) => {
         #[inline(always)]
-        pub fn $name(src: &[$src_unit], dst: &mut [$dst_unit]) -> Option<($src_unit, usize)> {
+        pub(crate) fn $name(
+            src: &[$src_unit],
+            dst: &mut [$dst_unit],
+        ) -> Option<($src_unit, usize)> {
             $impl(src, dst).map(|index| (src[index], index))
         }
     };
@@ -340,16 +350,16 @@ ascii_copy!(ascii_to_basic_latin, ascii_to_basic_latin_impl, u8, u16);
 ascii_copy!(basic_latin_to_ascii, basic_latin_to_ascii_impl, u16, u8);
 
 #[inline(always)]
-pub fn validate_ascii(bytes: &[u8]) -> Option<(u8, usize)> {
+pub(crate) fn validate_ascii(bytes: &[u8]) -> Option<(u8, usize)> {
     ascii_valid_impl(bytes).map(|index| (bytes[index], index))
 }
 
 #[inline(always)]
-pub fn ascii_valid_up_to(bytes: &[u8]) -> usize {
+pub(crate) fn ascii_valid_up_to(bytes: &[u8]) -> usize {
     ascii_valid_impl(bytes).unwrap_or(bytes.len())
 }
 
-pub fn iso_2022_jp_ascii_valid_up_to(bytes: &[u8]) -> usize {
+pub(crate) fn iso_2022_jp_ascii_valid_up_to(bytes: &[u8]) -> usize {
     for (i, b_ref) in bytes.iter().enumerate() {
         let b = *b_ref;
         if b >= 0x80 || b == 0x1B || b == 0x0E || b == 0x0F {
