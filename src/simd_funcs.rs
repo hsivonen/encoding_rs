@@ -256,7 +256,7 @@ macro_rules! in_range16x8 {
 }
 
 #[inline(always)]
-pub fn is_u16x8_bidi(s: u16x8) -> bool {
+pub(crate) fn is_u16x8_bidi(s: u16x8) -> bool {
     // We try to first quickly refute the RTLness of the vector. If that
     // fails, we do the real RTL check, so in that case we end up wasting
     // the work for the up-front quick checks. Even the quick-check is
@@ -591,6 +591,12 @@ pub(crate) fn validate_bmp_stride(stride: &[u16; STRIDE]) -> Option<usize> {
 pub(crate) fn validate_latin1_str_stride(stride: &[u8; STRIDE]) -> Option<usize> {
     let simd: u8x16 = (*stride).into();
     validate_latin1_str_simd(simd)
+}
+
+#[inline(always)]
+pub(crate) fn is_half_stride_bidi(half_stride: &[u16; STRIDE / 2]) -> bool {
+    let simd: u16x8 = (*half_stride).into();
+    is_u16x8_bidi(simd)
 }
 
 #[cfg(test)]

@@ -158,10 +158,6 @@ fn is_utf16_latin1_impl(buffer: &[u16]) -> bool {
     buffer.iter().all(|c| *c < 0x100)
 }
 
-fn is_utf16_bidi_impl(buffer: &[u16]) -> bool {
-    buffer.iter().any(|c| is_utf16_code_unit_bidi(*c))
-}
-
 #[inline(always)]
 fn is_utf8_latin1_impl(buffer: &[u8]) -> Option<usize> {
     let mut bytes = buffer;
@@ -227,9 +223,23 @@ cfg_if! {
     ))] {
         use crate::simd_funcs::unpack_stride;
         use crate::simd_funcs::pack_stride;
+
+        fn is_utf16_bidi_impl(buffer: &[u16]) -> bool {
+            let (half_strides, tail) = buffer.as_chunks::<{STRIDE / 2}>();
+            for half_stride in half_strides {
+                if crate::simd_funcs::is_half_stride_bidi(half_stride) {
+                    return true;
+                }
+            }
+            tail.iter().any(|c| is_utf16_code_unit_bidi(*c))
+        }
     } else {
         use crate::ascii::unpack_stride;
         use crate::ascii::pack_stride;
+
+        fn is_utf16_bidi_impl(buffer: &[u16]) -> bool {
+            buffer.iter().any(|c| is_utf16_code_unit_bidi(*c))
+        }
     }
 }
 
