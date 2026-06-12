@@ -24,13 +24,18 @@ cfg_if! {
         // check and the pack/unpack!
 
         #[inline(never)]
-        fn is_ascii(s: &[u8; STRIDE]) -> bool {
+        pub(crate) fn is_ascii(s: &[u8; STRIDE]) -> bool {
             s.iter().all(|b| *b < 0x80)
         }
 
         #[inline(never)]
-        fn is_basic_latin(s: &[u16; STRIDE]) -> bool {
+        pub(crate) fn is_basic_latin(s: &[u16; STRIDE]) -> bool {
             s.iter().all(|b| *b < 0x80)
+        }
+
+        #[inline(never)]
+        pub(crate) fn is_utf16_latin1(s: &[u16; STRIDE]) -> bool {
+            s.iter().all(|b| *b < 0x100)
         }
 
         #[inline(never)]

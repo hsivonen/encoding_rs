@@ -123,42 +123,6 @@ fn utf16_valid_up_to_alu(buffer: &[u16]) -> (usize, bool) {
 }
 
 #[inline(always)]
-fn check_utf16_for_latin1_and_bidi_impl(buffer: &[u16]) -> Latin1Bidi {
-    let mut iter = buffer.iter();
-    loop {
-        let Some(u) = iter.next() else {
-            return Latin1Bidi::Latin1;
-        };
-        if *u < 0x100 {
-            continue;
-        }
-        if is_utf16_code_unit_bidi(*u) {
-            return Latin1Bidi::Bidi;
-        }
-        loop {
-            let Some(u) = iter.next() else {
-                return Latin1Bidi::LeftToRight;
-            };
-            if is_utf16_code_unit_bidi(*u) {
-                return Latin1Bidi::Bidi;
-            }
-        }
-    }
-}
-
-fn is_ascii_impl(buffer: &[u8]) -> bool {
-    buffer.is_ascii()
-}
-
-fn is_basic_latin_impl(buffer: &[u16]) -> bool {
-    buffer.iter().all(|c| *c < 0x80)
-}
-
-fn is_utf16_latin1_impl(buffer: &[u16]) -> bool {
-    buffer.iter().all(|c| *c < 0x100)
-}
-
-#[inline(always)]
 fn is_utf8_latin1_impl(buffer: &[u8]) -> Option<usize> {
     let mut bytes = buffer;
     let mut total = 0;
@@ -212,6 +176,9 @@ macro_rules! copy_impl {
     };
 }
 
+copy_impl!(unpack_latin1, unpack_stride, u8, u16);
+copy_impl!(pack_latin1, pack_stride, u16, u8);
+
 cfg_if! {
     if #[cfg(all(
         feature = "simd-accel",
@@ -221,6 +188,9 @@ cfg_if! {
             all(target_endian = "little", target_feature = "neon")
         )
     ))] {
+        use core::simd::u8x16;
+        use core::simd::u16x8;
+
         use crate::simd_funcs::unpack_stride;
         use crate::simd_funcs::pack_stride;
 
@@ -233,6 +203,91 @@ cfg_if! {
             }
             tail.iter().any(|c| is_utf16_code_unit_bidi(*c))
         }
+
+        macro_rules! unit_check_impl {
+            ($name:ident, $stride:ident, $unit:ty, $simd:ty, $bound:expr) => {
+                #[inline(always)]
+                fn $name(buffer: &[$unit]) -> bool {
+                    let (strides, tail) = buffer.as_chunks::<{STRIDE / core::mem::size_of::<$unit>()}>();
+                    let (quad_strides, strides_tail) = strides.as_chunks::<4>();
+                    for quad_stride in quad_strides {
+                        if let Some(reduced) = quad_stride.iter().map(|s| { let simd: $simd = (*s).into(); simd }).reduce(|a, b| a | b) {
+                            if !crate::simd_funcs::$stride(reduced) {
+                                return false;
+                            }
+                        } else {
+                            debug_assert!(false);
+                        }
+                    }
+                    if let Some(reduced) = strides_tail.iter().map(|s| { let simd: $simd = (*s).into(); simd }).reduce(|a, b| a | b) {
+                        if !crate::simd_funcs::$stride(reduced) {
+                            return false;
+                        }
+                    }
+                    if let Some(reduced) = tail.iter().copied().reduce(|a, b| a | b) {
+                        reduced < $bound
+                    } else {
+                        true
+                    }
+                }
+            };
+        }
+
+        unit_check_impl!(is_ascii_impl, simd_is_ascii, u8, u8x16, 0x80);
+        unit_check_impl!(is_basic_latin_impl, simd_is_basic_latin, u16, u16x8, 0x80);
+        unit_check_impl!(is_utf16_latin1_impl, simd_is_latin1, u16, u16x8, 0x100);
+
+        #[inline(always)]
+        fn check_utf16_for_latin1_and_bidi_impl(buffer: &[u16]) -> Latin1Bidi {
+            let (half_strides, tail) = buffer.as_chunks::<{STRIDE / 2}>();
+            let mut half_stride_iter = half_strides.iter();
+            loop {
+                let Some(s) = half_stride_iter.next() else {
+                    let mut iter = tail.iter();
+                    loop {
+                        let Some(u) = iter.next() else {
+                            return Latin1Bidi::Latin1;
+                        };
+                        if *u < 0x100 {
+                            continue;
+                        }
+                        if is_utf16_code_unit_bidi(*u) {
+                            return Latin1Bidi::Bidi;
+                        }
+                        loop {
+                            let Some(u) = iter.next() else {
+                                return Latin1Bidi::LeftToRight;
+                            };
+                            if is_utf16_code_unit_bidi(*u) {
+                                return Latin1Bidi::Bidi;
+                            }
+                        }
+                    }
+                };
+                let simd: u16x8 = (*s).into();
+                if crate::simd_funcs::simd_is_latin1(simd) {
+                    continue;
+                }
+                if crate::simd_funcs::is_u16x8_bidi(simd) {
+                    return Latin1Bidi::Bidi;
+                }
+                loop {
+                    let Some(s) = half_stride_iter.next() else {
+                        for u in tail {
+                            if is_utf16_code_unit_bidi(*u) {
+                                return Latin1Bidi::Bidi;
+                            }
+                        }
+                        return Latin1Bidi::LeftToRight;
+                    };
+                    let simd: u16x8 = (*s).into();
+                    if crate::simd_funcs::is_u16x8_bidi(simd) {
+                        return Latin1Bidi::Bidi;
+                    }
+                }
+            }
+        }
+
     } else {
         use crate::ascii::unpack_stride;
         use crate::ascii::pack_stride;
@@ -240,11 +295,56 @@ cfg_if! {
         fn is_utf16_bidi_impl(buffer: &[u16]) -> bool {
             buffer.iter().any(|c| is_utf16_code_unit_bidi(*c))
         }
+
+        macro_rules! unit_check_impl {
+            ($name:ident, $stride:ident, $unit:ty, $bound:expr) => {
+                #[inline(always)]
+                fn $name(buffer: &[$unit]) -> bool {
+                    let (strides, tail) = buffer.as_chunks::<STRIDE>();
+                    for stride in strides {
+                        if !crate::ascii::$stride(stride) {
+                            return false;
+                        }
+                    }
+                    if let Some(reduced) = tail.iter().copied().reduce(|a, b| a | b) {
+                        reduced < $bound
+                    } else {
+                        true
+                    }
+                }
+            };
+        }
+
+        unit_check_impl!(is_ascii_impl, is_ascii, u8, 0x80);
+        unit_check_impl!(is_basic_latin_impl, is_basic_latin, u16, 0x80);
+        unit_check_impl!(is_utf16_latin1_impl, is_utf16_latin1, u16, 0x100);
+
+        #[inline(always)]
+        fn check_utf16_for_latin1_and_bidi_impl(buffer: &[u16]) -> Latin1Bidi {
+            let mut iter = buffer.iter();
+            loop {
+                let Some(u) = iter.next() else {
+                    return Latin1Bidi::Latin1;
+                };
+                if *u < 0x100 {
+                    continue;
+                }
+                if is_utf16_code_unit_bidi(*u) {
+                    return Latin1Bidi::Bidi;
+                }
+                loop {
+                    let Some(u) = iter.next() else {
+                        return Latin1Bidi::LeftToRight;
+                    };
+                    if is_utf16_code_unit_bidi(*u) {
+                        return Latin1Bidi::Bidi;
+                    }
+                }
+            }
+        }
+
     }
 }
-
-copy_impl!(unpack_latin1, unpack_stride, u8, u16);
-copy_impl!(pack_latin1, pack_stride, u16, u8);
 
 /// Checks whether the buffer is all-ASCII.
 ///
