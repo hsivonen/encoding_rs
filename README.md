@@ -167,20 +167,30 @@ There are currently these optional cargo features:
 
 ### `simd-accel`
 
-Enables SIMD acceleration using the nightly-dependent `portable_simd` standard
-library feature.
+Enables SIMD acceleration using the nightly-dependent `core::simd` part of
+the standard library.
 
 This is an opt-in feature, because enabling this feature _opts out_ of Rust's
 guarantees of future compilers compiling old code (aka. "stability story").
 
-Currently, this has not been tested to be an improvement except for these
-targets and enabling the `simd-accel` feature is expected to break the build
-on other targets:
+Enabling the `simd-accel` feature is expected to break the build on targets other
+than:
 
 * x86_64
-* i686
 * aarch64
 * thumbv7neon
+* i686
+
+As of 2026, only x86_64 and aarch64 are tested on real hardware (primarily Zen 3
+and M3 Pro, but there are still Haswell-informed choices from original development
+that have not been revisited).
+
+For thumbv7neon, an effort is made to retain code shape that was previously
+validated for performance on Exynos 5 Octa, but performance regressions are
+no longer actually tested for on real ARMv7 hardware.
+
+i686 gets the code shape for x86_64 with minimal checks that it compiles and
+runs, but the testing is on x86_64 hardware.
 
 If you use nightly Rust, you use targets whose first component is one of the
 above, and you are prepared _to have to revise your configuration when updating
