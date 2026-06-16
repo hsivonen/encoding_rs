@@ -163,7 +163,21 @@ wrappers.
 
 ## Optional features
 
-There are currently these optional cargo features:
+There are multiple optional features.
+
+There are remarks about which features are used by Firefox to indicate what
+configuration is the one the crate author pays the most attention to. While
+not a Cargo feature, the panic configuration is relevant in this sense.
+Panic aborts the process in Firefox.
+
+Historically, there have been bugs that have affected non-Firefox
+configurations but not the Firefox configuration.
+
+### `alloc` (enabled by default)
+
+Enables the parts of the API that deal with `String`, `Vec`, and `Cow`.
+
+Enabled but not actually used by Firefox.
 
 ### `simd-accel`
 
