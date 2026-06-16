@@ -457,7 +457,7 @@ To regenerate the generated code:
 - [ ] ~Investigate [Bob Steagall's lookup table acceleration for UTF-8](https://github.com/BobSteagall/CppNow2018/blob/master/FastConversionFromUTF-8/Fast%20Conversion%20From%20UTF-8%20with%20C%2B%2B%2C%20DFAs%2C%20and%20SSE%20Intrinsics%20-%20Bob%20Steagall%20-%20C%2B%2BNow%202018.pdf).~
 - [x] Provide a build mode that works without `alloc` (with lesser API surface).
 - [x] Migrate to `std::simd` ~once it is stable and declare 1.0.~
-- [ ] Migrate `unsafe` slice access by larger types than `u8`/`u16` to `align_to`.
+- [x] Migrate `unsafe` slice access by larger types than `u8`/`u16` to ~`align_to`~ `as_chunks`.
 
 ## Release Notes
 
