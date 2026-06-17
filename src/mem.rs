@@ -2011,18 +2011,31 @@ pub fn decode_latin1<'a>(bytes: &'a [u8]) -> Cow<'a, str> {
     // >= makes later things optimize better than ==
     if up_to >= bytes.len() {
         debug_assert_eq!(up_to, bytes.len());
+        // SAFETY: We've checked that `bytes` is valid UTF-8, since
+        // it's ASCII.
         let s: &str = unsafe { ::core::str::from_utf8_unchecked(bytes) };
         return Cow::Borrowed(s);
     }
     let (head, tail) = bytes.split_at(up_to);
     let capacity = head.len() + tail.len() * 2;
     let mut vec = Vec::with_capacity(capacity);
+    vec.extend_from_slice(head);
+    let old_len = vec.len();
+    let spare_capacity = crate::minimally_init(vec.spare_capacity_mut());
+    debug_assert_eq!(old_len, up_to);
+    let written = convert_latin1_to_utf8(tail, spare_capacity);
+    debug_assert!(written <= spare_capacity.len());
+    debug_assert!(old_len + written <= vec.capacity());
+    // SAFETY: As `debug_assert`ed above, we trust that the return value of
+    // `convert_latin1_to_utf8` does not exceed the length of
+    // `spare_capacity`, so `old_len + written` stays within
+    // capacity.
     unsafe {
-        vec.set_len(capacity);
+        vec.set_len(old_len + written);
     }
-    (&mut vec[..up_to]).copy_from_slice(head);
-    let written = convert_latin1_to_utf8(tail, &mut vec[up_to..]);
-    vec.truncate(up_to + written);
+    // SAFETY: We trust that `ascii_valid_up_to` and
+    // `convert_latin1_to_utf8` are correct and the `Vec` contains
+    // valid UTF-8.
     Cow::Owned(unsafe { String::from_utf8_unchecked(vec) })
 }
 
@@ -2054,12 +2067,20 @@ pub fn encode_latin1_lossy<'a>(string: &'a str) -> Cow<'a, [u8]> {
     let (head, tail) = bytes.split_at(up_to);
     let capacity = bytes.len();
     let mut vec = Vec::with_capacity(capacity);
+    vec.extend_from_slice(head);
+    let old_len = vec.len();
+    let spare_capacity = crate::minimally_init(vec.spare_capacity_mut());
+    debug_assert_eq!(old_len, up_to);
+    let written = convert_utf8_to_latin1_lossy(tail, spare_capacity);
+    debug_assert!(written <= spare_capacity.len());
+    debug_assert!(old_len + written <= vec.capacity());
+    // SAFETY: As `debug_assert`ed above, we trust that the return value of
+    // `convert_utf8_to_latin1_lossy` does not exceed the length of
+    // `spare_capacity`, so `old_len + written` stays within
+    // capacity.
     unsafe {
-        vec.set_len(capacity);
+        vec.set_len(old_len + written);
     }
-    (&mut vec[..up_to]).copy_from_slice(head);
-    let written = convert_utf8_to_latin1_lossy(tail, &mut vec[up_to..]);
-    vec.truncate(up_to + written);
     Cow::Owned(vec)
 }
 
