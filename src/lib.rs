@@ -4093,18 +4093,18 @@ impl Decoder {
         let spare_capacity = minimally_init(vec.spare_capacity_mut());
         let (result, read, written, replaced) = self.decode_to_utf8(src, spare_capacity, last);
         debug_assert!(written <= spare_capacity.len());
-        debug_assert!(old_len + written <= vec.capacity());
+        let new_len = old_len + written;
+        assert!(new_len <= vec.capacity());
         // SAFETY: We trust that `decode_to_utf8` wrote valid UTF-8
         // to `spare_capacity[..written]`. Also, regarding the information
         // disclosure risk of `minimally_init`, this also means trusting
         // that every byte of `spare_capacity[..written]` got overwritten.
         // (We're no worse off than before regarding
         // `spare_capacity[written..]`) which remains not logically exposed.)
-        // We trust that `written` doesn't exceed the length of `spare_capacity`,
-        // so `old_len + written` won't exceed the `Vec`'s capacity
-        // (`debug_assert`ed above).
+        // We (non-debug )asserted immediately above that `new_len` conforms
+        // to the invariant that it must not exceed `vec.capacity()`.
         unsafe {
-            vec.set_len(old_len + written);
+            vec.set_len(new_len);
         }
         (result, read, replaced)
     }
@@ -4206,18 +4206,18 @@ impl Decoder {
         let (result, read, written) =
             self.decode_to_utf8_without_replacement(src, spare_capacity, last);
         debug_assert!(written <= spare_capacity.len());
-        debug_assert!(old_len + written <= vec.capacity());
+        let new_len = old_len + written;
+        assert!(new_len <= vec.capacity());
         // SAFETY: We trust that `decode_to_utf8_without_replacement` wrote valid UTF-8
         // to `spare_capacity[..written]`. Also, regarding the information
         // disclosure risk of `minimally_init`, this also means trusting
         // that every byte of `spare_capacity[..written]` got overwritten.
         // (We're no worse off than before regarding
         // `spare_capacity[written..]`) which remains not logically exposed.)
-        // We trust that `written` doesn't exceed the length of `spare_capacity`,
-        // so `old_len + written` won't exceed the `Vec`'s capacity
-        // (`debug_assert`ed above).
+        // We (non-debug )asserted immediately above that `new_len` conforms
+        // to the invariant that it must not exceed `vec.capacity()`.
         unsafe {
-            vec.set_len(old_len + written);
+            vec.set_len(new_len);
         }
         (result, read)
     }
@@ -4715,18 +4715,18 @@ impl Encoder {
         let spare_capacity = minimally_init(dst.spare_capacity_mut());
         let (result, read, written, replaced) = self.encode_from_utf8(src, spare_capacity, last);
         debug_assert!(written <= spare_capacity.len());
-        debug_assert!(old_len + written <= dst.capacity());
-        // SAFETY: We trust that `written` doesn't exceed the length of
-        // `spare_capacity`, so `old_len + written` won't exceed the `Vec`'s
-        // capacity (`debug_assert`ed above).
-        // Also, regarding the information disclosure risk of `minimally_init`,
-        // this also means trusting that every byte of `spare_capacity[..written]`
-        // got overwritten. If there's a panic, we don't call `set_len` below, so
-        // we don't change what the `Vec` exposes in that case.
+        let new_len = old_len + written;
+        assert!(new_len <= dst.capacity());
+        // SAFETY: We trust that `encode_from_utf8` wrote to every byte of
+        // to `spare_capacity[..written]`. Also, regarding the information
+        // disclosure risk of `minimally_init`, this also means trusting
+        // that every byte of `spare_capacity[..written]` got overwritten.
         // (We're no worse off than before regarding
         // `spare_capacity[written..]`) which remains not logically exposed.)
+        // We (non-debug )asserted immediately above that `new_len` conforms
+        // to the invariant that it must not exceed `dst.capacity()`.
         unsafe {
-            dst.set_len(old_len + written);
+            dst.set_len(new_len);
         }
         (result, read, replaced)
     }
@@ -4765,18 +4765,18 @@ impl Encoder {
         let (result, read, written) =
             self.encode_from_utf8_without_replacement(src, spare_capacity, last);
         debug_assert!(written <= spare_capacity.len());
-        debug_assert!(old_len + written <= dst.capacity());
-        // SAFETY: We trust that `written` doesn't exceed the length of
-        // `spare_capacity`, so `old_len + written` won't exceed the `Vec`'s
-        // capacity (`debug_assert`ed above).
-        // Also, regarding the information disclosure risk of `minimally_init`,
-        // this also means trusting that every byte of `spare_capacity[..written]`
-        // got overwritten. If there's a panic, we don't call `set_len` below, so
-        // we don't change what the `Vec` exposes in that case.
+        let new_len = old_len + written;
+        assert!(new_len <= dst.capacity());
+        // SAFETY: We trust that `encode_from_utf8_without_replacement` wrote to every byte of
+        // to `spare_capacity[..written]`. Also, regarding the information
+        // disclosure risk of `minimally_init`, this also means trusting
+        // that every byte of `spare_capacity[..written]` got overwritten.
         // (We're no worse off than before regarding
         // `spare_capacity[written..]`) which remains not logically exposed.)
+        // We (non-debug )asserted immediately above that `new_len` conforms
+        // to the invariant that it must not exceed `dst.capacity()`.
         unsafe {
-            dst.set_len(old_len + written);
+            dst.set_len(new_len);
         }
         (result, read)
     }
