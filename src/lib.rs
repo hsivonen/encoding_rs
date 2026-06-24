@@ -5067,8 +5067,8 @@ const PAGE_MASK: usize = SMALLEST_PAGE_SIZE - 1;
 /// When we only care about writing to a slice but `&mut [u8]` grants the
 /// read capability and reading would be UB, this function does the minimum
 /// writing to make the slice have arbitrary but fixed-value bytes. This
-/// maintains correct boundary between `unsafe` and safe even though we
-/// don't actually perform reads.
+/// maintains correct boundary between `unsafe` and safe in terms of UB
+/// avoidance resposibility even though we don't actually perform reads.
 ///
 /// The point of wishing to not to contaminate all places with
 /// `&mut [MaybeUninit<u8>]` is that `&mut [u8]` interacts better with
