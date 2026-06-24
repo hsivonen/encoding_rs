@@ -5090,7 +5090,6 @@ const PAGE_MASK: usize = SMALLEST_PAGE_SIZE - 1;
 /// compared to not initializing anything.
 #[cfg(feature = "alloc")]
 fn minimally_init(buf: &mut [MaybeUninit<u8>]) -> &mut [u8] {
-    let ptr = buf.as_mut_ptr();
     // Can't use the `asm!` block with Miri.
     if cfg!(miri) {
         for b in buf.iter_mut() {
@@ -5110,7 +5109,7 @@ fn minimally_init(buf: &mut [MaybeUninit<u8>]) -> &mut [u8] {
                 break;
             };
             // Compute offset to the first byte of the next page.
-            let mut i = SMALLEST_PAGE_SIZE - (ptr.addr() & PAGE_MASK);
+            let mut i = SMALLEST_PAGE_SIZE - (buf.as_mut_ptr().addr() & PAGE_MASK);
             while let Some(b) = buf.get_mut(i) {
                 // Initialize the first byte of each subsequent page to ensure
                 // the subsequent pages are normally mapped.
@@ -5139,6 +5138,7 @@ fn minimally_init(buf: &mut [MaybeUninit<u8>]) -> &mut [u8] {
         // written by the above code and uses the read values to derive
         // bytes that it writes to every byte in the slice that was
         // _not_ already written by the above code.
+        let ptr = buf.as_mut_ptr();
         unsafe {
             asm!("/* {0} */", in(reg) ptr);
         }
@@ -5146,7 +5146,7 @@ fn minimally_init(buf: &mut [MaybeUninit<u8>]) -> &mut [u8] {
     // SAFETY: The pages spanned by the input slice are now normally
     // mapped and each byte has a fixed value, so the memory now
     // has the characteristics of initialized memory.
-    unsafe { core::slice::from_raw_parts_mut(ptr.cast(), buf.len()) }
+    unsafe { core::slice::from_raw_parts_mut(buf.as_mut_ptr().cast(), buf.len()) }
 }
 
 // ############## TESTS ###############
