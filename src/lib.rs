@@ -5075,9 +5075,10 @@ const PAGE_MASK: usize = SMALLEST_PAGE_SIZE - 1;
 /// SIMD in a way that doesn't require `unsafe` in more places.
 ///
 /// Note that the caller has to overwrite the exposed arbitrary but fixed-value
-/// bytes to avoid information disclosure. This function is not `unsafe`, because
-/// this function does not let the caller to experience UB. Letting
-/// `&mut [MaybeUninit<u8>]` show up in more places in the crate internals
+/// bytes to avoid information disclosure (somewhat analogously to reusing an
+/// intermediate buffer created without any `unsafe`). This function is not
+/// `unsafe`, because this function does not let the caller to experience UB.
+/// Letting `&mut [MaybeUninit<u8>]` show up in more places in the crate internals
 /// would not change the information disclosure risk in case there's a bug in
 /// the tracking of how much has been written. Either way, the tracking of how
 /// much has been written has to actually work, but it has a very good track
