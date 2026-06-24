@@ -5051,6 +5051,12 @@ fn checked_min(one: Option<usize>, other: Option<usize>) -> Option<usize> {
 
 /// Smallest page size accoding to Wikipedia. If the pages are larger,
 /// the code is still correct but does non-minimal writes.
+///
+/// We could confidently multiply this by 4 on aarch64 macOS, but
+/// there is no point, since not initializing / initializing every
+/// 4Kth byte / initializing everything makes no perf difference
+/// at least on M3 Pro, so this whole thing is mainly for other
+/// systems.
 #[cfg(feature = "alloc")]
 const SMALLEST_PAGE_SIZE: usize = 4096;
 
@@ -5060,14 +5066,32 @@ const PAGE_MASK: usize = SMALLEST_PAGE_SIZE - 1;
 
 /// When we only care about writing to a slice but `&mut [u8]` grants the
 /// read capability and reading would be UB, this function does the minimum
-/// writing to make the slice have arbitrary but fixed-value bytes.
+/// writing to make the slice have arbitrary but fixed-value bytes. This
+/// maintains correct boundary between `unsafe` and safe even though we
+/// don't actually perform reads.
+///
+/// The point of wishing to not to contaminate all places with
+/// `&mut [MaybeUninit<u8>]` is that `&mut [u8]` interacts better with
+/// SIMD in a way that doesn't require `unsafe` in more places.
 ///
 /// Note that the caller has to overwrite the exposed arbitrary but fixed-value
-/// bytes to avoid Heartbleed. This function is not `unsafe`, because this
-/// function does not let the caller to experience UB.
+/// bytes to avoid information disclosure. This function is not `unsafe`, because
+/// this function does not let the caller to experience UB. Letting
+/// `&mut [MaybeUninit<u8>]` show up in more places in the crate internals
+/// would not change the information disclosure risk in case there's a bug in
+/// the tracking of how much has been written. Either way, the tracking of how
+/// much has been written has to actually work, but it has a very good track
+/// record of working.
+///
+/// On M3 Pro, we could just zero-initialize every byte without a notable
+/// performance penalty, but on Zen 3 and Skylake, zeroing all bytes carries
+/// a measurable penalty (depending on details of subsequent writes!) but
+/// zeroing the first byte of every page does not carry this perf penalty
+/// compared to not initializing anything.
 #[cfg(feature = "alloc")]
 fn minimally_init(buf: &mut [MaybeUninit<u8>]) -> &mut [u8] {
     let ptr = buf.as_mut_ptr();
+    // Can't use the `asm!` block with Miri.
     if cfg!(miri) {
         for b in buf.iter_mut() {
             *b = MaybeUninit::zeroed();
@@ -5112,7 +5136,7 @@ fn minimally_init(buf: &mut [MaybeUninit<u8>]) -> &mut [u8] {
         // For the purpose of https://www.ralfj.de/blog/2026/03/13/inline-asm.html
         // the safe Rust story for the `asm!` block is:
         // The `asm!` block reads every byte in the slice that was
-        // written by the above code and uses the values to derive
+        // written by the above code and uses the read values to derive
         // bytes that it writes to every byte in the slice that was
         // _not_ already written by the above code.
         unsafe {
