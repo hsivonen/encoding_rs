@@ -5090,34 +5090,37 @@ const PAGE_MASK: usize = SMALLEST_PAGE_SIZE - 1;
 /// compared to not initializing anything.
 #[cfg(feature = "alloc")]
 fn minimally_init(buf: &mut [MaybeUninit<u8>]) -> &mut [u8] {
-    // Can't use the `asm!` block with Miri.
-    if cfg!(miri) {
-        for b in buf.iter_mut() {
+    // This loop is only broken out of as a goto forward. This structure
+    // avoids borrowing for too long via `first_mut`.
+    #[allow(clippy::never_loop)]
+    loop {
+        if let Some(b) = buf.first_mut() {
+            // Initialize one byte of the first memory page spanned
+            // by the slice to ensure the first page is normally mapped.
             *b = MaybeUninit::zeroed();
-        }
-    } else {
-        // This loop is only broken out of as a goto forward. This structure
-        // avoids borrowing for too long via `first_mut`.
-        #[allow(clippy::never_loop)]
-        loop {
-            if let Some(b) = buf.first_mut() {
-                // Initialize one byte of the first memory page spanned
-                // by the slice to ensure the first page is normally mapped.
-                *b = MaybeUninit::zeroed();
-            } else {
-                // Empty slice. Nothing to initialize.
-                break;
-            };
-            // Compute offset to the first byte of the next page.
-            let mut i = SMALLEST_PAGE_SIZE - (buf.as_mut_ptr().addr() & PAGE_MASK);
-            while let Some(b) = buf.get_mut(i) {
-                // Initialize the first byte of each subsequent page to ensure
-                // the subsequent pages are normally mapped.
-                *b = MaybeUninit::zeroed();
-                i += SMALLEST_PAGE_SIZE;
-            }
+        } else {
+            // Empty slice. Nothing to initialize.
             break;
+        };
+        // Compute offset to the first byte of the next page.
+        let mut i = SMALLEST_PAGE_SIZE - (buf.as_mut_ptr().addr() & PAGE_MASK);
+        while let Some(b) = buf.get_mut(i) {
+            // Initialize the first byte of each subsequent page to ensure
+            // the subsequent pages are normally mapped.
+            *b = MaybeUninit::zeroed();
+            i += SMALLEST_PAGE_SIZE;
         }
+        break;
+    }
+    // Can't use the `asm!` block with Miri. Skipping the `asm!` block
+    // in the Miri-enabled case means that we materialize `&mut [u8]`
+    // to memory whose initialization Miri hasn't seen. That tests
+    // pass under Miri nonetheless shows that we don't actually read from
+    // the slice, which is a stronger result that just zeroing the
+    // whole slice when Miri is enabled and having `cargo miri test`
+    // pass like that.
+    if !cfg!(miri) {
+        let ptr = buf.as_mut_ptr();
         // SAFETY: Any bit pattern is valid for `u8`, but each `u8`
         // in the slice needs to have a _fixed_ value to be treated as
         // initialized. Before each page spanned by the slice has been
@@ -5138,7 +5141,6 @@ fn minimally_init(buf: &mut [MaybeUninit<u8>]) -> &mut [u8] {
         // written by the above code and uses the read values to derive
         // bytes that it writes to every byte in the slice that was
         // _not_ already written by the above code.
-        let ptr = buf.as_mut_ptr();
         unsafe {
             asm!("/* {0} */", in(reg) ptr);
         }
