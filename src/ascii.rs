@@ -104,6 +104,7 @@ cfg_if! {
             (0, 0)
         }
 
+        #[allow(dead_code)]
         #[inline(never)]
         fn validate_basic_latin_stride_tail(stride: &[u16; 16]) -> usize {
             for (i, s) in stride.iter().enumerate() {
@@ -161,6 +162,7 @@ cfg_if! {
             Some(validate_ascii_stride_tail(stride))
         }
 
+        #[allow(dead_code)]
         #[inline(always)]
         fn validate_basic_latin_stride(
             stride: &[u16; STRIDE],
@@ -367,7 +369,9 @@ pub(crate) fn validate_ascii(bytes: &[u8]) -> Option<(u8, usize)> {
 
 #[inline(always)]
 pub(crate) fn ascii_valid_up_to(bytes: &[u8]) -> usize {
-    ascii_valid_impl(bytes).map(|(_, pos)| pos).unwrap_or(bytes.len())
+    ascii_valid_impl(bytes)
+        .map(|(_, pos)| pos)
+        .unwrap_or(bytes.len())
 }
 
 pub(crate) fn iso_2022_jp_ascii_valid_up_to(bytes: &[u8]) -> usize {

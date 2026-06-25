@@ -76,52 +76,6 @@ pub enum Latin1Bidi {
     Bidi = 2,
 }
 
-/// The second return value is true iff the last code unit of the slice was
-/// reached and turned out to be a low surrogate that is part of a valid pair.
-#[allow(clippy::collapsible_if)]
-#[inline(always)]
-fn utf16_valid_up_to_alu(buffer: &[u16]) -> (usize, bool) {
-    let len = buffer.len();
-    if len == 0 {
-        return (0, false);
-    }
-    let mut offset = 0usize;
-    loop {
-        let unit = buffer[offset];
-        let next = offset + 1;
-        let unit_minus_surrogate_start = unit.wrapping_sub(0xD800);
-        if unit_minus_surrogate_start > (0xDFFF - 0xD800) {
-            // Not a surrogate
-            offset = next;
-            if offset == len {
-                return (offset, false);
-            }
-            continue;
-        }
-        if unit_minus_surrogate_start <= (0xDBFF - 0xD800) {
-            // high surrogate
-            if next < len {
-                let second = buffer[next];
-                let second_minus_low_surrogate_start = second.wrapping_sub(0xDC00);
-                if second_minus_low_surrogate_start <= (0xDFFF - 0xDC00) {
-                    // The next code unit is a low surrogate. Advance position.
-                    offset = next + 1;
-                    if offset == len {
-                        return (offset, true);
-                    }
-                    continue;
-                }
-                // The next code unit is not a low surrogate. Don't advance
-                // position and treat the high surrogate as unpaired.
-                // fall through
-            }
-            // Unpaired, fall through
-        }
-        // Unpaired surrogate
-        return (offset, false);
-    }
-}
-
 #[inline(always)]
 fn is_utf8_latin1_impl(buffer: &[u8]) -> Option<usize> {
     let mut bytes = buffer;

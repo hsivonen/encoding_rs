@@ -722,6 +722,7 @@
 //! for discussion about the UTF-16 family.
 
 #![no_std]
+#![cfg_attr(feature = "simd-accel", allow(internal_features))]
 #![cfg_attr(feature = "simd-accel", feature(core_intrinsics, portable_simd))]
 
 #[cfg(feature = "alloc")]

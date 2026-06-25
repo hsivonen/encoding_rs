@@ -7,21 +7,14 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-use any_all_workaround::all_mask8x16;
-use any_all_workaround::all_mask16x8;
-use any_all_workaround::any_mask8x16;
-use any_all_workaround::any_mask16x8;
 use core::simd::ToBytes;
 use core::simd::cmp::SimdPartialEq;
 use core::simd::cmp::SimdPartialOrd;
-use core::simd::mask8x16;
-use core::simd::mask16x8;
-use core::simd::simd_swizzle;
 use core::simd::u8x16;
 use core::simd::u16x8;
 
-// TODO: Migrate unaligned access to stdlib code if/when the RFC
-// https://github.com/rust-lang/rfcs/pull/1725 is implemented.
+// TODO: Remove the load/store functions as part of removing `unsafe` from
+// UTF-16BE|LE and x-user-defined.
 
 /// Safety invariant: ptr must be valid for an unaligned read of 16 bytes
 #[inline(always)]
@@ -39,17 +32,6 @@ pub unsafe fn load16_unaligned(ptr: *const u8) -> u8x16 {
 pub unsafe fn store16_unaligned(ptr: *mut u8, s: u8x16) {
     unsafe {
         ::core::ptr::copy_nonoverlapping(&s as *const u8x16 as *const u8, ptr, 16);
-    }
-}
-
-/// Safety invariant: ptr must be valid for an unaligned read of 16 bytes
-#[inline(always)]
-pub unsafe fn load8_unaligned(ptr: *const u16) -> u16x8 {
-    let mut simd = ::core::mem::MaybeUninit::<u16x8>::uninit();
-    unsafe {
-        ::core::ptr::copy_nonoverlapping(ptr as *const u8, simd.as_mut_ptr() as *mut u8, 16);
-        // Safety: copied 16 bytes of initialized memory into this, it is now initialized
-        simd.assume_init()
     }
 }
 
@@ -143,7 +125,7 @@ cfg_if! {
             // This optimizes better on ARM than
             // the lt formulation.
             let highest_ascii = u8x16::splat(0x7F);
-            !any_mask8x16(s.simd_gt(highest_ascii))
+            !any_all_workaround::any_mask8x16(s.simd_gt(highest_ascii))
         }
     }
 }
@@ -159,6 +141,7 @@ cfg_if! {
             s.simd_lt(above_str_latin1).all()
         }
     } else if #[cfg(target_arch = "aarch64")]{
+        #[allow(dead_code)]
         #[inline(always)]
         pub fn simd_is_str_latin1(s: u8x16) -> bool {
             unsafe {
@@ -170,7 +153,7 @@ cfg_if! {
         #[inline(always)]
         pub fn simd_is_str_latin1(s: u8x16) -> bool {
             let above_str_latin1 = u8x16::splat(0xC4);
-            all_mask8x16(s.simd_lt(above_str_latin1))
+            any_all_workaround::all_mask8x16(s.simd_lt(above_str_latin1))
         }
     }
 }
@@ -196,7 +179,7 @@ cfg_if! {
         #[inline(always)]
         pub fn simd_is_basic_latin(s: u16x8) -> bool {
             let above_ascii = u16x8::splat(0x80);
-            all_mask16x8(s.simd_lt(above_ascii))
+            any_all_workaround::all_mask16x8(s.simd_lt(above_ascii))
         }
 
         #[inline(always)]
@@ -205,7 +188,7 @@ cfg_if! {
             // seems faster in this case while the above
             // function is better the other way round...
             let highest_latin1 = u16x8::splat(0xFF);
-            !any_mask16x8(s.simd_gt(highest_latin1))
+            !any_all_workaround::any_mask16x8(s.simd_gt(highest_latin1))
         }
     }
 }
@@ -214,7 +197,7 @@ cfg_if! {
 pub fn contains_surrogates(s: u16x8) -> bool {
     let mask = u16x8::splat(0xF800);
     let surrogate_bits = u16x8::splat(0xD800);
-    any_mask16x8((s & mask).simd_eq(surrogate_bits))
+    any_all_workaround::any_mask16x8((s & mask).simd_eq(surrogate_bits))
 }
 
 cfg_if! {
@@ -240,7 +223,7 @@ cfg_if! {
 
         macro_rules! non_aarch64_return_false_if_all {
             ($s:ident) => ({
-                if all_mask16x8($s) {
+                if any_all_workaround::all_mask16x8($s) {
                     return false;
                 }
             })
@@ -269,7 +252,7 @@ pub(crate) fn is_u16x8_bidi(s: u16x8) -> bool {
 
     non_aarch64_return_false_if_all!(below_hebrew);
 
-    if all_mask16x8(
+    if any_all_workaround::all_mask16x8(
         below_hebrew | in_range16x8!(s, 0x0900, 0x200F) | in_range16x8!(s, 0x2068, 0xD802),
     ) {
         return false;
@@ -277,7 +260,7 @@ pub(crate) fn is_u16x8_bidi(s: u16x8) -> bool {
 
     // Quick refutation failed. Let's do the full check.
 
-    any_mask16x8(
+    any_all_workaround::any_mask16x8(
         (in_range16x8!(s, 0x0590, 0x0900)
             | in_range16x8!(s, 0xFB1D, 0xFE00)
             | in_range16x8!(s, 0xFE70, 0xFEFF)
@@ -564,7 +547,9 @@ pub(crate) fn basic_latin_to_ascii_double_stride(
 }
 
 #[inline(always)]
-pub(crate) fn validate_ascii_double_stride(double_stride: &[[u8; STRIDE]; 2]) -> Option<(u8, usize)> {
+pub(crate) fn validate_ascii_double_stride(
+    double_stride: &[[u8; STRIDE]; 2],
+) -> Option<(u8, usize)> {
     let first_simd: u8x16 = double_stride[0].into();
     let second_simd: u8x16 = double_stride[1].into();
     if simd_is_ascii(first_simd | second_simd) {
@@ -619,6 +604,17 @@ pub(crate) fn is_half_stride_bidi(half_stride: &[u16; STRIDE / 2]) -> bool {
 mod tests {
     use super::*;
     use alloc::vec::Vec;
+
+    /// Safety invariant: ptr must be valid for an unaligned read of 16 bytes
+    #[inline(always)]
+    pub unsafe fn load8_unaligned(ptr: *const u16) -> u16x8 {
+        let mut simd = ::core::mem::MaybeUninit::<u16x8>::uninit();
+        unsafe {
+            ::core::ptr::copy_nonoverlapping(ptr as *const u8, simd.as_mut_ptr() as *mut u8, 16);
+            // Safety: copied 16 bytes of initialized memory into this, it is now initialized
+            simd.assume_init()
+        }
+    }
 
     #[test]
     fn test_unpack() {

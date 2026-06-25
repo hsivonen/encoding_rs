@@ -42,6 +42,7 @@ use crate::ascii::*;
 use crate::utf_8::convert_utf8_to_utf16_up_to_invalid;
 use crate::utf_8::utf8_valid_up_to;
 
+#[cfg(feature = "simd-accel")]
 const SIMD_STRIDE_SIZE: usize = crate::ascii::STRIDE;
 
 pub enum Space<T> {
