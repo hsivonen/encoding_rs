@@ -5068,10 +5068,12 @@ const PAGE_MASK: usize = SMALLEST_PAGE_SIZE - 1;
 /// writing to make the slice have arbitrary but fixed-value bytes. This
 /// maintains correct boundary between `unsafe` and safe in terms of UB
 /// avoidance resposibility even though we don't actually perform reads.
+/// The caller must not rely on any byte in the slice that was already
+/// initialized to retain its value after this function returns.
 ///
 /// The point of wishing to not to contaminate all places with
 /// `&mut [MaybeUninit<u8>]` is that `&mut [u8]` interacts better with
-/// SIMD in a way that doesn't require `unsafe` in more places.
+/// `core::simd` in a way that doesn't require `unsafe` in more places.
 ///
 /// Note that the caller has to overwrite the exposed arbitrary but fixed-value
 /// bytes to avoid information disclosure (somewhat analogously to reusing an
@@ -5085,9 +5087,11 @@ const PAGE_MASK: usize = SMALLEST_PAGE_SIZE - 1;
 ///
 /// On M3 Pro, we could just zero-initialize every byte without a notable
 /// performance penalty, but on Zen 3 and Skylake, zeroing all bytes carries
-/// a measurable penalty (depending on details of subsequent writes!) but
-/// zeroing the first byte of every page does not carry this perf penalty
-/// compared to not initializing anything.
+/// a measurable penalty (in some cases only; depending on details of
+/// subsequent writes!) but zeroing the first byte of every page does not
+/// carry this perf penalty compared to not initializing anything (at least
+/// when the slice is reasonable-sized relative to what meaningful data
+/// end up written into it later).
 #[cfg(feature = "alloc")]
 fn minimally_init(buf: &mut [MaybeUninit<u8>]) -> &mut [u8] {
     // This loop is only broken out of as a goto forward. This structure
