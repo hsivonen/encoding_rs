@@ -1657,13 +1657,18 @@ pub fn decode_latin1<'a>(bytes: &'a [u8]) -> Cow<'a, str> {
     debug_assert_eq!(old_len, up_to);
     let written = convert_latin1_to_utf8(tail, spare_capacity);
     debug_assert!(written <= spare_capacity.len());
-    debug_assert!(old_len + written <= vec.capacity());
-    // SAFETY: As `debug_assert`ed above, we trust that the return value of
-    // `convert_latin1_to_utf8` does not exceed the length of
-    // `spare_capacity`, so `old_len + written` stays within
-    // capacity.
+    let new_len = old_len + written;
+    assert!(new_len <= vec.capacity());
+    // SAFETY: We trust that `convert_latin1_to_utf8` wrote valid UTF-8
+    // to `spare_capacity[..written]`. Also, regarding the information
+    // disclosure risk of `minimally_init`, this also means trusting
+    // that every byte of `spare_capacity[..written]` got overwritten.
+    // (We're no worse off than before regarding
+    // `spare_capacity[written..]`) which remains not logically exposed.)
+    // We (non-debug )asserted immediately above that `new_len` conforms
+    // to the invariant that it must not exceed `vec.capacity()`.
     unsafe {
-        vec.set_len(old_len + written);
+        vec.set_len(new_len);
     }
     // SAFETY: We trust that `ascii_valid_up_to` and
     // `convert_latin1_to_utf8` are correct and the `Vec` contains
@@ -1705,13 +1710,16 @@ pub fn encode_latin1_lossy<'a>(string: &'a str) -> Cow<'a, [u8]> {
     debug_assert_eq!(old_len, up_to);
     let written = convert_utf8_to_latin1_lossy(tail, spare_capacity);
     debug_assert!(written <= spare_capacity.len());
-    debug_assert!(old_len + written <= vec.capacity());
-    // SAFETY: As `debug_assert`ed above, we trust that the return value of
-    // `convert_utf8_to_latin1_lossy` does not exceed the length of
-    // `spare_capacity`, so `old_len + written` stays within
-    // capacity.
+    let new_len = old_len + written;
+    assert!(new_len <= vec.capacity());
+    // SAFETY: We trust that `convert_utf8_to_latin1_lossy` wrote to every
+    // element of `spare_capacity[..written]`.
+    // (We're no worse off than before regarding
+    // `spare_capacity[written..]`) which remains not logically exposed.)
+    // We (non-debug )asserted immediately above that `new_len` conforms
+    // to the invariant that it must not exceed `vec.capacity()`.
     unsafe {
-        vec.set_len(old_len + written);
+        vec.set_len(new_len);
     }
     Cow::Owned(vec)
 }
