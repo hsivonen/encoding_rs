@@ -73,6 +73,14 @@ Additionally, `encoding_rs::mem` does the following:
 * Converts ASCII to UTF-16 up to the first non-ASCII byte.
 * Converts UTF-16 to ASCII up to the first non-Basic Latin code unit.
 
+## API surprises to watch out for
+
+The encoder API encodes to the [_output encoding_](https://encoding.spec.whatwg.org/#output-encodings)
+of the `Encoding` that methods are invoked on. That is, you can't use this crate to produce
+output in UTF-16LE, UTF-16BE, or replacement, since the output encoding
+for those encodings is UTF-8! (Changing the API to make this more obvious from the API
+shape itself would now be a semver break.)
+
 ## Integration with `std::io`
 
 Notably, the above feature list doesn't include the capability to wrap
