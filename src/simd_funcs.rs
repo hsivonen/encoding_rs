@@ -93,6 +93,7 @@ cfg_if! {
         #[inline(always)]
         pub fn mask_ascii(s: u8x16) -> i32 {
             unsafe {
+                // Safety: We have cfg()d the correct platform
                 _mm_movemask_epi8(s.into())
             }
         }
