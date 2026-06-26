@@ -724,6 +724,7 @@
 //! for discussion about the UTF-16 family.
 
 #![no_std]
+#![cfg_attr(feature = "simd-accel", allow(internal_features))]
 #![cfg_attr(feature = "simd-accel", feature(core_intrinsics, portable_simd))]
 
 #[cfg(feature = "alloc")]
@@ -792,6 +793,11 @@ use alloc::borrow::Cow;
 use alloc::string::String;
 #[cfg(feature = "alloc")]
 use alloc::vec::Vec;
+#[cfg(feature = "alloc")]
+use core::arch::asm;
+#[cfg(feature = "alloc")]
+use core::mem::MaybeUninit;
+
 use core::cmp::Ordering;
 use core::hash::Hash;
 use core::hash::Hasher;
@@ -1664,7 +1670,7 @@ pub static UTF_8_INIT: Encoding = Encoding {
 
 /// The UTF-8 encoding.
 ///
-/// This is the encoding that should be used for all new development it can
+/// This is the encoding that should be used for all new development as it can
 /// represent all of Unicode.
 ///
 /// This encoding matches the Windows code page 65001, except Windows differs
@@ -2664,7 +2670,7 @@ static ENCODINGS_IN_LABEL_SORT: [&'static Encoding; 228] = [
 /// # Streaming vs. Non-Streaming
 ///
 /// When you have the entire input in a single buffer, you can use the
-/// methods [`decode()`][3], [`decode_with_bom_removal()`][3],
+/// methods [`decode()`][3], [`decode_with_bom_removal()`][4],
 /// [`decode_without_bom_handling()`][5],
 /// [`decode_without_bom_handling_and_without_replacement()`][6] and
 /// [`encode()`][7]. (These methods are available to Rust callers only and are
@@ -3131,11 +3137,11 @@ impl Encoding {
             let mut string = String::with_capacity(
                 checked_min(rounded_without_replacement, with_replacement).unwrap(),
             );
-            unsafe {
-                let vec = string.as_mut_vec();
-                vec.set_len(valid_up_to);
-                core::ptr::copy_nonoverlapping(bytes.as_ptr(), vec.as_mut_ptr(), valid_up_to);
-            }
+
+            // SAFETY: We have validated that `bytes[..valid_up_to]` is valid UTF-8,
+            // so it's OK to write that into `String` via `Vec`.
+            let vec = unsafe { string.as_mut_vec() };
+            vec.extend_from_slice(&bytes[..valid_up_to]);
             (decoder, string, valid_up_to)
         } else {
             let decoder = self.new_decoder_without_bom_handling();
@@ -3232,11 +3238,10 @@ impl Encoding {
                 )
                 .unwrap(),
             );
-            unsafe {
-                let vec = string.as_mut_vec();
-                vec.set_len(valid_up_to);
-                core::ptr::copy_nonoverlapping(bytes.as_ptr(), vec.as_mut_ptr(), valid_up_to);
-            }
+            // SAFETY: We have validated that `bytes[..valid_up_to]` is valid UTF-8,
+            // so it's OK to write that into `String` via `Vec`.
+            let vec = unsafe { string.as_mut_vec() };
+            vec.extend_from_slice(&bytes[..valid_up_to]);
             (decoder, string, &bytes[valid_up_to..])
         } else {
             let decoder = self.new_decoder_without_bom_handling();
@@ -3324,10 +3329,7 @@ impl Encoding {
             .unwrap()
             .next_power_of_two(),
         );
-        unsafe {
-            vec.set_len(valid_up_to);
-            core::ptr::copy_nonoverlapping(bytes.as_ptr(), vec.as_mut_ptr(), valid_up_to);
-        }
+        vec.extend_from_slice(&bytes[..valid_up_to]);
         let mut total_read = valid_up_to;
         let mut total_had_errors = false;
         loop {
@@ -4016,9 +4018,8 @@ impl Decoder {
     /// replaced with the REPLACEMENT CHARACTER with type system signaling
     /// of UTF-8 validity.
     ///
-    /// This methods calls `decode_to_utf8` and then zeroes
-    /// out up to three bytes that aren't logically part of the write in order
-    /// to retain the UTF-8 validity even for the unwritten part of the buffer.
+    /// This methods calls `decode_to_utf8` and then zeroes enough subsequent
+    /// bytes to maintain the invariant of `str`.
     ///
     /// See the documentation of the struct for documentation for `decode_*`
     /// methods collectively.
@@ -4030,6 +4031,21 @@ impl Decoder {
         dst: &mut str,
         last: bool,
     ) -> (CoderResult, usize, usize, bool) {
+        // TODO: This method does not need to be panic-safe against user code.
+        // However, if there is a bug inside the crate so that something inside
+        // the implementation panics after bytes have been written (there's intentional
+        // panic pass-through for checking preconditions _before_ bytes have been
+        // written), the code is compiled with unwinding enabled, and the caller
+        // catches the panic, the caller could end up holding `dst` that is in
+        // an invalid state.
+        // https://github.com/hsivonen/encoding_rs/issues/133
+
+        // SAFETY: We trust that `decode_to_utf8` writes
+        // valid UTF-8. To make the part of the slice after what was reported
+        // as logically written by that funtion, we use knowledge of the internals
+        // to overwrite trailing garbage that may have been written. Then we also
+        // overwrite a possible partial UTF-8 byte sequence after that. Then the
+        // rest must be valid on the assumption that `dst` was valid to begin with.
         let bytes: &mut [u8] = unsafe { dst.as_bytes_mut() };
         let (result, read, written, replaced) = self.decode_to_utf8(src, bytes, last);
         let len = bytes.len();
@@ -4076,16 +4092,32 @@ impl Decoder {
         dst: &mut String,
         last: bool,
     ) -> (CoderResult, usize, bool) {
+        // SAFETY: Writing to `String` by using it as `Vec` is safe
+        // iff the result is valid UTF-8 afterwards. We trust
+        // `decode_to_utf8` below to write valid UTF-8 and
+        // we trust that we update the length correctly below.
+        // Furthermore, the length update is the last operation, so
+        // if an earlier step panics, the logically exposed part of the
+        // `Vec`/`String` remains unchanged.
+        let vec = unsafe { dst.as_mut_vec() };
+        let old_len = vec.len();
+        let spare_capacity = minimally_init(vec.spare_capacity_mut());
+        let (result, read, written, replaced) = self.decode_to_utf8(src, spare_capacity, last);
+        debug_assert!(written <= spare_capacity.len());
+        let new_len = old_len + written;
+        assert!(new_len <= vec.capacity());
+        // SAFETY: We trust that `decode_to_utf8` wrote valid UTF-8
+        // to `spare_capacity[..written]`. Also, regarding the information
+        // disclosure risk of `minimally_init`, this also means trusting
+        // that every byte of `spare_capacity[..written]` got overwritten.
+        // (We're no worse off than before regarding
+        // `spare_capacity[written..]`) which remains not logically exposed.)
+        // We (non-debug )asserted immediately above that `new_len` conforms
+        // to the invariant that it must not exceed `vec.capacity()`.
         unsafe {
-            let vec = dst.as_mut_vec();
-            let old_len = vec.len();
-            let capacity = vec.capacity();
-            vec.set_len(capacity);
-            let (result, read, written, replaced) =
-                self.decode_to_utf8(src, &mut vec[old_len..], last);
-            vec.set_len(old_len + written);
-            (result, read, replaced)
+            vec.set_len(new_len);
         }
+        (result, read, replaced)
     }
 
     public_decode_function!(/// Incrementally decode a byte stream into UTF-8
@@ -4108,9 +4140,8 @@ impl Decoder {
     /// Incrementally decode a byte stream into UTF-8 with type system signaling
     /// of UTF-8 validity.
     ///
-    /// This methods calls `decode_to_utf8` and then zeroes out up to three
-    /// bytes that aren't logically part of the write in order to retain the
-    /// UTF-8 validity even for the unwritten part of the buffer.
+    /// This methods calls `decode_to_utf8_without_replacement` and then zeroes enough subsequent
+    /// bytes to maintain the invariant of `str`.
     ///
     /// See the documentation of the struct for documentation for `decode_*`
     /// methods collectively.
@@ -4122,6 +4153,21 @@ impl Decoder {
         dst: &mut str,
         last: bool,
     ) -> (DecoderResult, usize, usize) {
+        // TODO: This method does not need to be panic-safe against user code.
+        // However, if there is a bug inside the crate so that something inside
+        // the implementation panics after bytes have been written (there's intentional
+        // panic pass-through for checking preconditions _before_ bytes have been
+        // written), the code is compiled with unwinding enabled, and the caller
+        // catches the panic, the caller could end up holding `dst` that is in
+        // an invalid state.
+        // https://github.com/hsivonen/encoding_rs/issues/133
+
+        // SAFETY: We trust that `decode_to_utf8_without_replacement` writes
+        // valid UTF-8. To make the part of the slice after what was reported
+        // as logically written by that funtion, we use knowledge of the internals
+        // to overwrite trailing garbage that may have been written. Then we also
+        // overwrite a possible partial UTF-8 byte sequence after that. Then the
+        // rest must be valid on the assumption that `dst` was valid to begin with.
         let bytes: &mut [u8] = unsafe { dst.as_bytes_mut() };
         let (result, read, written) = self.decode_to_utf8_without_replacement(src, bytes, last);
         let len = bytes.len();
@@ -4166,16 +4212,33 @@ impl Decoder {
         dst: &mut String,
         last: bool,
     ) -> (DecoderResult, usize) {
+        // SAFETY: Writing to `String` by using it as `Vec` is safe
+        // iff the result is valid UTF-8 afterwards. We trust
+        // `decode_to_utf8_without_replacement` below to write valid UTF-8 and
+        // we trust that we update the length correctly below.
+        // Furthermore, the length update is the last operation, so
+        // if an earlier step panics, the logically exposed part of the
+        // `Vec`/`String` remains unchanged.
+        let vec = unsafe { dst.as_mut_vec() };
+        let old_len = vec.len();
+        let spare_capacity = minimally_init(vec.spare_capacity_mut());
+        let (result, read, written) =
+            self.decode_to_utf8_without_replacement(src, spare_capacity, last);
+        debug_assert!(written <= spare_capacity.len());
+        let new_len = old_len + written;
+        assert!(new_len <= vec.capacity());
+        // SAFETY: We trust that `decode_to_utf8_without_replacement` wrote valid UTF-8
+        // to `spare_capacity[..written]`. Also, regarding the information
+        // disclosure risk of `minimally_init`, this also means trusting
+        // that every byte of `spare_capacity[..written]` got overwritten.
+        // (We're no worse off than before regarding
+        // `spare_capacity[written..]`) which remains not logically exposed.)
+        // We (non-debug )asserted immediately above that `new_len` conforms
+        // to the invariant that it must not exceed `vec.capacity()`.
         unsafe {
-            let vec = dst.as_mut_vec();
-            let old_len = vec.len();
-            let capacity = vec.capacity();
-            vec.set_len(capacity);
-            let (result, read, written) =
-                self.decode_to_utf8_without_replacement(src, &mut vec[old_len..], last);
-            vec.set_len(old_len + written);
-            (result, read)
+            vec.set_len(new_len);
         }
+        (result, read)
     }
 
     /// Query the worst-case UTF-16 output size (with or without replacement).
@@ -4665,15 +4728,24 @@ impl Encoder {
         dst: &mut Vec<u8>,
         last: bool,
     ) -> (CoderResult, usize, bool) {
+        let old_len = dst.len();
+        let spare_capacity = minimally_init(dst.spare_capacity_mut());
+        let (result, read, written, replaced) = self.encode_from_utf8(src, spare_capacity, last);
+        debug_assert!(written <= spare_capacity.len());
+        let new_len = old_len + written;
+        assert!(new_len <= dst.capacity());
+        // SAFETY: We trust that `encode_from_utf8` wrote to every byte of
+        // to `spare_capacity[..written]`. Also, regarding the information
+        // disclosure risk of `minimally_init`, this also means trusting
+        // that every byte of `spare_capacity[..written]` got overwritten.
+        // (We're no worse off than before regarding
+        // `spare_capacity[written..]`) which remains not logically exposed.)
+        // We (non-debug )asserted immediately above that `new_len` conforms
+        // to the invariant that it must not exceed `dst.capacity()`.
         unsafe {
-            let old_len = dst.len();
-            let capacity = dst.capacity();
-            dst.set_len(capacity);
-            let (result, read, written, replaced) =
-                self.encode_from_utf8(src, &mut dst[old_len..], last);
-            dst.set_len(old_len + written);
-            (result, read, replaced)
+            dst.set_len(new_len);
         }
+        (result, read, replaced)
     }
 
     /// Incrementally encode into byte stream from UTF-8 _without replacement_.
@@ -4705,15 +4777,25 @@ impl Encoder {
         dst: &mut Vec<u8>,
         last: bool,
     ) -> (EncoderResult, usize) {
+        let old_len = dst.len();
+        let spare_capacity = minimally_init(dst.spare_capacity_mut());
+        let (result, read, written) =
+            self.encode_from_utf8_without_replacement(src, spare_capacity, last);
+        debug_assert!(written <= spare_capacity.len());
+        let new_len = old_len + written;
+        assert!(new_len <= dst.capacity());
+        // SAFETY: We trust that `encode_from_utf8_without_replacement` wrote to every byte of
+        // to `spare_capacity[..written]`. Also, regarding the information
+        // disclosure risk of `minimally_init`, this also means trusting
+        // that every byte of `spare_capacity[..written]` got overwritten.
+        // (We're no worse off than before regarding
+        // `spare_capacity[written..]`) which remains not logically exposed.)
+        // We (non-debug )asserted immediately above that `new_len` conforms
+        // to the invariant that it must not exceed `dst.capacity()`.
         unsafe {
-            let old_len = dst.len();
-            let capacity = dst.capacity();
-            dst.set_len(capacity);
-            let (result, read, written) =
-                self.encode_from_utf8_without_replacement(src, &mut dst[old_len..], last);
-            dst.set_len(old_len + written);
-            (result, read)
+            dst.set_len(new_len);
         }
+        (result, read)
     }
 
     /// Query the worst-case output size when encoding from UTF-16 with
@@ -4982,6 +5064,113 @@ fn checked_min(one: Option<usize>, other: Option<usize>) -> Option<usize> {
     } else {
         other
     }
+}
+
+/// Smallest page size accoding to Wikipedia. If the pages are larger,
+/// the code is still correct but does non-minimal writes.
+///
+/// We could confidently multiply this by 4 on aarch64 macOS, but
+/// there is no point, since not initializing / initializing every
+/// 4Kth byte / initializing everything makes no perf difference
+/// at least on M3 Pro, so this whole thing is mainly for other
+/// systems.
+#[cfg(feature = "alloc")]
+const SMALLEST_PAGE_SIZE: usize = 4096;
+
+/// Mask for the bits that are the offset within a page.
+#[cfg(feature = "alloc")]
+const PAGE_MASK: usize = SMALLEST_PAGE_SIZE - 1;
+
+/// When we only care about writing to a slice but `&mut [u8]` grants the
+/// read capability and reading would be UB, this function does the minimum
+/// writing to make the slice have arbitrary but fixed-value bytes. This
+/// maintains correct boundary between `unsafe` and safe in terms of UB
+/// avoidance resposibility even though we don't actually perform reads.
+/// The caller must not rely on any byte in the slice that was already
+/// initialized to retain its value after this function returns.
+///
+/// The point of wishing to not to contaminate all places with
+/// `&mut [MaybeUninit<u8>]` is that `&mut [u8]` interacts better with
+/// `core::simd` in a way that doesn't require `unsafe` in more places.
+///
+/// Note that the caller has to overwrite the exposed arbitrary but fixed-value
+/// bytes to avoid information disclosure (somewhat analogously to reusing an
+/// intermediate buffer created without any `unsafe`). This function is not
+/// `unsafe`, because this function does not let the caller to experience UB.
+/// Letting `&mut [MaybeUninit<u8>]` show up in more places in the crate internals
+/// would not change the information disclosure risk in case there's a bug in
+/// the tracking of how much has been written. Either way, the tracking of how
+/// much has been written has to actually work, but it has a very good track
+/// record of working.
+///
+/// On M3 Pro, we could just zero-initialize every byte without a notable
+/// performance penalty, but on Zen 3 and Skylake, zeroing all bytes carries
+/// a measurable penalty (in some cases only; depending on details of
+/// subsequent writes!) but zeroing the first byte of every page does not
+/// carry this perf penalty compared to not initializing anything (at least
+/// when the slice is reasonable-sized relative to what meaningful data
+/// end up written into it later).
+#[cfg(feature = "alloc")]
+fn minimally_init(buf: &mut [MaybeUninit<u8>]) -> &mut [u8] {
+    // This loop is only broken out of as a goto forward. This structure
+    // avoids borrowing for too long via `first_mut`.
+    #[allow(clippy::never_loop)]
+    loop {
+        if let Some(b) = buf.first_mut() {
+            // Initialize one byte of the first memory page spanned
+            // by the slice to ensure the first page is normally mapped.
+            *b = MaybeUninit::zeroed();
+        } else {
+            // Empty slice. Nothing to initialize.
+            break;
+        };
+        // Compute offset to the first byte of the next page.
+        let mut i = SMALLEST_PAGE_SIZE - (buf.as_mut_ptr().addr() & PAGE_MASK);
+        while let Some(b) = buf.get_mut(i) {
+            // Initialize the first byte of each subsequent page to ensure
+            // the subsequent pages are normally mapped.
+            *b = MaybeUninit::zeroed();
+            i += SMALLEST_PAGE_SIZE;
+        }
+        break;
+    }
+    // Can't use the `asm!` block with Miri. Skipping the `asm!` block
+    // in the Miri-enabled case means that we materialize `&mut [u8]`
+    // to memory whose initialization Miri hasn't seen. That tests
+    // pass under Miri nonetheless shows that we don't actually read from
+    // the slice, which is a stronger result that just zeroing the
+    // whole slice when Miri is enabled and having `cargo miri test`
+    // pass like that.
+    if !cfg!(miri) {
+        let ptr = buf.as_mut_ptr();
+        // SAFETY: Any bit pattern is valid for `u8`, but each `u8`
+        // in the slice needs to have a _fixed_ value to be treated as
+        // initialized. Before each page spanned by the slice has been
+        // written to, the layer below Rust could map all the pages to
+        // a read-only default page. In that case, if you read from
+        // offset A within the page, write to offset B != A, and the read
+        // offset A again, the two reads from offset A could yield
+        // different results, which the Rust layer does not allow.
+        //
+        // Now that we've written to each page, each page is a
+        // separately-mapped distinct writable page, so even the other
+        // bytes have fixed values. We now need to make the Rust layer
+        // not to be able to assume that they don't have fixed values.
+        //
+        // For the purpose of https://www.ralfj.de/blog/2026/03/13/inline-asm.html
+        // the safe Rust story for the `asm!` block is:
+        // The `asm!` block reads every byte in the slice that was
+        // written by the above code and uses the read values to derive
+        // bytes that it writes to every byte in the slice that was
+        // _not_ already written by the above code.
+        unsafe {
+            asm!("/* {0} */", in(reg) ptr);
+        }
+    }
+    // SAFETY: The pages spanned by the input slice are now normally
+    // mapped and each byte has a fixed value, so the memory now
+    // has the characteristics of initialized memory.
+    unsafe { core::slice::from_raw_parts_mut(buf.as_mut_ptr().cast(), buf.len()) }
 }
 
 // ############## TESTS ###############
@@ -5468,11 +5657,13 @@ mod tests {
 
     #[test]
     fn test_decode_bomful_invalid_utf8_to_cow_without_bom_handling_and_without_replacement() {
-        assert!(UTF_8
-            .decode_without_bom_handling_and_without_replacement(
-                b"\xEF\xBB\xBF\xE2\x82\xAC\x80\xC3\xA4"
-            )
-            .is_none());
+        assert!(
+            UTF_8
+                .decode_without_bom_handling_and_without_replacement(
+                    b"\xEF\xBB\xBF\xE2\x82\xAC\x80\xC3\xA4"
+                )
+                .is_none()
+        );
     }
 
     #[test]
@@ -5490,9 +5681,11 @@ mod tests {
 
     #[test]
     fn test_decode_invalid_windows_1257_to_cow_without_bom_handling_and_without_replacement() {
-        assert!(WINDOWS_1257
-            .decode_without_bom_handling_and_without_replacement(b"abc\x80\xA1\xE4")
-            .is_none());
+        assert!(
+            WINDOWS_1257
+                .decode_without_bom_handling_and_without_replacement(b"abc\x80\xA1\xE4")
+                .is_none()
+        );
     }
 
     #[test]
@@ -5903,10 +6096,12 @@ mod tests {
                 .unwrap(),
             1
         );
-        assert!(REPLACEMENT
-            .new_decoder_without_bom_handling()
-            .latin1_byte_compatible_up_to(buffer)
-            .is_none());
+        assert!(
+            REPLACEMENT
+                .new_decoder_without_bom_handling()
+                .latin1_byte_compatible_up_to(buffer)
+                .is_none()
+        );
         assert_eq!(
             SHIFT_JIS
                 .new_decoder_without_bom_handling()
@@ -5921,14 +6116,18 @@ mod tests {
                 .unwrap(),
             1
         );
-        assert!(UTF_16BE
-            .new_decoder_without_bom_handling()
-            .latin1_byte_compatible_up_to(buffer)
-            .is_none());
-        assert!(UTF_16LE
-            .new_decoder_without_bom_handling()
-            .latin1_byte_compatible_up_to(buffer)
-            .is_none());
+        assert!(
+            UTF_16BE
+                .new_decoder_without_bom_handling()
+                .latin1_byte_compatible_up_to(buffer)
+                .is_none()
+        );
+        assert!(
+            UTF_16LE
+                .new_decoder_without_bom_handling()
+                .latin1_byte_compatible_up_to(buffer)
+                .is_none()
+        );
         assert_eq!(
             ISO_2022_JP
                 .new_decoder_without_bom_handling()
@@ -6141,10 +6340,12 @@ mod tests {
             1
         );
 
-        assert!(UTF_8
-            .new_decoder()
-            .latin1_byte_compatible_up_to(buffer)
-            .is_none());
+        assert!(
+            UTF_8
+                .new_decoder()
+                .latin1_byte_compatible_up_to(buffer)
+                .is_none()
+        );
 
         let mut decoder = UTF_8.new_decoder();
         let mut output = [0u16; 4];

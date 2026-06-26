@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 
 # Copyright Mozilla Foundation. See the COPYRIGHT
 # file at the top-level directory of this distribution.
@@ -13,9 +13,10 @@ import json
 import subprocess
 import sys
 import os.path
+from functools import cmp_to_key
 
 if (not os.path.isfile("../encoding/encodings.json")) or (not os.path.isfile("../encoding/indexes.json")):
-  sys.stderr.write("This script needs a clone of https://github.com/whatwg/encoding/ (preferably at revision 1d519bf8e5555cef64cf3a712485f41cd1a6a990 ) next to the encoding_rs directory.\n");
+  sys.stderr.write("This script needs a clone of https://github.com/whatwg/encoding/ (preferably at revision 2c3853e461afd718be198772170d024e427aee21) next to the encoding_rs directory.\n");
   sys.exit(-1)
 
 if not os.path.isfile("../encoding_c/src/lib.rs"):
@@ -25,6 +26,12 @@ if not os.path.isfile("../encoding_c/src/lib.rs"):
 if not os.path.isfile("../codepage/src/lib.rs"):
   sys.stderr.write("This script also writes the generated parts of the codepage crate and needs a clone of https://github.com/hsivonen/codepage next to the encoding_rs directory.\n");
   sys.exit(-1)
+
+def cmp(one, other):
+  '''
+  Python 3 removed cmp, but cmp_from_end still uses it for now.
+  '''
+  return (one > other) - (one < other)
 
 def cmp_from_end(one, other):
   c = cmp(len(one), len(other))
@@ -43,21 +50,14 @@ class Label:
   def __init__(self, label, preferred):
     self.label = label
     self.preferred = preferred
-  def __cmp__(self, other):
-    return cmp_from_end(self.label, other.label)
-
-class CodePage:
-  def __init__(self, code_page, preferred):
-    self.code_page = code_page
-    self.preferred = preferred
-  def __cmp__(self, other):
-    return self.code_page, other.code_page
+  def __lt__(self, other):
+    return cmp_from_end(self.label, other.label) < 0
 
 def static_u16_table(name, data):
   data_file.write('''pub static %s: [u16; %d] = [
   ''' % (name, len(data)))
 
-  for i in xrange(len(data)):
+  for i in range(len(data)):
     data_file.write('0x%04X,\n' % data[i])
 
   data_file.write('''];
@@ -72,7 +72,7 @@ def static_u16_table_from_indexable(name, data, item, feature):
 static %s: [u16; %d] = [
   ''' % (feature, feature, name, len(data)))
 
-  for i in xrange(len(data)):
+  for i in range(len(data)):
     data_file.write('0x%04X,\n' % data[i][item])
 
   data_file.write('''];
@@ -87,7 +87,7 @@ def static_u8_pair_table_from_indexable(name, data, item, feature):
 static %s: [[u8; 2]; %d] = [
   ''' % (feature, feature, name, len(data)))
 
-  for i in xrange(len(data)):
+  for i in range(len(data)):
     data_file.write('[0x%02X, 0x%02X],\n' % data[i][item])
 
   data_file.write('''];
@@ -99,7 +99,7 @@ def static_u8_pair_table(name, data, feature):
 static %s: [[u8; 2]; %d] = [
   ''' % (feature, name, len(data)))
 
-  for i in xrange(len(data)):
+  for i in range(len(data)):
     pair = data[i]
     if not pair:
       pair = (0, 0)
@@ -115,26 +115,26 @@ dom = []
 
 labels = []
 
-data = json.load(open("../encoding/encodings.json", "r"))
+data = json.load(open("../encoding/encodings.json", "r", encoding="utf-8"))
 
-indexes = json.load(open("../encoding/indexes.json", "r"))
+indexes = json.load(open("../encoding/indexes.json", "r", encoding="utf-8"))
 
 single_byte = []
 
 multi_byte = []
 
 def to_camel_name(name):
-  if name == u"iso-8859-8-i":
-    return u"Iso8I"
-  if name.startswith(u"iso-8859-"):
-    return name.replace(u"iso-8859-", u"Iso")
-  return name.title().replace(u"X-", u"").replace(u"-", u"").replace(u"_", u"")
+  if name == "iso-8859-8-i":
+    return "Iso8I"
+  if name.startswith("iso-8859-"):
+    return name.replace("iso-8859-", "Iso")
+  return name.title().replace("X-", "").replace("-", "").replace("_", "")
 
 def to_constant_name(name):
-  return name.replace(u"-", u"_").upper()
+  return name.replace("-", "_").upper()
 
 def to_snake_name(name):
-  return name.replace(u"-", u"_").lower()
+  return name.replace("-", "_").lower()
 
 def to_dom_name(name):
   return name
@@ -228,7 +228,7 @@ encodings_by_code_page = {
 
 code_pages_by_encoding = {}
 
-for code_page, encoding in encodings_by_code_page.iteritems():
+for code_page, encoding in encodings_by_code_page.items():
   code_pages_by_encoding[encoding] = code_page
 
 encoding_by_alias_code_page = {
@@ -257,7 +257,7 @@ for name in encodings_by_code_page_frequency:
 
 encodings_by_code_page.update(encoding_by_alias_code_page)
 
-temp_keys = encodings_by_code_page.keys()
+temp_keys = list(encodings_by_code_page.keys())
 temp_keys.sort()
 for code_page in temp_keys:
   if not code_page in code_pages:
@@ -320,7 +320,7 @@ for name in preferred:
 
 preferred.sort()
 labels.sort()
-dom.sort(cmp=cmp_from_end)
+dom.sort(key=cmp_to_key(cmp_from_end))
 
 longest_label_length = 0
 longest_name_length = 0
@@ -338,8 +338,8 @@ for label in labels:
     longest_label = label.label
 
 def longest_run_for_single_byte(name):
-  if name == u"ISO-8859-8-I":
-    name = u"ISO-8859-8"
+  if name == "ISO-8859-8-I":
+    name = "ISO-8859-8"
   index = indexes[name.lower()]
   run_byte_offset = start_of_longest_run_in_single_byte[name]
   run_bmp_offset = index[run_byte_offset]
@@ -363,7 +363,7 @@ def is_single_byte(name):
   return False
 
 def read_non_generated(path):
-  partially_generated_file = open(path, "r")
+  partially_generated_file = open(path, "r", encoding="utf-8")
   full = partially_generated_file.read()
   partially_generated_file.close()
 
@@ -384,7 +384,7 @@ def read_non_generated(path):
 
 (lib_rs_begin, lib_rs_end) = read_non_generated("src/lib.rs")
 
-label_file = open("src/lib.rs", "w")
+label_file = open("src/lib.rs", "w", encoding="utf-8")
 
 label_file.write(lib_rs_begin)
 label_file.write("""
@@ -398,11 +398,11 @@ for name in preferred:
   variant = None
   if is_single_byte(name):
     (run_bmp_offset, run_byte_offset, run_length) = longest_run_for_single_byte(name)
-    variant = "SingleByte(&data::SINGLE_BYTE_DATA.%s, 0x%04X, %d, %d)" % (to_snake_name(u"iso-8859-8" if name == u"ISO-8859-8-I" else name), run_bmp_offset, run_byte_offset, run_length)
+    variant = "SingleByte(&data::SINGLE_BYTE_DATA.%s, 0x%04X, %d, %d)" % (to_snake_name("iso-8859-8" if name == "ISO-8859-8-I" else name), run_bmp_offset, run_byte_offset, run_length)
   else:
     variant = to_camel_name(name)
 
-  docfile = open("doc/%s.txt" % name, "r")
+  docfile = open("doc/%s.txt" % name, "r", encoding="utf-8")
   doctext = docfile.read()
   docfile.close()
 
@@ -454,7 +454,7 @@ label_file.write('''];
 label_file.write(lib_rs_end)
 label_file.close()
 
-label_test_file = open("src/test_labels_names.rs", "w")
+label_test_file = open("src/test_labels_names.rs", "w", encoding="utf-8")
 label_test_file.write('''// Any copyright to the test code below this comment is dedicated to the
 // Public Domain. http://creativecommons.org/publicdomain/zero/1.0/
 
@@ -481,7 +481,7 @@ def null_to_zero(code_point):
 
 (data_rs_begin, data_rs_end) = read_non_generated("src/data.rs")
 
-data_file = open("src/data.rs", "w")
+data_file = open("src/data.rs", "w", encoding="utf-8")
 data_file.write(data_rs_begin)
 data_file.write('''
 // Instead, please regenerate using generate-encoding-data.py
@@ -494,7 +494,7 @@ pub struct SingleByteData {
 
 for encoding in single_byte:
   name = encoding["name"]
-  if name == u"ISO-8859-8-I":
+  if name == "ISO-8859-8-I":
     continue
 
   data_file.write('''    pub %s: [u16; 128],
@@ -507,7 +507,7 @@ pub static SINGLE_BYTE_DATA: SingleByteData = SingleByteData {
 
 for encoding in single_byte:
   name = encoding["name"]
-  if name == u"ISO-8859-8-I":
+  if name == "ISO-8859-8-I":
     continue
 
   data_file.write('''    %s: [
@@ -539,17 +539,17 @@ for code_point in index[942:19782]:
     low_bits.append(0)
 
 # pad length to multiple of 32
-for j in xrange(32 - (len(astralness) % 32)):
+for j in range(32 - (len(astralness) % 32)):
   astralness.append(0)
 
 data_file.write('''#[allow(clippy::unreadable_literal)]
 static BIG5_ASTRALNESS: [u32; %d] = [
-''' % (len(astralness) / 32))
+''' % (len(astralness) // 32))
 
 i = 0
 while i < len(astralness):
   accu = 0
-  for j in xrange(32):
+  for j in range(32):
     accu |= astralness[i + j] << j
   data_file.write('0x%08X,\n' % accu)
   i += 32
@@ -565,8 +565,8 @@ static_u16_table("BIG5_LOW_BITS", low_bits)
 # could use a directly-indexable table instead...
 level1_hanzi_index = index[5495:10896]
 level1_hanzi_pairs = []
-for i in xrange(len(level1_hanzi_index)):
-  hanzi_lead = (i / 157) + 0xA4
+for i in range(len(level1_hanzi_index)):
+  hanzi_lead = (i // 157) + 0xA4
   hanzi_trail = (i % 157)
   hanzi_trail += 0x40 if hanzi_trail < 0x3F else 0x62
   level1_hanzi_pairs.append((level1_hanzi_index[i], (hanzi_lead, hanzi_trail)))
@@ -582,8 +582,8 @@ static_u8_pair_table_from_indexable("BIG5_LEVEL1_HANZI_BYTES", level1_hanzi_pair
 
 # Fast Unified Ideograph encode
 big5_unified_ideograph_bytes = [None] * (0x9FCC - 0x4E00)
-for row in xrange(0x7E - 0x20):
-  for column in xrange(157):
+for row in range(0x7E - 0x20):
+  for column in range(157):
     pointer = 5024 + column + (row * 157)
     code_point = index[pointer]
     if code_point and code_point >= 0x4E00 and code_point <= 0x9FCB:
@@ -726,7 +726,7 @@ static_u16_table("JIS0208_RANGE_TRIPLES", range_triples)
 # could use a directly-indexable table instead...
 level1_kanji_index = index[1410:4375]
 level1_kanji_pairs = []
-for i in xrange(len(level1_kanji_index)):
+for i in range(len(level1_kanji_index)):
   pointer = 1410 + i
   (lead, trail) = divmod(pointer, 188)
   lead += 0x81 if lead < 0x1F else 0xC1
@@ -739,7 +739,7 @@ static_u8_pair_table_from_indexable("JIS0208_LEVEL1_KANJI_SHIFT_JIS_BYTES", leve
 
 # Fast encoder table for Kanji
 kanji_bytes = [None] * (0x9FA1 - 0x4E00)
-for pointer in xrange(len(index)):
+for pointer in range(len(index)):
   code_point = index[pointer]
   if code_point and code_point >= 0x4E00 and code_point <= 0x9FA0:
     (lead, trail) = divmod(pointer, 188)
@@ -760,7 +760,7 @@ half_width_index = indexes["iso-2022-jp-katakana"]
 data_file.write('''pub static ISO_2022_JP_HALF_WIDTH_TRAIL: [u8; %d] = [
 ''' % len(half_width_index))
 
-for i in xrange(len(half_width_index)):
+for i in range(len(half_width_index)):
   code_point = half_width_index[i]
   pointer = index.index(code_point)
   trail = pointer % 94 + 0x21
@@ -779,8 +779,8 @@ index = indexes["euc-kr"]
 pointers = []
 offsets = []
 previous_code_point = 0
-for row in xrange(0x20):
-  for column in xrange(190):
+for row in range(0x20):
+  for column in range(190):
     i = column + (row * 190)
     # Skip the gaps
     if (column >= 0x1A and column < 0x20) or (column >= 0x3A and column < 0x40):
@@ -805,8 +805,8 @@ static_u16_table("CP949_TOP_HANGUL_OFFSETS", offsets)
 pointers = []
 offsets = []
 previous_code_point = 0
-for row in xrange(0x46 - 0x20):
-  for column in xrange(190 - 94):
+for row in range(0x46 - 0x20):
+  for column in range(190 - 94):
     i = 6080 + column + (row * 190)
     # Skip the gaps
     if (column >= 0x1A and column < 0x20) or (column >= 0x3A and column < 0x40):
@@ -833,8 +833,8 @@ static_u16_table("CP949_LEFT_HANGUL_OFFSETS", offsets)
 # KS X 1001 Hangul
 hangul_index = []
 previous_code_point = 0
-for row in xrange(0x48 - 0x2F):
-  for column in xrange(94):
+for row in range(0x48 - 0x2F):
+  for column in range(94):
     code_point = index[9026 + column + (row * 190)]
     if previous_code_point >= code_point:
       raise Error()
@@ -845,8 +845,8 @@ static_u16_table("KSX1001_HANGUL", hangul_index)
 
 # KS X 1001 Hanja
 hanja_index = []
-for row in xrange(0x7D - 0x49):
-  for column in xrange(94):
+for row in range(0x7D - 0x49):
+  for column in range(94):
     hanja_index.append(index[13966 + column + (row * 190)])
 
 static_u16_table("KSX1001_HANJA", hanja_index)
@@ -885,8 +885,8 @@ static_u16_table("KSX1001_BOX", subindex)
 pointers = []
 offsets = []
 previous_code_point = 0
-for row in xrange(10):
-  for column in xrange(94):
+for row in range(10):
+  for column in range(94):
     i = 6556 + column + (row * 190)
     code_point = index[i]
     # Exclude ranges that were processed as lookup tables
@@ -931,8 +931,8 @@ static_u16_table("KSX1001_OTHER_UNSORTED_OFFSETS", offsets[:-1])
 hangul_bytes = [None] * (0xD7A4 - 0xAC00)
 hanja_unified_bytes = [None] * (0x9F9D - 0x4E00)
 hanja_compatibility_bytes = [None] * (0xFA0C - 0xF900)
-for row in xrange(0x7D):
-  for column in xrange(190):
+for row in range(0x7D):
+  for column in range(190):
     pointer = column + (row * 190)
     code_point = index[pointer]
     if code_point:
@@ -1006,7 +1006,7 @@ index = indexes["gb18030"]
 pointers = []
 offsets = []
 previous_code_point = 0
-for i in xrange(6080):
+for i in range(6080):
   code_point = index[i]
   if previous_code_point > code_point:
     raise Error()
@@ -1023,8 +1023,8 @@ static_u16_table("GBK_TOP_IDEOGRAPH_OFFSETS", offsets)
 pointers = []
 offsets = []
 previous_code_point = 0
-for row in xrange(0x7D - 0x29):
-  for column in xrange(190 - 94):
+for row in range(0x7D - 0x29):
+  for column in range(190 - 94):
     i = 7790 + column + (row * 190)
     if i > 23650:
       # Exclude compatibility ideographs at the end
@@ -1044,8 +1044,8 @@ static_u16_table("GBK_LEFT_IDEOGRAPH_OFFSETS", offsets)
 pointers = []
 offsets = []
 previous_code_point = 0
-for row in xrange(0x29 - 0x20):
-  for column in xrange(190 - 94):
+for row in range(0x29 - 0x20):
+  for column in range(190 - 94):
     i = 6080 + column + (row * 190)
     code_point = index[i]
     if code_point - previous_code_point != 1:
@@ -1071,29 +1071,29 @@ static_u16_table("GBK_BOTTOM", bottom_index)
 # GB2312 Hanzi
 # (and the 5 PUA code points in between Level 1 and Level 2)
 hanzi_index = []
-for row in xrange(0x77 - 0x2F):
-  for column in xrange(94):
+for row in range(0x77 - 0x2F):
+  for column in range(94):
     hanzi_index.append(index[9026 + column + (row * 190)])
 
 static_u16_table("GB2312_HANZI", hanzi_index)
 
 # GB2312 symbols
 symbol_index = []
-for i in xrange(94):
+for i in range(94):
   symbol_index.append(index[6176 + i])
 
 static_u16_table("GB2312_SYMBOLS", symbol_index)
 
 # GB2312 symbols on Greek row (incl. PUA)
 symbol_index = []
-for i in xrange(22):
+for i in range(22):
   symbol_index.append(index[7189 + i])
 
 static_u16_table("GB2312_SYMBOLS_AFTER_GREEK", symbol_index)
 
 # GB2312 Pinyin
 pinyin_index = []
-for i in xrange(32):
+for i in range(32):
   pinyin_index.append(index[7506 + i])
 
 static_u16_table("GB2312_PINYIN", pinyin_index)
@@ -1102,8 +1102,8 @@ static_u16_table("GB2312_PINYIN", pinyin_index)
 pointers = []
 offsets = []
 previous_code_point = 0
-for row in xrange(14):
-  for column in xrange(94):
+for row in range(14):
+  for column in range(94):
     i = 6366 + column + (row * 190)
     code_point = index[i]
     # Exclude the two ranges that were processed as
@@ -1142,8 +1142,8 @@ static_u16_table("GB18030_RANGE_OFFSETS", offsets)
 # the output bytes.
 level1_hanzi_index = hanzi_index[:(94 * (0xD8 - 0xB0) - 5)]
 level1_hanzi_pairs = []
-for i in xrange(len(level1_hanzi_index)):
-  hanzi_lead = (i / 94) + 0xB0
+for i in range(len(level1_hanzi_index)):
+  hanzi_lead = (i // 94) + 0xB0
   hanzi_trail = (i % 94) + 0xA1
   level1_hanzi_pairs.append((level1_hanzi_index[i], (hanzi_lead, hanzi_trail)))
 level1_hanzi_pairs.sort(key=lambda x: x[0])
@@ -1153,8 +1153,8 @@ static_u8_pair_table_from_indexable("GB2312_LEVEL1_HANZI_BYTES", level1_hanzi_pa
 
 # Fast Hanzi encoder table
 hanzi_bytes = [None] * (0x9FA7 - 0x4E00)
-for row in xrange(126):
-  for column in xrange(190):
+for row in range(126):
+  for column in range(190):
     pointer = column + (row * 190)
     code_point = index[pointer]
     if code_point and code_point >= 0x4E00 and code_point <= 0x9FA6:
@@ -1170,7 +1170,7 @@ data_file.close()
 
 # Variant
 
-variant_file = open("src/variant.rs", "w")
+variant_file = open("src/variant.rs", "w", encoding="utf-8")
 variant_file.write('''// Copyright Mozilla Foundation. See the COPYRIGHT
 // file at the top-level directory of this distribution.
 //
@@ -1194,23 +1194,23 @@ variant_file.write('''// Copyright Mozilla Foundation. See the COPYRIGHT
 
 ''')
 
-encoding_variants = [u"single-byte",]
+encoding_variants = ["single-byte",]
 for encoding in multi_byte:
-  if encoding["name"] in [u"UTF-16LE", u"UTF-16BE"]:
+  if encoding["name"] in ["UTF-16LE", "UTF-16BE"]:
     continue
   else:
     encoding_variants.append(encoding["name"])
-encoding_variants.append(u"UTF-16")
+encoding_variants.append("UTF-16")
 
 decoder_variants = []
 for variant in encoding_variants:
-  if variant == u"GBK":
+  if variant == "GBK":
     continue
   decoder_variants.append(variant)
 
 encoder_variants = []
 for variant in encoding_variants:
-  if variant in [u"replacement", u"GBK", u"UTF-16"]:
+  if variant in ["replacement", "GBK", "UTF-16"]:
     continue
   encoder_variants.append(variant)
 
@@ -1414,7 +1414,7 @@ variant_file.close()
 
 (ffi_rs_begin, ffi_rs_end) = read_non_generated("../encoding_c/src/lib.rs")
 
-ffi_file = open("../encoding_c/src/lib.rs", "w")
+ffi_file = open("../encoding_c/src/lib.rs", "w", encoding="utf-8")
 
 ffi_file.write(ffi_rs_begin)
 ffi_file.write("""
@@ -1437,7 +1437,7 @@ ffi_file.close()
 
 (single_byte_rs_begin, single_byte_rs_end) = read_non_generated("src/single_byte.rs")
 
-single_byte_file = open("src/single_byte.rs", "w")
+single_byte_file = open("src/single_byte.rs", "w", encoding="utf-8")
 
 single_byte_file.write(single_byte_rs_begin)
 single_byte_file.write("""
@@ -1448,7 +1448,7 @@ single_byte_file.write("""
 
 idx = 0 # for Miri, return after 2nd test
 for name in preferred:
-  if name == u"ISO-8859-8-I":
+  if name == "ISO-8859-8-I":
     continue;
   if is_single_byte(name):
     single_byte_file.write("""
@@ -1470,7 +1470,7 @@ single_byte_file.write("""
 
 idx = 0 # for Miri, return after 2nd test
 for name in preferred:
-  if name == u"ISO-8859-8-I":
+  if name == "ISO-8859-8-I":
     continue;
   if is_single_byte(name):
     single_byte_file.write("""
@@ -1491,7 +1491,7 @@ single_byte_file.write("""
 single_byte_file.write(single_byte_rs_end)
 single_byte_file.close()
 
-static_file = open("../encoding_c/include/encoding_rs_statics.h", "w")
+static_file = open("../encoding_c/include/encoding_rs_statics.h", "w", encoding="utf-8")
 
 static_file.write("""// Copyright Mozilla Foundation. See the COPYRIGHT
 // file at the top-level directory of this distribution.
@@ -1557,7 +1557,7 @@ static_file.close()
 
 (utf_8_rs_begin, utf_8_rs_end) = read_non_generated("src/utf_8.rs")
 
-utf_8_file = open("src/utf_8.rs", "w")
+utf_8_file = open("src/utf_8.rs", "w", encoding="utf-8")
 
 utf_8_file.write(utf_8_rs_begin)
 utf_8_file.write("""
@@ -1612,7 +1612,7 @@ utf_8_file.close()
 
 # Unit tests
 
-TEST_HEADER = '''Generated from WHATWG indexes.json; see LICENSE-WHATWG.
+TEST_HEADER = b'''Generated from WHATWG indexes.json; see LICENSE-WHATWG.
 
 This is a generated file. Please do not edit.
 Instead, please regenerate using generate-encoding-data.py
@@ -1620,27 +1620,27 @@ Instead, please regenerate using generate-encoding-data.py
 
 index = indexes["jis0208"]
 
-jis0208_in_file = open("tests/test_data/jis0208_in.txt", "w")
+jis0208_in_file = open("tests/test_data/jis0208_in.txt", "wb")
 jis0208_in_file.write(TEST_HEADER)
 for pointer in range(0, 94 * 94):
   (lead, trail) = divmod(pointer, 94)
   lead += 0xA1
   trail += 0xA1
-  jis0208_in_file.write("%s%s\n" % (chr(lead), chr(trail)))
+  jis0208_in_file.write(b"%c%c\n" % (lead, trail))
 jis0208_in_file.close()
 
-jis0208_in_ref_file = open("tests/test_data/jis0208_in_ref.txt", "w")
+jis0208_in_ref_file = open("tests/test_data/jis0208_in_ref.txt", "wb")
 jis0208_in_ref_file.write(TEST_HEADER)
 for pointer in range(0, 94 * 94):
   code_point = index[pointer]
   if code_point:
-    jis0208_in_ref_file.write((u"%s\n" % unichr(code_point)).encode("utf-8"))
+    jis0208_in_ref_file.write(("%s\n" % chr(code_point)).encode("utf-8"))
   else:
-    jis0208_in_ref_file.write(u"\uFFFD\n".encode("utf-8"))
+    jis0208_in_ref_file.write("\uFFFD\n".encode("utf-8"))
 jis0208_in_ref_file.close()
 
-jis0208_out_file = open("tests/test_data/jis0208_out.txt", "w")
-jis0208_out_ref_file = open("tests/test_data/jis0208_out_ref.txt", "w")
+jis0208_out_file = open("tests/test_data/jis0208_out.txt", "wb")
+jis0208_out_ref_file = open("tests/test_data/jis0208_out_ref.txt", "wb")
 jis0208_out_file.write(TEST_HEADER)
 jis0208_out_ref_file.write(TEST_HEADER)
 for pointer in range(0, 94 * 94):
@@ -1652,37 +1652,37 @@ for pointer in range(0, 94 * 94):
     (lead, trail) = divmod(revised_pointer, 94)
     lead += 0xA1
     trail += 0xA1
-    jis0208_out_ref_file.write("%s%s\n" % (chr(lead), chr(trail)))
-    jis0208_out_file.write((u"%s\n" % unichr(code_point)).encode("utf-8"))
+    jis0208_out_ref_file.write(b"%c%c\n" % (lead, trail))
+    jis0208_out_file.write(("%s\n" % chr(code_point)).encode("utf-8"))
 jis0208_out_file.close()
 jis0208_out_ref_file.close()
 
-shift_jis_in_file = open("tests/test_data/shift_jis_in.txt", "w")
+shift_jis_in_file = open("tests/test_data/shift_jis_in.txt", "wb")
 shift_jis_in_file.write(TEST_HEADER)
 for pointer in range(0, len(index)):
   (lead, trail) = divmod(pointer, 188)
   lead += 0x81 if lead < 0x1F else 0xC1
   trail += 0x40 if trail < 0x3F else 0x41
-  shift_jis_in_file.write("%s%s\n" % (chr(lead), chr(trail)))
+  shift_jis_in_file.write(b"%c%c\n" % (lead, trail))
 shift_jis_in_file.close()
 
-shift_jis_in_ref_file = open("tests/test_data/shift_jis_in_ref.txt", "w")
+shift_jis_in_ref_file = open("tests/test_data/shift_jis_in_ref.txt", "wb")
 shift_jis_in_ref_file.write(TEST_HEADER)
 for pointer in range(0, len(index)):
   code_point = 0xE000 - 8836 + pointer if pointer >= 8836 and pointer <= 10715 else index[pointer]
   if code_point:
-    shift_jis_in_ref_file.write((u"%s\n" % unichr(code_point)).encode("utf-8"))
+    shift_jis_in_ref_file.write(("%s\n" % chr(code_point)).encode("utf-8"))
   else:
     trail = pointer % 188
     trail += 0x40 if trail < 0x3F else 0x41
     if trail < 0x80:
-      shift_jis_in_ref_file.write((u"\uFFFD%s\n" % unichr(trail)).encode("utf-8"))
+      shift_jis_in_ref_file.write(("\uFFFD%s\n" % chr(trail)).encode("utf-8"))
     else:
-      shift_jis_in_ref_file.write(u"\uFFFD\n".encode("utf-8"))
+      shift_jis_in_ref_file.write("\uFFFD\n".encode("utf-8"))
 shift_jis_in_ref_file.close()
 
-shift_jis_out_file = open("tests/test_data/shift_jis_out.txt", "w")
-shift_jis_out_ref_file = open("tests/test_data/shift_jis_out_ref.txt", "w")
+shift_jis_out_file = open("tests/test_data/shift_jis_out.txt", "wb")
+shift_jis_out_ref_file = open("tests/test_data/shift_jis_out_ref.txt", "wb")
 shift_jis_out_file.write(TEST_HEADER)
 shift_jis_out_ref_file.write(TEST_HEADER)
 for pointer in range(0, 8272):
@@ -1694,8 +1694,8 @@ for pointer in range(0, 8272):
     (lead, trail) = divmod(revised_pointer, 188)
     lead += 0x81 if lead < 0x1F else 0xC1
     trail += 0x40 if trail < 0x3F else 0x41
-    shift_jis_out_ref_file.write("%s%s\n" % (chr(lead), chr(trail)))
-    shift_jis_out_file.write((u"%s\n" % unichr(code_point)).encode("utf-8"))
+    shift_jis_out_ref_file.write(b"%c%c\n" % (lead, trail))
+    shift_jis_out_file.write(("%s\n" % chr(code_point)).encode("utf-8"))
 for pointer in range(8836, len(index)):
   code_point = index[pointer]
   if code_point:
@@ -1705,32 +1705,32 @@ for pointer in range(8836, len(index)):
     (lead, trail) = divmod(revised_pointer, 188)
     lead += 0x81 if lead < 0x1F else 0xC1
     trail += 0x40 if trail < 0x3F else 0x41
-    shift_jis_out_ref_file.write("%s%s\n" % (chr(lead), chr(trail)))
-    shift_jis_out_file.write((u"%s\n" % unichr(code_point)).encode("utf-8"))
+    shift_jis_out_ref_file.write(b"%c%c\n" % (lead, trail))
+    shift_jis_out_file.write(("%s\n" % chr(code_point)).encode("utf-8"))
 shift_jis_out_file.close()
 shift_jis_out_ref_file.close()
 
-iso_2022_jp_in_file = open("tests/test_data/iso_2022_jp_in.txt", "w")
+iso_2022_jp_in_file = open("tests/test_data/iso_2022_jp_in.txt", "wb")
 iso_2022_jp_in_file.write(TEST_HEADER)
 for pointer in range(0, 94 * 94):
   (lead, trail) = divmod(pointer, 94)
   lead += 0x21
   trail += 0x21
-  iso_2022_jp_in_file.write("\x1B$B%s%s\x1B(B\n" % (chr(lead), chr(trail)))
+  iso_2022_jp_in_file.write(b"\x1B$B%c%c\x1B(B\n" % (lead, trail))
 iso_2022_jp_in_file.close()
 
-iso_2022_jp_in_ref_file = open("tests/test_data/iso_2022_jp_in_ref.txt", "w")
+iso_2022_jp_in_ref_file = open("tests/test_data/iso_2022_jp_in_ref.txt", "wb")
 iso_2022_jp_in_ref_file.write(TEST_HEADER)
 for pointer in range(0, 94 * 94):
   code_point = index[pointer]
   if code_point:
-    iso_2022_jp_in_ref_file.write((u"%s\n" % unichr(code_point)).encode("utf-8"))
+    iso_2022_jp_in_ref_file.write(("%s\n" % chr(code_point)).encode("utf-8"))
   else:
-    iso_2022_jp_in_ref_file.write(u"\uFFFD\n".encode("utf-8"))
+    iso_2022_jp_in_ref_file.write("\uFFFD\n".encode("utf-8"))
 iso_2022_jp_in_ref_file.close()
 
-iso_2022_jp_out_file = open("tests/test_data/iso_2022_jp_out.txt", "w")
-iso_2022_jp_out_ref_file = open("tests/test_data/iso_2022_jp_out_ref.txt", "w")
+iso_2022_jp_out_file = open("tests/test_data/iso_2022_jp_out.txt", "wb")
+iso_2022_jp_out_ref_file = open("tests/test_data/iso_2022_jp_out_ref.txt", "wb")
 iso_2022_jp_out_file.write(TEST_HEADER)
 iso_2022_jp_out_ref_file.write(TEST_HEADER)
 for pointer in range(0, 94 * 94):
@@ -1742,48 +1742,48 @@ for pointer in range(0, 94 * 94):
     (lead, trail) = divmod(revised_pointer, 94)
     lead += 0x21
     trail += 0x21
-    iso_2022_jp_out_ref_file.write("\x1B$B%s%s\x1B(B\n" % (chr(lead), chr(trail)))
-    iso_2022_jp_out_file.write((u"%s\n" % unichr(code_point)).encode("utf-8"))
-for i in xrange(len(half_width_index)):
+    iso_2022_jp_out_ref_file.write(b"\x1B$B%c%c\x1B(B\n" % (lead, trail))
+    iso_2022_jp_out_file.write(("%s\n" % chr(code_point)).encode("utf-8"))
+for i in range(len(half_width_index)):
   code_point = i + 0xFF61
   normalized_code_point = half_width_index[i]
   pointer = index.index(normalized_code_point)
   (lead, trail) = divmod(pointer, 94)
   lead += 0x21
   trail += 0x21
-  iso_2022_jp_out_ref_file.write("\x1B$B%s%s\x1B(B\n" % (chr(lead), chr(trail)))
-  iso_2022_jp_out_file.write((u"%s\n" % unichr(code_point)).encode("utf-8"))
+  iso_2022_jp_out_ref_file.write(b"\x1B$B%c%c\x1B(B\n" % (lead, trail))
+  iso_2022_jp_out_file.write(("%s\n" % chr(code_point)).encode("utf-8"))
 iso_2022_jp_out_file.close()
 iso_2022_jp_out_ref_file.close()
 
 index = indexes["euc-kr"]
 
-euc_kr_in_file = open("tests/test_data/euc_kr_in.txt", "w")
+euc_kr_in_file = open("tests/test_data/euc_kr_in.txt", "wb")
 euc_kr_in_file.write(TEST_HEADER)
 for pointer in range(0, len(index)):
   (lead, trail) = divmod(pointer, 190)
   lead += 0x81
   trail += 0x41
-  euc_kr_in_file.write("%s%s\n" % (chr(lead), chr(trail)))
+  euc_kr_in_file.write(b"%c%c\n" % (lead, trail))
 euc_kr_in_file.close()
 
-euc_kr_in_ref_file = open("tests/test_data/euc_kr_in_ref.txt", "w")
+euc_kr_in_ref_file = open("tests/test_data/euc_kr_in_ref.txt", "wb")
 euc_kr_in_ref_file.write(TEST_HEADER)
 for pointer in range(0, len(index)):
   code_point = index[pointer]
   if code_point:
-    euc_kr_in_ref_file.write((u"%s\n" % unichr(code_point)).encode("utf-8"))
+    euc_kr_in_ref_file.write(("%s\n" % chr(code_point)).encode("utf-8"))
   else:
     trail = pointer % 190
     trail += 0x41
     if trail < 0x80:
-      euc_kr_in_ref_file.write((u"\uFFFD%s\n" % unichr(trail)).encode("utf-8"))
+      euc_kr_in_ref_file.write(("\uFFFD%s\n" % chr(trail)).encode("utf-8"))
     else:
-      euc_kr_in_ref_file.write(u"\uFFFD\n".encode("utf-8"))
+      euc_kr_in_ref_file.write("\uFFFD\n".encode("utf-8"))
 euc_kr_in_ref_file.close()
 
-euc_kr_out_file = open("tests/test_data/euc_kr_out.txt", "w")
-euc_kr_out_ref_file = open("tests/test_data/euc_kr_out_ref.txt", "w")
+euc_kr_out_file = open("tests/test_data/euc_kr_out.txt", "wb")
+euc_kr_out_ref_file = open("tests/test_data/euc_kr_out_ref.txt", "wb")
 euc_kr_out_file.write(TEST_HEADER)
 euc_kr_out_ref_file.write(TEST_HEADER)
 for pointer in range(0, len(index)):
@@ -1792,39 +1792,39 @@ for pointer in range(0, len(index)):
     (lead, trail) = divmod(pointer, 190)
     lead += 0x81
     trail += 0x41
-    euc_kr_out_ref_file.write("%s%s\n" % (chr(lead), chr(trail)))
-    euc_kr_out_file.write((u"%s\n" % unichr(code_point)).encode("utf-8"))
+    euc_kr_out_ref_file.write(b"%c%c\n" % (lead, trail))
+    euc_kr_out_file.write(("%s\n" % chr(code_point)).encode("utf-8"))
 euc_kr_out_file.close()
 euc_kr_out_ref_file.close()
 
 index = indexes["gb18030"]
 
-gb18030_in_file = open("tests/test_data/gb18030_in.txt", "w")
+gb18030_in_file = open("tests/test_data/gb18030_in.txt", "wb")
 gb18030_in_file.write(TEST_HEADER)
 for pointer in range(0, len(index)):
   (lead, trail) = divmod(pointer, 190)
   lead += 0x81
   trail += 0x40 if trail < 0x3F else 0x41
-  gb18030_in_file.write("%s%s\n" % (chr(lead), chr(trail)))
+  gb18030_in_file.write(b"%c%c\n" % (lead, trail))
 gb18030_in_file.close()
 
-gb18030_in_ref_file = open("tests/test_data/gb18030_in_ref.txt", "w")
+gb18030_in_ref_file = open("tests/test_data/gb18030_in_ref.txt", "wb")
 gb18030_in_ref_file.write(TEST_HEADER)
 for pointer in range(0, len(index)):
   code_point = index[pointer]
   if code_point:
-    gb18030_in_ref_file.write((u"%s\n" % unichr(code_point)).encode("utf-8"))
+    gb18030_in_ref_file.write(("%s\n" % chr(code_point)).encode("utf-8"))
   else:
     trail = pointer % 190
     trail += 0x40 if trail < 0x3F else 0x41
     if trail < 0x80:
-      gb18030_in_ref_file.write((u"\uFFFD%s\n" % unichr(trail)).encode("utf-8"))
+      gb18030_in_ref_file.write(("\uFFFD%s\n" % chr(trail)).encode("utf-8"))
     else:
-      gb18030_in_ref_file.write(u"\uFFFD\n".encode("utf-8"))
+      gb18030_in_ref_file.write("\uFFFD\n".encode("utf-8"))
 gb18030_in_ref_file.close()
 
-gb18030_out_file = open("tests/test_data/gb18030_out.txt", "w")
-gb18030_out_ref_file = open("tests/test_data/gb18030_out_ref.txt", "w")
+gb18030_out_file = open("tests/test_data/gb18030_out.txt", "wb")
+gb18030_out_ref_file = open("tests/test_data/gb18030_out_ref.txt", "wb")
 gb18030_out_file.write(TEST_HEADER)
 gb18030_out_ref_file.write(TEST_HEADER)
 for pointer in range(0, len(index)):
@@ -1835,45 +1835,45 @@ for pointer in range(0, len(index)):
     (lead, trail) = divmod(pointer, 190)
     lead += 0x81
     trail += 0x40 if trail < 0x3F else 0x41
-    gb18030_out_ref_file.write("%s%s\n" % (chr(lead), chr(trail)))
-    gb18030_out_file.write((u"%s\n" % unichr(code_point)).encode("utf-8"))
+    gb18030_out_ref_file.write(b"%c%c\n" % (lead, trail))
+    gb18030_out_file.write(("%s\n" % chr(code_point)).encode("utf-8"))
 gb18030_out_file.close()
 gb18030_out_ref_file.close()
 
 index = indexes["big5"]
 
-big5_in_file = open("tests/test_data/big5_in.txt", "w")
+big5_in_file = open("tests/test_data/big5_in.txt", "wb")
 big5_in_file.write(TEST_HEADER)
 for pointer in range(0, len(index)):
   (lead, trail) = divmod(pointer, 157)
   lead += 0x81
   trail += 0x40 if trail < 0x3F else 0x62
-  big5_in_file.write("%s%s\n" % (chr(lead), chr(trail)))
+  big5_in_file.write(b"%c%c\n" % (lead, trail))
 big5_in_file.close()
 
 big5_two_characters = {
-  1133: u"\u00CA\u0304",
-  1135: u"\u00CA\u030C",
-  1164: u"\u00EA\u0304",
-  1166: u"\u00EA\u030C",
+  1133: "\u00CA\u0304",
+  1135: "\u00CA\u030C",
+  1164: "\u00EA\u0304",
+  1166: "\u00EA\u030C",
 }
 
-big5_in_ref_file = open("tests/test_data/big5_in_ref.txt", "w")
+big5_in_ref_file = open("tests/test_data/big5_in_ref.txt", "wb")
 big5_in_ref_file.write(TEST_HEADER)
 for pointer in range(0, len(index)):
-  if pointer in big5_two_characters.keys():
-    big5_in_ref_file.write((u"%s\n" % big5_two_characters[pointer]).encode("utf-8"))
+  if pointer in list(big5_two_characters.keys()):
+    big5_in_ref_file.write(("%s\n" % big5_two_characters[pointer]).encode("utf-8"))
     continue
   code_point = index[pointer]
   if code_point:
-    big5_in_ref_file.write((u"%s\n" % unichr(code_point)).encode("utf-8"))
+    big5_in_ref_file.write(("%s\n" % chr(code_point)).encode("utf-8"))
   else:
     trail = pointer % 157
     trail += 0x40 if trail < 0x3F else 0x62
     if trail < 0x80:
-      big5_in_ref_file.write((u"\uFFFD%s\n" % unichr(trail)).encode("utf-8"))
+      big5_in_ref_file.write(("\uFFFD%s\n" % chr(trail)).encode("utf-8"))
     else:
-      big5_in_ref_file.write(u"\uFFFD\n".encode("utf-8"))
+      big5_in_ref_file.write("\uFFFD\n".encode("utf-8"))
 big5_in_ref_file.close()
 
 prefer_last = [
@@ -1889,14 +1889,14 @@ pointer_for_prefer_last = []
 
 for code_point in prefer_last:
   # Python lists don't have .rindex() :-(
-  for i in xrange(len(index) - 1, -1, -1):
+  for i in range(len(index) - 1, -1, -1):
     candidate = index[i]
     if candidate == code_point:
        pointer_for_prefer_last.append(i)
        break
 
-big5_out_file = open("tests/test_data/big5_out.txt", "w")
-big5_out_ref_file = open("tests/test_data/big5_out_ref.txt", "w")
+big5_out_file = open("tests/test_data/big5_out.txt", "wb")
+big5_out_ref_file = open("tests/test_data/big5_out_ref.txt", "wb")
 big5_out_file.write(TEST_HEADER)
 big5_out_ref_file.write(TEST_HEADER)
 for pointer in range(((0xA1 - 0x81) * 157), len(index)):
@@ -1911,35 +1911,35 @@ for pointer in range(((0xA1 - 0x81) * 157), len(index)):
     (lead, trail) = divmod(pointer, 157)
     lead += 0x81
     trail += 0x40 if trail < 0x3F else 0x62
-    big5_out_ref_file.write("%s%s\n" % (chr(lead), chr(trail)))
-    big5_out_file.write((u"%s\n" % unichr(code_point)).encode("utf-8"))
+    big5_out_ref_file.write(b"%c%c\n" % (lead, trail))
+    big5_out_file.write(("%s\n" % chr(code_point)).encode("utf-8"))
 big5_out_file.close()
 big5_out_ref_file.close()
 
 index = indexes["jis0212"]
 
-jis0212_in_file = open("tests/test_data/jis0212_in.txt", "w")
+jis0212_in_file = open("tests/test_data/jis0212_in.txt", "wb")
 jis0212_in_file.write(TEST_HEADER)
 for pointer in range(0, len(index)):
   (lead, trail) = divmod(pointer, 94)
   lead += 0xA1
   trail += 0xA1
-  jis0212_in_file.write("\x8F%s%s\n" % (chr(lead), chr(trail)))
+  jis0212_in_file.write(b"\x8F%c%c\n" % (lead, trail))
 jis0212_in_file.close()
 
-jis0212_in_ref_file = open("tests/test_data/jis0212_in_ref.txt", "w")
+jis0212_in_ref_file = open("tests/test_data/jis0212_in_ref.txt", "wb")
 jis0212_in_ref_file.write(TEST_HEADER)
 for pointer in range(0, len(index)):
   code_point = index[pointer]
   if code_point:
-    jis0212_in_ref_file.write((u"%s\n" % unichr(code_point)).encode("utf-8"))
+    jis0212_in_ref_file.write(("%s\n" % chr(code_point)).encode("utf-8"))
   else:
-    jis0212_in_ref_file.write(u"\uFFFD\n".encode("utf-8"))
+    jis0212_in_ref_file.write("\uFFFD\n".encode("utf-8"))
 jis0212_in_ref_file.close()
 
 (codepage_begin, codepage_end) = read_non_generated("../codepage/src/lib.rs")
 
-codepage_file = open("../codepage/src/lib.rs", "w")
+codepage_file = open("../codepage/src/lib.rs", "w", encoding="utf-8")
 
 codepage_file.write(codepage_begin)
 codepage_file.write("""
@@ -1971,7 +1971,7 @@ codepage_file.close()
 
 (codepage_test_begin, codepage_test_end) = read_non_generated("../codepage/src/tests.rs")
 
-codepage_test_file = open("../codepage/src/tests.rs", "w")
+codepage_test_file = open("../codepage/src/tests.rs", "w", encoding="utf-8")
 
 codepage_test_file.write(codepage_test_begin)
 codepage_test_file.write("""
@@ -1993,7 +1993,7 @@ fn test_from_encoding() {
 """)
 
 for name in preferred:
-  if code_pages_by_encoding.has_key(name):
+  if name in code_pages_by_encoding:
     codepage_test_file.write("    assert_eq!(from_encoding(%s), Some(%d));\n" % (to_constant_name(name), code_pages_by_encoding[name]))
   else:
     codepage_test_file.write("    assert_eq!(from_encoding(%s), None);\n" % to_constant_name(name))

@@ -16,6 +16,8 @@ cfg_if! {
         use simd_funcs::*;
         use core::simd::u16x8;
         use core::simd::cmp::SimdPartialOrd;
+        #[rustversion::since(1.95)]
+        use core::simd::Select;
 
         #[inline(always)]
         fn shift_upper(unpacked: u16x8) -> u16x8 {
@@ -226,7 +228,10 @@ mod tests {
         decode_x_user_defined(b"\x61\x62", "\u{0061}\u{0062}");
 
         decode_x_user_defined(b"\x80\xFF", "\u{F780}\u{F7FF}");
-        decode_x_user_defined(b"\x80\xFF\x61\x62\x80\xFF\x61\x62\x80\xFF\x61\x62\x80\xFF\x61\x62\x80\xFF\x61\x62", "\u{F780}\u{F7FF}\u{0061}\u{0062}\u{F780}\u{F7FF}\u{0061}\u{0062}\u{F780}\u{F7FF}\u{0061}\u{0062}\u{F780}\u{F7FF}\u{0061}\u{0062}\u{F780}\u{F7FF}\u{0061}\u{0062}");
+        decode_x_user_defined(
+            b"\x80\xFF\x61\x62\x80\xFF\x61\x62\x80\xFF\x61\x62\x80\xFF\x61\x62\x80\xFF\x61\x62",
+            "\u{F780}\u{F7FF}\u{0061}\u{0062}\u{F780}\u{F7FF}\u{0061}\u{0062}\u{F780}\u{F7FF}\u{0061}\u{0062}\u{F780}\u{F7FF}\u{0061}\u{0062}\u{F780}\u{F7FF}\u{0061}\u{0062}",
+        );
     }
 
     #[test]

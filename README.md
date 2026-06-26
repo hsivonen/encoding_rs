@@ -73,6 +73,14 @@ Additionally, `encoding_rs::mem` does the following:
 * Converts ASCII to UTF-16 up to the first non-ASCII byte.
 * Converts UTF-16 to ASCII up to the first non-Basic Latin code unit.
 
+## API surprises to watch out for
+
+The encoder API encodes to the [_output encoding_](https://encoding.spec.whatwg.org/#output-encodings)
+of the `Encoding` that methods are invoked on. That is, you can't use this crate to produce
+output in UTF-16LE, UTF-16BE, or replacement, since the output encoding
+for those encodings is UTF-8! (Changing the API to make this more obvious from the API
+shape itself would now be a semver break.)
+
 ## Integration with `std::io`
 
 Notably, the above feature list doesn't include the capability to wrap
@@ -163,24 +171,48 @@ wrappers.
 
 ## Optional features
 
-There are currently these optional cargo features:
+There are multiple optional features.
+
+There are remarks about which features are used by Firefox to indicate what
+configuration is the one the crate author pays the most attention to. While
+not a Cargo feature, the panic configuration is relevant in this sense.
+Panic aborts the process in Firefox.
+
+Historically, there have been bugs that have affected non-Firefox
+configurations but not the Firefox configuration.
+
+### `alloc` (enabled by default)
+
+Enables the parts of the API that deal with `String`, `Vec`, and `Cow`.
+
+Enabled but not actually used by Firefox.
 
 ### `simd-accel`
 
-Enables SIMD acceleration using the nightly-dependent `portable_simd` standard
-library feature.
+Enables SIMD acceleration using the nightly-dependent `core::simd` part of
+the standard library.
 
 This is an opt-in feature, because enabling this feature _opts out_ of Rust's
 guarantees of future compilers compiling old code (aka. "stability story").
 
-Currently, this has not been tested to be an improvement except for these
-targets and enabling the `simd-accel` feature is expected to break the build
-on other targets:
+Enabling the `simd-accel` feature is expected to break the build on targets other
+than:
 
 * x86_64
-* i686
 * aarch64
 * thumbv7neon
+* i686
+
+As of 2026, only x86_64 and aarch64 are tested on real hardware (primarily Zen 3
+and M3 Pro, but there are still Haswell-informed choices from original development
+that have not been revisited).
+
+For thumbv7neon, an effort is made to retain code shape that was previously
+validated for performance on Exynos 5 Octa, but performance regressions are
+no longer actually tested for on real ARMv7 hardware.
+
+i686 gets the code shape for x86_64 with minimal checks that it compiles and
+runs, but the testing is on x86_64 hardware.
 
 If you use nightly Rust, you use targets whose first component is one of the
 above, and you are prepared _to have to revise your configuration when updating
@@ -433,7 +465,7 @@ To regenerate the generated code:
 - [ ] ~Investigate [Bob Steagall's lookup table acceleration for UTF-8](https://github.com/BobSteagall/CppNow2018/blob/master/FastConversionFromUTF-8/Fast%20Conversion%20From%20UTF-8%20with%20C%2B%2B%2C%20DFAs%2C%20and%20SSE%20Intrinsics%20-%20Bob%20Steagall%20-%20C%2B%2BNow%202018.pdf).~
 - [x] Provide a build mode that works without `alloc` (with lesser API surface).
 - [x] Migrate to `std::simd` ~once it is stable and declare 1.0.~
-- [ ] Migrate `unsafe` slice access by larger types than `u8`/`u16` to `align_to`.
+- [x] Migrate `unsafe` slice access by larger types than `u8`/`u16` to ~`align_to`~ `as_chunks`.
 
 ## Release Notes
 

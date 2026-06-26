@@ -7,65 +7,40 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-#[allow(unused)]
-use any_all_workaround::{all_mask16x8, all_mask8x16, any_mask16x8, any_mask8x16};
+use core::simd::ToBytes;
 use core::simd::cmp::SimdPartialEq;
 use core::simd::cmp::SimdPartialOrd;
-use core::simd::simd_swizzle;
-use core::simd::ToBytes;
-#[allow(unused)]
-use core::simd::{mask16x8, mask8x16, u16x8, u8x16};
+use core::simd::u8x16;
+use core::simd::u16x8;
+
+// TODO: Remove the load/store functions as part of removing `unsafe` from
+// UTF-16BE|LE and x-user-defined.
 
 /// Safety invariant: ptr must be valid for an unaligned read of 16 bytes
 #[inline(always)]
 pub unsafe fn load16_unaligned(ptr: *const u8) -> u8x16 {
-    ::core::ptr::read_unaligned(ptr as *const u8x16)
-}
-
-/// Safety invariant: ptr must be valid for an aligned-for-u8x16 read of 16 bytes
-#[allow(dead_code)]
-#[inline(always)]
-pub unsafe fn load16_aligned(ptr: *const u8) -> u8x16 {
-    *(ptr as *const u8x16)
+    let mut simd = ::core::mem::MaybeUninit::<u8x16>::uninit();
+    unsafe {
+        ::core::ptr::copy_nonoverlapping(ptr, simd.as_mut_ptr() as *mut u8, 16);
+        // Safety: copied 16 bytes of initialized memory into this, it is now initialized
+        simd.assume_init()
+    }
 }
 
 /// Safety invariant: ptr must be valid for an unaligned store of 16 bytes
 #[inline(always)]
 pub unsafe fn store16_unaligned(ptr: *mut u8, s: u8x16) {
-    ::core::ptr::write_unaligned(ptr as *mut u8x16, s);
-}
-
-/// Safety invariant: ptr must be valid for an aligned-for-u8x16 store of 16 bytes
-#[allow(dead_code)]
-#[inline(always)]
-pub unsafe fn store16_aligned(ptr: *mut u8, s: u8x16) {
-    *(ptr as *mut u8x16) = s;
-}
-
-/// Safety invariant: ptr must be valid for an unaligned read of 16 bytes
-#[inline(always)]
-pub unsafe fn load8_unaligned(ptr: *const u16) -> u16x8 {
-    ::core::ptr::read_unaligned(ptr as *const u16x8)
-}
-
-/// Safety invariant: ptr must be valid for an aligned-for-u16x8 read of 16 bytes
-#[allow(dead_code)]
-#[inline(always)]
-pub unsafe fn load8_aligned(ptr: *const u16) -> u16x8 {
-    *(ptr as *const u16x8)
+    unsafe {
+        ::core::ptr::copy_nonoverlapping(&s as *const u8x16 as *const u8, ptr, 16);
+    }
 }
 
 /// Safety invariant: ptr must be valid for an unaligned store of 16 bytes
 #[inline(always)]
 pub unsafe fn store8_unaligned(ptr: *mut u16, s: u16x8) {
-    ::core::ptr::write_unaligned(ptr as *mut u16x8, s);
-}
-
-/// Safety invariant: ptr must be valid for an aligned-for-u16x8 store of 16 bytes
-#[allow(dead_code)]
-#[inline(always)]
-pub unsafe fn store8_aligned(ptr: *mut u16, s: u16x8) {
-    *(ptr as *mut u16x8) = s;
+    unsafe {
+        ::core::ptr::copy_nonoverlapping(&s as *const u16x8 as *const u8, ptr as *mut u8, 16);
+    }
 }
 
 cfg_if! {
@@ -120,6 +95,7 @@ cfg_if! {
         #[inline(always)]
         pub fn mask_ascii(s: u8x16) -> i32 {
             unsafe {
+                // Safety: We have cfg()d the correct platform
                 _mm_movemask_epi8(s.into())
             }
         }
@@ -152,7 +128,7 @@ cfg_if! {
             // This optimizes better on ARM than
             // the lt formulation.
             let highest_ascii = u8x16::splat(0x7F);
-            !any_mask8x16(s.simd_gt(highest_ascii))
+            !any_all_workaround::any_mask8x16(s.simd_gt(highest_ascii))
         }
     }
 }
@@ -168,6 +144,7 @@ cfg_if! {
             s.simd_lt(above_str_latin1).all()
         }
     } else if #[cfg(target_arch = "aarch64")]{
+        #[allow(dead_code)]
         #[inline(always)]
         pub fn simd_is_str_latin1(s: u8x16) -> bool {
             unsafe {
@@ -179,7 +156,7 @@ cfg_if! {
         #[inline(always)]
         pub fn simd_is_str_latin1(s: u8x16) -> bool {
             let above_str_latin1 = u8x16::splat(0xC4);
-            all_mask8x16(s.simd_lt(above_str_latin1))
+            any_all_workaround::all_mask8x16(s.simd_lt(above_str_latin1))
         }
     }
 }
@@ -205,7 +182,7 @@ cfg_if! {
         #[inline(always)]
         pub fn simd_is_basic_latin(s: u16x8) -> bool {
             let above_ascii = u16x8::splat(0x80);
-            all_mask16x8(s.simd_lt(above_ascii))
+            any_all_workaround::all_mask16x8(s.simd_lt(above_ascii))
         }
 
         #[inline(always)]
@@ -214,7 +191,7 @@ cfg_if! {
             // seems faster in this case while the above
             // function is better the other way round...
             let highest_latin1 = u16x8::splat(0xFF);
-            !any_mask16x8(s.simd_gt(highest_latin1))
+            !any_all_workaround::any_mask16x8(s.simd_gt(highest_latin1))
         }
     }
 }
@@ -223,7 +200,7 @@ cfg_if! {
 pub fn contains_surrogates(s: u16x8) -> bool {
     let mask = u16x8::splat(0xF800);
     let surrogate_bits = u16x8::splat(0xD800);
-    any_mask16x8((s & mask).simd_eq(surrogate_bits))
+    any_all_workaround::any_mask16x8((s & mask).simd_eq(surrogate_bits))
 }
 
 cfg_if! {
@@ -249,7 +226,7 @@ cfg_if! {
 
         macro_rules! non_aarch64_return_false_if_all {
             ($s:ident) => ({
-                if all_mask16x8($s) {
+                if any_all_workaround::all_mask16x8($s) {
                     return false;
                 }
             })
@@ -265,7 +242,7 @@ macro_rules! in_range16x8 {
 }
 
 #[inline(always)]
-pub fn is_u16x8_bidi(s: u16x8) -> bool {
+pub(crate) fn is_u16x8_bidi(s: u16x8) -> bool {
     // We try to first quickly refute the RTLness of the vector. If that
     // fails, we do the real RTL check, so in that case we end up wasting
     // the work for the up-front quick checks. Even the quick-check is
@@ -278,7 +255,7 @@ pub fn is_u16x8_bidi(s: u16x8) -> bool {
 
     non_aarch64_return_false_if_all!(below_hebrew);
 
-    if all_mask16x8(
+    if any_all_workaround::all_mask16x8(
         below_hebrew | in_range16x8!(s, 0x0900, 0x200F) | in_range16x8!(s, 0x2068, 0xD802),
     ) {
         return false;
@@ -286,8 +263,8 @@ pub fn is_u16x8_bidi(s: u16x8) -> bool {
 
     // Quick refutation failed. Let's do the full check.
 
-    any_mask16x8(
-        in_range16x8!(s, 0x0590, 0x0900)
+    any_all_workaround::any_mask16x8(
+        (in_range16x8!(s, 0x0590, 0x0900)
             | in_range16x8!(s, 0xFB1D, 0xFE00)
             | in_range16x8!(s, 0xFE70, 0xFEFF)
             | in_range16x8!(s, 0xD802, 0xD804)
@@ -299,23 +276,27 @@ pub fn is_u16x8_bidi(s: u16x8) -> bool {
     )
 }
 
+// Code above is old code not re-vetted for Rust 1.88 and later `unsafe` removal.
+// Code below has been checked as part of the Rust 1.88 and later `unsafe` removal.
+
+use crate::ascii::STRIDE;
+
+const HALF_STRIDE: usize = STRIDE / 2;
+
 #[inline(always)]
 pub fn simd_unpack(s: u8x16) -> (u16x8, u16x8) {
-    let first: u8x16 = simd_swizzle!(
-        s,
-        u8x16::splat(0),
-        [0, 16, 1, 17, 2, 18, 3, 19, 4, 20, 5, 21, 6, 22, 7, 23]
-    );
-    let second: u8x16 = simd_swizzle!(
-        s,
-        u8x16::splat(0),
-        [8, 24, 9, 25, 10, 26, 11, 27, 12, 28, 13, 29, 14, 30, 15, 31]
-    );
+    let (first, second) = s.interleave(u8x16::splat(0));
     (u16x8::from_ne_bytes(first), u16x8::from_ne_bytes(second))
 }
 
 cfg_if! {
     if #[cfg(target_feature = "sse2")] {
+        #[inline(always)]
+        fn movemask(s: core::arch::x86_64::__m128i) -> u32 {
+            // Safety: We have cfg()d the correct platform
+            (unsafe { _mm_movemask_epi8(s) }) as u32
+        }
+
         #[inline(always)]
         pub fn simd_pack(a: u16x8, b: u16x8) -> u8x16 {
             unsafe {
@@ -323,18 +304,302 @@ cfg_if! {
                 _mm_packus_epi16(a.into(), b.into()).into()
             }
         }
+
+        #[inline(always)]
+        fn validate_basic_latin_simd(first_simd: u16x8, second_simd: u16x8) -> Option<(u16, usize)> {
+            let bound = u16x8::splat(0x7F);
+            let first_mask = movemask(first_simd.simd_gt(bound).to_simd().into());
+            let second_mask = movemask(second_simd.simd_gt(bound).to_simd().into());
+            let combined = (second_mask << 16) | first_mask;
+            if combined == 0 {
+                return None;
+            }
+            let pos = (combined.trailing_zeros() / 2) as usize;
+            if let Some(u) = first_simd.as_array().get(pos) {
+                return Some((*u, pos));
+            }
+            Some((second_simd[pos - 8], pos))
+        }
+
+        #[inline(always)]
+        fn validate_bmp_simd(first_simd: u16x8, second_simd: u16x8) -> Option<usize> {
+            let surrogate_bits = u16x8::splat(0xD800);
+            let mask = u16x8::splat(0xF800);
+            let first_mask = movemask((first_simd & mask).simd_eq(surrogate_bits).to_simd().into());
+            let second_mask = movemask((second_simd & mask).simd_eq(surrogate_bits).to_simd().into());
+            let combined = (second_mask << 16) | first_mask;
+            if combined == 0 {
+                return None;
+            }
+            Some((combined.trailing_zeros() / 2) as usize)
+        }
     } else {
         #[inline(always)]
         pub fn simd_pack(a: u16x8, b: u16x8) -> u8x16 {
             let first: u8x16 = a.to_ne_bytes();
             let second: u8x16 = b.to_ne_bytes();
-            simd_swizzle!(
-                first,
-                second,
-                [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30]
-            )
+            let (ret, _) = first.deinterleave(second);
+            ret
+        }
+
+        #[inline(always)]
+        fn validate_basic_latin_simd(first_simd: u16x8, second_simd: u16x8) -> Option<(u16, usize)> {
+            let first: u8x16 = first_simd.to_ne_bytes();
+            let second: u8x16 = second_simd.to_ne_bytes();
+            let (low, high) = first.deinterleave(second);
+            if let Some(pos) = (low.simd_gt(u8x16::splat(0x7F)) | high.simd_ne(u8x16::splat(0))).first_set() {
+                if let Some(u) = first_simd.as_array().get(pos) {
+                    return Some((*u, pos));
+                }
+                Some((second_simd[pos - 8], pos))
+            } else {
+                None
+            }
+        }
+
+        #[inline(always)]
+        fn validate_bmp_simd(first_simd: u16x8, second_simd: u16x8) -> Option<usize> {
+            let first: u8x16 = first_simd.to_ne_bytes();
+            let second: u8x16 = second_simd.to_ne_bytes();
+            let (_, high) = first.deinterleave(second);
+            (high & u8x16::splat(0xF8)).simd_eq(u8x16::splat(0xD8)).first_set()
         }
     }
+}
+
+cfg_if! {
+    if #[cfg(target_feature = "sse2")] {
+        #[inline(always)]
+        pub fn validate_latin1_str_simd(s: u8x16) -> Option<usize> {
+            if simd_is_ascii(s) {
+                return None;
+            }
+            s.simd_gt(u8x16::splat(0xC3)).first_set()
+        }
+    } else if #[cfg(target_arch = "aarch64")]{
+        #[inline(always)]
+        pub fn validate_latin1_str_simd(s: u8x16) -> Option<usize> {
+            if unsafe {
+                // Safety: We have cfg()d the correct platform
+                vmaxvq_u8(s.into()) < 0xC4
+            } {
+                return None;
+            }
+            s.simd_gt(u8x16::splat(0xC3)).first_set()
+        }
+    } else {
+        #[inline(always)]
+        pub fn validate_latin1_str_simd(s: u8x16) -> Option<usize> {
+            s.simd_gt(u8x16::splat(0xC3)).first_set()
+        }
+    }
+}
+
+#[inline(always)]
+fn split_u16_stride(stride: &[u16; STRIDE]) -> (&[u16; HALF_STRIDE], &[u16; HALF_STRIDE]) {
+    let (chunks, _) = stride.as_chunks::<HALF_STRIDE>();
+    (&chunks[0], &chunks[1])
+}
+
+#[inline(always)]
+fn split_u16_stride_mut(
+    stride: &mut [u16; STRIDE],
+) -> (&mut [u16; HALF_STRIDE], &mut [u16; HALF_STRIDE]) {
+    // Can't take two mutable references to output of `as_chunks_mut`.
+    let (head, tail) = stride.split_at_mut(HALF_STRIDE);
+    // `as_array` requires Rust 1.93.
+    (
+        &mut head.as_chunks_mut::<HALF_STRIDE>().0[0],
+        &mut tail.as_chunks_mut::<HALF_STRIDE>().0[0],
+    )
+}
+
+#[inline(always)]
+fn unpack_simd_to(src_simd: u8x16, dst_stride: &mut [u16; STRIDE]) {
+    let (first, second) = simd_unpack(src_simd);
+    let (dst_first, dst_second) = split_u16_stride_mut(dst_stride);
+    *dst_first = first.to_array();
+    *dst_second = second.to_array();
+}
+
+#[inline(always)]
+fn pack_simd_to(first_simd: u16x8, second_simd: u16x8, dst_stride: &mut [u8; STRIDE]) {
+    let simd = simd_pack(first_simd, second_simd);
+    *dst_stride = simd.to_array();
+}
+
+#[inline(always)]
+fn validate_ascii_simd(simd: u8x16) -> Option<(u8, usize)> {
+    let mask = simd.simd_gt(u8x16::splat(0x7F));
+    if let Some(pos) = mask.first_set() {
+        Some((simd[pos], pos))
+    } else {
+        None
+    }
+}
+
+#[inline(always)]
+pub(crate) fn ascii_to_ascii_stride(
+    src_stride: &[u8; STRIDE],
+    dst_stride: &mut [u8; STRIDE],
+) -> Option<(u8, usize)> {
+    let src_simd: u8x16 = (*src_stride).into();
+    *dst_stride = src_simd.to_array();
+    validate_ascii_simd(src_simd)
+}
+
+#[inline(always)]
+pub(crate) fn ascii_to_basic_latin_stride(
+    src_stride: &[u8; STRIDE],
+    dst_stride: &mut [u16; STRIDE],
+) -> Option<(u8, usize)> {
+    let src_simd: u8x16 = (*src_stride).into();
+    unpack_simd_to(src_simd, dst_stride);
+    validate_ascii_simd(src_simd)
+}
+
+#[inline(always)]
+pub(crate) fn basic_latin_to_ascii_stride(
+    src_stride: &[u16; STRIDE],
+    dst_stride: &mut [u8; STRIDE],
+) -> Option<(u16, usize)> {
+    let (src_first, src_second) = split_u16_stride(src_stride);
+    let first_simd: u16x8 = (*src_first).into();
+    let second_simd: u16x8 = (*src_second).into();
+    pack_simd_to(first_simd, second_simd, dst_stride);
+    validate_basic_latin_simd(first_simd, second_simd)
+}
+
+#[inline(always)]
+pub(crate) fn validate_ascii_stride(stride: &[u8; STRIDE]) -> Option<(u8, usize)> {
+    let simd: u8x16 = (*stride).into();
+    validate_ascii_simd(simd)
+}
+
+#[inline(always)]
+pub(crate) fn ascii_to_ascii_double_stride(
+    src_double_stride: &[[u8; STRIDE]; 2],
+    dst_double_stride: &mut [[u8; STRIDE]; 2],
+) -> Option<(u8, usize)> {
+    let first_simd: u8x16 = src_double_stride[0].into();
+    let second_simd: u8x16 = src_double_stride[1].into();
+    dst_double_stride[0] = first_simd.to_array();
+    if simd_is_ascii(first_simd | second_simd) {
+        dst_double_stride[1] = second_simd.to_array();
+        return None;
+    }
+    if let Some((c, pos)) = validate_ascii_simd(first_simd) {
+        return Some((c, pos));
+    }
+    dst_double_stride[1] = second_simd.to_array();
+    if let Some((c, pos)) = validate_ascii_simd(second_simd) {
+        return Some((c, STRIDE + pos));
+    }
+    debug_assert!(false);
+    None
+}
+
+#[inline(always)]
+pub(crate) fn ascii_to_basic_latin_double_stride(
+    src_double_stride: &[[u8; STRIDE]; 2],
+    dst_double_stride: &mut [[u16; STRIDE]; 2],
+) -> Option<(u8, usize)> {
+    let first_simd: u8x16 = src_double_stride[0].into();
+    let second_simd: u8x16 = src_double_stride[1].into();
+    unpack_simd_to(first_simd, &mut dst_double_stride[0]);
+    if simd_is_ascii(first_simd | second_simd) {
+        unpack_simd_to(second_simd, &mut dst_double_stride[1]);
+        return None;
+    }
+    if let Some((c, pos)) = validate_ascii_simd(first_simd) {
+        return Some((c, pos));
+    }
+    unpack_simd_to(second_simd, &mut dst_double_stride[1]);
+    if let Some((c, pos)) = validate_ascii_simd(second_simd) {
+        return Some((c, STRIDE + pos));
+    }
+    debug_assert!(false);
+    None
+}
+
+#[inline(always)]
+pub(crate) fn basic_latin_to_ascii_double_stride(
+    src_double_stride: &[[u16; STRIDE]; 2],
+    dst_double_stride: &mut [[u8; STRIDE]; 2],
+) -> Option<(u16, usize)> {
+    let (src_first, src_second) = split_u16_stride(&src_double_stride[0]);
+    let first_simd: u16x8 = (*src_first).into();
+    let second_simd: u16x8 = (*src_second).into();
+    let (src_third, src_fourth) = split_u16_stride(&src_double_stride[1]);
+    let third_simd: u16x8 = (*src_third).into();
+    let fourth_simd: u16x8 = (*src_fourth).into();
+    pack_simd_to(first_simd, second_simd, &mut dst_double_stride[0]);
+    if simd_is_basic_latin(first_simd | second_simd | third_simd | fourth_simd) {
+        pack_simd_to(third_simd, fourth_simd, &mut dst_double_stride[1]);
+        return None;
+    }
+    if let Some((c, pos)) = validate_basic_latin_simd(first_simd, second_simd) {
+        return Some((c, pos));
+    }
+    pack_simd_to(third_simd, fourth_simd, &mut dst_double_stride[1]);
+    if let Some((c, pos)) = validate_basic_latin_simd(third_simd, fourth_simd) {
+        return Some((c, STRIDE + pos));
+    }
+    debug_assert!(false);
+    None
+}
+
+#[inline(always)]
+pub(crate) fn validate_ascii_double_stride(
+    double_stride: &[[u8; STRIDE]; 2],
+) -> Option<(u8, usize)> {
+    let first_simd: u8x16 = double_stride[0].into();
+    let second_simd: u8x16 = double_stride[1].into();
+    if simd_is_ascii(first_simd | second_simd) {
+        return None;
+    }
+    if let Some((c, pos)) = validate_ascii_simd(first_simd) {
+        return Some((c, pos));
+    }
+    if let Some((c, pos)) = validate_ascii_simd(second_simd) {
+        return Some((c, STRIDE + pos));
+    }
+    debug_assert!(false);
+    None
+}
+
+#[inline(always)]
+pub(crate) fn unpack_stride(src_stride: &[u8; STRIDE], dst_stride: &mut [u16; STRIDE]) {
+    let src_simd: u8x16 = (*src_stride).into();
+    unpack_simd_to(src_simd, dst_stride);
+}
+
+#[inline(always)]
+pub(crate) fn pack_stride(src_stride: &[u16; STRIDE], dst_stride: &mut [u8; STRIDE]) {
+    let (src_first, src_second) = split_u16_stride(src_stride);
+    let first_simd: u16x8 = (*src_first).into();
+    let second_simd: u16x8 = (*src_second).into();
+    pack_simd_to(first_simd, second_simd, dst_stride);
+}
+
+#[inline(always)]
+pub(crate) fn validate_bmp_stride(stride: &[u16; STRIDE]) -> Option<usize> {
+    let (first, second) = split_u16_stride(stride);
+    let first_simd: u16x8 = (*first).into();
+    let second_simd: u16x8 = (*second).into();
+    validate_bmp_simd(first_simd, second_simd)
+}
+
+#[inline(always)]
+pub(crate) fn validate_latin1_str_stride(stride: &[u8; STRIDE]) -> Option<usize> {
+    let simd: u8x16 = (*stride).into();
+    validate_latin1_str_simd(simd)
+}
+
+#[inline(always)]
+pub(crate) fn is_half_stride_bidi(half_stride: &[u16; STRIDE / 2]) -> bool {
+    let simd: u16x8 = (*half_stride).into();
+    is_u16x8_bidi(simd)
 }
 
 #[cfg(test)]
@@ -342,6 +607,17 @@ cfg_if! {
 mod tests {
     use super::*;
     use alloc::vec::Vec;
+
+    /// Safety invariant: ptr must be valid for an unaligned read of 16 bytes
+    #[inline(always)]
+    pub unsafe fn load8_unaligned(ptr: *const u16) -> u16x8 {
+        let mut simd = ::core::mem::MaybeUninit::<u16x8>::uninit();
+        unsafe {
+            ::core::ptr::copy_nonoverlapping(ptr as *const u8, simd.as_mut_ptr() as *mut u8, 16);
+            // Safety: copied 16 bytes of initialized memory into this, it is now initialized
+            simd.assume_init()
+        }
+    }
 
     #[test]
     fn test_unpack() {

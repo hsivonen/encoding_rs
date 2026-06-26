@@ -42,6 +42,9 @@ use crate::ascii::*;
 use crate::utf_8::convert_utf8_to_utf16_up_to_invalid;
 use crate::utf_8::utf8_valid_up_to;
 
+#[cfg(feature = "simd-accel")]
+const SIMD_STRIDE_SIZE: usize = crate::ascii::STRIDE;
+
 pub enum Space<T> {
     Available(T),
     Full(usize),
@@ -594,7 +597,7 @@ pub struct Utf16Destination<'a> {
 
 impl<'a> Utf16Destination<'a> {
     #[inline(always)]
-    pub fn new(dst: &mut [u16]) -> Utf16Destination {
+    pub fn new(dst: &mut [u16]) -> Utf16Destination<'_> {
         Utf16Destination { slice: dst, pos: 0 }
     }
     #[inline(always)]
@@ -682,9 +685,7 @@ impl<'a> Utf16Destination<'a> {
             };
             // Safety: This function is documented as needing valid pointers for src/dest and len, which
             // is true since we've passed the minumum length of the two
-            match unsafe {
-                ascii_to_basic_latin(src_remaining.as_ptr(), dst_remaining.as_mut_ptr(), length)
-            } {
+            match { ascii_to_basic_latin(src_remaining, dst_remaining) } {
                 None => {
                     source.pos += length;
                     self.pos += length;
@@ -695,7 +696,7 @@ impl<'a> Utf16Destination<'a> {
                     source.pos += consumed;
                     self.pos += consumed;
                     source.pos += 1; // +1 for non_ascii
-                                     // Safety: non-ascii bubbled out here
+                    // Safety: non-ascii bubbled out here
                     non_ascii
                 }
             }
@@ -720,9 +721,7 @@ impl<'a> Utf16Destination<'a> {
             };
             // Safety: This function is documented as needing valid pointers for src/dest and len, which
             // is true since we've passed the minumum length of the two
-            match unsafe {
-                ascii_to_basic_latin(src_remaining.as_ptr(), dst_remaining.as_mut_ptr(), length)
-            } {
+            match { ascii_to_basic_latin(src_remaining, dst_remaining) } {
                 None => {
                     source.pos += length;
                     self.pos += length;
@@ -734,7 +733,7 @@ impl<'a> Utf16Destination<'a> {
                     self.pos += consumed;
                     if self.pos + 1 < dst_len {
                         source.pos += 1; // +1 for non_ascii
-                                         // Safety: non-ascii bubbled out here
+                        // Safety: non-ascii bubbled out here
                         non_ascii
                     } else {
                         return CopyAsciiResult::Stop((
@@ -939,7 +938,7 @@ pub struct Utf8Destination<'a> {
 
 impl<'a> Utf8Destination<'a> {
     #[inline(always)]
-    pub fn new(dst: &mut [u8]) -> Utf8Destination {
+    pub fn new(dst: &mut [u8]) -> Utf8Destination<'_> {
         Utf8Destination { slice: dst, pos: 0 }
     }
     #[inline(always)]
@@ -1042,9 +1041,7 @@ impl<'a> Utf8Destination<'a> {
             } else {
                 (DecoderResult::InputEmpty, src_remaining.len())
             };
-            match unsafe {
-                ascii_to_ascii(src_remaining.as_ptr(), dst_remaining.as_mut_ptr(), length)
-            } {
+            match { ascii_to_ascii(src_remaining, dst_remaining) } {
                 None => {
                     source.pos += length;
                     self.pos += length;
@@ -1082,9 +1079,7 @@ impl<'a> Utf8Destination<'a> {
             } else {
                 (DecoderResult::InputEmpty, src_remaining.len())
             };
-            match unsafe {
-                ascii_to_ascii(src_remaining.as_ptr(), dst_remaining.as_mut_ptr(), length)
-            } {
+            match { ascii_to_ascii(src_remaining, dst_remaining) } {
                 None => {
                     source.pos += length;
                     self.pos += length;
@@ -1261,9 +1256,7 @@ impl<'a> Utf16Source<'a> {
             } else {
                 (EncoderResult::InputEmpty, src_remaining.len())
             };
-            match unsafe {
-                basic_latin_to_ascii(src_remaining.as_ptr(), dst_remaining.as_mut_ptr(), length)
-            } {
+            match { basic_latin_to_ascii(src_remaining, dst_remaining) } {
                 None => {
                     self.pos += length;
                     dest.advance(length);
@@ -1330,9 +1323,7 @@ impl<'a> Utf16Source<'a> {
             } else {
                 (EncoderResult::InputEmpty, src_remaining.len())
             };
-            match unsafe {
-                basic_latin_to_ascii(src_remaining.as_ptr(), dst_remaining.as_mut_ptr(), length)
-            } {
+            match { basic_latin_to_ascii(src_remaining, dst_remaining) } {
                 None => {
                     self.pos += length;
                     dest.advance(length);
@@ -1553,9 +1544,7 @@ impl<'a> Utf8Source<'a> {
             } else {
                 (EncoderResult::InputEmpty, src_remaining.len())
             };
-            match unsafe {
-                ascii_to_ascii(src_remaining.as_ptr(), dst_remaining.as_mut_ptr(), length)
-            } {
+            match { ascii_to_ascii(src_remaining, dst_remaining) } {
                 None => {
                     self.pos += length;
                     dest.advance(length);
@@ -1603,9 +1592,7 @@ impl<'a> Utf8Source<'a> {
             } else {
                 (EncoderResult::InputEmpty, src_remaining.len())
             };
-            match unsafe {
-                ascii_to_ascii(src_remaining.as_ptr(), dst_remaining.as_mut_ptr(), length)
-            } {
+            match { ascii_to_ascii(src_remaining, dst_remaining) } {
                 None => {
                     self.pos += length;
                     dest.advance(length);
@@ -1659,9 +1646,7 @@ impl<'a> Utf8Source<'a> {
             } else {
                 (EncoderResult::InputEmpty, src_remaining.len())
             };
-            match unsafe {
-                ascii_to_ascii(src_remaining.as_ptr(), dst_remaining.as_mut_ptr(), length)
-            } {
+            match { ascii_to_ascii(src_remaining, dst_remaining) } {
                 None => {
                     self.pos += length;
                     dest.advance(length);
@@ -1922,7 +1907,7 @@ pub struct ByteDestination<'a> {
 
 impl<'a> ByteDestination<'a> {
     #[inline(always)]
-    pub fn new(dst: &mut [u8]) -> ByteDestination {
+    pub fn new(dst: &mut [u8]) -> ByteDestination<'_> {
         ByteDestination {
             start: dst.as_ptr(),
             slice: dst,

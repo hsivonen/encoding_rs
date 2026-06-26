@@ -149,13 +149,13 @@ macro_rules! ascii_compatible_two_byte_decoder_function {
         let dest = match $slf.lead {
             Some(lead) => {
                 let $lead_minus_offset = lead;
-                $slf.lead = None;
                 // Since we don't have `goto` we could use to jump into the trail
                 // handling part of the main loop, we need to repeat trail handling
                 // here.
                 match $source.check_available() {
                     Space::Full(src_consumed_prolog) => {
                         if last {
+                            $slf.lead = None;
                             return (DecoderResult::Malformed(1, 0),
                                     src_consumed_prolog,
                                     dest_prolog.written());
@@ -166,10 +166,11 @@ macro_rules! ascii_compatible_two_byte_decoder_function {
                         match dest_prolog.$destination_check() {
                             Space::Full(dst_written_prolog) => {
                                 return (DecoderResult::OutputFull,
-                                        source_handle_prolog.consumed(),
-                                        dst_written_prolog);
+                                    source_handle_prolog.consumed(),
+                                    dst_written_prolog);
                             }
                             Space::Available($handle) => {
+                                $slf.lead = None;
                                 let ($byte, $unread_handle_trail) = source_handle_prolog.read();
                                 // Start non-boilerplate
                                 $trail
