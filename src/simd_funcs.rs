@@ -264,7 +264,7 @@ pub(crate) fn is_u16x8_bidi(s: u16x8) -> bool {
     // Quick refutation failed. Let's do the full check.
 
     any_all_workaround::any_mask16x8(
-        (in_range16x8!(s, 0x0590, 0x0900)
+        in_range16x8!(s, 0x0590, 0x0900)
             | in_range16x8!(s, 0xFB1D, 0xFE00)
             | in_range16x8!(s, 0xFE70, 0xFEFF)
             | in_range16x8!(s, 0xD802, 0xD804)
