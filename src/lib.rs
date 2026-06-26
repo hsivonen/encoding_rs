@@ -4016,9 +4016,8 @@ impl Decoder {
     /// replaced with the REPLACEMENT CHARACTER with type system signaling
     /// of UTF-8 validity.
     ///
-    /// This methods calls `decode_to_utf8` and then zeroes
-    /// out up to three bytes that aren't logically part of the write in order
-    /// to retain the UTF-8 validity even for the unwritten part of the buffer.
+    /// This methods calls `decode_to_utf8` and then zeroes enough subsequent
+    /// bytes to maintain the invariant of `str`.
     ///
     /// See the documentation of the struct for documentation for `decode_*`
     /// methods collectively.
@@ -4030,6 +4029,15 @@ impl Decoder {
         dst: &mut str,
         last: bool,
     ) -> (CoderResult, usize, usize, bool) {
+        // TODO: This method does not need to be panic-safe against user code.
+        // However, if there is a bug inside the crate so that something inside
+        // the implementation panics after bytes have been written (there's intentional
+        // panic pass-through for checking preconditions _before_ bytes have been
+        // written), the code is compiled with unwinding enabled, and the caller
+        // catches the panic, the caller could end up holding `dst` that is in
+        // an invalid state.
+        // https://github.com/hsivonen/encoding_rs/issues/133
+
         // SAFETY: We trust that `decode_to_utf8` writes
         // valid UTF-8. To make the part of the slice after what was reported
         // as logically written by that funtion, we use knowledge of the internals
@@ -4130,9 +4138,8 @@ impl Decoder {
     /// Incrementally decode a byte stream into UTF-8 with type system signaling
     /// of UTF-8 validity.
     ///
-    /// This methods calls `decode_to_utf8` and then zeroes out up to three
-    /// bytes that aren't logically part of the write in order to retain the
-    /// UTF-8 validity even for the unwritten part of the buffer.
+    /// This methods calls `decode_to_utf8_without_replacement` and then zeroes enough subsequent
+    /// bytes to maintain the invariant of `str`.
     ///
     /// See the documentation of the struct for documentation for `decode_*`
     /// methods collectively.
@@ -4144,6 +4151,15 @@ impl Decoder {
         dst: &mut str,
         last: bool,
     ) -> (DecoderResult, usize, usize) {
+        // TODO: This method does not need to be panic-safe against user code.
+        // However, if there is a bug inside the crate so that something inside
+        // the implementation panics after bytes have been written (there's intentional
+        // panic pass-through for checking preconditions _before_ bytes have been
+        // written), the code is compiled with unwinding enabled, and the caller
+        // catches the panic, the caller could end up holding `dst` that is in
+        // an invalid state.
+        // https://github.com/hsivonen/encoding_rs/issues/133
+
         // SAFETY: We trust that `decode_to_utf8_without_replacement` writes
         // valid UTF-8. To make the part of the slice after what was reported
         // as logically written by that funtion, we use knowledge of the internals
