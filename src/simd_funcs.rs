@@ -91,31 +91,9 @@ pub fn to_u16_lanes(s: u8x16) -> u16x8 {
 
 cfg_if! {
     if #[cfg(target_feature = "sse2")] {
-
-        // Expose low-level mask instead of higher-level conclusion,
-        // because the non-ASCII case would perform less well otherwise.
-        // Safety-usable invariant: This returned value is whether each high bit is set
-        #[inline(always)]
-        pub fn mask_ascii(s: u8x16) -> i32 {
-            unsafe {
-                // Safety: We have cfg()d the correct platform
-                _mm_movemask_epi8(s.into())
-            }
-        }
-
-    } else {
-
-    }
-}
-
-cfg_if! {
-    if #[cfg(target_feature = "sse2")] {
         #[inline(always)]
         pub fn simd_is_ascii(s: u8x16) -> bool {
-            unsafe {
-                // Safety: We have cfg()d the correct platform
-                _mm_movemask_epi8(s.into()) == 0
-            }
+            movemask(s.into()) == 0
         }
     } else if #[cfg(target_arch = "aarch64")]{
         #[inline(always)]
@@ -306,7 +284,7 @@ pub(crate) fn simd_unpack(s: u8x16) -> u16x16 {
 cfg_if! {
     if #[cfg(target_feature = "sse2")] {
         #[inline(always)]
-        fn movemask(s: core::arch::x86_64::__m128i) -> u32 {
+        fn movemask(s: __m128i) -> u32 {
             // Safety: We have cfg()d the correct platform
             (unsafe { _mm_movemask_epi8(s) }) as u32
         }
@@ -319,6 +297,10 @@ cfg_if! {
             }
         }
 
+        // According to Compiler Explorer, LLVM is smart enough to widen this to 256-bit vectors
+        // with a single movemask over that vector when compiled to AVX2. It looks like LLVM is
+        // better at widening two u16x8 vectors in the source to a single u16x16 vector for codegen
+        // for AVX2 than doing the reverse for aarch64.
         #[inline(always)]
         fn validate_basic_latin_simd(first_simd: u16x8, second_simd: u16x8) -> Option<(u16, usize)> {
             let bound = u16x8::splat(0x7F);
@@ -718,19 +700,6 @@ mod tests {
         ];
         let simd = unsafe { load16_unaligned(input.as_ptr()) };
         assert!(!simd_is_ascii(simd));
-    }
-
-    #[cfg(target_feature = "sse2")]
-    #[test]
-    fn test_check_ascii() {
-        let input: [u8; 16] = [
-            0x61, 0x62, 0x63, 0x64, 0x81, 0x66, 0x67, 0x68, 0x69, 0x70, 0x71, 0x72, 0x73, 0x74,
-            0x75, 0x76,
-        ];
-        let simd = unsafe { load16_unaligned(input.as_ptr()) };
-        let mask = mask_ascii(simd);
-        assert_ne!(mask, 0);
-        assert_eq!(mask.trailing_zeros(), 4);
     }
 
     #[test]
