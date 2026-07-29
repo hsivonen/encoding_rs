@@ -8,21 +8,23 @@
 // except according to those terms.
 
 use super::*;
+use crate::ascii::STRIDE;
 use crate::handles::*;
 use crate::variant::*;
 
 cfg_if! {
     if #[cfg(feature = "simd-accel")] {
         use simd_funcs::*;
-        use core::simd::u16x8;
+        use core::simd::u8x16;
+        use core::simd::u16x16;
         use core::simd::cmp::SimdPartialOrd;
         #[rustversion::since(1.95)]
         use core::simd::Select;
 
         #[inline(always)]
-        fn shift_upper(unpacked: u16x8) -> u16x8 {
-            let highest_ascii = u16x8::splat(0x7F);
-            unpacked + unpacked.simd_gt(highest_ascii).select(u16x8::splat(0xF700), u16x8::splat(0))        }
+        fn shift_upper(unpacked: u16x16) -> u16x16 {
+            let highest_ascii = u16x16::splat(0x7F);
+            unpacked + unpacked.simd_gt(highest_ascii).select(u16x16::splat(0xF700), u16x16::splat(0))        }
     } else {
     }
 }
@@ -116,26 +118,14 @@ impl UserDefinedDecoder {
         } else {
             (DecoderResult::InputEmpty, src.len())
         };
-        // Not bothering with alignment
-        let tail_start = length & !0xF;
-        let simd_iterations = length >> 4;
-        let src_ptr = src.as_ptr();
-        let dst_ptr = dst.as_mut_ptr();
-        // Safety: This is `for i in 0..length / 16`
-        for i in 0..simd_iterations {
-            // Safety: This is in bounds: length is the minumum valid length for both src/dst
-            // and i ranges to length/16, so multiplying by 16 will always be `< length` and can do
-            // a 16 byte read
-            let input = unsafe { load16_unaligned(src_ptr.add(i * 16)) };
-            let (first, second) = simd_unpack(input);
-            unsafe {
-                // Safety: same as above, but this is two consecutive 8-byte reads
-                store8_unaligned(dst_ptr.add(i * 16), shift_upper(first));
-                store8_unaligned(dst_ptr.add((i * 16) + 8), shift_upper(second));
-            }
+        let (src_strides, src_tail) = src[..length].as_chunks::<STRIDE>();
+        let (dst_strides, dst_tail) = dst[..length].as_chunks_mut::<STRIDE>();
+        for (src_stride, dst_stride) in src_strides.iter().zip(dst_strides.iter_mut()) {
+            let src_simd: u8x16 = (*src_stride).into();
+            let unpacked = simd_unpack(src_simd);
+            let shifted = shift_upper(unpacked);
+            *dst_stride = shifted.to_array();
         }
-        let src_tail = &src[tail_start..length];
-        let dst_tail = &mut dst[tail_start..length];
         src_tail
             .iter()
             .zip(dst_tail.iter_mut())

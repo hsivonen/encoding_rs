@@ -10,8 +10,11 @@
 use core::simd::ToBytes;
 use core::simd::cmp::SimdPartialEq;
 use core::simd::cmp::SimdPartialOrd;
+use core::simd::simd_swizzle;
 use core::simd::u8x16;
+use core::simd::u8x32;
 use core::simd::u16x8;
+use core::simd::u16x16;
 
 // TODO: Remove the load/store functions as part of removing `unsafe` from
 // UTF-16BE|LE and x-user-defined.
@@ -284,9 +287,20 @@ use crate::ascii::STRIDE;
 const HALF_STRIDE: usize = STRIDE / 2;
 
 #[inline(always)]
-pub fn simd_unpack(s: u8x16) -> (u16x8, u16x8) {
-    let (first, second) = s.interleave(u8x16::splat(0));
-    (u16x8::from_ne_bytes(first), u16x8::from_ne_bytes(second))
+pub(crate) fn simd_unpack(s: u8x16) -> u16x16 {
+    // According to Compiler Explorer, this generates as good code as
+    // interleaving to two 128-bit vectors on SSE2 and aarch64 NEON,
+    // but this formulation is better for AVX2 than the formulation
+    // that would return `(u16x8, u16x8)`.
+    let intermediate: u8x32 = simd_swizzle!(
+        u8x16::splat(0),
+        s,
+        [
+            16, 0, 17, 1, 18, 2, 19, 3, 20, 4, 21, 5, 22, 6, 23, 7, 24, 8, 25, 9, 26, 10, 27, 11,
+            28, 12, 29, 13, 30, 14, 31, 15
+        ]
+    );
+    u16x16::from_ne_bytes(intermediate)
 }
 
 cfg_if! {
@@ -416,10 +430,7 @@ fn split_u16_stride_mut(
 
 #[inline(always)]
 fn unpack_simd_to(src_simd: u8x16, dst_stride: &mut [u16; STRIDE]) {
-    let (first, second) = simd_unpack(src_simd);
-    let (dst_first, dst_second) = split_u16_stride_mut(dst_stride);
-    *dst_first = first.to_array();
-    *dst_second = second.to_array();
+    *dst_stride = simd_unpack(src_simd).to_array();
 }
 
 #[inline(always)]
@@ -629,16 +640,9 @@ mod tests {
             0x61, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69, 0x70, 0x71, 0x72, 0x73, 0x74,
             0x75, 0x76,
         ];
-        let simd = unsafe { load16_unaligned(ascii.as_ptr()) };
-        let mut vec = Vec::with_capacity(16);
-        vec.resize(16, 0u16);
-        let (first, second) = simd_unpack(simd);
-        let ptr = vec.as_mut_ptr();
-        unsafe {
-            store8_unaligned(ptr, first);
-            store8_unaligned(ptr.add(8), second);
-        }
-        assert_eq!(&vec[..], &basic_latin[..]);
+        let mut target = [0u16; 16];
+        unpack_simd_to(ascii.into(), &mut target);
+        assert_eq!(&target[..], &basic_latin[..]);
     }
 
     #[test]
