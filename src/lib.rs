@@ -723,7 +723,7 @@
 //! See the section [_UTF-16LE, UTF-16BE and Unicode Encoding Schemes_](#utf-16le-utf-16be-and-unicode-encoding-schemes)
 //! for discussion about the UTF-16 family.
 
-#![no_std]
+#![cfg_attr(not(feature = "std"), no_std)]
 #![cfg_attr(feature = "simd-accel", allow(internal_features))]
 #![cfg_attr(feature = "simd-accel", feature(core_intrinsics, portable_simd))]
 

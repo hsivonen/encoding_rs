@@ -187,6 +187,27 @@ Enables the parts of the API that deal with `String`, `Vec`, and `Cow`.
 
 Enabled but not actually used by Firefox.
 
+### `std`
+
+When used together with `simd-accel` (see below), enables run-time detection
+of AVX2+BMI1 on x86_64 when the compilation target does not include these
+target features statically.
+
+This feature has no effect on SIMD capabilities is other scenarios.
+
+This feature has the side effect of linking `std`, so this is not compatible
+with the `no_std` context. Unfortunately, even though CPU feature detection
+uses an instruction rather than syscalls on x86_64, the CPU feature detection
+check requires `std`, because the corresponding operation on some other
+architectures relies on operating system support.
+
+Note that this does _not_ enable run-time AVX2+BMI1 checking on 32-bit x86,
+on the assumption that AVX2+BMI1 is less likely to available and, therefore,
+the code size and performance overhead of multiversioning is less likely to
+be justified.
+
+Used by Firefox.
+
 ### `simd-accel`
 
 Enables SIMD acceleration using the nightly-dependent `core::simd` part of
@@ -202,6 +223,13 @@ than:
 * aarch64
 * thumbv7neon
 * i686
+
+When `simd-accel` is enabled, this crate benefits from AVX2+BMI1. When targeting
+x86_64, if you know that the binaries will only be run on x86-64-v3 or higher,
+it's beneficial to compile with x86-64-v3 (or higher) statically enabled. If the
+binaries need to also run on x86-64-v2 or x86-64-v1 CPUs and linking `std` is OK,
+it's beneficial to enable the `std` feature (see above) in addition to the
+`simd-accel` feature to enable run-time detection of AVX2+BMI1.
 
 As of 2026, only x86_64 and aarch64 are tested on real hardware (primarily Zen 3
 and M3 Pro, but there are still Haswell-informed choices from original development

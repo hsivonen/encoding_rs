@@ -17,7 +17,8 @@ rust-version = "1.88"
 [features]
 default = ["alloc"]
 alloc = []
-simd-accel = ["any_all_workaround", "rustversion"]
+std = ["multiversion/std"]
+simd-accel = ["any_all_workaround", "rustversion", "multiversion"]
 less-slow-kanji-encode = []
 less-slow-big5-hanzi-encode = []
 less-slow-gb-hanzi-encode = []
@@ -37,6 +38,7 @@ cfg-if = "1.0"
 serde = { version = "1.0", optional = true }
 any_all_workaround = { version = "0.1.0" , optional = true }
 rustversion = { version = "1.0.19", optional = true }
+multiversion = { version = "0.8.0", optional = true, default-features = false }
 
 [dev-dependencies]
 serde_derive = "1.0"

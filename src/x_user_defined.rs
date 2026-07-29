@@ -29,6 +29,63 @@ cfg_if! {
     }
 }
 
+#[cfg(not(feature = "simd-accel"))]
+fn decode_to_utf16_raw_impl(src: &[u8], dst: &mut [u16]) -> (DecoderResult, usize, usize) {
+    let (pending, length) = if dst.len() < src.len() {
+        (DecoderResult::OutputFull, dst.len())
+    } else {
+        (DecoderResult::InputEmpty, src.len())
+    };
+    let src_trim = &src[..length];
+    let dst_trim = &mut dst[..length];
+    src_trim
+        .iter()
+        .zip(dst_trim.iter_mut())
+        .for_each(|(from, to)| {
+            *to = {
+                let unit = *from;
+                if unit < 0x80 {
+                    u16::from(unit)
+                } else {
+                    u16::from(unit) + 0xF700
+                }
+            }
+        });
+    (pending, length, length)
+}
+
+#[cfg(feature = "simd-accel")]
+#[multiversion::multiversion(targets("x86_64+avx2"))]
+fn decode_to_utf16_raw_impl(src: &[u8], dst: &mut [u16]) -> (DecoderResult, usize, usize) {
+    let (pending, length) = if dst.len() < src.len() {
+        (DecoderResult::OutputFull, dst.len())
+    } else {
+        (DecoderResult::InputEmpty, src.len())
+    };
+    let (src_strides, src_tail) = src[..length].as_chunks::<STRIDE>();
+    let (dst_strides, dst_tail) = dst[..length].as_chunks_mut::<STRIDE>();
+    for (src_stride, dst_stride) in src_strides.iter().zip(dst_strides.iter_mut()) {
+        let src_simd: u8x16 = (*src_stride).into();
+        let unpacked = simd_unpack(src_simd);
+        let shifted = shift_upper(unpacked);
+        *dst_stride = shifted.to_array();
+    }
+    src_tail
+        .iter()
+        .zip(dst_tail.iter_mut())
+        .for_each(|(from, to)| {
+            *to = {
+                let unit = *from;
+                if unit < 0x80 {
+                    u16::from(unit)
+                } else {
+                    u16::from(unit) + 0xF700
+                }
+            }
+        });
+    (pending, length, length)
+}
+
 pub struct UserDefinedDecoder;
 
 impl UserDefinedDecoder {
@@ -76,70 +133,13 @@ impl UserDefinedDecoder {
         Utf8Destination
     );
 
-    #[cfg(not(feature = "simd-accel"))]
     pub fn decode_to_utf16_raw(
         &mut self,
         src: &[u8],
         dst: &mut [u16],
         _last: bool,
     ) -> (DecoderResult, usize, usize) {
-        let (pending, length) = if dst.len() < src.len() {
-            (DecoderResult::OutputFull, dst.len())
-        } else {
-            (DecoderResult::InputEmpty, src.len())
-        };
-        let src_trim = &src[..length];
-        let dst_trim = &mut dst[..length];
-        src_trim
-            .iter()
-            .zip(dst_trim.iter_mut())
-            .for_each(|(from, to)| {
-                *to = {
-                    let unit = *from;
-                    if unit < 0x80 {
-                        u16::from(unit)
-                    } else {
-                        u16::from(unit) + 0xF700
-                    }
-                }
-            });
-        (pending, length, length)
-    }
-
-    #[cfg(feature = "simd-accel")]
-    pub fn decode_to_utf16_raw(
-        &mut self,
-        src: &[u8],
-        dst: &mut [u16],
-        _last: bool,
-    ) -> (DecoderResult, usize, usize) {
-        let (pending, length) = if dst.len() < src.len() {
-            (DecoderResult::OutputFull, dst.len())
-        } else {
-            (DecoderResult::InputEmpty, src.len())
-        };
-        let (src_strides, src_tail) = src[..length].as_chunks::<STRIDE>();
-        let (dst_strides, dst_tail) = dst[..length].as_chunks_mut::<STRIDE>();
-        for (src_stride, dst_stride) in src_strides.iter().zip(dst_strides.iter_mut()) {
-            let src_simd: u8x16 = (*src_stride).into();
-            let unpacked = simd_unpack(src_simd);
-            let shifted = shift_upper(unpacked);
-            *dst_stride = shifted.to_array();
-        }
-        src_tail
-            .iter()
-            .zip(dst_tail.iter_mut())
-            .for_each(|(from, to)| {
-                *to = {
-                    let unit = *from;
-                    if unit < 0x80 {
-                        u16::from(unit)
-                    } else {
-                        u16::from(unit) + 0xF700
-                    }
-                }
-            });
-        (pending, length, length)
+        decode_to_utf16_raw_impl(src, dst)
     }
 }
 
