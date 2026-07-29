@@ -7,6 +7,13 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
+/// Number of code unit to check for ASCIIness on ALU before
+/// trying SIMD. The idea is to allow for ASCII punctuation,
+/// ASCII space, and non-ASCII not to reach SIMD for
+// non-Latin-script languages that use ASCII punctuation and
+// spaces.
+const ALU_PREFIX: usize = 3;
+
 cfg_if! {
     if #[cfg(all(feature = "simd-accel", any(target_feature = "sse2", all(target_endian = "little", target_arch = "aarch64"), all(target_endian = "little", target_feature = "neon"))))] {
         pub(crate) use crate::simd_funcs::ascii_to_ascii_stride;
@@ -190,15 +197,15 @@ cfg_if! {
                 pub(crate) fn $name(src: &[$src_unit], dst: &mut [$dst_unit]) -> Option<($src_unit, usize)> {
                     // Make both the same length here to have the chunks and tail match.
                     let len = core::cmp::min(src.len(), dst.len());
-                    let mut consumed = 0usize;
+                    let mut consumed = ALU_PREFIX;
                     let (src_strides, src_tail) = src[..len].as_chunks::<STRIDE>();
                     let (dst_strides, dst_tail) = dst[..len].as_chunks_mut::<STRIDE>();
                     if let Some((src_first_stride, src_strides_tail)) = src_strides.split_first() {
                         if let Some((dst_first_stride, dst_strides_tail)) = dst_strides.split_first_mut() {
-                            if let Some(pos) = $stride(src_first_stride, dst_first_stride) {
-                                return Some(pos);
+                            if let Some((c, pos)) = $stride(src_first_stride, dst_first_stride) {
+                                return Some((c, consumed + pos));
                             }
-                            consumed = STRIDE;
+                            consumed += STRIDE;
 
                             let (src_double_strides, src_single_stride) = src_strides_tail.as_chunks::<2>();
                             let (dst_double_strides, dst_single_stride) =
@@ -239,13 +246,13 @@ cfg_if! {
         #[inline(always)]
         #[multiversion(targets("x86_64+avx2+bmi1"))]
         fn ascii_valid_impl(bytes: &[u8]) -> Option<(u8, usize)> {
-            let mut consumed = 0usize;
+            let mut consumed = ALU_PREFIX;
             let (strides, tail) = bytes.as_chunks::<STRIDE>();
             if let Some((first_stride, strides_tail)) = strides.split_first() {
                 if let Some((c, pos)) = validate_ascii_stride(first_stride) {
-                    return Some((c, pos));
+                    return Some((c, consumed + pos));
                 }
-                consumed = STRIDE;
+                consumed += STRIDE;
 
                 let (double_strides, single_stride) = strides_tail.as_chunks::<2>();
                 for double_stride in double_strides.iter() {
@@ -279,7 +286,7 @@ cfg_if! {
                 pub fn $name(src: &[$src_unit], dst: &mut [$dst_unit]) -> Option<($src_unit, usize)> {
                     // Make both the same length here to have the chunks and tail match.
                     let len = core::cmp::min(src.len(), dst.len());
-                    let mut consumed = 0usize;
+                    let mut consumed = ALU_PREFIX;
                     let (src_strides, src_tail) = src[..len].as_chunks::<STRIDE>();
                     let (dst_strides, dst_tail) = dst[..len].as_chunks_mut::<STRIDE>();
                     for (src_stride, dst_stride) in src_strides.iter().zip(dst_strides.iter_mut()) {
@@ -303,7 +310,7 @@ cfg_if! {
 
         #[inline(always)]
         fn ascii_valid_impl(bytes: &[u8]) -> Option<(u8, usize)> {
-            let mut consumed = 0usize;
+            let mut consumed = ALU_PREFIX;
             let (strides, tail) = bytes.as_chunks::<STRIDE>();
             for stride in strides.iter() {
                 if let Some((b, pos)) = validate_ascii_stride(stride) {
@@ -346,9 +353,6 @@ ascii_copy_impl!(
     u8
 );
 
-// The old shape for these functions assumed that it's worthwhile to return
-// the non-ASCII code unit in order not to re-read it.
-
 macro_rules! ascii_copy {
     ($name:ident, $impl:ident, $src_unit:ty, $dst_unit:ty) => {
         #[inline(always)]
@@ -356,7 +360,29 @@ macro_rules! ascii_copy {
             src: &[$src_unit],
             dst: &mut [$dst_unit],
         ) -> Option<($src_unit, usize)> {
-            $impl(src, dst)
+            let mut consumed = 0usize;
+            if let Some((src_prefix, src_tail)) = src.split_first_chunk::<ALU_PREFIX>() {
+                if let Some((dst_prefix, dst_tail)) = dst.split_first_chunk_mut::<ALU_PREFIX>() {
+                    for (src_slot, dst_slot) in src_prefix.iter().zip(dst_prefix.iter_mut()) {
+                        let c = *src_slot;
+                        if c >= 0x80 {
+                            return Some((c, consumed));
+                        }
+                        *dst_slot = c as $dst_unit;
+                        consumed += 1;
+                    }
+                    return $impl(src_tail, dst_tail);
+                }
+            }
+            for (src_slot, dst_slot) in src.iter().zip(dst.iter_mut()) {
+                let c = *src_slot;
+                if c >= 0x80 {
+                    return Some((c, consumed));
+                }
+                *dst_slot = c as $dst_unit;
+                consumed += 1;
+            }
+            None
         }
     };
 }
@@ -367,12 +393,30 @@ ascii_copy!(basic_latin_to_ascii, basic_latin_to_ascii_impl, u16, u8);
 
 #[inline(always)]
 pub(crate) fn validate_ascii(bytes: &[u8]) -> Option<(u8, usize)> {
-    ascii_valid_impl(bytes)
+    let mut consumed = 0usize;
+    if let Some((prefix, tail)) = bytes.split_first_chunk::<ALU_PREFIX>() {
+        for slot in prefix.iter() {
+            let b = *slot;
+            if b >= 0x80 {
+                return Some((b, consumed));
+            }
+            consumed += 1;
+        }
+        return ascii_valid_impl(tail);
+    }
+    for slot in bytes.iter() {
+        let b = *slot;
+        if b >= 0x80 {
+            return Some((b, consumed));
+        }
+        consumed += 1;
+    }
+    None
 }
 
 #[inline(always)]
 pub(crate) fn ascii_valid_up_to(bytes: &[u8]) -> usize {
-    ascii_valid_impl(bytes)
+    validate_ascii(bytes)
         .map(|(_, pos)| pos)
         .unwrap_or(bytes.len())
 }
