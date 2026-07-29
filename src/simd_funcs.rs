@@ -10,6 +10,7 @@
 use core::simd::ToBytes;
 use core::simd::cmp::SimdPartialEq;
 use core::simd::cmp::SimdPartialOrd;
+use core::simd::mask16x8;
 use core::simd::simd_swizzle;
 use core::simd::u8x16;
 use core::simd::u8x32;
@@ -283,6 +284,19 @@ pub(crate) fn simd_unpack(s: u8x16) -> u16x16 {
 
 cfg_if! {
     if #[cfg(target_feature = "sse2")] {
+
+        #[rustversion::since(1.95)]
+        #[inline(always)]
+        fn mask_to_vendor(m: mask16x8) -> __m128i {
+            m.to_simd().into()
+        }
+
+        #[rustversion::before(1.95)]
+        #[inline(always)]
+        fn mask_to_vendor(m: mask16x8) -> __m128i {
+            m.to_int().into()
+        }
+
         #[inline(always)]
         fn movemask(s: __m128i) -> u32 {
             // Safety: We have cfg()d the correct platform
@@ -304,8 +318,8 @@ cfg_if! {
         #[inline(always)]
         fn validate_basic_latin_simd(first_simd: u16x8, second_simd: u16x8) -> Option<(u16, usize)> {
             let bound = u16x8::splat(0x7F);
-            let first_mask = movemask(first_simd.simd_gt(bound).to_simd().into());
-            let second_mask = movemask(second_simd.simd_gt(bound).to_simd().into());
+            let first_mask = movemask(mask_to_vendor(first_simd.simd_gt(bound)));
+            let second_mask = movemask(mask_to_vendor(second_simd.simd_gt(bound)));
             let combined = (second_mask << 16) | first_mask;
             if combined == 0 {
                 return None;
@@ -321,8 +335,8 @@ cfg_if! {
         fn validate_bmp_simd(first_simd: u16x8, second_simd: u16x8) -> Option<usize> {
             let surrogate_bits = u16x8::splat(0xD800);
             let mask = u16x8::splat(0xF800);
-            let first_mask = movemask((first_simd & mask).simd_eq(surrogate_bits).to_simd().into());
-            let second_mask = movemask((second_simd & mask).simd_eq(surrogate_bits).to_simd().into());
+            let first_mask = movemask(mask_to_vendor((first_simd & mask).simd_eq(surrogate_bits)));
+            let second_mask = movemask(mask_to_vendor((second_simd & mask).simd_eq(surrogate_bits)));
             let combined = (second_mask << 16) | first_mask;
             if combined == 0 {
                 return None;
