@@ -231,16 +231,21 @@ binaries need to also run on x86-64-v2 or x86-64-v1 CPUs and linking `std` is OK
 it's beneficial to enable the `std` feature (see above) in addition to the
 `simd-accel` feature to enable run-time detection of AVX2+BMI1.
 
-As of 2026, only x86_64 and aarch64 are tested on real hardware (primarily Zen 3
-and M3 Pro, but there are still Haswell-informed choices from original development
-that have not been revisited).
+As of 2026, the crate is developed on Zen 3 and M3 Pro. The configurations that
+get the most attention are aarch64 build target running on M3 Pro, x86_64 build
+target with run-time AVX2+BMI1 detection enabled running on Zen 3, and
+`-C target_cpu=x86-64-v3` running on Zen 3.
+
+Occasional performance checks are made on Skylake. Performance may regress
+on x86-64-v1 and x86-64-v2.
+
+i686 gets the code shape for x86_64 (without multiversioning for AVX2+BMI1)
+with minimal checks that it compiles and runs, but the testing is on x86_64
+hardware.
 
 For thumbv7neon, an effort is made to retain code shape that was previously
 validated for performance on Exynos 5 Octa, but performance regressions are
 no longer actually tested for on real ARMv7 hardware.
-
-i686 gets the code shape for x86_64 with minimal checks that it compiles and
-runs, but the testing is on x86_64 hardware.
 
 If you use nightly Rust, you use targets whose first component is one of the
 above, and you are prepared _to have to revise your configuration when updating
