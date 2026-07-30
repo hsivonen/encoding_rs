@@ -42,108 +42,7 @@ impl SingleByteDecoder {
         dst: &mut [u8],
         _last: bool,
     ) -> (DecoderResult, usize, usize) {
-        let mut source = ByteSource::new(src);
-        let mut dest = Utf8Destination::new(dst);
-        'outermost: loop {
-            match dest.copy_ascii_from_check_space_bmp(&mut source) {
-                CopyAsciiResult::Stop(ret) => return ret,
-                CopyAsciiResult::GoOn((mut non_ascii, mut handle)) => 'middle: loop {
-                    // Start non-boilerplate
-                    //
-                    // Since the non-ASCIIness of `non_ascii` is hidden from
-                    // the optimizer, it can't figure out that it's OK to
-                    // statically omit the bound check when accessing
-                    // `[u16; 128]` with an index
-                    // `non_ascii as usize - 0x80usize`.
-                    //
-                    // Safety: `non_ascii` is a u8 byte >=0x80, from the invariants
-                    // on Utf8Destination::copy_ascii_from_check_space_bmp()
-                    let mapped =
-                        unsafe { *(self.table.get_unchecked(non_ascii as usize - 0x80usize)) };
-                    // let mapped = self.table[non_ascii as usize - 0x80usize];
-                    if mapped == 0u16 {
-                        return (
-                            DecoderResult::Malformed(1, 0),
-                            source.consumed(),
-                            handle.written(),
-                        );
-                    }
-                    let dest_again = handle.write_bmp_excl_ascii(mapped);
-                    // End non-boilerplate
-                    match source.check_available() {
-                        Space::Full(src_consumed) => {
-                            return (
-                                DecoderResult::InputEmpty,
-                                src_consumed,
-                                dest_again.written(),
-                            );
-                        }
-                        Space::Available(source_handle) => {
-                            match dest_again.check_space_bmp() {
-                                Space::Full(dst_written) => {
-                                    return (
-                                        DecoderResult::OutputFull,
-                                        source_handle.consumed(),
-                                        dst_written,
-                                    );
-                                }
-                                Space::Available(mut destination_handle) => {
-                                    let (mut b, unread_handle) = source_handle.read();
-                                    let source_again = unread_handle.commit();
-                                    'innermost: loop {
-                                        if b > 127 {
-                                            non_ascii = b;
-                                            handle = destination_handle;
-                                            continue 'middle;
-                                        }
-                                        // Testing on Haswell says that we should write the
-                                        // byte unconditionally instead of trying to unread it
-                                        // to make it part of the next SIMD stride.
-                                        let dest_again_again = destination_handle.write_ascii(b);
-                                        if b < 60 {
-                                            // We've got punctuation
-                                            match source_again.check_available() {
-                                                Space::Full(src_consumed_again) => {
-                                                    return (
-                                                        DecoderResult::InputEmpty,
-                                                        src_consumed_again,
-                                                        dest_again_again.written(),
-                                                    );
-                                                }
-                                                Space::Available(source_handle_again) => {
-                                                    match dest_again_again.check_space_bmp() {
-                                                        Space::Full(dst_written_again) => {
-                                                            return (
-                                                                DecoderResult::OutputFull,
-                                                                source_handle_again.consumed(),
-                                                                dst_written_again,
-                                                            );
-                                                        }
-                                                        Space::Available(
-                                                            destination_handle_again,
-                                                        ) => {
-                                                            let (b_again, unread_handle_again) =
-                                                                source_handle_again.read();
-                                                            unread_handle_again.commit();
-                                                            b = b_again;
-                                                            destination_handle =
-                                                                destination_handle_again;
-                                                            continue 'innermost;
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        }
-                                        // We've got markup or ASCII text
-                                        continue 'outermost;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                },
-            }
-        }
+        decode_to_utf8_raw_impl(self.table, src, dst)
     }
 
     pub fn decode_to_utf16_raw(
@@ -152,107 +51,222 @@ impl SingleByteDecoder {
         dst: &mut [u16],
         _last: bool,
     ) -> (DecoderResult, usize, usize) {
-        let (pending, length) = if dst.len() < src.len() {
-            (DecoderResult::OutputFull, dst.len())
-        } else {
-            (DecoderResult::InputEmpty, src.len())
-        };
-        // Safety invariant: converted <= length. Quite often we have `converted < length`
-        // which will be separately marked.
-        let mut converted = 0usize;
-        'outermost: loop {
-            match {
-                // Safety: length is the minimum length, `src/dst + x` will always be valid for reads/writes of `len - x`
-                ascii_to_basic_latin(&src[converted..], &mut dst[converted..])
-            } {
-                None => {
-                    return (pending, length, length);
-                }
-                Some((mut non_ascii, consumed)) => {
-                    // Safety invariant: `converted <= length` upheld, since this can only consume
-                    // up to `length - converted` bytes.
-                    //
-                    // Furthermore, in this context,
-                    // we can assume `converted < length` since this branch is only ever hit when
-                    // ascii_to_basic_latin fails to consume the entire slice
-                    converted += consumed;
-                    'middle: loop {
-                        // `converted` doesn't count the reading of `non_ascii` yet.
-                        // Since the non-ASCIIness of `non_ascii` is hidden from
-                        // the optimizer, it can't figure out that it's OK to
-                        // statically omit the bound check when accessing
-                        // `[u16; 128]` with an index
-                        // `non_ascii as usize - 0x80usize`.
-                        //
-                        // Safety: We can rely on `non_ascii` being between `0x80` and `0xFF` due to
-                        // the invariants of `ascii_to_basic_latin()`, and our table has enough space for that.
-                        let mapped =
-                            unsafe { *(self.table.get_unchecked(non_ascii as usize - 0x80usize)) };
-                        // let mapped = self.table[non_ascii as usize - 0x80usize];
-                        if mapped == 0u16 {
-                            return (
-                                DecoderResult::Malformed(1, 0),
-                                converted + 1, // +1 `for non_ascii`
-                                converted,
-                            );
-                        }
-                        unsafe {
-                            // Safety: As mentioned above, `converted < length`
-                            *(dst.get_unchecked_mut(converted)) = mapped;
-                        }
-                        // Safety: `converted <= length` upheld, since `converted < length` before this
-                        converted += 1;
-                        // Next, handle ASCII punctuation and non-ASCII without
-                        // going back to ASCII acceleration. Non-ASCII scripts
-                        // use ASCII punctuation, so this avoid going to
-                        // acceleration just for punctuation/space and then
-                        // failing. This is a significant boost to non-ASCII
-                        // scripts.
-                        // TODO: Split out Latin converters without this part
-                        // this stuff makes Latin script-conversion slower.
-                        if converted == length {
-                            return (pending, length, length);
-                        }
-                        // Safety: We are back to `converted < length` because of the == above
-                        // and can perform this check.
-                        let mut b = unsafe { *(src.get_unchecked(converted)) };
-                        // Safety: `converted < length` is upheld for this loop
-                        'innermost: loop {
-                            if b > 127 {
-                                non_ascii = b;
-                                continue 'middle;
-                            }
-                            // Testing on Haswell says that we should write the
-                            // byte unconditionally instead of trying to unread it
-                            // to make it part of the next SIMD stride.
-                            unsafe {
-                                // Safety: `converted < length` is true for this loop
-                                *(dst.get_unchecked_mut(converted)) = u16::from(b);
-                            }
-                            // Safety: We are now at `converted <= length`. We should *not* `continue`
-                            // the loop without reverifying
-                            converted += 1;
-                            if b < 60 {
-                                // We've got punctuation
-                                if converted == length {
-                                    return (pending, length, length);
-                                }
-                                // Safety: we're back to `converted <= length` because of the == above
-                                b = unsafe { *(src.get_unchecked(converted)) };
-                                // Safety: The loop continues as `converted < length`
-                                continue 'innermost;
-                            }
-                            // We've got markup or ASCII text
-                            continue 'outermost;
-                        }
-                    }
-                }
-            }
-        }
+        decode_to_utf16_raw_impl(self.table, src, dst)
     }
 
     pub fn latin1_byte_compatible_up_to(&self, buffer: &[u8]) -> usize {
         latin1_byte_compatible_up_to_impl(self.table, buffer)
+    }
+}
+
+#[multiversion(targets("x86_64+avx2+bmi1"))]
+fn decode_to_utf8_raw_impl(
+    table: &'static [u16; 128],
+    src: &[u8],
+    dst: &mut [u8],
+) -> (DecoderResult, usize, usize) {
+    let mut source = ByteSource::new(src);
+    let mut dest = Utf8Destination::new(dst);
+    'outermost: loop {
+        match dest.copy_ascii_from_check_space_bmp(&mut source) {
+            CopyAsciiResult::Stop(ret) => return ret,
+            CopyAsciiResult::GoOn((mut non_ascii, mut handle)) => 'middle: loop {
+                // Start non-boilerplate
+                //
+                // Since the non-ASCIIness of `non_ascii` is hidden from
+                // the optimizer, it can't figure out that it's OK to
+                // statically omit the bound check when accessing
+                // `[u16; 128]` with an index
+                // `non_ascii as usize - 0x80usize`.
+                //
+                // Safety: `non_ascii` is a u8 byte >=0x80, from the invariants
+                // on Utf8Destination::copy_ascii_from_check_space_bmp()
+                let mapped = unsafe { *(table.get_unchecked(non_ascii as usize - 0x80usize)) };
+                // let mapped = table[non_ascii as usize - 0x80usize];
+                if mapped == 0u16 {
+                    return (
+                        DecoderResult::Malformed(1, 0),
+                        source.consumed(),
+                        handle.written(),
+                    );
+                }
+                let dest_again = handle.write_bmp_excl_ascii(mapped);
+                // End non-boilerplate
+                match source.check_available() {
+                    Space::Full(src_consumed) => {
+                        return (
+                            DecoderResult::InputEmpty,
+                            src_consumed,
+                            dest_again.written(),
+                        );
+                    }
+                    Space::Available(source_handle) => {
+                        match dest_again.check_space_bmp() {
+                            Space::Full(dst_written) => {
+                                return (
+                                    DecoderResult::OutputFull,
+                                    source_handle.consumed(),
+                                    dst_written,
+                                );
+                            }
+                            Space::Available(mut destination_handle) => {
+                                let (mut b, unread_handle) = source_handle.read();
+                                let source_again = unread_handle.commit();
+                                'innermost: loop {
+                                    if b > 127 {
+                                        non_ascii = b;
+                                        handle = destination_handle;
+                                        continue 'middle;
+                                    }
+                                    // Testing on Haswell says that we should write the
+                                    // byte unconditionally instead of trying to unread it
+                                    // to make it part of the next SIMD stride.
+                                    let dest_again_again = destination_handle.write_ascii(b);
+                                    if b < 60 {
+                                        // We've got punctuation
+                                        match source_again.check_available() {
+                                            Space::Full(src_consumed_again) => {
+                                                return (
+                                                    DecoderResult::InputEmpty,
+                                                    src_consumed_again,
+                                                    dest_again_again.written(),
+                                                );
+                                            }
+                                            Space::Available(source_handle_again) => {
+                                                match dest_again_again.check_space_bmp() {
+                                                    Space::Full(dst_written_again) => {
+                                                        return (
+                                                            DecoderResult::OutputFull,
+                                                            source_handle_again.consumed(),
+                                                            dst_written_again,
+                                                        );
+                                                    }
+                                                    Space::Available(destination_handle_again) => {
+                                                        let (b_again, unread_handle_again) =
+                                                            source_handle_again.read();
+                                                        unread_handle_again.commit();
+                                                        b = b_again;
+                                                        destination_handle =
+                                                            destination_handle_again;
+                                                        continue 'innermost;
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                    // We've got markup or ASCII text
+                                    continue 'outermost;
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+        }
+    }
+}
+
+#[multiversion(targets("x86_64+avx2+bmi1"))]
+fn decode_to_utf16_raw_impl(
+    table: &'static [u16; 128],
+    src: &[u8],
+    dst: &mut [u16],
+) -> (DecoderResult, usize, usize) {
+    let (pending, length) = if dst.len() < src.len() {
+        (DecoderResult::OutputFull, dst.len())
+    } else {
+        (DecoderResult::InputEmpty, src.len())
+    };
+    // Safety invariant: converted <= length. Quite often we have `converted < length`
+    // which will be separately marked.
+    let mut converted = 0usize;
+    'outermost: loop {
+        match {
+            // Safety: length is the minimum length, `src/dst + x` will always be valid for reads/writes of `len - x`
+            ascii_to_basic_latin(&src[converted..], &mut dst[converted..])
+        } {
+            None => {
+                return (pending, length, length);
+            }
+            Some((mut non_ascii, consumed)) => {
+                // Safety invariant: `converted <= length` upheld, since this can only consume
+                // up to `length - converted` bytes.
+                //
+                // Furthermore, in this context,
+                // we can assume `converted < length` since this branch is only ever hit when
+                // ascii_to_basic_latin fails to consume the entire slice
+                converted += consumed;
+                'middle: loop {
+                    // `converted` doesn't count the reading of `non_ascii` yet.
+                    // Since the non-ASCIIness of `non_ascii` is hidden from
+                    // the optimizer, it can't figure out that it's OK to
+                    // statically omit the bound check when accessing
+                    // `[u16; 128]` with an index
+                    // `non_ascii as usize - 0x80usize`.
+                    //
+                    // Safety: We can rely on `non_ascii` being between `0x80` and `0xFF` due to
+                    // the invariants of `ascii_to_basic_latin()`, and our table has enough space for that.
+                    let mapped = unsafe { *(table.get_unchecked(non_ascii as usize - 0x80usize)) };
+                    // let mapped = table[non_ascii as usize - 0x80usize];
+                    if mapped == 0u16 {
+                        return (
+                            DecoderResult::Malformed(1, 0),
+                            converted + 1, // +1 `for non_ascii`
+                            converted,
+                        );
+                    }
+                    unsafe {
+                        // Safety: As mentioned above, `converted < length`
+                        *(dst.get_unchecked_mut(converted)) = mapped;
+                    }
+                    // Safety: `converted <= length` upheld, since `converted < length` before this
+                    converted += 1;
+                    // Next, handle ASCII punctuation and non-ASCII without
+                    // going back to ASCII acceleration. Non-ASCII scripts
+                    // use ASCII punctuation, so this avoid going to
+                    // acceleration just for punctuation/space and then
+                    // failing. This is a significant boost to non-ASCII
+                    // scripts.
+                    // TODO: Split out Latin converters without this part
+                    // this stuff makes Latin script-conversion slower.
+                    if converted == length {
+                        return (pending, length, length);
+                    }
+                    // Safety: We are back to `converted < length` because of the == above
+                    // and can perform this check.
+                    let mut b = unsafe { *(src.get_unchecked(converted)) };
+                    // Safety: `converted < length` is upheld for this loop
+                    'innermost: loop {
+                        if b > 127 {
+                            non_ascii = b;
+                            continue 'middle;
+                        }
+                        // Testing on Haswell says that we should write the
+                        // byte unconditionally instead of trying to unread it
+                        // to make it part of the next SIMD stride.
+                        unsafe {
+                            // Safety: `converted < length` is true for this loop
+                            *(dst.get_unchecked_mut(converted)) = u16::from(b);
+                        }
+                        // Safety: We are now at `converted <= length`. We should *not* `continue`
+                        // the loop without reverifying
+                        converted += 1;
+                        if b < 60 {
+                            // We've got punctuation
+                            if converted == length {
+                                return (pending, length, length);
+                            }
+                            // Safety: we're back to `converted <= length` because of the == above
+                            b = unsafe { *(src.get_unchecked(converted)) };
+                            // Safety: The loop continues as `converted < length`
+                            continue 'innermost;
+                        }
+                        // We've got markup or ASCII text
+                        continue 'outermost;
+                    }
+                }
+            }
+        }
     }
 }
 
