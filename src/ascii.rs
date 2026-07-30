@@ -17,7 +17,6 @@ cfg_if! {
         pub(crate) use crate::simd_funcs::ascii_to_basic_latin_double_stride;
         pub(crate) use crate::simd_funcs::basic_latin_to_ascii_double_stride;
         pub(crate) use crate::simd_funcs::validate_ascii_double_stride;
-        use multiversion::multiversion;
     } else {
 
         // These are `inline(never)`, because the autovectorizer can vectorize the
@@ -186,7 +185,6 @@ cfg_if! {
         macro_rules! ascii_copy_impl {
             ($name:ident, $stride:ident, $double_stride:ident, $src_unit:ty, $dst_unit:ty) => {
                 #[inline(always)]
-                #[multiversion(targets("x86_64+avx2+bmi1"))]
                 pub(crate) fn $name(src: &[$src_unit], dst: &mut [$dst_unit]) -> Option<($src_unit, usize)> {
                     // Make both the same length here to have the chunks and tail match.
                     let len = core::cmp::min(src.len(), dst.len());
@@ -237,7 +235,6 @@ cfg_if! {
         }
 
         #[inline(always)]
-        #[multiversion(targets("x86_64+avx2+bmi1"))]
         fn ascii_valid_impl(bytes: &[u8]) -> Option<(u8, usize)> {
             let mut consumed = 0usize;
             let (strides, tail) = bytes.as_chunks::<STRIDE>();

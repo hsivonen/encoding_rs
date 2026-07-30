@@ -169,6 +169,19 @@ wrappers.
 * [C](https://github.com/hsivonen/recode_c)
 * [C++](https://github.com/hsivonen/recode_cpp)
 
+## Build times
+
+Due to function multiversioning for AVX2+BMI1 on x86_64 with the `simd-accel` and `std`
+features (see below), on x86_64 targets, this crate has the usual proc macro dependencies
+in its dependency tree. Cargo does not allow combining `feature` conditions with
+target-related conditions, so the dependencies are there even when the
+`simd-accel` and `std` features are not enabled.
+
+You can, however, avoid these by changing the available set of `target_feature`s by
+specifying `RUSTFLAGS='-C target_cpu=x86-64-v3'`.
+
+This issue does not apply to non-x86_64 targets.
+
 ## Optional features
 
 There are multiple optional features.

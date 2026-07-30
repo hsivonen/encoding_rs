@@ -7,6 +7,8 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
+use crate::multiversion;
+
 use super::*;
 use crate::ascii::ascii_to_basic_latin;
 use crate::ascii::basic_latin_to_ascii;
@@ -65,6 +67,7 @@ pub static UTF8_DATA: Utf8Data = Utf8Data {
 
 // END GENERATED CODE
 
+#[multiversion(targets("x86_64+avx2+bmi1"))]
 pub fn utf8_valid_up_to(src: &[u8]) -> usize {
     let mut read = 0;
     'outer: loop {
