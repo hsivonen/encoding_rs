@@ -206,7 +206,7 @@ When used together with `simd-accel` (see below), enables run-time detection
 of AVX2+BMI1 on x86_64 when the compilation target does not include these
 target features statically.
 
-This feature has no effect on SIMD capabilities is other scenarios.
+This feature has no effect on SIMD capabilities in other scenarios.
 
 This feature has the side effect of linking `std`, so this is not compatible
 with the `no_std` context. Unfortunately, even though CPU feature detection
@@ -430,6 +430,8 @@ in the Web-exposed encoder use cases.
 
 See the cargo features above for optionally making CJK legacy encode fast.
 
+As of 2026, performance attention is on x86-64-v3 and aarch64.
+
 A framework for measuring performance is [available separately][2].
 
 [2]: https://github.com/hsivonen/encoding_bench/
@@ -445,9 +447,11 @@ as semver-breaking, because this crate depends on `cfg-if`, which doesn't
 appear to treat MSRV changes as semver-breaking, so it would be useless for
 this crate to treat MSRV changes as semver-breaking.
 
-As of 2024-11-01, MSRV appears to be Rust 1.40.0 for using the crate and
-1.42.0 for doc tests to pass without errors about the global allocator.
-With the `simd-accel` feature, the MSRV is even higher.
+Furthermore, enabling the `simd-accel` feature may further constrain the
+compatible Rust versions.
+
+Currently, the MSRV is 1.88 with or without `simd-accel`, which is older
+than Firefox's MSRV.
 
 ## Compatibility with rust-encoding
 
@@ -514,6 +518,21 @@ To regenerate the generated code:
 - [x] Migrate `unsafe` slice access by larger types than `u8`/`u16` to ~`align_to`~ `as_chunks`.
 
 ## Release Notes
+
+# 0.8.40
+
+* Increase MSRV to 1.88. (For `as_chunks` on slice.)
+* Fix correctness of buffer boundary handling in two-byte legacy decoders. (Applicable streaming decode.)
+* Make decoder methods that write to`String` panic-safe so that now the `String` does expose uninitalized memory when user code tries to reuse a decoder that has reached the end of the stream previously, catches the panic, and uses the `String` afterwards. (Applicable when compiled with panic unwinding and the caller uses the API in an unintended way.)
+* Major rewrite of the ASCII acceleration internals to fix a bug in the non-SIMD case, to reduce `unsafe`, and to remove code path divergence based on buffer alignment.
+* On x86_64 with the `simd-accel` feature enabled, added function multiversioning to use AVX2+BMI1 when available (requires also the new `std` feature).
+* Bound check optimization.
+* Documentation tweaks.
+* Addressed compiler warnings and Clippy lints.
+
+# 0.8.36 though 0.8.39
+
+* Reserved version numbers.
 
 ### 0.8.35
 
