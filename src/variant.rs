@@ -20,7 +20,6 @@
 //! allocation in Rust code, including the convenience methods on `Encoding`.
 
 use super::*;
-use crate::multiversion;
 use big5::*;
 use euc_jp::*;
 use euc_kr::*;
@@ -198,7 +197,7 @@ impl VariantDecoder {
     }
 }
 
-#[multiversion(targets("x86_64+avx2+bmi1"))]
+#[crate::multiversion(targets("x86_64+avx2+bmi1"))]
 fn decode_to_utf16_raw_impl(
     dec: &mut VariantDecoder,
     src: &[u8],

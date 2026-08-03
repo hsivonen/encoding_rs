@@ -77,6 +77,7 @@ pub enum Latin1Bidi {
 }
 
 #[inline(always)]
+#[crate::multiversion(targets("x86_64+avx2+bmi1"))]
 fn is_utf8_latin1_impl(buffer: &[u8]) -> Option<usize> {
     let mut bytes = buffer;
     let mut total = 0;
@@ -148,6 +149,7 @@ cfg_if! {
         use crate::simd_funcs::unpack_stride;
         use crate::simd_funcs::pack_stride;
 
+        #[crate::multiversion(targets("x86_64+avx2+bmi1"))]
         fn is_utf16_bidi_impl(buffer: &[u16]) -> bool {
             let (half_strides, tail) = buffer.as_chunks::<{STRIDE / 2}>();
             for half_stride in half_strides {
@@ -313,6 +315,7 @@ pub fn is_ascii(buffer: &[u8]) -> bool {
 ///
 /// May read the entire buffer even if it isn't all-ASCII. (I.e. the function
 /// is not guaranteed to fail fast.)
+#[crate::multiversion(targets("x86_64+avx2+bmi1"))]
 pub fn is_basic_latin(buffer: &[u16]) -> bool {
     is_basic_latin_impl(buffer)
 }
@@ -340,6 +343,7 @@ pub fn is_str_latin1(buffer: &str) -> bool {
 ///
 /// May read the entire buffer even if it isn't all-Latin1. (I.e. the function
 /// is not guaranteed to fail fast.)
+#[crate::multiversion(targets("x86_64+avx2+bmi1"))]
 pub fn is_utf16_latin1(buffer: &[u16]) -> bool {
     is_utf16_latin1_impl(buffer)
 }
@@ -362,6 +366,7 @@ pub fn is_utf16_latin1(buffer: &[u16]) -> bool {
 /// no RTL characters.
 #[allow(clippy::collapsible_if, clippy::cognitive_complexity)]
 #[inline]
+#[crate::multiversion(targets("x86_64+avx2+bmi1"))]
 pub fn is_utf8_bidi(buffer: &[u8]) -> bool {
     // As of rustc 1.25.0-nightly (73ac5d6a8 2018-01-11), this is faster
     // than UTF-8 validation followed by `is_str_bidi()` for German,
@@ -792,6 +797,7 @@ pub fn is_utf8_bidi(buffer: &[u8]) -> bool {
 /// case, U+FEFF is excluded from Arabic Presentation Forms-B.
 #[allow(clippy::collapsible_if)]
 #[inline]
+#[crate::multiversion(targets("x86_64+avx2+bmi1"))]
 pub fn is_str_bidi(buffer: &str) -> bool {
     // U+058F: D6 8F
     // U+0590: D6 90
@@ -1140,6 +1146,7 @@ pub fn check_utf16_for_latin1_and_bidi(buffer: &[u16]) -> Latin1Bidi {
 /// # Panics
 ///
 /// Panics if the destination buffer is shorter than stated above.
+#[crate::multiversion(targets("x86_64+avx2+bmi1"))]
 pub fn convert_utf8_to_utf16(src: &[u8], dst: &mut [u16]) -> usize {
     // TODO: Can the requirement for dst to be at least one unit longer
     // be eliminated?
@@ -1179,6 +1186,7 @@ pub fn convert_utf8_to_utf16(src: &[u8], dst: &mut [u16]) -> usize {
 /// # Panics
 ///
 /// Panics if the destination buffer is shorter than stated above.
+#[crate::multiversion(targets("x86_64+avx2+bmi1"))]
 pub fn convert_str_to_utf16(src: &str, dst: &mut [u16]) -> usize {
     assert!(
         dst.len() >= src.len(),
@@ -1412,6 +1420,7 @@ pub fn convert_utf16_to_str(src: &[u16], dst: &mut str) -> usize {
 /// # Panics
 ///
 /// Panics if the destination buffer is shorter than stated above.
+#[crate::multiversion(targets("x86_64+avx2+bmi1"))]
 pub fn convert_latin1_to_utf16(src: &[u8], dst: &mut [u16]) {
     assert!(
         dst.len() >= src.len(),
@@ -1730,6 +1739,7 @@ cfg_if! {
         pub(crate) use crate::simd_funcs::validate_latin1_str_stride;
 
         #[inline(always)]
+        #[crate::multiversion(targets("x86_64+avx2+bmi1"))]
         fn is_str_latin1_impl(buffer: &str) -> Option<usize> {
             let mut consumed = 0;
             let (strides, tail) = buffer.as_bytes().as_chunks::<STRIDE>();
@@ -1801,6 +1811,7 @@ cfg_if! {
 
 /// Returns the index of the first unpaired surrogate or, if the input is
 /// valid UTF-16 in its entirety, the length of the input.
+#[crate::multiversion(targets("x86_64+avx2+bmi1"))]
 pub fn utf16_valid_up_to(buffer: &[u16]) -> usize {
     let mut consumed = 0usize;
     'outer: loop {
@@ -1935,6 +1946,7 @@ pub fn copy_ascii_to_ascii(src: &[u8], dst: &mut [u8]) -> usize {
 /// # Panics
 ///
 /// Panics if the destination buffer is shorter than stated above.
+#[crate::multiversion(targets("x86_64+avx2+bmi1"))]
 pub fn copy_ascii_to_basic_latin(src: &[u8], dst: &mut [u16]) -> usize {
     assert!(
         dst.len() >= src.len(),
@@ -1959,6 +1971,7 @@ pub fn copy_ascii_to_basic_latin(src: &[u8], dst: &mut [u16]) -> usize {
 /// # Panics
 ///
 /// Panics if the destination buffer is shorter than stated above.
+#[crate::multiversion(targets("x86_64+avx2+bmi1"))]
 pub fn copy_basic_latin_to_ascii(src: &[u16], dst: &mut [u8]) -> usize {
     assert!(
         dst.len() >= src.len(),
