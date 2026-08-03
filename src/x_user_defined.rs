@@ -8,6 +8,7 @@
 // except according to those terms.
 
 use super::*;
+#[cfg(feature = "simd-accel")]
 use crate::ascii::STRIDE;
 use crate::handles::*;
 use crate::variant::*;
