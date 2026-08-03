@@ -65,7 +65,110 @@ pub static UTF8_DATA: Utf8Data = Utf8Data {
 
 // END GENERATED CODE
 
+// The UTF-8 validation code provided by this crate is faster than the UTF-8 validation code
+// provided by the standard library. When SIMD is used, the simdutf8 crate is much faster
+// than the code here. However, when SIMD isn't used, simdutf8 delegates to the standard
+// library and not here. To use the code here when SSE 4.2 isn't available for simdutf8
+// to use, let's implement custom dispatch here. As a bonus, the `core_detect` crate
+// works without `std`.
+
+cfg_if! {
+    if #[cfg(all(target_arch = "aarch64", target_feature = "neon"))] {
+        #[inline(always)]
+        fn fast_utf8_valid_up_to(src: &[u8]) -> Option<usize> {
+            if src.len() >= 64 {
+                // SAFETY: The cfg check above ensures that the precondition, NEON availability on aarch64, is satisfied.
+                Some(match unsafe { simdutf8::compat::imp::aarch64::neon::validate_utf8(src) } {
+                    Ok(_) => src.len(),
+                    Err(e) => e.valid_up_to(),
+                })
+            } else {
+                None
+            }
+        }
+    } else if #[cfg(target_feature = "avx2")] {
+        #[inline(always)]
+        fn fast_utf8_valid_up_to(src: &[u8]) -> Option<usize> {
+            if src.len() >= 64 {
+                // SAFETY: The cfg check above ensures that the precondition, AVX2 availability, is satisfied.
+                Some(match unsafe { simdutf8::compat::imp::x86::avx2::validate_utf8(src) } {
+                    Ok(_) => src.len(),
+                    Err(e) => e.valid_up_to(),
+                })
+            } else {
+                None
+            }
+        }
+    } else if #[cfg(target_feature = "sse4.2")] {
+        #[inline(always)]
+        fn fast_utf8_valid_up_to(src: &[u8]) -> Option<usize> {
+            if src.len() >= 64 {
+                if core_detect::is_x86_feature_detected!("avx2") {
+                    // SAFETY: The dynamic check above ensures that the precondition, AVX2 availability, is satisfied.
+                    Some(match unsafe { simdutf8::compat::imp::x86::avx2::validate_utf8(src) } {
+                        Ok(_) => src.len(),
+                        Err(e) => e.valid_up_to(),
+                    })
+                } else {
+                    // SAFETY: The cfg check above ensures that the precondition, SSE 4.2 availability, is satisfied.
+                    Some(match unsafe { simdutf8::compat::imp::x86::sse42::validate_utf8(src) } {
+                        Ok(_) => src.len(),
+                        Err(e) => e.valid_up_to(),
+                    })
+                }
+            } else {
+                None
+            }
+        }
+    } else if #[cfg(target_feature = "sse")] { // "sse" stands in for cpuid availability
+        #[inline(always)]
+        fn fast_utf8_valid_up_to(src: &[u8]) -> Option<usize> {
+            if src.len() >= 64 {
+                if core_detect::is_x86_feature_detected!("avx2") {
+                    // SAFETY: The dynamic check above ensures that the precondition, AVX2 availability, is satisfied.
+                    Some(match unsafe { simdutf8::compat::imp::x86::avx2::validate_utf8(src) } {
+                        Ok(_) => src.len(),
+                        Err(e) => e.valid_up_to(),
+                    })
+                } else if core_detect::is_x86_feature_detected!("sse4.2") {
+                    // SAFETY: The dynamic check above ensures that the precondition, SSE 4.2 availability, is satisfied.
+                    Some(match unsafe { simdutf8::compat::imp::x86::sse42::validate_utf8(src) } {
+                        Ok(_) => src.len(),
+                        Err(e) => e.valid_up_to(),
+                    })
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        }
+    } else if #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))] {
+        #[inline(always)]
+        fn fast_utf8_valid_up_to(src: &[u8]) -> Option<usize> {
+            if src.len() >= 64 {
+                // SAFETY: The cfg check above ensures that the precondition, simd128 availability on wasm32, is satisfied.
+                Some(match unsafe { simdutf8::compat::imp::wasm32::simd128::validate_utf8(src) } {
+                    Ok(_) => src.len(),
+                    Err(e) => e.valid_up_to(),
+                })
+            } else {
+                None
+            }
+        }
+    } else {
+        #[inline(always)]
+        fn fast_utf8_valid_up_to(_src: &[u8]) -> Option<usize> {
+            None
+        }
+    }
+}
+
 pub fn utf8_valid_up_to(src: &[u8]) -> usize {
+    if let Some(up_to) = fast_utf8_valid_up_to(src) {
+        return up_to;
+    }
+
     let mut read = 0;
     'outer: loop {
         let mut byte = {
