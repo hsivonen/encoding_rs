@@ -11,7 +11,6 @@ use super::*;
 use crate::ascii::STRIDE;
 use crate::handles::*;
 use crate::variant::*;
-use crate::multiversion;
 
 cfg_if! {
     if #[cfg(feature = "simd-accel")] {
@@ -56,7 +55,7 @@ fn decode_to_utf16_raw_impl(src: &[u8], dst: &mut [u16]) -> (DecoderResult, usiz
 }
 
 #[cfg(feature = "simd-accel")]
-#[multiversion(targets("x86_64+avx2"))]
+#[multiversion::multiversion(targets("x86_64+avx2"))]
 fn decode_to_utf16_raw_impl(src: &[u8], dst: &mut [u16]) -> (DecoderResult, usize, usize) {
     let (pending, length) = if dst.len() < src.len() {
         (DecoderResult::OutputFull, dst.len())
