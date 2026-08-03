@@ -607,7 +607,7 @@ impl Utf8Decoder {
 
 #[allow(clippy::never_loop)]
 #[inline(never)]
-#[multiversion::multiversion(targets("x86_64+avx2"))]
+#[multiversion(targets("x86_64+avx2"))]
 pub fn convert_utf16_to_utf8_partial_inner(src: &[u16], dst: &mut [u8]) -> (usize, usize) {
     let mut read = 0;
     let mut written = 0;

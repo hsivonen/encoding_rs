@@ -108,7 +108,7 @@ fn is_utf8_latin1_impl(buffer: &[u8]) -> Option<usize> {
 macro_rules! copy_impl {
     ($name:ident, $stride:ident, $src_unit:ty, $dst_unit:ty) => {
         #[inline(always)]
-        #[multiversion::multiversion(targets("x86_64+avx2"))]
+        #[multiversion(targets("x86_64+avx2"))]
         fn $name(src: &[$src_unit], dst: &mut [$dst_unit]) {
             // Make both the same length here to have the chunks and tail match.
             let len = core::cmp::min(src.len(), dst.len());
