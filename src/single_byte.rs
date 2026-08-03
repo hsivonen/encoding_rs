@@ -61,7 +61,7 @@ impl SingleByteDecoder {
 
 #[multiversion(targets("x86_64+avx2+bmi1"))]
 fn decode_to_utf8_raw_impl(
-    table: &'static [u16; 128],
+    table: &[u16; 128],
     src: &[u8],
     dst: &mut [u8],
 ) -> (DecoderResult, usize, usize) {
@@ -168,7 +168,7 @@ fn decode_to_utf8_raw_impl(
 
 #[multiversion(targets("x86_64+avx2+bmi1"))]
 fn decode_to_utf16_raw_impl(
-    table: &'static [u16; 128],
+    table: &[u16; 128],
     src: &[u8],
     dst: &mut [u16],
 ) -> (DecoderResult, usize, usize) {
@@ -271,7 +271,7 @@ fn decode_to_utf16_raw_impl(
 }
 
 #[multiversion(targets("x86_64+avx2+bmi1"))]
-fn latin1_byte_compatible_up_to_impl(table: &'static [u16; 128], buffer: &[u8]) -> usize {
+fn latin1_byte_compatible_up_to_impl(table: &[u16; 128], buffer: &[u8]) -> usize {
     let mut bytes = buffer;
     let mut total = 0;
     loop {
