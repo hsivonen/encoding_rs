@@ -31,8 +31,6 @@ use alloc::string::String;
 #[cfg(feature = "alloc")]
 use alloc::vec::Vec;
 
-use crate::multiversion;
-
 use super::DecoderResult;
 use super::in_inclusive_range8;
 use super::in_inclusive_range16;
@@ -79,7 +77,6 @@ pub enum Latin1Bidi {
 }
 
 #[inline(always)]
-#[multiversion(targets("x86_64+avx2+bmi1"))]
 fn is_utf8_latin1_impl(buffer: &[u8]) -> Option<usize> {
     let mut bytes = buffer;
     let mut total = 0;
@@ -366,11 +363,6 @@ pub fn is_utf16_latin1(buffer: &[u16]) -> bool {
 #[allow(clippy::collapsible_if, clippy::cognitive_complexity)]
 #[inline]
 pub fn is_utf8_bidi(buffer: &[u8]) -> bool {
-    is_utf8_bidi_impl(buffer)
-}
-
-#[multiversion(targets("x86_64+avx2+bmi1"))]
-fn is_utf8_bidi_impl(buffer: &[u8]) -> bool {
     // As of rustc 1.25.0-nightly (73ac5d6a8 2018-01-11), this is faster
     // than UTF-8 validation followed by `is_str_bidi()` for German,
     // Russian and Japanese. However, this is considerably slower for Thai.
@@ -801,11 +793,6 @@ fn is_utf8_bidi_impl(buffer: &[u8]) -> bool {
 #[allow(clippy::collapsible_if)]
 #[inline]
 pub fn is_str_bidi(buffer: &str) -> bool {
-    is_str_bidi_impl(buffer)
-}
-
-#[multiversion(targets("x86_64+avx2+bmi1"))]
-fn is_str_bidi_impl(buffer: &str) -> bool {
     // U+058F: D6 8F
     // U+0590: D6 90
     // U+08FF: E0 A3 BF
@@ -1793,7 +1780,6 @@ cfg_if! {
         }
 
         #[inline(always)]
-        #[multiversion(targets("x86_64+avx2+bmi1"))]
         fn is_str_latin1_impl(buffer: &str) -> Option<usize> {
             let mut bytes = buffer.as_bytes();
             let mut total = 0;

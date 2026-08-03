@@ -7,8 +7,6 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-use crate::multiversion;
-
 use super::*;
 use crate::ascii::*;
 use crate::data::position;
@@ -146,6 +144,7 @@ impl SingleByteDecoder {
         }
     }
 
+    #[inline(always)]
     pub fn decode_to_utf16_raw(
         &mut self,
         src: &[u8],
@@ -252,27 +251,22 @@ impl SingleByteDecoder {
     }
 
     pub fn latin1_byte_compatible_up_to(&self, buffer: &[u8]) -> usize {
-        latin1_byte_compatible_up_to_impl(self.table, buffer)
-    }
-}
-
-#[multiversion(targets("x86_64+avx2+bmi1"))]
-fn latin1_byte_compatible_up_to_impl(table: &'static [u16; 128], buffer: &[u8]) -> usize {
-    let mut bytes = buffer;
-    let mut total = 0;
-    loop {
-        if let Some((non_ascii, offset)) = validate_ascii(bytes) {
-            total += offset;
-            // Safety: We can rely on `non_ascii` being between `0x80` and `0xFF` due to
-            // the invariants of `ascii_to_basic_latin()`, and our table has enough space for that.
-            let mapped = unsafe { *(table.get_unchecked(non_ascii as usize - 0x80usize)) };
-            if mapped != u16::from(non_ascii) {
+        let mut bytes = buffer;
+        let mut total = 0;
+        loop {
+            if let Some((non_ascii, offset)) = validate_ascii(bytes) {
+                total += offset;
+                // Safety: We can rely on `non_ascii` being between `0x80` and `0xFF` due to
+                // the invariants of `ascii_to_basic_latin()`, and our table has enough space for that.
+                let mapped = unsafe { *(self.table.get_unchecked(non_ascii as usize - 0x80usize)) };
+                if mapped != u16::from(non_ascii) {
+                    return total;
+                }
+                total += 1;
+                bytes = &bytes[offset + 1..];
+            } else {
                 return total;
             }
-            total += 1;
-            bytes = &bytes[offset + 1..];
-        } else {
-            return total;
         }
     }
 }

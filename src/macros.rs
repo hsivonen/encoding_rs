@@ -23,6 +23,7 @@ macro_rules! decoder_function {
      $name:ident,
      $code_unit:ty,
      $dest_struct:ident) => (
+    #[inline(always)]
     pub fn $name(&mut $slf,
                  src: &[u8],
                  dst: &mut [$code_unit],
@@ -139,6 +140,7 @@ macro_rules! ascii_compatible_two_byte_decoder_function {
      $code_unit:ty,
      $dest_struct:ident,
      $ascii_punctuation:expr) => (
+    #[inline(always)]
     pub fn $name(&mut $slf,
                  src: &[u8],
                  dst: &mut [$code_unit],
@@ -363,6 +365,7 @@ macro_rules! gb18030_decoder_function {
      $name:ident,
      $code_unit:ty,
      $dest_struct:ident) => (
+    #[inline(always)]
     #[allow(clippy::never_loop)]
     pub fn $name(&mut $slf,
                  src: &[u8],
@@ -689,6 +692,7 @@ macro_rules! euc_jp_decoder_function {
      $name:ident,
      $code_unit:ty,
      $dest_struct:ident) => (
+    #[inline(always)]
     #[allow(clippy::never_loop)]
     pub fn $name(&mut $slf,
                  src: &[u8],

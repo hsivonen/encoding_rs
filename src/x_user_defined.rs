@@ -107,6 +107,7 @@ impl UserDefinedDecoder {
     }
 
     #[cfg(feature = "simd-accel")]
+    #[inline(always)]
     pub fn decode_to_utf16_raw(
         &mut self,
         src: &[u8],

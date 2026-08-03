@@ -20,6 +20,7 @@
 //! allocation in Rust code, including the convenience methods on `Encoding`.
 
 use super::*;
+use crate::multiversion;
 use big5::*;
 use euc_jp::*;
 use euc_kr::*;
@@ -123,19 +124,7 @@ impl VariantDecoder {
         dst: &mut [u16],
         last: bool,
     ) -> (DecoderResult, usize, usize) {
-        match *self {
-            VariantDecoder::SingleByte(ref mut v) => v.decode_to_utf16_raw(src, dst, last),
-            VariantDecoder::Utf8(ref mut v) => v.decode_to_utf16_raw(src, dst, last),
-            VariantDecoder::Gb18030(ref mut v) => v.decode_to_utf16_raw(src, dst, last),
-            VariantDecoder::Big5(ref mut v) => v.decode_to_utf16_raw(src, dst, last),
-            VariantDecoder::EucJp(ref mut v) => v.decode_to_utf16_raw(src, dst, last),
-            VariantDecoder::Iso2022Jp(ref mut v) => v.decode_to_utf16_raw(src, dst, last),
-            VariantDecoder::ShiftJis(ref mut v) => v.decode_to_utf16_raw(src, dst, last),
-            VariantDecoder::EucKr(ref mut v) => v.decode_to_utf16_raw(src, dst, last),
-            VariantDecoder::Replacement(ref mut v) => v.decode_to_utf16_raw(src, dst, last),
-            VariantDecoder::UserDefined(ref mut v) => v.decode_to_utf16_raw(src, dst, last),
-            VariantDecoder::Utf16(ref mut v) => v.decode_to_utf16_raw(src, dst, last),
-        }
+        decode_to_utf16_raw_impl(self, src, dst, last)
     }
 
     pub fn decode_to_utf8_raw(
@@ -206,6 +195,28 @@ impl VariantDecoder {
             }
         };
         Some(Encoding::ascii_valid_up_to(buffer))
+    }
+}
+
+#[multiversion(targets("x86_64+avx2+bmi1"))]
+fn decode_to_utf16_raw_impl(
+    dec: &mut VariantDecoder,
+    src: &[u8],
+    dst: &mut [u16],
+    last: bool,
+) -> (DecoderResult, usize, usize) {
+    match *dec {
+        VariantDecoder::SingleByte(ref mut v) => v.decode_to_utf16_raw(src, dst, last),
+        VariantDecoder::Utf8(ref mut v) => v.decode_to_utf16_raw(src, dst, last),
+        VariantDecoder::Gb18030(ref mut v) => v.decode_to_utf16_raw(src, dst, last),
+        VariantDecoder::Big5(ref mut v) => v.decode_to_utf16_raw(src, dst, last),
+        VariantDecoder::EucJp(ref mut v) => v.decode_to_utf16_raw(src, dst, last),
+        VariantDecoder::Iso2022Jp(ref mut v) => v.decode_to_utf16_raw(src, dst, last),
+        VariantDecoder::ShiftJis(ref mut v) => v.decode_to_utf16_raw(src, dst, last),
+        VariantDecoder::EucKr(ref mut v) => v.decode_to_utf16_raw(src, dst, last),
+        VariantDecoder::Replacement(ref mut v) => v.decode_to_utf16_raw(src, dst, last),
+        VariantDecoder::UserDefined(ref mut v) => v.decode_to_utf16_raw(src, dst, last),
+        VariantDecoder::Utf16(ref mut v) => v.decode_to_utf16_raw(src, dst, last),
     }
 }
 
