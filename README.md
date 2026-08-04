@@ -172,8 +172,9 @@ wrappers.
 ## Multiversioning
 
 When applicable, UTF-8 validation delegates to the [`simdutf8`](https://crates.io/crates/simdutf8)
-crate. On x86 and x86_64, the UTF-8 validation function is multiversioned. This
-crate takes care of the dispatch using the [`core_detect`](https://crates.io/crates/core_detect)
+crate. On x86 and x86_64, the UTF-8 validation function is multiversioned (unless the best version,
+currently AVX2, is known to be usable statically, e.g. by `RUSTFLAGS='-C target_cpu=x86-64-v3'`).
+This crate takes care of the dispatch using the [`core_detect`](https://crates.io/crates/core_detect)
 crate without requiring `std` and without involving the `simd-accel` feature.
 
 With the `simd-accel` feature, some _other_ aspects of this crate are multiversioned on
