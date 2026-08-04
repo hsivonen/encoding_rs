@@ -10,7 +10,9 @@
 use core::simd::ToBytes;
 use core::simd::cmp::SimdPartialEq;
 use core::simd::cmp::SimdPartialOrd;
+#[allow(unused_imports)]
 use core::simd::mask16x8;
+use core::simd::num::SimdUint;
 use core::simd::simd_swizzle;
 use core::simd::u8x16;
 use core::simd::u8x32;
@@ -58,9 +60,6 @@ cfg_if! {
         use core::arch::x86::__m128i;
         use core::arch::x86::_mm_movemask_epi8;
         use core::arch::x86::_mm_packus_epi16;
-    } else if #[cfg(target_arch = "aarch64")]{
-        use core::arch::aarch64::vmaxvq_u8;
-        use core::arch::aarch64::vmaxvq_u16;
     } else {
 
     }
@@ -99,10 +98,7 @@ cfg_if! {
     } else if #[cfg(target_arch = "aarch64")]{
         #[inline(always)]
         pub fn simd_is_ascii(s: u8x16) -> bool {
-            unsafe {
-                // Safety: We have cfg()d the correct platform
-                vmaxvq_u8(s.into()) < 0x80
-            }
+            s.reduce_max() < 0x80
         }
     } else {
         #[inline(always)]
@@ -129,10 +125,7 @@ cfg_if! {
         #[allow(dead_code)]
         #[inline(always)]
         pub fn simd_is_str_latin1(s: u8x16) -> bool {
-            unsafe {
-                // Safety: We have cfg()d the correct platform
-                vmaxvq_u8(s.into()) < 0xC4
-            }
+            s.reduce_max() < 0xC4
         }
     } else {
         #[inline(always)]
@@ -147,18 +140,12 @@ cfg_if! {
     if #[cfg(target_arch = "aarch64")]{
         #[inline(always)]
         pub fn simd_is_basic_latin(s: u16x8) -> bool {
-            unsafe {
-                // Safety: We have cfg()d the correct platform
-                vmaxvq_u16(s.into()) < 0x80
-            }
+            s.reduce_max() < 0x80
         }
 
         #[inline(always)]
         pub fn simd_is_latin1(s: u16x8) -> bool {
-            unsafe {
-                // Safety: We have cfg()d the correct platform
-                vmaxvq_u16(s.into()) < 0x100
-            }
+            s.reduce_max() < 0x100
         }
     } else {
         #[inline(always)]
@@ -185,37 +172,6 @@ pub fn contains_surrogates(s: u16x8) -> bool {
     any_all_workaround::any_mask16x8((s & mask).simd_eq(surrogate_bits))
 }
 
-cfg_if! {
-    if #[cfg(target_arch = "aarch64")]{
-        macro_rules! aarch64_return_false_if_below_hebrew {
-            ($s:ident) => ({
-                unsafe {
-                    // Safety: We have cfg()d the correct platform
-                    if vmaxvq_u16($s.into()) < 0x0590 {
-                        return false;
-                    }
-                }
-            })
-        }
-
-        macro_rules! non_aarch64_return_false_if_all {
-            ($s:ident) => ()
-        }
-    } else {
-        macro_rules! aarch64_return_false_if_below_hebrew {
-            ($s:ident) => ()
-        }
-
-        macro_rules! non_aarch64_return_false_if_all {
-            ($s:ident) => ({
-                if any_all_workaround::all_mask16x8($s) {
-                    return false;
-                }
-            })
-        }
-    }
-}
-
 macro_rules! in_range16x8 {
     ($s:ident, $start:expr, $end:expr) => {{
         // SIMD sub is wrapping
@@ -231,11 +187,15 @@ pub(crate) fn is_u16x8_bidi(s: u16x8) -> bool {
     // two-fold in order to return `false` ASAP if everything is below
     // Hebrew.
 
-    aarch64_return_false_if_below_hebrew!(s);
+    if HAS_FAST_REDUCE_MAX && s.reduce_max() < 0x0590 {
+        return false;
+    }
 
     let below_hebrew = s.simd_lt(u16x8::splat(0x0590));
 
-    non_aarch64_return_false_if_all!(below_hebrew);
+    if !HAS_FAST_REDUCE_MAX && any_all_workaround::all_mask16x8(below_hebrew) {
+        return false;
+    }
 
     if any_all_workaround::all_mask16x8(
         below_hebrew | in_range16x8!(s, 0x0900, 0x200F) | in_range16x8!(s, 0x2068, 0xD802),
@@ -260,6 +220,14 @@ pub(crate) fn is_u16x8_bidi(s: u16x8) -> bool {
 
 // Code above is old code not re-vetted for Rust 1.88 and later `unsafe` removal.
 // Code below has been checked as part of the Rust 1.88 and later `unsafe` removal.
+
+cfg_if! {
+    if #[cfg(target_arch = "aarch64")]{
+        const HAS_FAST_REDUCE_MAX: bool = true;
+    } else {
+        const HAS_FAST_REDUCE_MAX: bool = false;
+    }
+}
 
 use crate::ascii::STRIDE;
 
@@ -389,10 +357,7 @@ cfg_if! {
     } else if #[cfg(target_arch = "aarch64")]{
         #[inline(always)]
         pub fn validate_latin1_str_simd(s: u8x16) -> Option<usize> {
-            if unsafe {
-                // Safety: We have cfg()d the correct platform
-                vmaxvq_u8(s.into()) < 0xC4
-            } {
+            if s.reduce_max() < 0xC4 {
                 return None;
             }
             s.simd_gt(u8x16::splat(0xC3)).first_set()
