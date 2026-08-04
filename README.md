@@ -169,6 +169,18 @@ wrappers.
 * [C](https://github.com/hsivonen/recode_c)
 * [C++](https://github.com/hsivonen/recode_cpp)
 
+## Multiversioning
+
+When applicable, UTF-8 validation delegates to the [`simdutf8`](https://crates.io/crates/simdutf8)
+crate. On x86 and x86_64, the UTF-8 validation function is multiversioned. This
+crate takes care of the dispatch using the [`core_detect`](https://crates.io/crates/core_detect)
+crate without requiring `std` and without involving the `simd-accel` feature.
+
+With the `simd-accel` feature, some _other_ aspects of this crate are multiversioned on
+x86_64 in a way that does require `std`, because the
+[`multiversion`](https://crates.io/crates/multiversion) crate uses `std` and not
+`core_detect`. See below.
+
 ## Build times
 
 Due to function multiversioning for AVX2+BMI1 on x86_64 with the `simd-accel` and `std`
@@ -214,10 +226,18 @@ uses an instruction rather than syscalls on x86_64, the CPU feature detection
 check requires `std`, because the corresponding operation on some other
 architectures relies on operating system support.
 
-Note that this does _not_ enable run-time AVX2+BMI1 checking on 32-bit x86,
-on the assumption that AVX2+BMI1 is less likely to available and, therefore,
-the code size and performance overhead of multiversioning is less likely to
-be justified.
+Only some operations are multiversioned: Decoding to UTF-16, encoding from
+UTF-16 to UTF-8, and various operations in the `mem` module. Notably, if
+you don't use the `mem` module and don't use UTF-16 as the in-memory Unicode
+representation, the `std` feature won't be useful.
+
+This does _not_ enable run-time AVX2+BMI1 checking on 32-bit x86, on the
+assumption that AVX2+BMI1 is less likely to available and, therefore, the
+code size and performance overhead of multiversioning is less likely to be
+justified.
+
+This feature does not affect multiversioning UTF-8 validation, which uses a
+separate mechanism.
 
 Used by Firefox.
 
@@ -430,7 +450,8 @@ in the Web-exposed encoder use cases.
 
 See the cargo features above for optionally making CJK legacy encode fast.
 
-As of 2026, performance attention is on x86-64-v3 and aarch64.
+As of 2026, performance attention is on x86-64-v3 and aarch64 with the
+`simd-accel` feature enabled.
 
 A framework for measuring performance is [available separately][2].
 
@@ -459,7 +480,7 @@ A compatibility layer that implements the rust-encoding API on top of
 encoding_rs is
 [provided as a separate crate](https://github.com/hsivonen/encoding_rs_compat)
 (cannot be uploaded to crates.io). The compatibility layer was originally
-written with the assuption that Firefox would need it, but it is not currently
+written with the assumption that Firefox would need it, but it is not currently
 used in Firefox.
 
 ## Regenerating Generated Code
@@ -522,13 +543,14 @@ To regenerate the generated code:
 # 0.8.40
 
 * Increase MSRV to 1.88. (For `as_chunks` on slice.)
-* Fix correctness of buffer boundary handling in two-byte legacy decoders. (Applicable streaming decode.)
-* Make decoder methods that write to`String` panic-safe so that now the `String` does expose uninitalized memory when user code tries to reuse a decoder that has reached the end of the stream previously, catches the panic, and uses the `String` afterwards. (Applicable when compiled with panic unwinding and the caller uses the API in an unintended way.)
-* Major rewrite of the ASCII acceleration internals to fix a bug in the non-SIMD case, to reduce `unsafe`, and to remove code path divergence based on buffer alignment.
+* Fix correctness of buffer boundary handling in two-byte legacy decoders. (Applicable to streaming decode.)
+* Make decoder methods that write to `String` panic-safe so that the `String` no longer exposes uninitalized memory when user code tries to reuse a decoder that has reached the end of the stream previously, catches the panic, and uses the `String` afterwards. (Applicable when compiled with panic unwinding and the caller uses the API in an unintended way.)
+* Major rewrite of the ASCII acceleration internals to fix correctness in the non-SIMD case, to reduce `unsafe`, and to remove code path divergence based on buffer alignment.
+* Use the `simdutf8` crate for UTF-8 validation when applicable.
 * On x86_64 with the `simd-accel` feature enabled, added function multiversioning to use AVX2+BMI1 when available (requires also the new `std` feature).
 * Bound check optimization.
 * Documentation tweaks.
-* Addressed compiler warnings and Clippy lints.
+* Address compiler warnings and Clippy lints.
 
 # 0.8.36 though 0.8.39
 
