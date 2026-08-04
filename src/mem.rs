@@ -135,14 +135,7 @@ copy_impl!(unpack_latin1, unpack_stride, u8, u16);
 copy_impl!(pack_latin1, pack_stride, u16, u8);
 
 cfg_if! {
-    if #[cfg(all(
-        feature = "simd-accel",
-        any(
-            target_feature = "sse2",
-            all(target_endian = "little", target_arch = "aarch64"),
-            all(target_endian = "little", target_feature = "neon")
-        )
-    ))] {
+    if #[cfg(all(feature = "simd-accel", target_endian = "little", any(target_feature = "sse2", target_feature = "neon")))] {
         use core::simd::u8x16;
         use core::simd::u16x8;
 
@@ -1751,7 +1744,7 @@ pub fn encode_latin1_lossy<'a>(string: &'a str) -> Cow<'a, [u8]> {
 }
 
 cfg_if! {
-    if #[cfg(all(feature = "simd-accel", any(target_feature = "sse2", all(target_endian = "little", target_arch = "aarch64"), all(target_endian = "little", target_feature = "neon"))))] {
+    if #[cfg(all(feature = "simd-accel", target_endian = "little", any(target_feature = "sse2", target_feature = "neon")))] {
         pub(crate) use crate::simd_funcs::validate_bmp_stride;
         pub(crate) use crate::simd_funcs::validate_latin1_str_stride;
 

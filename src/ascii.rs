@@ -8,7 +8,7 @@
 // except according to those terms.
 
 cfg_if! {
-    if #[cfg(all(feature = "simd-accel", any(target_feature = "sse2", all(target_endian = "little", target_arch = "aarch64"), all(target_endian = "little", target_feature = "neon"))))] {
+    if #[cfg(all(feature = "simd-accel", target_endian = "little", any(target_feature = "sse2", target_feature = "neon")))] {
         pub(crate) use crate::simd_funcs::ascii_to_ascii_stride;
         pub(crate) use crate::simd_funcs::ascii_to_basic_latin_stride;
         pub(crate) use crate::simd_funcs::basic_latin_to_ascii_stride;
@@ -180,7 +180,7 @@ pub(crate) const STRIDE: usize = 16;
 pub(crate) const MAX_STRIDE_SIZE: usize = STRIDE;
 
 cfg_if! {
-    if #[cfg(all(feature = "simd-accel", any(target_feature = "sse2", all(target_endian = "little", target_arch = "aarch64"))))] {
+    if #[cfg(all(feature = "simd-accel", target_endian = "little", any(target_feature = "sse2", target_feature = "neon")))] {
 
         macro_rules! ascii_copy_impl {
             ($name:ident, $stride:ident, $double_stride:ident, $src_unit:ty, $dst_unit:ty) => {
