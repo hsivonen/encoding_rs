@@ -412,19 +412,6 @@ fn split_u16_stride(stride: &[u16; STRIDE]) -> (&[u16; HALF_STRIDE], &[u16; HALF
 }
 
 #[inline(always)]
-fn split_u16_stride_mut(
-    stride: &mut [u16; STRIDE],
-) -> (&mut [u16; HALF_STRIDE], &mut [u16; HALF_STRIDE]) {
-    // Can't take two mutable references to output of `as_chunks_mut`.
-    let (head, tail) = stride.split_at_mut(HALF_STRIDE);
-    // `as_array` requires Rust 1.93.
-    (
-        &mut head.as_chunks_mut::<HALF_STRIDE>().0[0],
-        &mut tail.as_chunks_mut::<HALF_STRIDE>().0[0],
-    )
-}
-
-#[inline(always)]
 fn unpack_simd_to(src_simd: u8x16, dst_stride: &mut [u16; STRIDE]) {
     *dst_stride = simd_unpack(src_simd).to_array();
 }

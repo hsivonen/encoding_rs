@@ -160,6 +160,18 @@ cfg_if! {
             tail.iter().any(|c| is_utf16_code_unit_bidi(*c))
         }
 
+        #[inline(always)]
+        fn is_str_latin1_bool_impl(buffer: &str) -> bool {
+            let (strides, tail) = buffer.as_bytes().as_chunks::<STRIDE>();
+            for stride in strides {
+                let simd = (*stride).into();
+                if !crate::simd_funcs::simd_is_str_latin1(simd) {
+                    return false;
+                }
+            }
+            tail.iter().all(|b| *b < 0xC4)
+        }
+
         macro_rules! unit_check_impl {
             ($name:ident, $stride:ident, $unit:ty, $simd:ty, $bound:expr) => {
                 #[inline(always)]
@@ -252,6 +264,11 @@ cfg_if! {
             buffer.iter().any(|c| is_utf16_code_unit_bidi(*c))
         }
 
+        #[inline(always)]
+        fn is_str_latin1_bool_impl(buffer: &str) -> bool {
+            is_str_latin1_impl(buffer).is_none()
+        }
+
         macro_rules! unit_check_impl {
             ($name:ident, $stride:ident, $unit:ty, $bound:expr) => {
                 #[inline(always)]
@@ -335,7 +352,7 @@ pub fn is_utf8_latin1(buffer: &[u8]) -> bool {
 /// Fails fast. (I.e. returns before having read the whole buffer if code
 /// points above U+00FF are discovered.
 pub fn is_str_latin1(buffer: &str) -> bool {
-    is_str_latin1_impl(buffer).is_none()
+    is_str_latin1_bool_impl(buffer)
 }
 
 /// Checks whether the buffer represents only code point less than or equal
