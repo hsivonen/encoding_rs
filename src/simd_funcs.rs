@@ -390,19 +390,24 @@ fn pack_simd_to(first_simd: u16x8, second_simd: u16x8, dst_stride: &mut [u8; STR
 // `first_set` with `u8` lanes is too slow on 32-bit ARM.
 cfg_if! {
     if #[cfg(target_arch = "arm")] {
+        #[inline(never)]
+        fn validate_ascii_stride_tail(stride: &[u8; 16]) -> (u8, usize) {
+            for (i, s) in stride.iter().enumerate() {
+                let b = *s;
+                if b >= 0x80 {
+                    return (b, i);
+                }
+            }
+            debug_assert!(false);
+            (0, 0)
+        }
+
         #[inline(always)]
         fn validate_ascii_simd(simd: u8x16, stride: &[u8; STRIDE]) -> Option<(u8, usize)> {
             if simd_is_ascii(simd) {
                 None
             } else {
-                for (i, s) in stride.iter().enumerate() {
-                    let b = *s;
-                    if b >= 0x80 {
-                        return Some((b, i));
-                    }
-                }
-                debug_assert!(false);
-                None
+                Some(validate_ascii_stride_tail(stride))
             }
         }
     } else {
