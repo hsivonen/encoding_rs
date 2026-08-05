@@ -13,7 +13,7 @@
 pub const ASCII_MASK: usize = 0x8080_8080_8080_8080u64 as usize;
 
 cfg_if! {
-    if #[cfg(feature = "simd-accel")] {
+    if #[cfg(all(feature = "simd-accel", target_endian = "little"))] {
         pub(crate) use crate::simd_funcs::ascii_to_ascii_stride;
         pub(crate) use crate::simd_funcs::ascii_to_basic_latin_stride;
         pub(crate) use crate::simd_funcs::basic_latin_to_ascii_stride;
