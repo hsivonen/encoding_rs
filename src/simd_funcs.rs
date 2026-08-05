@@ -387,15 +387,34 @@ fn pack_simd_to(first_simd: u16x8, second_simd: u16x8, dst_stride: &mut [u8; STR
     *dst_stride = simd.to_array();
 }
 
-// This is slower on 32-bit ARM than what encoding_rs 0.8.35 had,
-// but I'm timing out on finding a good fix.
-#[inline(always)]
-fn validate_ascii_simd(simd: u8x16) -> Option<(u8, usize)> {
-    let mask = simd.simd_gt(u8x16::splat(0x7F));
-    if let Some(pos) = mask.first_set() {
-        Some((simd[pos], pos))
+// `first_set` with `u8` lanes is too slow on 32-bit ARM.
+cfg_if! {
+    if #[cfg(target_arch = "arm")] {
+        #[inline(always)]
+        fn validate_ascii_simd(simd: u8x16, stride: &[u8; STRIDE]) -> Option<(u8, usize)> {
+            if simd_is_ascii(simd) {
+                None
+            } else {
+                for (i, s) in stride.iter().enumerate() {
+                    let b = *s;
+                    if b >= 0x80 {
+                        return Some((b, i));
+                    }
+                }
+                debug_assert!(false);
+                None
+            }
+        }
     } else {
-        None
+        #[inline(always)]
+        fn validate_ascii_simd(simd: u8x16, _stride: &[u8; STRIDE]) -> Option<(u8, usize)> {
+            let mask = simd.simd_gt(u8x16::splat(0x7F));
+            if let Some(pos) = mask.first_set() {
+                Some((simd[pos], pos))
+            } else {
+                None
+            }
+        }
     }
 }
 
@@ -406,7 +425,7 @@ pub(crate) fn ascii_to_ascii_stride(
 ) -> Option<(u8, usize)> {
     let src_simd: u8x16 = (*src_stride).into();
     *dst_stride = src_simd.to_array();
-    validate_ascii_simd(src_simd)
+    validate_ascii_simd(src_simd, src_stride)
 }
 
 #[inline(always)]
@@ -416,7 +435,7 @@ pub(crate) fn ascii_to_basic_latin_stride(
 ) -> Option<(u8, usize)> {
     let src_simd: u8x16 = (*src_stride).into();
     unpack_simd_to(src_simd, dst_stride);
-    validate_ascii_simd(src_simd)
+    validate_ascii_simd(src_simd, src_stride)
 }
 
 #[inline(always)]
@@ -434,7 +453,7 @@ pub(crate) fn basic_latin_to_ascii_stride(
 #[inline(always)]
 pub(crate) fn validate_ascii_stride(stride: &[u8; STRIDE]) -> Option<(u8, usize)> {
     let simd: u8x16 = (*stride).into();
-    validate_ascii_simd(simd)
+    validate_ascii_simd(simd, stride)
 }
 
 #[allow(dead_code)]
@@ -450,11 +469,11 @@ pub(crate) fn ascii_to_ascii_double_stride(
         dst_double_stride[1] = second_simd.to_array();
         return None;
     }
-    if let Some((c, pos)) = validate_ascii_simd(first_simd) {
+    if let Some((c, pos)) = validate_ascii_simd(first_simd, &src_double_stride[0]) {
         return Some((c, pos));
     }
     dst_double_stride[1] = second_simd.to_array();
-    if let Some((c, pos)) = validate_ascii_simd(second_simd) {
+    if let Some((c, pos)) = validate_ascii_simd(second_simd, &src_double_stride[1]) {
         return Some((c, STRIDE + pos));
     }
     debug_assert!(false);
@@ -474,11 +493,11 @@ pub(crate) fn ascii_to_basic_latin_double_stride(
         unpack_simd_to(second_simd, &mut dst_double_stride[1]);
         return None;
     }
-    if let Some((c, pos)) = validate_ascii_simd(first_simd) {
+    if let Some((c, pos)) = validate_ascii_simd(first_simd, &src_double_stride[0]) {
         return Some((c, pos));
     }
     unpack_simd_to(second_simd, &mut dst_double_stride[1]);
-    if let Some((c, pos)) = validate_ascii_simd(second_simd) {
+    if let Some((c, pos)) = validate_ascii_simd(second_simd, &src_double_stride[1]) {
         return Some((c, STRIDE + pos));
     }
     debug_assert!(false);
@@ -522,10 +541,10 @@ pub(crate) fn validate_ascii_double_stride(
     if simd_is_ascii(first_simd | second_simd) {
         return None;
     }
-    if let Some((c, pos)) = validate_ascii_simd(first_simd) {
+    if let Some((c, pos)) = validate_ascii_simd(first_simd, &double_stride[0]) {
         return Some((c, pos));
     }
-    if let Some((c, pos)) = validate_ascii_simd(second_simd) {
+    if let Some((c, pos)) = validate_ascii_simd(second_simd, &double_stride[1]) {
         return Some((c, STRIDE + pos));
     }
     debug_assert!(false);
