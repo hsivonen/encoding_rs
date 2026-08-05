@@ -81,6 +81,23 @@ output in UTF-16LE, UTF-16BE, or replacement, since the output encoding
 for those encodings is UTF-8! (Changing the API to make this more obvious from the API
 shape itself would now be a semver break.)
 
+## Rust Version Compatibility
+
+It is a goal to support the latest stable Rust, the latest nightly Rust and
+the version of Rust that's used for Firefox Nightly.
+
+At this time, there is no firm commitment to support a version older than
+what's required by Firefox, and there is no commitment to treat MSRV changes
+as semver-breaking, because this crate depends on `cfg-if`, which doesn't
+appear to treat MSRV changes as semver-breaking, so it would be useless for
+this crate to treat MSRV changes as semver-breaking.
+
+Furthermore, enabling the `simd-accel` feature may further constrain the
+compatible Rust versions.
+
+Currently, the MSRV is 1.88 with or without `simd-accel`, which is older
+than Firefox's MSRV.
+
 ## Integration with `std::io`
 
 Notably, the above feature list doesn't include the capability to wrap
@@ -457,23 +474,6 @@ As of 2026, performance attention is on x86-64-v3 and aarch64 with the
 A framework for measuring performance is [available separately][2].
 
 [2]: https://github.com/hsivonen/encoding_bench/
-
-## Rust Version Compatibility
-
-It is a goal to support the latest stable Rust, the latest nightly Rust and
-the version of Rust that's used for Firefox Nightly.
-
-At this time, there is no firm commitment to support a version older than
-what's required by Firefox, and there is no commitment to treat MSRV changes
-as semver-breaking, because this crate depends on `cfg-if`, which doesn't
-appear to treat MSRV changes as semver-breaking, so it would be useless for
-this crate to treat MSRV changes as semver-breaking.
-
-Furthermore, enabling the `simd-accel` feature may further constrain the
-compatible Rust versions.
-
-Currently, the MSRV is 1.88 with or without `simd-accel`, which is older
-than Firefox's MSRV.
 
 ## Compatibility with rust-encoding
 
