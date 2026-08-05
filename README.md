@@ -81,16 +81,50 @@ output in UTF-16LE, UTF-16BE, or replacement, since the output encoding
 for those encodings is UTF-8! (Changing the API to make this more obvious from the API
 shape itself would now be a semver break.)
 
+## Performance
+
+Primary performance attention is given to the `x86_64`, `aarch64`, and
+`thumbv7neon` targets with the `simd-accel` and `std` Cargo features enabled.
+
+Speed is a non-goal when encoding to legacy encodings. By default, encoding to
+legacy encodings is optimized for binary size rather than speed, which was
+determined to not be user-visibly slow on Raspberry Pi 3 (which stood in for
+a slow phone for testing) in the Web-exposed encoder use cases.
+
+See the Cargo features below for optionally making CJK legacy encode faster.
+
+Various aspects of the code other than ASCII acceleration were optimized
+in 2018 on Haswell using then-current compiler. Alternative approaches
+might be faster today.
+
+ASCII acceleration was completely rewritten in 2026 targeting the following
+scenarios (with `simd-accel` and `std` enabled):
+
+* Base `x86_64` compilation target running on Zen 3 (i.e. taking AVX2+BMI1
+  multiversion paths as applicable).
+* `aarch64` running on M3 Pro.
+* `thumbv7neon` target running on 32-bit Raspberry Pi OS on Raspberry Pi 4.
+
+If you are targeting `x86_64`, `i686`, `aarch64`, or `thumbv7neon`
+targets, it's worthwhile to enable the `simd-accel` Cargo feature if you
+can tolerate the reliance on nightly Rust features.
+
+If you are targeting `x86_64` and you know that the binaries are only going
+to be deployed to x86-64-v3 or higher, it's worthwhile both for run-time
+performance with `simd-accel§ and for build times (see below) regardless of
+`simd-accel` to compile with `RUSTFLAGS='-C target_cpu=x86-64-v3'` (or higher).
+
+A framework for measuring performance is [available separately][2].
+
+[2]: https://github.com/hsivonen/encoding_bench/
+
 ## Rust Version Compatibility
 
 It is a goal to support the latest stable Rust, the latest nightly Rust and
 the version of Rust that's used for Firefox Nightly.
 
 At this time, there is no firm commitment to support a version older than
-what's required by Firefox, and there is no commitment to treat MSRV changes
-as semver-breaking, because this crate depends on `cfg-if`, which doesn't
-appear to treat MSRV changes as semver-breaking, so it would be useless for
-this crate to treat MSRV changes as semver-breaking.
+what's required by Firefox. MSRV changes are not treated as semver-breaking.
 
 Furthermore, enabling the `simd-accel` feature may further constrain the
 compatible Rust versions.
@@ -443,38 +477,6 @@ Does _not_ affect decode speed.
 
 Not used by Firefox.
 
-## Performance goals
-
-For decoding to UTF-16, the goal is to perform at least as well as Gecko's old
-uconv. For decoding to UTF-8, the goal is to perform at least as well as
-rust-encoding. These goals have been achieved.
-
-Encoding to UTF-8 should be fast. (UTF-8 to UTF-8 encode should be equivalent
-to `memcpy` and UTF-16 to UTF-8 should be fast.)
-
-Speed is a non-goal when encoding to legacy encodings. By default, encoding to
-legacy encodings should not be optimized for speed at the expense of code size
-as long as form submission and URL parsing in Gecko don't become noticeably
-too slow in real-world use.
-
-In the interest of binary size, by default, encoding_rs does not have
-encode-specific data tables beyond 32 bits of encode-specific data for each
-single-byte encoding. Therefore, encoders search the decode-optimized data
-tables. This is a linear search in most cases. As a result, by default, encode
-to legacy encodings varies from slow to extremely slow relative to other
-libraries. Still, with realistic work loads, this seemed fast enough not to be
-user-visibly slow on Raspberry Pi 3 (which stood in for a phone for testing)
-in the Web-exposed encoder use cases.
-
-See the cargo features above for optionally making CJK legacy encode fast.
-
-As of 2026, performance attention is on x86-64-v3 and aarch64 with the
-`simd-accel` feature enabled.
-
-A framework for measuring performance is [available separately][2].
-
-[2]: https://github.com/hsivonen/encoding_bench/
-
 ## Compatibility with rust-encoding
 
 A compatibility layer that implements the rust-encoding API on top of
@@ -546,8 +548,8 @@ To regenerate the generated code:
 * Increase MSRV to 1.88. (For `as_chunks` on slice.)
 * Fix correctness of buffer boundary handling in two-byte legacy decoders. (Applicable to streaming decode.)
 * Make decoder methods that write to `String` panic-safe so that the `String` no longer exposes uninitalized memory when user code tries to reuse a decoder that has reached the end of the stream previously, catches the panic, and uses the `String` afterwards. (Applicable when compiled with panic unwinding and the caller uses the API in an unintended way.)
-* Major rewrite of the ASCII acceleration internals to fix correctness in the non-SIMD case, to reduce `unsafe`, and to remove code path divergence based on buffer alignment.
-* Use the `simdutf8` crate for UTF-8 validation when applicable.
+* Major rewrite of the ASCII acceleration internals to fix correctness in the non-SIMD case, to reduce `unsafe`, to remove code path divergence based on buffer alignment, and to improve performance.
+* Use the `simdutf8` crate for UTF-8 validation on aarch64, when compiled with Wasm SIMD enabled, and on x86/x86_64 when SSE 4.2 or, even better, AVX2 is available (works even without the `simd-accel` or `std` features).
 * On x86_64 with the `simd-accel` feature enabled, added function multiversioning to use AVX2+BMI1 when available (requires also the new `std` feature).
 * Bound check optimization.
 * Documentation tweaks.
