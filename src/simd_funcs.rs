@@ -433,6 +433,7 @@ pub(crate) fn basic_latin_to_ascii_stride(
     validate_basic_latin_simd(first_simd, second_simd)
 }
 
+#[allow(dead_code)]
 #[inline(always)]
 pub(crate) fn validate_ascii_stride(stride: &[u8; STRIDE]) -> Option<(u8, usize)> {
     let simd: u8x16 = (*stride).into();

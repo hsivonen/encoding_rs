@@ -7,11 +7,17 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
+// `as` truncates, so works on 32-bit, too.
+// Safety invariant: `data & ASCII_MASK` == 0` for valid ASCII
+#[allow(dead_code)]
+pub const ASCII_MASK: usize = 0x8080_8080_8080_8080u64 as usize;
+
 cfg_if! {
     if #[cfg(feature = "simd-accel")] {
         pub(crate) use crate::simd_funcs::ascii_to_ascii_stride;
         pub(crate) use crate::simd_funcs::ascii_to_basic_latin_stride;
         pub(crate) use crate::simd_funcs::basic_latin_to_ascii_stride;
+        #[allow(unused_imports)]
         pub(crate) use crate::simd_funcs::validate_ascii_stride;
         #[allow(unused_imports)]
         pub(crate) use crate::simd_funcs::ascii_to_ascii_double_stride;
@@ -269,7 +275,60 @@ macro_rules! ascii_copy_impl_single {
 }
 
 cfg_if! {
-    if #[cfg(all(feature = "simd-accel", not(target_arch = "arm")))] {
+    if #[cfg(target_arch = "arm")] {
+
+        #[inline(always)]
+        fn ascii_valid_impl(bytes: &[u8]) -> Option<(u8, usize)> {
+            let mut consumed = 0usize;
+            #[allow(clippy::never_loop)]
+            'outer: loop {
+                let (strides, tail) = bytes.as_chunks::<{core::mem::size_of::<usize>()}>();
+                if let Some((first_stride, strides_tail)) = strides.split_first() {
+                    let first_usize = usize::from_ne_bytes(*first_stride);
+                    if first_usize & ASCII_MASK != 0 {
+                        break 'outer;
+                    }
+                    consumed = core::mem::size_of::<usize>();
+
+                    let (double_strides, single_stride) = strides_tail.as_chunks::<2>();
+                    for double_stride in double_strides.iter() {
+                        let first_usize = usize::from_ne_bytes(double_stride[0]);
+                        let second_usize = usize::from_ne_bytes(double_stride[1]);
+                        if (first_usize | second_usize) & ASCII_MASK != 0 {
+                            break 'outer;
+                        }
+                        consumed += core::mem::size_of::<usize>() * 2;
+                    }
+                    for stride in single_stride.iter() {
+                        let last_usize = usize::from_ne_bytes(*stride);
+                        if last_usize & ASCII_MASK != 0 {
+                            break 'outer;
+                        }
+                        consumed += core::mem::size_of::<usize>();
+                    }
+                }
+                for slot in tail.iter() {
+                    let c = *slot;
+                    if c >= 0x80 {
+                        return Some((c, consumed));
+                    }
+                    consumed += 1;
+                }
+                return None;
+            }
+            let tail = &bytes[consumed..];
+            for slot in tail.iter() {
+                let c = *slot;
+                if c >= 0x80 {
+                    return Some((c, consumed));
+                }
+                consumed += 1;
+            }
+            debug_assert!(false);
+            None
+        }
+
+    } else if #[cfg(feature = "simd-accel")] {
 
         #[inline(always)]
         fn ascii_valid_impl(bytes: &[u8]) -> Option<(u8, usize)> {
