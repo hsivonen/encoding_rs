@@ -111,7 +111,7 @@ can tolerate the reliance on nightly Rust features.
 
 If you are targeting `x86_64` and you know that the binaries are only going
 to be deployed to x86-64-v3 or higher, it's worthwhile both for run-time
-performance with `simd-accel§ and for build times (see below) regardless of
+performance with `simd-accel` and for build times (see below) regardless of
 `simd-accel` to compile with `RUSTFLAGS='-C target_cpu=x86-64-v3'` (or higher).
 
 A framework for measuring performance is [available separately][2].
