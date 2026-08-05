@@ -392,7 +392,7 @@ cfg_if! {
 }
 
 cfg_if! {
-    if #[cfg(all(feature = "simd-accel", not(target_arch = "arm")))] {
+    if #[cfg(all(feature = "simd-accel", target_endian = "little", not(target_arch = "arm")))] {
         ascii_copy_impl_double!(
             ascii_to_ascii_impl,
             ascii_to_ascii_stride,
@@ -426,7 +426,7 @@ cfg_if! {
 }
 
 cfg_if! {
-    if #[cfg(feature = "simd-accel")] {
+    if #[cfg(all(feature = "simd-accel", target_endian = "little")] {
         ascii_copy_impl_double!(
             basic_latin_to_ascii_impl,
             basic_latin_to_ascii_stride,
