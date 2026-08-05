@@ -20,7 +20,7 @@ use core::simd::u16x8;
 use core::simd::u16x16;
 
 // TODO: Remove the load/store functions as part of removing `unsafe` from
-// UTF-16BE|LE and x-user-defined.
+// UTF-16BE|LE.
 
 /// Safety invariant: ptr must be valid for an unaligned read of 16 bytes
 #[inline(always)]
