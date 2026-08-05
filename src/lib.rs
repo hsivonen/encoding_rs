@@ -893,8 +893,10 @@ pub static EUC_JP_INIT: Encoding = Encoding {
 /// in form submissions, the encoder doesn't generate three-byte sequences.
 /// That is, the JIS X 0212 support is decode-only.
 ///
-/// [Index visualization](https://encoding.spec.whatwg.org/euc-jp.html),
-/// [Visualization of BMP coverage](https://encoding.spec.whatwg.org/euc-jp-bmp.html)
+/// [Index visualization](https://encoding.spec.whatwg.org/jis0208.html),
+/// [Visualization of BMP coverage](https://encoding.spec.whatwg.org/jis0208-bmp.html)
+/// [Index visualization for decode-only JIS X 0212](https://encoding.spec.whatwg.org/jis0212.html),
+/// [Visualization of BMP coverage for decode-only JIS X 0212](https://encoding.spec.whatwg.org/jis0212-bmp.html)
 ///
 /// This encoding roughly matches the Windows code page 20932. There are error
 /// handling differences and a handful of 2-byte sequences that decode differently.
