@@ -6394,4 +6394,50 @@ mod tests {
         let _ = decoder.decode_to_utf16(b"\xEF", &mut output, false);
         assert_eq!(decoder.latin1_byte_compatible_up_to(buffer), None);
     }
+
+    #[test]
+    fn test_byte_destination_check_space_two() {
+        let input8 = "abc\u{4E00}";
+        let input16 = &[0x0061u16, 0x0062, 0x0063, 0x4E00];
+        let mut out4 = [0u8; 4];
+        {
+            let mut encoder = SHIFT_JIS.new_encoder();
+            let (r, read, written) =
+                encoder.encode_from_utf16_without_replacement(input16, &mut out4, false);
+            assert_eq!(r, EncoderResult::OutputFull);
+            assert_eq!(read, 3);
+            assert_eq!(written, 3);
+        }
+        {
+            let mut encoder = SHIFT_JIS.new_encoder();
+            let (r, read, written) =
+                encoder.encode_from_utf8_without_replacement(input8, &mut out4, false);
+            assert_eq!(r, EncoderResult::OutputFull);
+            assert_eq!(read, 3);
+            assert_eq!(written, 3);
+        }
+    }
+
+    #[test]
+    fn test_byte_destination_check_space_four() {
+        let input8 = "abc\u{FF00}";
+        let input16 = &[0x0061u16, 0x0062, 0x0063, 0xFF00];
+        let mut out6 = [0u8; 6];
+        {
+            let mut encoder = GB18030.new_encoder();
+            let (r, read, written) =
+                encoder.encode_from_utf16_without_replacement(input16, &mut out6, false);
+            assert_eq!(r, EncoderResult::OutputFull);
+            assert_eq!(read, 3);
+            assert_eq!(written, 3);
+        }
+        {
+            let mut encoder = GB18030.new_encoder();
+            let (r, read, written) =
+                encoder.encode_from_utf8_without_replacement(input8, &mut out6, false);
+            assert_eq!(r, EncoderResult::OutputFull);
+            assert_eq!(read, 3);
+            assert_eq!(written, 3);
+        }
+    }
 }
