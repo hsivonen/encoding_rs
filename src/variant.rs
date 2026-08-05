@@ -117,15 +117,6 @@ impl VariantDecoder {
         }
     }
 
-    pub fn decode_to_utf16_raw(
-        &mut self,
-        src: &[u8],
-        dst: &mut [u16],
-        last: bool,
-    ) -> (DecoderResult, usize, usize) {
-        decode_to_utf16_raw_impl(self, src, dst, last)
-    }
-
     pub fn decode_to_utf8_raw(
         &mut self,
         src: &[u8],
@@ -145,6 +136,15 @@ impl VariantDecoder {
             VariantDecoder::UserDefined(ref mut v) => v.decode_to_utf8_raw(src, dst, last),
             VariantDecoder::Utf16(ref mut v) => v.decode_to_utf8_raw(src, dst, last),
         }
+    }
+
+    pub fn decode_to_utf16_raw(
+        &mut self,
+        src: &[u8],
+        dst: &mut [u16],
+        last: bool,
+    ) -> (DecoderResult, usize, usize) {
+        decode_to_utf16_raw_impl(self, src, dst, last)
     }
 
     pub fn latin1_byte_compatible_up_to(&self, buffer: &[u8]) -> Option<usize> {

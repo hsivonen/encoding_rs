@@ -1230,17 +1230,33 @@ variant_file.write('''}
 impl VariantDecoder {
 ''')
 
-def write_variant_method(name, mut, arg_list, ret, variants, excludes, kind):
-  variant_file.write('''pub fn %s(&''' % name)
+def write_variant_method(name, is_multiversioned, mut, arg_list, ret, variants, excludes, kind):
+  if is_multiversioned:
+    variant_file.write('''#[crate::multiversion(targets("x86_64+avx2+bmi1"))]\n''')
+  else:
+    variant_file.write('''pub ''')
+  variant_file.write('''fn %s''' % name)
+  if is_multiversioned:
+    variant_file.write('''_impl''')
+  variant_file.write('''(''')
+  if is_multiversioned:
+    variant_file.write('''dec: ''')
+  variant_file.write('''&''')
   if mut:
     variant_file.write('''mut ''')
-  variant_file.write('''self''')
+  if is_multiversioned:
+    variant_file.write('''VariantDecoder''')
+  else:
+    variant_file.write('''self''')
   for arg in arg_list:
     variant_file.write(''', %s: %s''' % (arg[0], arg[1]))
   variant_file.write(''')''')
   if ret:
     variant_file.write(''' -> %s''' % ret)
-  variant_file.write(''' {\nmatch *self {\n''')
+  if is_multiversioned:
+    variant_file.write(''' {\nmatch *dec {\n''')
+  else:
+    variant_file.write(''' {\nmatch *self {\n''')
   for variant in variants:
     variant_file.write('''Variant%s::%s(ref ''' % (kind, to_camel_name(variant)))
     if mut:
@@ -1258,21 +1274,26 @@ def write_variant_method(name, mut, arg_list, ret, variants, excludes, kind):
     variant_file.write('''),\n''')
   variant_file.write('''}\n}\n\n''')
 
-write_variant_method("max_utf16_buffer_length", False, [("byte_length", "usize")], "Option<usize>", decoder_variants, [], "Decoder")
+write_variant_method("max_utf16_buffer_length", False, False, [("byte_length", "usize")], "Option<usize>", decoder_variants, [], "Decoder")
 
-write_variant_method("max_utf8_buffer_length_without_replacement", False, [("byte_length", "usize")], "Option<usize>", decoder_variants, [], "Decoder")
+write_variant_method("max_utf8_buffer_length_without_replacement", False, False, [("byte_length", "usize")], "Option<usize>", decoder_variants, [], "Decoder")
 
-write_variant_method("max_utf8_buffer_length", False, [("byte_length", "usize")], "Option<usize>", decoder_variants, [], "Decoder")
+write_variant_method("max_utf8_buffer_length", False, False, [("byte_length", "usize")], "Option<usize>", decoder_variants, [], "Decoder")
 
-write_variant_method("decode_to_utf16_raw", True, [("src", "&[u8]"),
-                           ("dst", "&mut [u16]"),
-                           ("last", "bool")], "(DecoderResult, usize, usize)", decoder_variants, [], "Decoder")
-
-write_variant_method("decode_to_utf8_raw", True, [("src", "&[u8]"),
+write_variant_method("decode_to_utf8_raw", False, True, [("src", "&[u8]"),
                            ("dst", "&mut [u8]"),
                            ("last", "bool")], "(DecoderResult, usize, usize)", decoder_variants, [], "Decoder")
 
 variant_file.write('''
+
+    pub fn decode_to_utf16_raw(
+        &mut self,
+        src: &[u8],
+        dst: &mut [u16],
+        last: bool,
+    ) -> (DecoderResult, usize, usize) {
+        decode_to_utf16_raw_impl(self, src, dst, last)
+    }
 
     pub fn latin1_byte_compatible_up_to(&self, buffer: &[u8]) -> Option<usize> {
         match *self {
@@ -1324,6 +1345,15 @@ variant_file.write('''
     }
 }
 
+''')
+
+write_variant_method("decode_to_utf16_raw", True, True, [("src", "&[u8]"),
+                           ("dst", "&mut [u16]"),
+                           ("last", "bool")], "(DecoderResult, usize, usize)", decoder_variants, [], "Decoder")
+
+
+variant_file.write('''
+
 pub enum VariantEncoder {
 ''')
 
@@ -1343,15 +1373,15 @@ impl VariantEncoder {
     }
 ''')
 
-write_variant_method("max_buffer_length_from_utf16_without_replacement", False, [("u16_length", "usize")], "Option<usize>", encoder_variants, [], "Encoder")
+write_variant_method("max_buffer_length_from_utf16_without_replacement", False, False, [("u16_length", "usize")], "Option<usize>", encoder_variants, [], "Encoder")
 
-write_variant_method("max_buffer_length_from_utf8_without_replacement", False, [("byte_length", "usize")], "Option<usize>", encoder_variants, [], "Encoder")
+write_variant_method("max_buffer_length_from_utf8_without_replacement", False, False, [("byte_length", "usize")], "Option<usize>", encoder_variants, [], "Encoder")
 
-write_variant_method("encode_from_utf16_raw", True, [("src", "&[u16]"),
+write_variant_method("encode_from_utf16_raw", False, True, [("src", "&[u16]"),
                            ("dst", "&mut [u8]"),
                            ("last", "bool")], "(EncoderResult, usize, usize)", encoder_variants, [], "Encoder")
 
-write_variant_method("encode_from_utf8_raw", True, [("src", "&str"),
+write_variant_method("encode_from_utf8_raw", False, True, [("src", "&str"),
                            ("dst", "&mut [u8]"),
                            ("last", "bool")], "(EncoderResult, usize, usize)", encoder_variants, [], "Encoder")
 
