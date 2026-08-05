@@ -803,8 +803,6 @@ use alloc::string::String;
 #[cfg(feature = "alloc")]
 use alloc::vec::Vec;
 #[cfg(feature = "alloc")]
-use core::arch::asm;
-#[cfg(feature = "alloc")]
 use core::mem::MaybeUninit;
 
 use core::cmp::Ordering;
@@ -5143,43 +5141,74 @@ fn minimally_init(buf: &mut [MaybeUninit<u8>]) -> &mut [u8] {
         }
         break;
     }
-    // Can't use the `asm!` block with Miri. Skipping the `asm!` block
-    // in the Miri-enabled case means that we materialize `&mut [u8]`
-    // to memory whose initialization Miri hasn't seen. That tests
-    // pass under Miri nonetheless shows that we don't actually read from
-    // the slice, which is a stronger result that just zeroing the
-    // whole slice when Miri is enabled and having `cargo miri test`
-    // pass like that.
-    if !cfg!(miri) {
-        let ptr = buf.as_mut_ptr();
-        // SAFETY: Any bit pattern is valid for `u8`, but each `u8`
-        // in the slice needs to have a _fixed_ value to be treated as
-        // initialized. Before each page spanned by the slice has been
-        // written to, the layer below Rust could map all the pages to
-        // a read-only default page. In that case, if you read from
-        // offset A within the page, write to offset B != A, and the read
-        // offset A again, the two reads from offset A could yield
-        // different results, which the Rust layer does not allow.
-        //
-        // Now that we've written to each page, each page is a
-        // separately-mapped distinct writable page, so even the other
-        // bytes have fixed values. We now need to make the Rust layer
-        // not to be able to assume that they don't have fixed values.
-        //
-        // For the purpose of https://www.ralfj.de/blog/2026/03/13/inline-asm.html
-        // the safe Rust story for the `asm!` block is:
-        // The `asm!` block reads every byte in the slice that was
-        // written by the above code and uses the read values to derive
-        // bytes that it writes to every byte in the slice that was
-        // _not_ already written by the above code.
-        unsafe {
-            asm!("/* {0} */", in(reg) ptr);
-        }
+    let ptr = buf.as_mut_ptr();
+    // SAFETY: Any bit pattern is valid for `u8`, but each `u8`
+    // in the slice needs to have a _fixed_ value to be treated as
+    // initialized. Before each page spanned by the slice has been
+    // written to, the layer below Rust could map all the pages to
+    // a read-only default page. In that case, if you read from
+    // offset A within the page, write to offset B != A, and the read
+    // offset A again, the two reads from offset A could yield
+    // different results, which the Rust layer does not allow.
+    //
+    // Now that we've written to each page, each page is a
+    // separately-mapped distinct writable page, so even the other
+    // bytes have fixed values. We now need to make the Rust layer
+    // not to be able to assume that they don't have fixed values.
+    unsafe {
+        pointer_escapes(ptr);
     }
     // SAFETY: The pages spanned by the input slice are now normally
     // mapped and each byte has a fixed value, so the memory now
     // has the characteristics of initialized memory.
     unsafe { core::slice::from_raw_parts_mut(buf.as_mut_ptr().cast(), buf.len()) }
+}
+
+cfg_if! {
+    if #[cfg(all(not(miri), feature = "alloc", any(
+        target_arch = "x86",
+        target_arch = "x86_64",
+        target_arch = "arm",
+        target_arch = "aarch64",
+        target_arch = "arm64ec",
+        target_arch = "riscv32",
+        target_arch = "riscv64",
+        target_arch = "loongarch32",
+        target_arch = "loongarch64",
+        target_arch = "s390x",
+        target_arch = "powerpc",
+        target_arch = "powerpc64")))] {
+        #[inline(always)]
+        unsafe fn pointer_escapes(ptr: *mut MaybeUninit<u8>) {
+            // SAFETY:
+            // For the purpose of https://www.ralfj.de/blog/2026/03/13/inline-asm.html
+            // the safe Rust story for the `asm!` block is:
+            // The `asm!` block reads every byte in the slice that was
+            // written by the above code and uses the read values to derive
+            // bytes that it writes to every byte in the slice that was
+            // _not_ already written by the above code.
+            unsafe {
+                core::arch::asm!("/* {0} */", in(reg) ptr);
+            }
+        }
+    } else if #[cfg(feature = "alloc")] {
+        #[inline(never)]
+        unsafe fn pointer_escapes(_ptr: *mut MaybeUninit<u8>) {
+            // Can't use the `asm!` block with Miri. Skipping the `asm!` block
+            // in the Miri-enabled case means that we materialize `&mut [u8]`
+            // to memory whose initialization Miri hasn't seen. That tests
+            // pass under Miri nonetheless shows that we don't actually read from
+            // the slice, which is a stronger result that just zeroing the
+            // whole slice when Miri is enabled and having `cargo miri test`
+            // pass like that.
+            //
+            // Also, `asm!` doesn't work on some targets, so we end up relying
+            // on all this being unnecessary anyway, because materializing
+            // `&mut [u8]` to unitialized memory isn't UB after all. See
+            // https://users.rust-lang.org/t/soundly-turning-mut-maybeuninit-u8-into-mut-u8-with-garbage/140668/32
+        }
+    } else {
+    }
 }
 
 // ############## TESTS ###############
