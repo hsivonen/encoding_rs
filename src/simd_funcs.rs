@@ -388,7 +388,9 @@ fn pack_simd_to(first_simd: u16x8, second_simd: u16x8, dst_stride: &mut [u8; STR
 }
 
 // This is slower on 32-bit ARM than what encoding_rs 0.8.35 had,
-// but I'm timing out on finding a good fix.
+// but I'm timing out on finding a good fix. I even tried passing
+// the original non-SIMD stride through here and iterating over
+// it with inlining and with `inline(never)`.
 #[inline(always)]
 fn validate_ascii_simd(simd: u8x16) -> Option<(u8, usize)> {
     let mask = simd.simd_gt(u8x16::splat(0x7F));
