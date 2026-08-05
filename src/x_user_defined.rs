@@ -14,7 +14,10 @@ use crate::handles::*;
 use crate::variant::*;
 
 cfg_if! {
-    if #[cfg(feature = "simd-accel")] {
+    if #[cfg(all(
+        feature = "simd-accel",
+        target_endian = "little",
+    ))] {
         use simd_funcs::*;
         use core::simd::u8x16;
         use core::simd::u16x16;
@@ -77,7 +80,7 @@ impl UserDefinedDecoder {
         Utf8Destination
     );
 
-    #[cfg(not(feature = "simd-accel"))]
+    #[cfg(not(all(feature = "simd-accel", target_endian = "little")))]
     pub fn decode_to_utf16_raw(
         &mut self,
         src: &[u8],
@@ -107,7 +110,7 @@ impl UserDefinedDecoder {
         (pending, length, length)
     }
 
-    #[cfg(feature = "simd-accel")]
+    #[cfg(all(feature = "simd-accel", target_endian = "little"))]
     #[inline(always)]
     pub fn decode_to_utf16_raw(
         &mut self,

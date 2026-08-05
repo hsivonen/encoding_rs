@@ -16,24 +16,10 @@
 //! the plan is to replace the internals with unsafe code that omits the
 //! bound check at the read/write time.
 
-#[cfg(all(
-    feature = "simd-accel",
-    any(
-        target_feature = "sse2",
-        all(target_endian = "little", target_arch = "aarch64"),
-        all(target_endian = "little", target_feature = "neon")
-    )
-))]
+#[cfg(all(feature = "simd-accel", target_endian = "little"))]
 use crate::simd_funcs::*;
 
-#[cfg(all(
-    feature = "simd-accel",
-    any(
-        target_feature = "sse2",
-        all(target_endian = "little", target_arch = "aarch64"),
-        all(target_endian = "little", target_feature = "neon")
-    )
-))]
+#[cfg(all(feature = "simd-accel", target_endian = "little"))]
 use core::simd::u16x8;
 
 use super::DecoderResult;
@@ -42,7 +28,7 @@ use crate::ascii::*;
 use crate::utf_8::convert_utf8_to_utf16_up_to_invalid;
 use crate::utf_8::utf8_valid_up_to;
 
-#[cfg(feature = "simd-accel")]
+#[cfg(all(feature = "simd-accel", target_endian = "little"))]
 const SIMD_STRIDE_SIZE: usize = crate::ascii::STRIDE;
 
 pub enum Space<T> {
@@ -127,7 +113,7 @@ impl UnalignedU16Slice {
         }
     }
 
-    #[cfg(feature = "simd-accel")]
+    #[cfg(all(feature = "simd-accel", target_endian = "little"))]
     #[inline(always)]
     pub fn simd_at(&self, i: usize) -> u16x8 {
         // Safety: i/len are on the scale of u16s, each one corresponds to 2 u8s
@@ -154,7 +140,7 @@ impl UnalignedU16Slice {
         unsafe { UnalignedU16Slice::new(self.ptr.add(from * 2), self.len - from) }
     }
 
-    #[cfg(feature = "simd-accel")]
+    #[cfg(all(feature = "simd-accel", target_endian = "little"))]
     #[inline(always)]
     pub fn copy_bmp_to<E: Endian>(&self, other: &mut [u16]) -> Option<(u16, usize)> {
         assert!(self.len <= other.len());
@@ -193,7 +179,7 @@ impl UnalignedU16Slice {
         None
     }
 
-    #[cfg(not(feature = "simd-accel"))]
+    #[cfg(not(all(feature = "simd-accel", target_endian = "little")))]
     #[inline(always)]
     fn copy_bmp_to<E: Endian>(&self, other: &mut [u16]) -> Option<(u16, usize)> {
         assert!(self.len <= other.len());
@@ -238,7 +224,7 @@ fn swap_if_opposite_endian<E: Endian>(unit: u16) -> u16 {
     }
 }
 
-#[cfg(not(feature = "simd-accel"))]
+#[cfg(not(all(feature = "simd-accel", target_endian = "little")))]
 #[inline(always)]
 fn copy_unaligned_basic_latin_to_ascii<E: Endian>(
     src: UnalignedU16Slice,
@@ -247,7 +233,7 @@ fn copy_unaligned_basic_latin_to_ascii<E: Endian>(
     copy_unaligned_basic_latin_to_ascii_alu::<E>(src, dst, 0)
 }
 
-#[cfg(feature = "simd-accel")]
+#[cfg(all(feature = "simd-accel", target_endian = "little"))]
 #[inline(always)]
 fn copy_unaligned_basic_latin_to_ascii<E: Endian>(
     src: UnalignedU16Slice,
