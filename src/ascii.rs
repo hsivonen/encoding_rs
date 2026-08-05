@@ -101,6 +101,7 @@ cfg_if! {
             (0, 0)
         }
 
+        #[allow(dead_code)]
         #[inline(never)]
         fn validate_ascii_stride_tail(stride: &[u8; 16]) -> (u8, usize) {
             for (i, s) in stride.iter().enumerate() {
@@ -161,6 +162,7 @@ cfg_if! {
             Some(pack_stride_tail(src_stride, dst_stride))
         }
 
+        #[allow(dead_code)]
         #[inline(always)]
         fn validate_ascii_stride(
             stride: &[u8; STRIDE],
