@@ -8,8 +8,6 @@
 // except according to those terms.
 
 use super::*;
-#[cfg(feature = "simd-accel")]
-use crate::ascii::STRIDE;
 use crate::handles::*;
 use crate::variant::*;
 
@@ -18,6 +16,7 @@ cfg_if! {
         feature = "simd-accel",
         target_endian = "little",
     ))] {
+        use crate::ascii::STRIDE;
         use simd_funcs::*;
         use core::simd::u8x16;
         use core::simd::u16x16;

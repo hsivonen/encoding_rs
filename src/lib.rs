@@ -725,7 +725,11 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 #![cfg_attr(feature = "simd-accel", allow(internal_features))]
-#![cfg_attr(feature = "simd-accel", feature(core_intrinsics, portable_simd))]
+#![cfg_attr(feature = "simd-accel", feature(core_intrinsics))]
+#![cfg_attr(
+    all(feature = "simd-accel", target_endian = "little"),
+    feature(portable_simd)
+)]
 
 #[cfg(feature = "alloc")]
 #[cfg_attr(test, macro_use)]
@@ -758,10 +762,7 @@ cfg_if! {
 #[macro_use]
 mod macros;
 
-#[cfg(all(
-    feature = "simd-accel",
-    target_endian = "little",
-))]
+#[cfg(all(feature = "simd-accel", target_endian = "little",))]
 mod simd_funcs;
 
 #[cfg(all(test, feature = "alloc"))]

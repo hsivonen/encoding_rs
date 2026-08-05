@@ -301,13 +301,16 @@ the standard library.
 This is an opt-in feature, because enabling this feature _opts out_ of Rust's
 guarantees of future compilers compiling old code (aka. "stability story").
 
-Enabling the `simd-accel` feature is expected to break the build on targets other
-than:
+The `simd-accel` feature has been tested with these target architectures:
 
 * x86_64
 * aarch64
 * thumbv7neon
 * i686
+
+With other little-endian target architectures, the code should compute correct
+results, but performance has not been tuned. With big-endian architectures,
+`core::simd` isn't actually used for now.
 
 When `simd-accel` is enabled, this crate benefits from AVX2+BMI1. When targeting
 x86_64, if you know that the binaries will only be run on x86-64-v3 or higher,
@@ -328,9 +331,8 @@ i686 gets the code shape for x86_64 (without multiversioning for AVX2+BMI1)
 with minimal checks that it compiles and runs, but the testing is on x86_64
 hardware.
 
-For thumbv7neon, an effort is made to retain code shape that was previously
-validated for performance on Exynos 5 Octa, but performance regressions are
-no longer actually tested for on real ARMv7 hardware.
+For thumbv7neon, testing is Raspberry Pi 4 using the 32-bit version of
+Raspberry Pi OS.
 
 If you use nightly Rust, you use targets whose first component is one of the
 above, and you are prepared _to have to revise your configuration when updating

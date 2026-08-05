@@ -330,7 +330,7 @@ cfg_if! {
             None
         }
 
-    } else if #[cfg(feature = "simd-accel")] {
+    } else if #[cfg(all(feature = "simd-accel", target_endian = "little"))] {
 
         #[inline(always)]
         fn ascii_valid_impl(bytes: &[u8]) -> Option<(u8, usize)> {
