@@ -387,35 +387,15 @@ fn pack_simd_to(first_simd: u16x8, second_simd: u16x8, dst_stride: &mut [u8; STR
     *dst_stride = simd.to_array();
 }
 
-// `first_set` with `u8` lanes is too slow on 32-bit ARM.
-cfg_if! {
-    if #[cfg(target_arch = "arm")] {
-        #[inline(always)]
-        fn validate_ascii_simd(simd: u8x16) -> Option<(u8, usize)> {
-            if simd_is_ascii(simd) {
-                None
-            } else {
-                let stride = simd.to_array();
-                for (i, s) in stride.iter().enumerate() {
-                    let b = *s;
-                    if b >= 0x80 {
-                        return Some((b, i));
-                    }
-                }
-                debug_assert!(false);
-                None
-            }
-        }
+// This is slower on 32-bit ARM than what encoding_rs 0.8.35 had,
+// but I'm timing out on finding a good fix.
+#[inline(always)]
+fn validate_ascii_simd(simd: u8x16) -> Option<(u8, usize)> {
+    let mask = simd.simd_gt(u8x16::splat(0x7F));
+    if let Some(pos) = mask.first_set() {
+        Some((simd[pos], pos))
     } else {
-        #[inline(always)]
-        fn validate_ascii_simd(simd: u8x16) -> Option<(u8, usize)> {
-            let mask = simd.simd_gt(u8x16::splat(0x7F));
-            if let Some(pos) = mask.first_set() {
-                Some((simd[pos], pos))
-            } else {
-                None
-            }
-        }
+        None
     }
 }
 
