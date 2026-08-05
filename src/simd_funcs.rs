@@ -435,6 +435,7 @@ pub(crate) fn validate_ascii_stride(stride: &[u8; STRIDE]) -> Option<(u8, usize)
     validate_ascii_simd(simd)
 }
 
+#[allow(dead_code)]
 #[inline(always)]
 pub(crate) fn ascii_to_ascii_double_stride(
     src_double_stride: &[[u8; STRIDE]; 2],
@@ -458,6 +459,7 @@ pub(crate) fn ascii_to_ascii_double_stride(
     None
 }
 
+#[allow(dead_code)]
 #[inline(always)]
 pub(crate) fn ascii_to_basic_latin_double_stride(
     src_double_stride: &[[u8; STRIDE]; 2],
@@ -508,6 +510,7 @@ pub(crate) fn basic_latin_to_ascii_double_stride(
     None
 }
 
+#[allow(dead_code)]
 #[inline(always)]
 pub(crate) fn validate_ascii_double_stride(
     double_stride: &[[u8; STRIDE]; 2],

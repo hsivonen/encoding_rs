@@ -8,14 +8,17 @@
 // except according to those terms.
 
 cfg_if! {
-    if #[cfg(all(feature = "simd-accel", any(target_feature = "sse2", all(target_endian = "little", target_arch = "aarch64"), all(target_endian = "little", target_feature = "neon"))))] {
+    if #[cfg(feature = "simd-accel")] {
         pub(crate) use crate::simd_funcs::ascii_to_ascii_stride;
         pub(crate) use crate::simd_funcs::ascii_to_basic_latin_stride;
         pub(crate) use crate::simd_funcs::basic_latin_to_ascii_stride;
         pub(crate) use crate::simd_funcs::validate_ascii_stride;
+        #[allow(unused_imports)]
         pub(crate) use crate::simd_funcs::ascii_to_ascii_double_stride;
+        #[allow(unused_imports)]
         pub(crate) use crate::simd_funcs::ascii_to_basic_latin_double_stride;
         pub(crate) use crate::simd_funcs::basic_latin_to_ascii_double_stride;
+        #[allow(unused_imports)]
         pub(crate) use crate::simd_funcs::validate_ascii_double_stride;
     } else {
 
@@ -179,60 +182,94 @@ pub(crate) const STRIDE: usize = 16;
 
 pub(crate) const MAX_STRIDE_SIZE: usize = STRIDE;
 
-cfg_if! {
-    if #[cfg(all(feature = "simd-accel", any(target_feature = "sse2", all(target_endian = "little", target_arch = "aarch64"))))] {
-
-        macro_rules! ascii_copy_impl {
-            ($name:ident, $stride:ident, $double_stride:ident, $src_unit:ty, $dst_unit:ty) => {
-                #[inline(always)]
-                pub(crate) fn $name(src: &[$src_unit], dst: &mut [$dst_unit]) -> Option<($src_unit, usize)> {
-                    // Make both the same length here to have the chunks and tail match.
-                    let len = core::cmp::min(src.len(), dst.len());
-                    let mut consumed = 0usize;
-                    let (src_strides, src_tail) = src[..len].as_chunks::<STRIDE>();
-                    let (dst_strides, dst_tail) = dst[..len].as_chunks_mut::<STRIDE>();
-                    if let Some((src_first_stride, src_strides_tail)) = src_strides.split_first() {
-                        if let Some((dst_first_stride, dst_strides_tail)) = dst_strides.split_first_mut() {
-                            if let Some(pos) = $stride(src_first_stride, dst_first_stride) {
-                                return Some(pos);
-                            }
-                            consumed = STRIDE;
-
-                            let (src_double_strides, src_single_stride) = src_strides_tail.as_chunks::<2>();
-                            let (dst_double_strides, dst_single_stride) =
-                                dst_strides_tail.as_chunks_mut::<2>();
-                            for (src_double_stride, dst_double_stride) in
-                                src_double_strides.iter().zip(dst_double_strides.iter_mut())
-                            {
-                                if let Some((c, pos)) = $double_stride(src_double_stride, dst_double_stride) {
-                                    return Some((c, consumed + pos));
-                                }
-                                consumed += STRIDE * 2;
-                            }
-                            for (src_stride, dst_stride) in
-                                src_single_stride.iter().zip(dst_single_stride.iter_mut())
-                            {
-                                if let Some((c, pos)) = $stride(src_stride, dst_stride) {
-                                    return Some((c, consumed + pos));
-                                }
-                                consumed += STRIDE;
-                            }
-                        } else {
-                            debug_assert!(false);
-                        }
+#[allow(unused_macros)]
+macro_rules! ascii_copy_impl_double {
+    ($name:ident, $stride:ident, $double_stride:ident, $src_unit:ty, $dst_unit:ty) => {
+        #[inline(always)]
+        pub(crate) fn $name(
+            src: &[$src_unit],
+            dst: &mut [$dst_unit],
+        ) -> Option<($src_unit, usize)> {
+            // Make both the same length here to have the chunks and tail match.
+            let len = core::cmp::min(src.len(), dst.len());
+            let mut consumed = 0usize;
+            let (src_strides, src_tail) = src[..len].as_chunks::<STRIDE>();
+            let (dst_strides, dst_tail) = dst[..len].as_chunks_mut::<STRIDE>();
+            if let Some((src_first_stride, src_strides_tail)) = src_strides.split_first() {
+                if let Some((dst_first_stride, dst_strides_tail)) = dst_strides.split_first_mut() {
+                    if let Some(pos) = $stride(src_first_stride, dst_first_stride) {
+                        return Some(pos);
                     }
-                    for (src_slot, dst_slot) in src_tail.iter().zip(dst_tail.iter_mut()) {
-                        let c = *src_slot;
-                        if c >= 0x80 {
-                            return Some((c, consumed));
+                    consumed = STRIDE;
+
+                    let (src_double_strides, src_single_stride) = src_strides_tail.as_chunks::<2>();
+                    let (dst_double_strides, dst_single_stride) =
+                        dst_strides_tail.as_chunks_mut::<2>();
+                    for (src_double_stride, dst_double_stride) in
+                        src_double_strides.iter().zip(dst_double_strides.iter_mut())
+                    {
+                        if let Some((c, pos)) = $double_stride(src_double_stride, dst_double_stride)
+                        {
+                            return Some((c, consumed + pos));
                         }
-                        *dst_slot = c as $dst_unit;
-                        consumed += 1;
+                        consumed += STRIDE * 2;
                     }
-                    None
+                    for (src_stride, dst_stride) in
+                        src_single_stride.iter().zip(dst_single_stride.iter_mut())
+                    {
+                        if let Some((c, pos)) = $stride(src_stride, dst_stride) {
+                            return Some((c, consumed + pos));
+                        }
+                        consumed += STRIDE;
+                    }
+                } else {
+                    debug_assert!(false);
                 }
-            };
+            }
+            for (src_slot, dst_slot) in src_tail.iter().zip(dst_tail.iter_mut()) {
+                let c = *src_slot;
+                if c >= 0x80 {
+                    return Some((c, consumed));
+                }
+                *dst_slot = c as $dst_unit;
+                consumed += 1;
+            }
+            None
         }
+    };
+}
+
+#[allow(unused_macros)]
+macro_rules! ascii_copy_impl_single {
+    ($name:ident, $stride:ident, $double_stride:ident, $src_unit:ty, $dst_unit:ty) => {
+        #[inline(always)]
+        pub fn $name(src: &[$src_unit], dst: &mut [$dst_unit]) -> Option<($src_unit, usize)> {
+            // Make both the same length here to have the chunks and tail match.
+            let len = core::cmp::min(src.len(), dst.len());
+            let mut consumed = 0usize;
+            let (src_strides, src_tail) = src[..len].as_chunks::<STRIDE>();
+            let (dst_strides, dst_tail) = dst[..len].as_chunks_mut::<STRIDE>();
+            for (src_stride, dst_stride) in src_strides.iter().zip(dst_strides.iter_mut()) {
+                if let Some((c, pos)) = $stride(src_stride, dst_stride) {
+                    return Some((c, consumed + pos));
+                }
+                consumed += STRIDE;
+            }
+            for (src_slot, dst_slot) in src_tail.iter().zip(dst_tail.iter_mut()) {
+                let c = *src_slot;
+                if c >= 0x80 {
+                    return Some((c, consumed));
+                }
+                *dst_slot = c as $dst_unit;
+                consumed += 1;
+            }
+            None
+        }
+    };
+}
+
+cfg_if! {
+    if #[cfg(all(feature = "simd-accel", not(target_arch = "arm")))] {
 
         #[inline(always)]
         fn ascii_valid_impl(bytes: &[u8]) -> Option<(u8, usize)> {
@@ -270,34 +307,6 @@ cfg_if! {
 
     } else {
 
-        macro_rules! ascii_copy_impl {
-            ($name:ident, $stride:ident, $double_stride:ident, $src_unit:ty, $dst_unit:ty) => {
-                #[inline(always)]
-                pub fn $name(src: &[$src_unit], dst: &mut [$dst_unit]) -> Option<($src_unit, usize)> {
-                    // Make both the same length here to have the chunks and tail match.
-                    let len = core::cmp::min(src.len(), dst.len());
-                    let mut consumed = 0usize;
-                    let (src_strides, src_tail) = src[..len].as_chunks::<STRIDE>();
-                    let (dst_strides, dst_tail) = dst[..len].as_chunks_mut::<STRIDE>();
-                    for (src_stride, dst_stride) in src_strides.iter().zip(dst_strides.iter_mut()) {
-                        if let Some((c, pos)) = $stride(src_stride, dst_stride) {
-                            return Some((c, consumed + pos));
-                        }
-                        consumed += STRIDE;
-                    }
-                    for (src_slot, dst_slot) in src_tail.iter().zip(dst_tail.iter_mut()) {
-                        let c = *src_slot;
-                        if c >= 0x80 {
-                            return Some((c, consumed));
-                        }
-                        *dst_slot = c as $dst_unit;
-                        consumed += 1;
-                    }
-                    None
-                }
-            };
-        }
-
         #[inline(always)]
         fn ascii_valid_impl(bytes: &[u8]) -> Option<(u8, usize)> {
             let mut consumed = 0usize;
@@ -321,30 +330,59 @@ cfg_if! {
     }
 }
 
-ascii_copy_impl!(
-    ascii_to_ascii_impl,
-    ascii_to_ascii_stride,
-    ascii_to_ascii_double_stride,
-    u8,
-    u8
-);
-ascii_copy_impl!(
-    ascii_to_basic_latin_impl,
-    ascii_to_basic_latin_stride,
-    ascii_to_basic_latin_double_stride,
-    u8,
-    u16
-);
-ascii_copy_impl!(
-    basic_latin_to_ascii_impl,
-    basic_latin_to_ascii_stride,
-    basic_latin_to_ascii_double_stride,
-    u16,
-    u8
-);
+cfg_if! {
+    if #[cfg(all(feature = "simd-accel", not(target_arch = "arm")))] {
+        ascii_copy_impl_double!(
+            ascii_to_ascii_impl,
+            ascii_to_ascii_stride,
+            ascii_to_ascii_double_stride,
+            u8,
+            u8
+        );
+        ascii_copy_impl_double!(
+            ascii_to_basic_latin_impl,
+            ascii_to_basic_latin_stride,
+            ascii_to_basic_latin_double_stride,
+            u8,
+            u16
+        );
+    } else {
+        ascii_copy_impl_single!(
+            ascii_to_ascii_impl,
+            ascii_to_ascii_stride,
+            ascii_to_ascii_double_stride,
+            u8,
+            u8
+        );
+        ascii_copy_impl_single!(
+            ascii_to_basic_latin_impl,
+            ascii_to_basic_latin_stride,
+            ascii_to_basic_latin_double_stride,
+            u8,
+            u16
+        );
+    }
+}
 
-// The old shape for these functions assumed that it's worthwhile to return
-// the non-ASCII code unit in order not to re-read it.
+cfg_if! {
+    if #[cfg(feature = "simd-accel")] {
+        ascii_copy_impl_double!(
+            basic_latin_to_ascii_impl,
+            basic_latin_to_ascii_stride,
+            basic_latin_to_ascii_double_stride,
+            u16,
+            u8
+        );
+    } else {
+        ascii_copy_impl_single!(
+            basic_latin_to_ascii_impl,
+            basic_latin_to_ascii_stride,
+            basic_latin_to_ascii_double_stride,
+            u16,
+            u8
+        );
+    }
+}
 
 macro_rules! ascii_copy {
     ($name:ident, $impl:ident, $src_unit:ty, $dst_unit:ty) => {
