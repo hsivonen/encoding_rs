@@ -3470,6 +3470,7 @@ impl Eq for Encoding {}
 
 #[cfg(test)]
 impl PartialOrd for Encoding {
+    #[inline]
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         (self as *const Encoding as usize).partial_cmp(&(other as *const Encoding as usize))
     }
@@ -3477,6 +3478,7 @@ impl PartialOrd for Encoding {
 
 #[cfg(test)]
 impl Ord for Encoding {
+    #[inline]
     fn cmp(&self, other: &Self) -> Ordering {
         (self as *const Encoding as usize).cmp(&(other as *const Encoding as usize))
     }
@@ -3490,9 +3492,10 @@ impl Hash for Encoding {
 }
 
 impl core::fmt::Debug for Encoding {
-    #[inline]
     fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
-        write!(f, "Encoding {{ {} }}", self.name)
+        f.debug_struct("Encoding")
+            .field("name", &self.name)
+            .finish()
     }
 }
 
@@ -4430,6 +4433,15 @@ impl Decoder {
     }
 }
 
+impl core::fmt::Debug for Decoder {
+    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+        f.debug_struct("Decoder")
+            .field("encoding", self.encoding)
+            .field("life_cycle", &self.life_cycle)
+            .finish()
+    }
+}
+
 /// Result of a (potentially partial) encode operation without replacement.
 #[must_use]
 #[derive(Debug, PartialEq, Eq)]
@@ -4944,6 +4956,14 @@ impl Encoder {
         last: bool,
     ) -> (EncoderResult, usize, usize) {
         self.variant.encode_from_utf16_raw(src, dst, last)
+    }
+}
+
+impl core::fmt::Debug for Encoder {
+    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+        f.debug_struct("Encoder")
+            .field("encoding", self.encoding)
+            .finish()
     }
 }
 
