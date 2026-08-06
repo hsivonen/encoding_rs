@@ -377,11 +377,11 @@ fn is_kanji_mapped(bmp: u16) -> bool {
 #[inline(always)]
 fn is_kanji_mapped(bmp: u16) -> bool {
     0x4EDD == bmp
-        || matches!(jis0208_level1_kanji_shift_jis_encode(bmp), Some(_))
+        || jis0208_level1_kanji_shift_jis_encode(bmp).is_some()
         // Use the shift_jis variant, because we don't care about the
         // byte values here.
-        || matches!(jis0208_level2_and_additional_kanji_encode(bmp), Some(_))
-        || matches!(position(&IBM_KANJI[..], bmp), Some(_))
+        || jis0208_level2_and_additional_kanji_encode(bmp).is_some()
+        || position(&IBM_KANJI[..], bmp).is_some()
 }
 
 #[allow(clippy::redundant_pattern_matching, clippy::if_same_then_else)]
