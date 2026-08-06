@@ -750,7 +750,7 @@ extern crate serde_json;
 
 // Build time optimization.
 cfg_if! {
-    if #[cfg(all(feature = "simd-accel", feature = "std", target_arch = "x86_64", not(all(target_feature = "avx2", target_feature = "bmi1"))))] {
+    if #[cfg(all(feature = "simd-accel", feature = "std", any(target_arch = "x86_64", target_arch = "x86"), not(all(target_feature = "avx2", target_feature = "bmi1"))))] {
         use multiversion::multiversion;
     } else {
         use multiversion_no_op::multiversion;

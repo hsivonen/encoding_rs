@@ -197,7 +197,7 @@ impl VariantDecoder {
     }
 }
 
-#[crate::multiversion(targets("x86_64+avx2+bmi1"))]
+#[crate::multiversion(targets("x86_64+avx2+bmi1", "x86+avx2+bmi1"))]
 fn decode_to_utf16_raw_impl(
     dec: &mut VariantDecoder,
     src: &[u8],

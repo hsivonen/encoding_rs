@@ -43,7 +43,7 @@ multiversion_no_op = "1.0.0"
 # This should only be included if both the `simd-accel` and `std` features are
 # enabled, but Cargo explicitly does not allow combining feature conditions and
 # target conditions.
-[target.'cfg(all(target_arch = "x86_64", not(all(target_feature = "avx2", target_feature = "bmi1"))))'.dependencies]
+[target.'cfg(all(any(target_arch = "x86_64", target_arch = "x86"), not(all(target_feature = "avx2", target_feature = "bmi1"))))'.dependencies]
 multiversion = { version = "0.8.0", default-features = false }
 
 [target.'cfg(any(target_arch = "x86_64", target_arch = "x86", target_arch = "aarch64", all(target_arch = "wasm32", target_feature = "simd128")))'.dependencies]

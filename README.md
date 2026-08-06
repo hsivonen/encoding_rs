@@ -229,14 +229,14 @@ This crate takes care of the dispatch using the [`core_detect`](https://crates.i
 crate without requiring `std` and without involving the `simd-accel` feature.
 
 With the `simd-accel` feature, some _other_ aspects of this crate are multiversioned on
-x86_64 in a way that does require `std`, because the
+x86 and x86_64 in a way that does require `std`, because the
 [`multiversion`](https://crates.io/crates/multiversion) crate uses `std` and not
 `core_detect`. See below.
 
 ## Build times
 
 Due to function multiversioning for AVX2+BMI1 on x86_64 with the `simd-accel` and `std`
-features (see below), on x86_64 targets, this crate has the usual proc macro dependencies
+features (see below), on x86 and x86_64 targets, this crate has the usual proc macro dependencies
 in its dependency tree. Cargo does not allow combining `feature` conditions with
 target-related conditions, so the dependencies are there even when the
 `simd-accel` and `std` features are not enabled.
@@ -244,7 +244,7 @@ target-related conditions, so the dependencies are there even when the
 You can, however, avoid these by changing the available set of `target_feature`s by
 specifying `RUSTFLAGS='-C target_cpu=x86-64-v3'`.
 
-This issue does not apply to non-x86_64 targets.
+This issue does not apply to non-x86/x86_64 targets.
 
 ## Optional features
 
@@ -267,14 +267,14 @@ Enabled but not actually used by Firefox.
 ### `std`
 
 When used together with `simd-accel` (see below), enables run-time detection
-of AVX2+BMI1 on x86_64 when the compilation target does not include these
+of AVX2+BMI1 on x86 and x86_64 when the compilation target does not include these
 target features statically.
 
 This feature has no effect on SIMD capabilities in other scenarios.
 
 This feature has the side effect of linking `std`, so this is not compatible
 with the `no_std` context. Unfortunately, even though CPU feature detection
-uses an instruction rather than syscalls on x86_64, the CPU feature detection
+uses an instruction rather than syscalls on x86/x86_64, the CPU feature detection
 check requires `std`, because the corresponding operation on some other
 architectures relies on operating system support.
 
@@ -282,11 +282,6 @@ Only some operations are multiversioned: Decoding to UTF-16, encoding from
 UTF-16 to UTF-8, and various operations in the `mem` module. Notably, if
 you don't use the `mem` module and don't use UTF-16 as the in-memory Unicode
 representation, the `std` feature won't be useful.
-
-This does _not_ enable run-time AVX2+BMI1 checking on 32-bit x86, on the
-assumption that AVX2+BMI1 is less likely to available and, therefore, the
-code size and performance overhead of multiversioning is less likely to be
-justified.
 
 This feature does not affect multiversioning UTF-8 validation, which uses a
 separate mechanism.
@@ -327,9 +322,8 @@ target with run-time AVX2+BMI1 detection enabled running on Zen 3, and
 Occasional performance checks are made on Skylake. Performance may regress
 on x86-64-v1 and x86-64-v2.
 
-i686 gets the code shape for x86_64 (without multiversioning for AVX2+BMI1)
-with minimal checks that it compiles and runs, but the testing is on x86_64
-hardware.
+i686 gets the code shape for x86_64 with minimal checks that it compiles
+and runs, but the testing is on x86_64 hardware.
 
 For thumbv7neon, testing is Raspberry Pi 4 using the 32-bit version of
 Raspberry Pi OS.

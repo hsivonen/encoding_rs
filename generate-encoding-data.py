@@ -1232,7 +1232,7 @@ impl VariantDecoder {
 
 def write_variant_method(name, is_multiversioned, mut, arg_list, ret, variants, excludes, kind):
   if is_multiversioned:
-    variant_file.write('''#[crate::multiversion(targets("x86_64+avx2+bmi1"))]\n''')
+    variant_file.write('''#[crate::multiversion(targets("x86_64+avx2+bmi1", "x86+avx2+bmi1"))]\n''')
   else:
     variant_file.write('''pub ''')
   variant_file.write('''fn %s''' % name)
@@ -1432,10 +1432,10 @@ impl VariantEncoding {
     }
 
     pub fn is_single_byte(&self) -> bool {
-        match *self {
-            VariantEncoding::SingleByte(_, _, _, _) | VariantEncoding::UserDefined => true,
-            _ => false,
-        }
+        matches!(
+            *self,
+            VariantEncoding::SingleByte(_, _, _, _) | VariantEncoding::UserDefined
+        )
     }
 }
 ''')
