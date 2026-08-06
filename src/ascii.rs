@@ -8,7 +8,7 @@
 // except according to those terms.
 
 // `as` truncates, so works on 32-bit, too.
-// Safety invariant: `data & ASCII_MASK` == 0` for valid ASCII
+// Safety invariant: `data & ASCII_MASK == 0` for valid ASCII
 #[allow(dead_code)]
 pub const ASCII_MASK: usize = 0x8080_8080_8080_8080u64 as usize;
 
