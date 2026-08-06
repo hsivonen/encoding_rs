@@ -5140,7 +5140,7 @@ const PAGE_MASK: usize = SMALLEST_PAGE_SIZE - 1;
 fn minimally_init(buf: &mut [MaybeUninit<u8>]) -> &mut [u8] {
     // This loop is only broken out of as a goto forward. This structure
     // avoids borrowing for too long via `first_mut`.
-    #[allow(clippy::never_loop)]
+    #[allow(clippy::never_loop, clippy::while_let_loop)]
     loop {
         if let Some(b) = buf.first_mut() {
             // Initialize one byte of the first memory page spanned
