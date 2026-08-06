@@ -5192,7 +5192,6 @@ cfg_if! {
         target_arch = "arm64ec",
         target_arch = "riscv32",
         target_arch = "riscv64",
-        target_arch = "loongarch32",
         target_arch = "loongarch64",
         target_arch = "s390x",
         target_arch = "powerpc",
