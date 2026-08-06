@@ -1905,7 +1905,7 @@ impl<'a> ByteDestination<'a> {
     }
     #[inline(always)]
     pub fn check_space_one<'b>(&'b mut self) -> Space<ByteOneHandle<'b, 'a>> {
-        if self.slice.len() >= 1 {
+        if !self.slice.is_empty() {
             Space::Available(ByteOneHandle::new(self))
         } else {
             Space::Full(self.written())

@@ -42,8 +42,7 @@
     clippy::doc_markdown,
     clippy::inline_always,
     clippy::new_ret_no_self,
-    clippy::redundant_static_lifetimes,
-    clippy::len_zero,
+    clippy::redundant_static_lifetimes
 )]
 
 //! encoding_rs is a Gecko-oriented Free Software / Open Source implementation
