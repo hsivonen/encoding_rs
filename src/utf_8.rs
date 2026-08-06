@@ -21,13 +21,11 @@ cfg_if! {
         use ::core::intrinsics::likely;
     } else {
         #[inline(always)]
-        // Unsafe to match the intrinsic, which is needlessly unsafe.
-        unsafe fn unlikely(b: bool) -> bool {
+        fn unlikely(b: bool) -> bool {
             b
         }
         #[inline(always)]
-        // Unsafe to match the intrinsic, which is needlessly unsafe.
-        unsafe fn likely(b: bool) -> bool {
+        fn likely(b: bool) -> bool {
             b
         }
     }
@@ -67,7 +65,110 @@ pub static UTF8_DATA: Utf8Data = Utf8Data {
 
 // END GENERATED CODE
 
+// The UTF-8 validation code provided by this crate is faster than the UTF-8 validation code
+// provided by the standard library. When SIMD is used, the simdutf8 crate is much faster
+// than the code here. However, when SIMD isn't used, simdutf8 delegates to the standard
+// library and not here. To use the code here when SSE 4.2 isn't available for simdutf8
+// to use, let's implement custom dispatch here. As a bonus, the `core_detect` crate
+// works without `std`.
+
+cfg_if! {
+    if #[cfg(all(target_arch = "aarch64", target_feature = "neon"))] {
+        #[inline(always)]
+        fn fast_utf8_valid_up_to(src: &[u8]) -> Option<usize> {
+            if src.len() >= 64 {
+                // SAFETY: The cfg check above ensures that the precondition, NEON availability on aarch64, is satisfied.
+                Some(match unsafe { simdutf8::compat::imp::aarch64::neon::validate_utf8(src) } {
+                    Ok(_) => src.len(),
+                    Err(e) => e.valid_up_to(),
+                })
+            } else {
+                None
+            }
+        }
+    } else if #[cfg(target_feature = "avx2")] {
+        #[inline(always)]
+        fn fast_utf8_valid_up_to(src: &[u8]) -> Option<usize> {
+            if src.len() >= 64 {
+                // SAFETY: The cfg check above ensures that the precondition, AVX2 availability, is satisfied.
+                Some(match unsafe { simdutf8::compat::imp::x86::avx2::validate_utf8(src) } {
+                    Ok(_) => src.len(),
+                    Err(e) => e.valid_up_to(),
+                })
+            } else {
+                None
+            }
+        }
+    } else if #[cfg(target_feature = "sse4.2")] {
+        #[inline(always)]
+        fn fast_utf8_valid_up_to(src: &[u8]) -> Option<usize> {
+            if src.len() >= 64 {
+                if core_detect::is_x86_feature_detected!("avx2") {
+                    // SAFETY: The dynamic check above ensures that the precondition, AVX2 availability, is satisfied.
+                    Some(match unsafe { simdutf8::compat::imp::x86::avx2::validate_utf8(src) } {
+                        Ok(_) => src.len(),
+                        Err(e) => e.valid_up_to(),
+                    })
+                } else {
+                    // SAFETY: The cfg check above ensures that the precondition, SSE 4.2 availability, is satisfied.
+                    Some(match unsafe { simdutf8::compat::imp::x86::sse42::validate_utf8(src) } {
+                        Ok(_) => src.len(),
+                        Err(e) => e.valid_up_to(),
+                    })
+                }
+            } else {
+                None
+            }
+        }
+    } else if #[cfg(target_feature = "sse")] { // "sse" stands in for cpuid availability
+        #[inline(always)]
+        fn fast_utf8_valid_up_to(src: &[u8]) -> Option<usize> {
+            if src.len() >= 64 {
+                if core_detect::is_x86_feature_detected!("avx2") {
+                    // SAFETY: The dynamic check above ensures that the precondition, AVX2 availability, is satisfied.
+                    Some(match unsafe { simdutf8::compat::imp::x86::avx2::validate_utf8(src) } {
+                        Ok(_) => src.len(),
+                        Err(e) => e.valid_up_to(),
+                    })
+                } else if core_detect::is_x86_feature_detected!("sse4.2") {
+                    // SAFETY: The dynamic check above ensures that the precondition, SSE 4.2 availability, is satisfied.
+                    Some(match unsafe { simdutf8::compat::imp::x86::sse42::validate_utf8(src) } {
+                        Ok(_) => src.len(),
+                        Err(e) => e.valid_up_to(),
+                    })
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        }
+    } else if #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))] {
+        #[inline(always)]
+        fn fast_utf8_valid_up_to(src: &[u8]) -> Option<usize> {
+            if src.len() >= 64 {
+                // SAFETY: The cfg check above ensures that the precondition, simd128 availability on wasm32, is satisfied.
+                Some(match unsafe { simdutf8::compat::imp::wasm32::simd128::validate_utf8(src) } {
+                    Ok(_) => src.len(),
+                    Err(e) => e.valid_up_to(),
+                })
+            } else {
+                None
+            }
+        }
+    } else {
+        #[inline(always)]
+        fn fast_utf8_valid_up_to(_src: &[u8]) -> Option<usize> {
+            None
+        }
+    }
+}
+
 pub fn utf8_valid_up_to(src: &[u8]) -> usize {
+    if let Some(up_to) = fast_utf8_valid_up_to(src) {
+        return up_to;
+    }
+
     let mut read = 0;
     'outer: loop {
         let mut byte = {
@@ -88,14 +189,14 @@ pub fn utf8_valid_up_to(src: &[u8]) -> usize {
         // to overflow would mean that the source slice would be so large that
         // the address space of the process would not have space for any code.
         // Therefore, the slice cannot be so long that this would overflow.
-        if unsafe { likely(read + 4 <= src.len()) } {
+        if likely(read + 4 <= src.len()) {
             'inner: loop {
                 // At this point, `byte` is not included in `read`, because we
                 // don't yet know that a) the UTF-8 sequence is valid and b) that there
                 // is output space if it is an astral sequence.
                 // Inspecting the lead byte directly is faster than what the
                 // std lib does!
-                if unsafe { likely(in_inclusive_range8(byte, 0xC2, 0xDF)) } {
+                if likely(in_inclusive_range8(byte, 0xC2, 0xDF)) {
                     // Two-byte
                     let second = unsafe { *(src.get_unchecked(read + 1)) };
                     if !in_inclusive_range8(second, 0x80, 0xBF) {
@@ -104,7 +205,7 @@ pub fn utf8_valid_up_to(src: &[u8]) -> usize {
                     read += 2;
 
                     // Next lead (manually inlined)
-                    if unsafe { likely(read + 4 <= src.len()) } {
+                    if likely(read + 4 <= src.len()) {
                         byte = unsafe { *(src.get_unchecked(read)) };
                         if byte < 0x80 {
                             read += 1;
@@ -114,7 +215,7 @@ pub fn utf8_valid_up_to(src: &[u8]) -> usize {
                     }
                     break 'inner;
                 }
-                if unsafe { likely(byte < 0xF0) } {
+                if likely(byte < 0xF0) {
                     'three: loop {
                         // Three-byte
                         let second = unsafe { *(src.get_unchecked(read + 1)) };
@@ -129,12 +230,12 @@ pub fn utf8_valid_up_to(src: &[u8]) -> usize {
                         read += 3;
 
                         // Next lead (manually inlined)
-                        if unsafe { likely(read + 4 <= src.len()) } {
+                        if likely(read + 4 <= src.len()) {
                             byte = unsafe { *(src.get_unchecked(read)) };
                             if in_inclusive_range8(byte, 0xE0, 0xEF) {
                                 continue 'three;
                             }
-                            if unsafe { likely(byte < 0x80) } {
+                            if likely(byte < 0x80) {
                                 read += 1;
                                 continue 'outer;
                             }
@@ -159,7 +260,7 @@ pub fn utf8_valid_up_to(src: &[u8]) -> usize {
                 read += 4;
 
                 // Next lead
-                if unsafe { likely(read + 4 <= src.len()) } {
+                if likely(read + 4 <= src.len()) {
                     byte = unsafe { *(src.get_unchecked(read)) };
                     if byte < 0x80 {
                         read += 1;
@@ -228,10 +329,8 @@ pub fn utf8_valid_up_to(src: &[u8]) -> usize {
     read
 }
 
-#[cfg_attr(
-    feature = "cargo-clippy",
-    allow(clippy::never_loop, cyclomatic_complexity)
-)]
+#[inline(always)]
+#[allow(clippy::never_loop, clippy::cognitive_complexity)]
 pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usize, usize) {
     let mut read = 0;
     let mut written = 0;
@@ -240,9 +339,7 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
             let src_remaining = &src[read..];
             let dst_remaining = &mut dst[written..];
             let length = ::core::cmp::min(src_remaining.len(), dst_remaining.len());
-            match unsafe {
-                ascii_to_basic_latin(src_remaining.as_ptr(), dst_remaining.as_mut_ptr(), length)
-            } {
+            match { ascii_to_basic_latin(src_remaining, dst_remaining) } {
                 None => {
                     read += length;
                     written += length;
@@ -261,7 +358,7 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
         // to overflow would mean that the source slice would be so large that
         // the address space of the process would not have space for any code.
         // Therefore, the slice cannot be so long that this would overflow.
-        if unsafe { likely(read + 4 <= src.len()) } {
+        if likely(read + 4 <= src.len()) {
             'inner: loop {
                 // At this point, `byte` is not included in `read`, because we
                 // don't yet know that a) the UTF-8 sequence is valid and b) that there
@@ -271,7 +368,7 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
                 // for output space in the BMP cases.
                 // Inspecting the lead byte directly is faster than what the
                 // std lib does!
-                if unsafe { likely(in_inclusive_range8(byte, 0xC2, 0xDF)) } {
+                if likely(in_inclusive_range8(byte, 0xC2, 0xDF)) {
                     // Two-byte
                     let second = unsafe { *(src.get_unchecked(read + 1)) };
                     if !in_inclusive_range8(second, 0x80, 0xBF) {
@@ -288,7 +385,7 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
                     if written == dst.len() {
                         break 'outer;
                     }
-                    if unsafe { likely(read + 4 <= src.len()) } {
+                    if likely(read + 4 <= src.len()) {
                         byte = unsafe { *(src.get_unchecked(read)) };
                         if byte < 0x80 {
                             unsafe { *(dst.get_unchecked_mut(written)) = u16::from(byte) };
@@ -300,7 +397,7 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
                     }
                     break 'inner;
                 }
-                if unsafe { likely(byte < 0xF0) } {
+                if likely(byte < 0xF0) {
                     'three: loop {
                         // Three-byte
                         let second = unsafe { *(src.get_unchecked(read + 1)) };
@@ -323,12 +420,12 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
                         if written == dst.len() {
                             break 'outer;
                         }
-                        if unsafe { likely(read + 4 <= src.len()) } {
+                        if likely(read + 4 <= src.len()) {
                             byte = unsafe { *(src.get_unchecked(read)) };
                             if in_inclusive_range8(byte, 0xE0, 0xEF) {
                                 continue 'three;
                             }
-                            if unsafe { likely(byte < 0x80) } {
+                            if likely(byte < 0x80) {
                                 unsafe { *(dst.get_unchecked_mut(written)) = u16::from(byte) };
                                 read += 1;
                                 written += 1;
@@ -370,7 +467,7 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
                 if written == dst.len() {
                     break 'outer;
                 }
-                if unsafe { likely(read + 4 <= src.len()) } {
+                if likely(read + 4 <= src.len()) {
                     byte = unsafe { *(src.get_unchecked(read)) };
                     if byte < 0x80 {
                         unsafe { *(dst.get_unchecked_mut(written)) = u16::from(byte) };
@@ -501,15 +598,15 @@ impl Utf8Decoder {
     }
 
     decoder_functions!(
-        {},
-        {
+        preamble = {},
+        loop_preamble = {
             // This is the fast path. The rest runs only at the
             // start and end for partial sequences.
             if self.bytes_needed == 0 {
                 dest.copy_utf8_up_to_invalid_from(&mut source);
             }
         },
-        {
+        eof = {
             if self.bytes_needed != 0 {
                 let bad_bytes = (self.bytes_seen + 1) as u8;
                 self.code_point = 0;
@@ -522,7 +619,7 @@ impl Utf8Decoder {
                 );
             }
         },
-        {
+        body = {
             if self.bytes_needed == 0 {
                 if b < 0x80u8 {
                     destination_handle.write_ascii(b);
@@ -597,19 +694,20 @@ impl Utf8Decoder {
             self.bytes_seen = 0;
             continue;
         },
-        self,
-        src_consumed,
-        dest,
-        source,
-        b,
-        destination_handle,
-        unread_handle,
-        check_space_astral
+        self = self,
+        src_consumed = src_consumed,
+        dest = dest,
+        source = source,
+        byte = b,
+        destination_handle = destination_handle,
+        unread_handle = unread_handle,
+        destination_check = check_space_astral
     );
 }
 
-#[cfg_attr(feature = "cargo-clippy", allow(clippy::never_loop))]
+#[allow(clippy::never_loop)]
 #[inline(never)]
+#[crate::multiversion(targets("x86_64+avx2+bmi1"))]
 pub fn convert_utf16_to_utf8_partial_inner(src: &[u16], dst: &mut [u8]) -> (usize, usize) {
     let mut read = 0;
     let mut written = 0;
@@ -622,9 +720,7 @@ pub fn convert_utf16_to_utf8_partial_inner(src: &[u16], dst: &mut [u8]) -> (usiz
             } else {
                 src_remaining.len()
             };
-            match unsafe {
-                basic_latin_to_ascii(src_remaining.as_ptr(), dst_remaining.as_mut_ptr(), length)
-            } {
+            match { basic_latin_to_ascii(src_remaining, dst_remaining) } {
                 None => {
                     read += length;
                     written += length;
@@ -657,7 +753,7 @@ pub fn convert_utf16_to_utf8_partial_inner(src: &[u16], dst: &mut [u8]) -> (usiz
                     break;
                 }
                 let unit_minus_surrogate_start = unit.wrapping_sub(0xD800);
-                if unsafe { likely(unit_minus_surrogate_start > (0xDFFF - 0xD800)) } {
+                if likely(unit_minus_surrogate_start > (0xDFFF - 0xD800)) {
                     unsafe {
                         *(dst.get_unchecked_mut(written)) = (unit >> 12) as u8 | 0xE0u8;
                         written += 1;
@@ -668,7 +764,7 @@ pub fn convert_utf16_to_utf8_partial_inner(src: &[u16], dst: &mut [u8]) -> (usiz
                     }
                     break;
                 }
-                if unsafe { likely(unit_minus_surrogate_start <= (0xDBFF - 0xD800)) } {
+                if likely(unit_minus_surrogate_start <= (0xDBFF - 0xD800)) {
                     // high surrogate
                     // read > src.len() is impossible, but using
                     // >= instead of == allows the compiler to elide a bound check.
@@ -687,7 +783,7 @@ pub fn convert_utf16_to_utf8_partial_inner(src: &[u16], dst: &mut [u8]) -> (usiz
                     }
                     let second = src[read];
                     let second_minus_low_surrogate_start = second.wrapping_sub(0xDC00);
-                    if unsafe { likely(second_minus_low_surrogate_start <= (0xDFFF - 0xDC00)) } {
+                    if likely(second_minus_low_surrogate_start <= (0xDFFF - 0xDC00)) {
                         // The next code unit is a low surrogate. Advance position.
                         read += 1;
                         let astral = (u32::from(unit) << 10) + u32::from(second)
@@ -729,7 +825,7 @@ pub fn convert_utf16_to_utf8_partial_inner(src: &[u16], dst: &mut [u8]) -> (usiz
                 return (read, written);
             }
             unit = src[read];
-            if unsafe { unlikely(unit < 0x80) } {
+            if unlikely(unit < 0x80) {
                 // written > dst.len() is impossible, but using
                 // >= instead of == allows the compiler to elide a bound check.
                 if written >= dst.len() {

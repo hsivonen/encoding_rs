@@ -50,7 +50,7 @@ impl EucKrDecoder {
     }
 
     ascii_compatible_two_byte_decoder_functions!(
-        {
+        lead = {
             // If lead is between 0x81 and 0xFE, inclusive,
             // subtract offset 0x81.
             let non_ascii_minus_offset =
@@ -62,7 +62,7 @@ impl EucKrDecoder {
             }
             non_ascii_minus_offset
         },
-        {
+        trail = {
             if lead_minus_offset >= 0x20 {
                 // Not the extension range above KS X 1001
                 let trail_minus_offset =
@@ -172,17 +172,17 @@ impl EucKrDecoder {
                 handle.write_upper_bmp(upper_bmp)
             }
         },
-        self,
-        non_ascii,
-        byte,
-        lead_minus_offset,
-        unread_handle_trail,
-        source,
-        handle,
-        'outermost,
-        copy_ascii_from_check_space_bmp,
-        check_space_bmp,
-        true);
+        self = self,
+        non_ascii = non_ascii,
+        byte = byte,
+        lead_minus_offset = lead_minus_offset,
+        unread_handle_trail = unread_handle_trail,
+        source = source,
+        handle = handle,
+        outermost = 'outermost,
+        copy_ascii = copy_ascii_from_check_space_bmp,
+        destination_check = check_space_bmp,
+        ascii_punctuation = true);
 }
 
 fn ksx1001_encode_misc(bmp: u16) -> Option<(usize, usize)> {
@@ -255,7 +255,7 @@ fn ksx1001_encode_hangul(bmp: u16, _: u16) -> (u8, u8) {
             } else {
                 0x41
             };
-            (lead as u8, (cp949_trail + offset) as u8)
+            (lead, (cp949_trail + offset))
         }
     }
 }
@@ -403,27 +403,6 @@ mod tests {
 
         encode_euc_kr("\u{AC02}", b"\x81\x41");
         encode_euc_kr("\u{8A70}", b"\xFD\xFE");
-    }
-
-    #[test]
-    #[cfg_attr(miri, ignore)] // Miri is too slow
-    fn test_euc_kr_decode_all() {
-        let input = include_bytes!("test_data/euc_kr_in.txt");
-        let expectation = include_str!("test_data/euc_kr_in_ref.txt");
-        let (cow, had_errors) = EUC_KR.decode_without_bom_handling(input);
-        assert!(had_errors, "Should have had errors.");
-        assert_eq!(&cow[..], expectation);
-    }
-
-    #[test]
-    #[cfg_attr(miri, ignore)] // Miri is too slow
-    fn test_euc_kr_encode_all() {
-        let input = include_str!("test_data/euc_kr_out.txt");
-        let expectation = include_bytes!("test_data/euc_kr_out_ref.txt");
-        let (cow, encoding, had_errors) = EUC_KR.encode(input);
-        assert!(!had_errors, "Should not have had errors.");
-        assert_eq!(encoding, EUC_KR);
-        assert_eq!(&cow[..], &expectation[..]);
     }
 
     #[test]

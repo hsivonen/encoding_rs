@@ -16,31 +16,20 @@
 //! the plan is to replace the internals with unsafe code that omits the
 //! bound check at the read/write time.
 
-#[cfg(all(
-    feature = "simd-accel",
-    any(
-        target_feature = "sse2",
-        all(target_endian = "little", target_arch = "aarch64"),
-        all(target_endian = "little", target_feature = "neon")
-    )
-))]
+#[cfg(all(feature = "simd-accel", target_endian = "little"))]
 use crate::simd_funcs::*;
 
-#[cfg(all(
-    feature = "simd-accel",
-    any(
-        target_feature = "sse2",
-        all(target_endian = "little", target_arch = "aarch64"),
-        all(target_endian = "little", target_feature = "neon")
-    )
-))]
-use packed_simd::u16x8;
+#[cfg(all(feature = "simd-accel", target_endian = "little"))]
+use core::simd::u16x8;
 
 use super::DecoderResult;
 use super::EncoderResult;
 use crate::ascii::*;
 use crate::utf_8::convert_utf8_to_utf16_up_to_invalid;
 use crate::utf_8::utf8_valid_up_to;
+
+#[cfg(all(feature = "simd-accel", target_endian = "little"))]
+const SIMD_STRIDE_SIZE: usize = crate::ascii::STRIDE;
 
 pub enum Space<T> {
     Available(T),
@@ -90,19 +79,23 @@ impl Endian for LittleEndian {
 
 #[derive(Debug, Copy, Clone)]
 struct UnalignedU16Slice {
+    // Safety invariant: ptr must be valid for reading 2*len bytes
     ptr: *const u8,
     len: usize,
 }
 
 impl UnalignedU16Slice {
+    /// Safety: ptr must be valid for reading 2*len bytes
     #[inline(always)]
     pub unsafe fn new(ptr: *const u8, len: usize) -> UnalignedU16Slice {
+        // Safety: field invariant passed up to caller here
         UnalignedU16Slice { ptr, len }
     }
 
     #[inline(always)]
     pub fn trim_last(&mut self) {
         assert!(self.len > 0);
+        // Safety: invariant upheld here: a slice is still valid with a shorter len
         self.len -= 1;
     }
 
@@ -113,16 +106,23 @@ impl UnalignedU16Slice {
         assert!(i < self.len);
         unsafe {
             let mut u: MaybeUninit<u16> = MaybeUninit::uninit();
+            // Safety: i is at most len - 1, which works here
             ::core::ptr::copy_nonoverlapping(self.ptr.add(i * 2), u.as_mut_ptr() as *mut u8, 2);
+            // Safety: valid read above lets us do this
             u.assume_init()
         }
     }
 
-    #[cfg(feature = "simd-accel")]
+    #[cfg(all(feature = "simd-accel", target_endian = "little"))]
     #[inline(always)]
     pub fn simd_at(&self, i: usize) -> u16x8 {
+        // Safety: i/len are on the scale of u16s, each one corresponds to 2 u8s
         assert!(i + SIMD_STRIDE_SIZE / 2 <= self.len);
         let byte_index = i * 2;
+        // Safety: load16_unaligned needs SIMD_STRIDE_SIZE=16 u8 elements to read,
+        // or 16/2 = 8 u16 elements to read.
+        // We have checked that we have at least that many above.
+
         unsafe { to_u16_lanes(load16_unaligned(self.ptr.add(byte_index))) }
     }
 
@@ -136,14 +136,17 @@ impl UnalignedU16Slice {
         // XXX the return value should be restricted not to
         // outlive self.
         assert!(from <= self.len);
+        // Safety: This upholds the same invariant: `from` is in bounds and we're returning a shorter slice
         unsafe { UnalignedU16Slice::new(self.ptr.add(from * 2), self.len - from) }
     }
 
-    #[cfg(feature = "simd-accel")]
+    #[cfg(all(feature = "simd-accel", target_endian = "little"))]
     #[inline(always)]
     pub fn copy_bmp_to<E: Endian>(&self, other: &mut [u16]) -> Option<(u16, usize)> {
         assert!(self.len <= other.len());
         let mut offset = 0;
+        // Safety: SIMD_STRIDE_SIZE is measured in bytes, whereas len is in u16s. We check we can
+        // munch SIMD_STRIDE_SIZE / 2 u16s which means we can write SIMD_STRIDE_SIZE u8s
         if SIMD_STRIDE_SIZE / 2 <= self.len {
             let len_minus_stride = self.len - SIMD_STRIDE_SIZE / 2;
             loop {
@@ -151,6 +154,7 @@ impl UnalignedU16Slice {
                 if E::OPPOSITE_ENDIAN {
                     simd = simd_byte_swap(simd);
                 }
+                // Safety: we have enough space on the other side to write this
                 unsafe {
                     store8_unaligned(other.as_mut_ptr().add(offset), simd);
                 }
@@ -158,6 +162,7 @@ impl UnalignedU16Slice {
                     break;
                 }
                 offset += SIMD_STRIDE_SIZE / 2;
+                // Safety: This ensures we still have space for writing SIMD_STRIDE_SIZE u8s
                 if offset > len_minus_stride {
                     break;
                 }
@@ -174,7 +179,7 @@ impl UnalignedU16Slice {
         None
     }
 
-    #[cfg(not(feature = "simd-accel"))]
+    #[cfg(not(all(feature = "simd-accel", target_endian = "little")))]
     #[inline(always)]
     fn copy_bmp_to<E: Endian>(&self, other: &mut [u16]) -> Option<(u16, usize)> {
         assert!(self.len <= other.len());
@@ -219,7 +224,7 @@ fn swap_if_opposite_endian<E: Endian>(unit: u16) -> u16 {
     }
 }
 
-#[cfg(not(feature = "simd-accel"))]
+#[cfg(not(all(feature = "simd-accel", target_endian = "little")))]
 #[inline(always)]
 fn copy_unaligned_basic_latin_to_ascii<E: Endian>(
     src: UnalignedU16Slice,
@@ -228,7 +233,7 @@ fn copy_unaligned_basic_latin_to_ascii<E: Endian>(
     copy_unaligned_basic_latin_to_ascii_alu::<E>(src, dst, 0)
 }
 
-#[cfg(feature = "simd-accel")]
+#[cfg(all(feature = "simd-accel", target_endian = "little"))]
 #[inline(always)]
 fn copy_unaligned_basic_latin_to_ascii<E: Endian>(
     src: UnalignedU16Slice,
@@ -236,6 +241,7 @@ fn copy_unaligned_basic_latin_to_ascii<E: Endian>(
 ) -> CopyAsciiResult<usize, (u16, usize)> {
     let len = ::core::cmp::min(src.len(), dst.len());
     let mut offset = 0;
+    // Safety: This check ensures we are able to read/write at least SIMD_STRIDE_SIZE elements
     if SIMD_STRIDE_SIZE <= len {
         let len_minus_stride = len - SIMD_STRIDE_SIZE;
         loop {
@@ -249,10 +255,13 @@ fn copy_unaligned_basic_latin_to_ascii<E: Endian>(
                 break;
             }
             let packed = simd_pack(first, second);
+            // Safety: We are able to write SIMD_STRIDE_SIZE elements in this iteration
             unsafe {
                 store16_unaligned(dst.as_mut_ptr().add(offset), packed);
             }
             offset += SIMD_STRIDE_SIZE;
+            // Safety: This is `offset > len - SIMD_STRIDE_SIZE`, which ensures that we can write at least SIMD_STRIDE_SIZE elements
+            // in the next iteration
             if offset > len_minus_stride {
                 break;
             }
@@ -364,7 +373,7 @@ pub struct ByteSource<'a> {
 
 impl<'a> ByteSource<'a> {
     #[inline(always)]
-    pub fn new(src: &[u8]) -> ByteSource {
+    pub fn new(src: &'a [u8]) -> ByteSource<'a> {
         ByteSource { slice: src, pos: 0 }
     }
     #[inline(always)]
@@ -571,7 +580,7 @@ pub struct Utf16Destination<'a> {
 
 impl<'a> Utf16Destination<'a> {
     #[inline(always)]
-    pub fn new(dst: &mut [u16]) -> Utf16Destination {
+    pub fn new(dst: &mut [u16]) -> Utf16Destination<'_> {
         Utf16Destination { slice: dst, pos: 0 }
     }
     #[inline(always)]
@@ -634,7 +643,7 @@ impl<'a> Utf16Destination<'a> {
         self.write_code_unit((0xDC00 + (astral & 0x3FF)) as u16);
     }
     #[inline(always)]
-    pub fn write_surrogate_pair(&mut self, high: u16, low: u16) {
+    fn write_surrogate_pair(&mut self, high: u16, low: u16) {
         self.write_code_unit(high);
         self.write_code_unit(low);
     }
@@ -643,6 +652,7 @@ impl<'a> Utf16Destination<'a> {
         self.write_bmp_excl_ascii(combined);
         self.write_bmp_excl_ascii(combining);
     }
+    // Safety-usable invariant: CopyAsciiResult::GoOn will only contain bytes >=0x80
     #[inline(always)]
     pub fn copy_ascii_from_check_space_bmp<'b>(
         &'b mut self,
@@ -656,24 +666,28 @@ impl<'a> Utf16Destination<'a> {
             } else {
                 (DecoderResult::InputEmpty, src_remaining.len())
             };
-            match unsafe {
-                ascii_to_basic_latin(src_remaining.as_ptr(), dst_remaining.as_mut_ptr(), length)
-            } {
+            // Safety: This function is documented as needing valid pointers for src/dest and len, which
+            // is true since we've passed the minumum length of the two
+            match { ascii_to_basic_latin(src_remaining, dst_remaining) } {
                 None => {
                     source.pos += length;
                     self.pos += length;
                     return CopyAsciiResult::Stop((pending, source.pos, self.pos));
                 }
+                // Safety: the function is documented as returning bytes >=0x80 in the Some
                 Some((non_ascii, consumed)) => {
                     source.pos += consumed;
                     self.pos += consumed;
                     source.pos += 1; // +1 for non_ascii
+                    // Safety: non-ascii bubbled out here
                     non_ascii
                 }
             }
         };
+        // Safety: non-ascii returned here
         CopyAsciiResult::GoOn((non_ascii_ret, Utf16BmpHandle::new(self)))
     }
+    // Safety-usable invariant: CopyAsciiResult::GoOn will only contain bytes >=0x80
     #[inline(always)]
     pub fn copy_ascii_from_check_space_astral<'b>(
         &'b mut self,
@@ -688,19 +702,21 @@ impl<'a> Utf16Destination<'a> {
             } else {
                 (DecoderResult::InputEmpty, src_remaining.len())
             };
-            match unsafe {
-                ascii_to_basic_latin(src_remaining.as_ptr(), dst_remaining.as_mut_ptr(), length)
-            } {
+            // Safety: This function is documented as needing valid pointers for src/dest and len, which
+            // is true since we've passed the minumum length of the two
+            match { ascii_to_basic_latin(src_remaining, dst_remaining) } {
                 None => {
                     source.pos += length;
                     self.pos += length;
                     return CopyAsciiResult::Stop((pending, source.pos, self.pos));
                 }
+                // Safety: the function is documented as returning bytes >=0x80 in the Some
                 Some((non_ascii, consumed)) => {
                     source.pos += consumed;
                     self.pos += consumed;
                     if self.pos + 1 < dst_len {
                         source.pos += 1; // +1 for non_ascii
+                        // Safety: non-ascii bubbled out here
                         non_ascii
                     } else {
                         return CopyAsciiResult::Stop((
@@ -712,6 +728,7 @@ impl<'a> Utf16Destination<'a> {
                 }
             }
         };
+        // Safety: non-ascii returned here
         CopyAsciiResult::GoOn((non_ascii_ret, Utf16AstralHandle::new(self)))
     }
     #[inline(always)]
@@ -904,7 +921,7 @@ pub struct Utf8Destination<'a> {
 
 impl<'a> Utf8Destination<'a> {
     #[inline(always)]
-    pub fn new(dst: &mut [u8]) -> Utf8Destination {
+    pub fn new(dst: &mut [u8]) -> Utf8Destination<'_> {
         Utf8Destination { slice: dst, pos: 0 }
     }
     #[inline(always)]
@@ -1007,9 +1024,7 @@ impl<'a> Utf8Destination<'a> {
             } else {
                 (DecoderResult::InputEmpty, src_remaining.len())
             };
-            match unsafe {
-                ascii_to_ascii(src_remaining.as_ptr(), dst_remaining.as_mut_ptr(), length)
-            } {
+            match { ascii_to_ascii(src_remaining, dst_remaining) } {
                 None => {
                     source.pos += length;
                     self.pos += length;
@@ -1047,9 +1062,7 @@ impl<'a> Utf8Destination<'a> {
             } else {
                 (DecoderResult::InputEmpty, src_remaining.len())
             };
-            match unsafe {
-                ascii_to_ascii(src_remaining.as_ptr(), dst_remaining.as_mut_ptr(), length)
-            } {
+            match { ascii_to_ascii(src_remaining, dst_remaining) } {
                 None => {
                     source.pos += length;
                     self.pos += length;
@@ -1125,17 +1138,12 @@ impl<'a> Utf8Destination<'a> {
 pub struct Utf16Source<'a> {
     slice: &'a [u16],
     pos: usize,
-    old_pos: usize,
 }
 
 impl<'a> Utf16Source<'a> {
     #[inline(always)]
-    pub fn new(src: &[u16]) -> Utf16Source {
-        Utf16Source {
-            slice: src,
-            pos: 0,
-            old_pos: 0,
-        }
+    pub fn new(src: &'a [u16]) -> Utf16Source<'a> {
+        Utf16Source { slice: src, pos: 0 }
     }
     #[inline(always)]
     pub fn check_available<'b>(&'b mut self) -> Space<Utf16ReadHandle<'b, 'a>> {
@@ -1145,10 +1153,9 @@ impl<'a> Utf16Source<'a> {
             Space::Full(self.consumed())
         }
     }
-    #[cfg_attr(feature = "cargo-clippy", allow(clippy::collapsible_if))]
+    #[allow(clippy::collapsible_if)]
     #[inline(always)]
     fn read(&mut self) -> char {
-        self.old_pos = self.pos;
         let unit = self.slice[self.pos];
         self.pos += 1;
         let unit_minus_surrogate_start = unit.wrapping_sub(0xD800);
@@ -1179,10 +1186,9 @@ impl<'a> Utf16Source<'a> {
         // Unpaired low surrogate
         '\u{FFFD}'
     }
-    #[cfg_attr(feature = "cargo-clippy", allow(clippy::collapsible_if))]
+    #[allow(clippy::collapsible_if)]
     #[inline(always)]
     fn read_enum(&mut self) -> Unicode {
-        self.old_pos = self.pos;
         let unit = self.slice[self.pos];
         self.pos += 1;
         if unit < 0x80 {
@@ -1217,11 +1223,6 @@ impl<'a> Utf16Source<'a> {
         Unicode::NonAscii(NonAscii::BmpExclAscii(0xFFFDu16))
     }
     #[inline(always)]
-    fn unread(&mut self) -> usize {
-        self.pos = self.old_pos;
-        self.pos
-    }
-    #[inline(always)]
     pub fn consumed(&self) -> usize {
         self.pos
     }
@@ -1231,26 +1232,23 @@ impl<'a> Utf16Source<'a> {
         dest: &'b mut ByteDestination<'a>,
     ) -> CopyAsciiResult<(EncoderResult, usize, usize), (NonAscii, ByteTwoHandle<'b, 'a>)> {
         let non_ascii_ret = {
-            let dst_len = dest.slice.len();
             let src_remaining = &self.slice[self.pos..];
-            let dst_remaining = &mut dest.slice[dest.pos..];
+            let dst_remaining = dest.remaining();
             let (pending, length) = if dst_remaining.len() < src_remaining.len() {
                 (EncoderResult::OutputFull, dst_remaining.len())
             } else {
                 (EncoderResult::InputEmpty, src_remaining.len())
             };
-            match unsafe {
-                basic_latin_to_ascii(src_remaining.as_ptr(), dst_remaining.as_mut_ptr(), length)
-            } {
+            match { basic_latin_to_ascii(src_remaining, dst_remaining) } {
                 None => {
                     self.pos += length;
-                    dest.pos += length;
-                    return CopyAsciiResult::Stop((pending, self.pos, dest.pos));
+                    dest.advance(length);
+                    return CopyAsciiResult::Stop((pending, self.pos, dest.written()));
                 }
                 Some((non_ascii, consumed)) => {
                     self.pos += consumed;
-                    dest.pos += consumed;
-                    if dest.pos + 1 < dst_len {
+                    dest.advance(consumed);
+                    if dest.remaining().len() >= 2 {
                         self.pos += 1; // commit to reading `non_ascii`
                         let unit = non_ascii;
                         let unit_minus_surrogate_start = unit.wrapping_sub(0xD800);
@@ -1287,7 +1285,7 @@ impl<'a> Utf16Source<'a> {
                         return CopyAsciiResult::Stop((
                             EncoderResult::OutputFull,
                             self.pos,
-                            dest.pos,
+                            dest.written(),
                         ));
                     }
                 }
@@ -1301,26 +1299,23 @@ impl<'a> Utf16Source<'a> {
         dest: &'b mut ByteDestination<'a>,
     ) -> CopyAsciiResult<(EncoderResult, usize, usize), (NonAscii, ByteFourHandle<'b, 'a>)> {
         let non_ascii_ret = {
-            let dst_len = dest.slice.len();
             let src_remaining = &self.slice[self.pos..];
-            let dst_remaining = &mut dest.slice[dest.pos..];
+            let dst_remaining = dest.remaining();
             let (pending, length) = if dst_remaining.len() < src_remaining.len() {
                 (EncoderResult::OutputFull, dst_remaining.len())
             } else {
                 (EncoderResult::InputEmpty, src_remaining.len())
             };
-            match unsafe {
-                basic_latin_to_ascii(src_remaining.as_ptr(), dst_remaining.as_mut_ptr(), length)
-            } {
+            match { basic_latin_to_ascii(src_remaining, dst_remaining) } {
                 None => {
                     self.pos += length;
-                    dest.pos += length;
-                    return CopyAsciiResult::Stop((pending, self.pos, dest.pos));
+                    dest.advance(length);
+                    return CopyAsciiResult::Stop((pending, self.pos, dest.written()));
                 }
                 Some((non_ascii, consumed)) => {
                     self.pos += consumed;
-                    dest.pos += consumed;
-                    if dest.pos + 3 < dst_len {
+                    dest.advance(consumed);
+                    if dest.remaining().len() >= 4 {
                         self.pos += 1; // commit to reading `non_ascii`
                         let unit = non_ascii;
                         let unit_minus_surrogate_start = unit.wrapping_sub(0xD800);
@@ -1357,7 +1352,7 @@ impl<'a> Utf16Source<'a> {
                         return CopyAsciiResult::Stop((
                             EncoderResult::OutputFull,
                             self.pos,
-                            dest.pos,
+                            dest.written(),
                         ));
                     }
                 }
@@ -1384,15 +1379,11 @@ where
     }
     #[inline(always)]
     pub fn read(self) -> (char, Utf16UnreadHandle<'a, 'b>) {
-        let character = self.source.read();
-        let handle = Utf16UnreadHandle::new(self.source);
-        (character, handle)
+        Utf16UnreadHandle::new_char(self.source)
     }
     #[inline(always)]
     pub fn read_enum(self) -> (Unicode, Utf16UnreadHandle<'a, 'b>) {
-        let character = self.source.read_enum();
-        let handle = Utf16UnreadHandle::new(self.source);
-        (character, handle)
+        Utf16UnreadHandle::new_enum(self.source)
     }
     #[inline(always)]
     pub fn consumed(&self) -> usize {
@@ -1405,6 +1396,7 @@ where
     'b: 'a,
 {
     source: &'a mut Utf16Source<'b>,
+    old_pos: usize,
 }
 
 impl<'a, 'b> Utf16UnreadHandle<'a, 'b>
@@ -1412,12 +1404,22 @@ where
     'b: 'a,
 {
     #[inline(always)]
-    fn new(src: &'a mut Utf16Source<'b>) -> Utf16UnreadHandle<'a, 'b> {
-        Utf16UnreadHandle { source: src }
+    fn new_char(source: &'a mut Utf16Source<'b>) -> (char, Self) {
+        let old_pos = source.pos;
+        let character = source.read();
+        (character, Self { source, old_pos })
     }
     #[inline(always)]
+    fn new_enum(source: &'a mut Utf16Source<'b>) -> (Unicode, Self) {
+        let old_pos = source.pos;
+        let character = source.read_enum();
+        (character, Self { source, old_pos })
+    }
+
+    #[inline(always)]
     pub fn unread(self) -> usize {
-        self.source.unread()
+        self.source.pos = self.old_pos;
+        self.old_pos
     }
     #[inline(always)]
     pub fn consumed(&self) -> usize {
@@ -1434,16 +1436,14 @@ where
 pub struct Utf8Source<'a> {
     slice: &'a [u8],
     pos: usize,
-    old_pos: usize,
 }
 
 impl<'a> Utf8Source<'a> {
     #[inline(always)]
-    pub fn new(src: &str) -> Utf8Source {
+    pub fn new(src: &'a str) -> Utf8Source<'a> {
         Utf8Source {
             slice: src.as_bytes(),
             pos: 0,
-            old_pos: 0,
         }
     }
     #[inline(always)]
@@ -1456,7 +1456,6 @@ impl<'a> Utf8Source<'a> {
     }
     #[inline(always)]
     fn read(&mut self) -> char {
-        self.old_pos = self.pos;
         let unit = self.slice[self.pos];
         if unit < 0x80 {
             self.pos += 1;
@@ -1484,7 +1483,6 @@ impl<'a> Utf8Source<'a> {
     }
     #[inline(always)]
     fn read_enum(&mut self) -> Unicode {
-        self.old_pos = self.pos;
         let unit = self.slice[self.pos];
         if unit < 0x80 {
             self.pos += 1;
@@ -1513,11 +1511,6 @@ impl<'a> Utf8Source<'a> {
         }))
     }
     #[inline(always)]
-    fn unread(&mut self) -> usize {
-        self.pos = self.old_pos;
-        self.pos
-    }
-    #[inline(always)]
     pub fn consumed(&self) -> usize {
         self.pos
     }
@@ -1528,23 +1521,21 @@ impl<'a> Utf8Source<'a> {
     ) -> CopyAsciiResult<(EncoderResult, usize, usize), (NonAscii, ByteOneHandle<'b, 'a>)> {
         let non_ascii_ret = {
             let src_remaining = &self.slice[self.pos..];
-            let dst_remaining = &mut dest.slice[dest.pos..];
+            let dst_remaining = dest.remaining();
             let (pending, length) = if dst_remaining.len() < src_remaining.len() {
                 (EncoderResult::OutputFull, dst_remaining.len())
             } else {
                 (EncoderResult::InputEmpty, src_remaining.len())
             };
-            match unsafe {
-                ascii_to_ascii(src_remaining.as_ptr(), dst_remaining.as_mut_ptr(), length)
-            } {
+            match { ascii_to_ascii(src_remaining, dst_remaining) } {
                 None => {
                     self.pos += length;
-                    dest.pos += length;
-                    return CopyAsciiResult::Stop((pending, self.pos, dest.pos));
+                    dest.advance(length);
+                    return CopyAsciiResult::Stop((pending, self.pos, dest.written()));
                 }
                 Some((non_ascii, consumed)) => {
                     self.pos += consumed;
-                    dest.pos += consumed;
+                    dest.advance(consumed);
                     // We don't need to check space in destination, because
                     // `ascii_to_ascii()` already did.
                     if non_ascii < 0xE0 {
@@ -1577,26 +1568,23 @@ impl<'a> Utf8Source<'a> {
         dest: &'b mut ByteDestination<'a>,
     ) -> CopyAsciiResult<(EncoderResult, usize, usize), (NonAscii, ByteTwoHandle<'b, 'a>)> {
         let non_ascii_ret = {
-            let dst_len = dest.slice.len();
             let src_remaining = &self.slice[self.pos..];
-            let dst_remaining = &mut dest.slice[dest.pos..];
+            let dst_remaining = dest.remaining();
             let (pending, length) = if dst_remaining.len() < src_remaining.len() {
                 (EncoderResult::OutputFull, dst_remaining.len())
             } else {
                 (EncoderResult::InputEmpty, src_remaining.len())
             };
-            match unsafe {
-                ascii_to_ascii(src_remaining.as_ptr(), dst_remaining.as_mut_ptr(), length)
-            } {
+            match { ascii_to_ascii(src_remaining, dst_remaining) } {
                 None => {
                     self.pos += length;
-                    dest.pos += length;
-                    return CopyAsciiResult::Stop((pending, self.pos, dest.pos));
+                    dest.advance(length);
+                    return CopyAsciiResult::Stop((pending, self.pos, dest.written()));
                 }
                 Some((non_ascii, consumed)) => {
                     self.pos += consumed;
-                    dest.pos += consumed;
-                    if dest.pos + 1 < dst_len {
+                    dest.advance(consumed);
+                    if dest.remaining().len() >= 2 {
                         if non_ascii < 0xE0 {
                             let point = ((u16::from(non_ascii) & 0x1F) << 6)
                                 | (u16::from(self.slice[self.pos + 1]) & 0x3F);
@@ -1620,7 +1608,7 @@ impl<'a> Utf8Source<'a> {
                         return CopyAsciiResult::Stop((
                             EncoderResult::OutputFull,
                             self.pos,
-                            dest.pos,
+                            dest.written(),
                         ));
                     }
                 }
@@ -1634,26 +1622,23 @@ impl<'a> Utf8Source<'a> {
         dest: &'b mut ByteDestination<'a>,
     ) -> CopyAsciiResult<(EncoderResult, usize, usize), (NonAscii, ByteFourHandle<'b, 'a>)> {
         let non_ascii_ret = {
-            let dst_len = dest.slice.len();
             let src_remaining = &self.slice[self.pos..];
-            let dst_remaining = &mut dest.slice[dest.pos..];
+            let dst_remaining = dest.remaining();
             let (pending, length) = if dst_remaining.len() < src_remaining.len() {
                 (EncoderResult::OutputFull, dst_remaining.len())
             } else {
                 (EncoderResult::InputEmpty, src_remaining.len())
             };
-            match unsafe {
-                ascii_to_ascii(src_remaining.as_ptr(), dst_remaining.as_mut_ptr(), length)
-            } {
+            match { ascii_to_ascii(src_remaining, dst_remaining) } {
                 None => {
                     self.pos += length;
-                    dest.pos += length;
-                    return CopyAsciiResult::Stop((pending, self.pos, dest.pos));
+                    dest.advance(length);
+                    return CopyAsciiResult::Stop((pending, self.pos, dest.written()));
                 }
                 Some((non_ascii, consumed)) => {
                     self.pos += consumed;
-                    dest.pos += consumed;
-                    if dest.pos + 3 < dst_len {
+                    dest.advance(consumed);
+                    if dest.remaining().len() >= 4 {
                         if non_ascii < 0xE0 {
                             let point = ((u16::from(non_ascii) & 0x1F) << 6)
                                 | (u16::from(self.slice[self.pos + 1]) & 0x3F);
@@ -1677,7 +1662,7 @@ impl<'a> Utf8Source<'a> {
                         return CopyAsciiResult::Stop((
                             EncoderResult::OutputFull,
                             self.pos,
-                            dest.pos,
+                            dest.written(),
                         ));
                     }
                 }
@@ -1699,20 +1684,16 @@ where
     'b: 'a,
 {
     #[inline(always)]
-    fn new(src: &'a mut Utf8Source<'b>) -> Utf8ReadHandle<'a, 'b> {
-        Utf8ReadHandle { source: src }
+    fn new(source: &'a mut Utf8Source<'b>) -> Utf8ReadHandle<'a, 'b> {
+        Utf8ReadHandle { source }
     }
     #[inline(always)]
     pub fn read(self) -> (char, Utf8UnreadHandle<'a, 'b>) {
-        let character = self.source.read();
-        let handle = Utf8UnreadHandle::new(self.source);
-        (character, handle)
+        Utf8UnreadHandle::new_char(self.source)
     }
     #[inline(always)]
     pub fn read_enum(self) -> (Unicode, Utf8UnreadHandle<'a, 'b>) {
-        let character = self.source.read_enum();
-        let handle = Utf8UnreadHandle::new(self.source);
-        (character, handle)
+        Utf8UnreadHandle::new_enum(self.source)
     }
     #[inline(always)]
     pub fn consumed(&self) -> usize {
@@ -1725,6 +1706,7 @@ where
     'b: 'a,
 {
     source: &'a mut Utf8Source<'b>,
+    old_pos: usize,
 }
 
 impl<'a, 'b> Utf8UnreadHandle<'a, 'b>
@@ -1732,12 +1714,21 @@ where
     'b: 'a,
 {
     #[inline(always)]
-    fn new(src: &'a mut Utf8Source<'b>) -> Utf8UnreadHandle<'a, 'b> {
-        Utf8UnreadHandle { source: src }
+    fn new_char(source: &'a mut Utf8Source<'b>) -> (char, Self) {
+        let old_pos = source.pos;
+        let character = source.read();
+        (character, Self { source, old_pos })
+    }
+    #[inline(always)]
+    fn new_enum(source: &'a mut Utf8Source<'b>) -> (Unicode, Self) {
+        let old_pos = source.pos;
+        let character = source.read_enum();
+        (character, Self { source, old_pos })
     }
     #[inline(always)]
     pub fn unread(self) -> usize {
-        self.source.unread()
+        self.source.pos = self.old_pos;
+        self.old_pos
     }
     #[inline(always)]
     pub fn consumed(&self) -> usize {
@@ -1893,17 +1884,25 @@ where
 
 pub struct ByteDestination<'a> {
     slice: &'a mut [u8],
-    pos: usize,
+    /// Pointer to the original start of the slice. It's never dereferenced.
+    start: *const u8,
 }
 
 impl<'a> ByteDestination<'a> {
     #[inline(always)]
-    pub fn new(dst: &mut [u8]) -> ByteDestination {
-        ByteDestination { slice: dst, pos: 0 }
+    pub fn new(dst: &mut [u8]) -> ByteDestination<'_> {
+        ByteDestination {
+            start: dst.as_ptr(),
+            slice: dst,
+        }
+    }
+    #[inline(always)]
+    pub fn remaining(&mut self) -> &mut [u8] {
+        &mut self.slice
     }
     #[inline(always)]
     pub fn check_space_one<'b>(&'b mut self) -> Space<ByteOneHandle<'b, 'a>> {
-        if self.pos < self.slice.len() {
+        if self.slice.len() >= 1 {
             Space::Available(ByteOneHandle::new(self))
         } else {
             Space::Full(self.written())
@@ -1911,7 +1910,7 @@ impl<'a> ByteDestination<'a> {
     }
     #[inline(always)]
     pub fn check_space_two<'b>(&'b mut self) -> Space<ByteTwoHandle<'b, 'a>> {
-        if self.pos + 1 < self.slice.len() {
+        if self.slice.len() >= 2 {
             Space::Available(ByteTwoHandle::new(self))
         } else {
             Space::Full(self.written())
@@ -1919,7 +1918,7 @@ impl<'a> ByteDestination<'a> {
     }
     #[inline(always)]
     pub fn check_space_three<'b>(&'b mut self) -> Space<ByteThreeHandle<'b, 'a>> {
-        if self.pos + 2 < self.slice.len() {
+        if self.slice.len() >= 3 {
             Space::Available(ByteThreeHandle::new(self))
         } else {
             Space::Full(self.written())
@@ -1927,7 +1926,7 @@ impl<'a> ByteDestination<'a> {
     }
     #[inline(always)]
     pub fn check_space_four<'b>(&'b mut self) -> Space<ByteFourHandle<'b, 'a>> {
-        if self.pos + 3 < self.slice.len() {
+        if self.slice.len() >= 4 {
             Space::Available(ByteFourHandle::new(self))
         } else {
             Space::Full(self.written())
@@ -1935,32 +1934,48 @@ impl<'a> ByteDestination<'a> {
     }
     #[inline(always)]
     pub fn written(&self) -> usize {
-        self.pos
+        // ptr::byte_offset_from(), but safe
+        self.slice.as_ptr() as usize - self.start as usize
     }
     #[inline(always)]
     fn write_one(&mut self, first: u8) {
-        self.slice[self.pos] = first;
-        self.pos += 1;
+        // take() is necessary to use the slice's full lifetime, rather than a shorter reborrow via self
+        let (dst, rest) = core::mem::take(&mut self.slice).split_first_mut().unwrap();
+        self.slice = rest;
+
+        *dst = first;
     }
     #[inline(always)]
     fn write_two(&mut self, first: u8, second: u8) {
-        self.slice[self.pos] = first;
-        self.slice[self.pos + 1] = second;
-        self.pos += 2;
+        let (dst, rest) = core::mem::take(&mut self.slice).split_at_mut(2);
+        self.slice = rest;
+
+        dst[0] = first;
+        dst[1] = second;
     }
     #[inline(always)]
     fn write_three(&mut self, first: u8, second: u8, third: u8) {
-        self.slice[self.pos] = first;
-        self.slice[self.pos + 1] = second;
-        self.slice[self.pos + 2] = third;
-        self.pos += 3;
+        let (dst, rest) = core::mem::take(&mut self.slice).split_at_mut(3);
+        self.slice = rest;
+
+        dst[0] = first;
+        dst[1] = second;
+        dst[2] = third;
     }
     #[inline(always)]
     fn write_four(&mut self, first: u8, second: u8, third: u8, fourth: u8) {
-        self.slice[self.pos] = first;
-        self.slice[self.pos + 1] = second;
-        self.slice[self.pos + 2] = third;
-        self.slice[self.pos + 3] = fourth;
-        self.pos += 4;
+        // consecutive assignments to self.slice[pos+n] would have four bounds checks
+        let (dst, rest) = core::mem::take(&mut self.slice).split_at_mut(4);
+        self.slice = rest;
+
+        dst[0] = first;
+        dst[1] = second;
+        dst[2] = third;
+        dst[3] = fourth;
+    }
+    /// Assume this many bytes have been written
+    #[inline(always)]
+    pub fn advance(&mut self, length: usize) {
+        self.slice = &mut core::mem::take(&mut self.slice)[length..];
     }
 }

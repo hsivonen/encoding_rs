@@ -1,6 +1,6 @@
 # encoding_rs
 
-[![Build Status](https://travis-ci.org/hsivonen/encoding_rs.svg?branch=master)](https://travis-ci.org/hsivonen/encoding_rs)
+[![Build Status](https://github.com/hsivonen/encoding_rs/actions/workflows/ci.yml/badge.svg)](https://github.com/hsivonen/encoding_rs/actions/workflows/ci.yml)
 [![crates.io](https://img.shields.io/crates/v/encoding_rs.svg)](https://crates.io/crates/encoding_rs)
 [![docs.rs](https://docs.rs/encoding_rs/badge.svg)](https://docs.rs/encoding_rs/)
 
@@ -73,6 +73,65 @@ Additionally, `encoding_rs::mem` does the following:
 * Converts ASCII to UTF-16 up to the first non-ASCII byte.
 * Converts UTF-16 to ASCII up to the first non-Basic Latin code unit.
 
+## API surprises to watch out for
+
+The encoder API encodes to the [_output encoding_](https://encoding.spec.whatwg.org/#output-encodings)
+of the `Encoding` that methods are invoked on. That is, you can't use this crate to produce
+output in UTF-16LE, UTF-16BE, or replacement, since the output encoding
+for those encodings is UTF-8! (Changing the API to make this more obvious from the API
+shape itself would now be a semver break.)
+
+## Performance
+
+Primary performance attention is given to the `x86_64`, `aarch64`, and
+`thumbv7neon` targets with the `simd-accel` and `std` Cargo features enabled.
+
+Speed is a non-goal when encoding to legacy encodings. By default, encoding to
+legacy encodings is optimized for binary size rather than speed, which was
+determined to not be user-visibly slow on Raspberry Pi 3 (which stood in for
+a slow phone for testing) in the Web-exposed encoder use cases.
+
+See the Cargo features below for optionally making CJK legacy encode faster.
+
+Various aspects of the code other than ASCII acceleration were optimized
+in 2018 on Haswell using then-current compiler. Alternative approaches
+might be faster today.
+
+ASCII acceleration was completely rewritten in 2026 targeting the following
+scenarios (with `simd-accel` and `std` enabled):
+
+* Base `x86_64` compilation target running on Zen 3 (i.e. taking AVX2+BMI1
+  multiversion paths as applicable).
+* `aarch64` running on M3 Pro.
+* `thumbv7neon` target running on 32-bit Raspberry Pi OS on Raspberry Pi 4.
+
+If you are targeting `x86_64`, `i686`, `aarch64`, or `thumbv7neon`
+targets, it's worthwhile to enable the `simd-accel` Cargo feature if you
+can tolerate the reliance on nightly Rust features.
+
+If you are targeting `x86_64` and you know that the binaries are only going
+to be deployed to x86-64-v3 or higher, it's worthwhile both for run-time
+performance with `simd-accel` and for build times (see below) regardless of
+`simd-accel` to compile with `RUSTFLAGS='-C target_cpu=x86-64-v3'` (or higher).
+
+A framework for measuring performance is [available separately][2].
+
+[2]: https://github.com/hsivonen/encoding_bench/
+
+## Rust Version Compatibility
+
+It is a goal to support the latest stable Rust, the latest nightly Rust and
+the version of Rust that's used for Firefox Nightly.
+
+At this time, there is no firm commitment to support a version older than
+what's required by Firefox. MSRV changes are not treated as semver-breaking.
+
+Furthermore, enabling the `simd-accel` feature may further constrain the
+compatible Rust versions.
+
+Currently, the MSRV is 1.88 with or without `simd-accel`, which is older
+than Firefox's MSRV.
+
 ## Integration with `std::io`
 
 Notably, the above feature list doesn't include the capability to wrap
@@ -108,7 +167,7 @@ the Web Platform, but the [`oem_cp`](https://crates.io/crates/oem_cp) crate does
 Normalizing text into Unicode Normalization Form C prior to encoding text into
 a legacy encoding minimizes unmappable characters. Text can be normalized to
 Unicode Normalization Form C using the
-[`unic-normal`](https://crates.io/crates/unic-normal) crate.
+[`icu_normalizer`](https://crates.io/crates/icu_normalizer) crate.
 
 The exception is windows-1258, which after normalizing to Unicode Normalization
 Form C requires tone marks to be decomposed in order to minimize unmappable
@@ -117,10 +176,7 @@ characters. Vietnamese tone marks can be decomposed using the
 
 ## Licensing
 
-TL;DR: ((Apache-2.0 OR MIT) AND BSD-3-Clause) for the code and data combination,
-but [crates.io doesn't support
-parentheses](https://github.com/rust-lang/crates.io/issues/2595), so the crate
-metadata points to a custom file.
+TL;DR: `(Apache-2.0 OR MIT) AND BSD-3-Clause` for the code and data combination.
 
 Please see the file named
 [COPYRIGHT](https://github.com/hsivonen/encoding_rs/blob/master/COPYRIGHT).
@@ -133,19 +189,6 @@ upstream changed its license for portions of specs incorporated into source code
 from CC0 to BSD-3-Clause between the initial release of this crate and the present
 version of this crate. The in-source licensing legends have been updated for the
 parts of the generated code that have changed since the upstream license change.
-
-To work around the lack of support for paretheses in crates.io metadata, the
-`cargo deny` clarification is:
-
-```toml
-[[licenses.clarify]]
-name = "encoding_rs"
-version = "*"
-expression = "(Apache-2.0 OR MIT) AND BSD-3-Clause"
-license-files = [
-    { path = "COPYRIGHT", hash = 0x39f8ad31 }
-]
-```
 
 ## Documentation
 
@@ -177,45 +220,124 @@ wrappers.
 * [C](https://github.com/hsivonen/recode_c)
 * [C++](https://github.com/hsivonen/recode_cpp)
 
+## Multiversioning
+
+When applicable, UTF-8 validation delegates to the [`simdutf8`](https://crates.io/crates/simdutf8)
+crate. On x86 and x86_64, the UTF-8 validation function is multiversioned (unless the best version,
+currently AVX2, is known to be usable statically, e.g. by `RUSTFLAGS='-C target_cpu=x86-64-v3'`).
+This crate takes care of the dispatch using the [`core_detect`](https://crates.io/crates/core_detect)
+crate without requiring `std` and without involving the `simd-accel` feature.
+
+With the `simd-accel` feature, some _other_ aspects of this crate are multiversioned on
+x86_64 in a way that does require `std`, because the
+[`multiversion`](https://crates.io/crates/multiversion) crate uses `std` and not
+`core_detect`. See below.
+
+## Build times
+
+Due to function multiversioning for AVX2+BMI1 on x86_64 with the `simd-accel` and `std`
+features (see below), on x86_64 targets, this crate has the usual proc macro dependencies
+in its dependency tree. Cargo does not allow combining `feature` conditions with
+target-related conditions, so the dependencies are there even when the
+`simd-accel` and `std` features are not enabled.
+
+You can, however, avoid these by changing the available set of `target_feature`s by
+specifying `RUSTFLAGS='-C target_cpu=x86-64-v3'`.
+
+This issue does not apply to non-x86_64 targets.
+
 ## Optional features
 
-There are currently these optional cargo features:
+There are multiple optional features.
+
+There are remarks about which features are used by Firefox to indicate what
+configuration is the one the crate author pays the most attention to. While
+not a Cargo feature, the panic configuration is relevant in this sense.
+Panic aborts the process in Firefox.
+
+Historically, there have been bugs that have affected non-Firefox
+configurations but not the Firefox configuration.
+
+### `alloc` (enabled by default)
+
+Enables the parts of the API that deal with `String`, `Vec`, and `Cow`.
+
+Enabled but not actually used by Firefox.
+
+### `std`
+
+When used together with `simd-accel` (see below), enables run-time detection
+of AVX2+BMI1 on x86_64 when the compilation target does not include these
+target features statically.
+
+This feature has no effect on SIMD capabilities in other scenarios.
+
+This feature has the side effect of linking `std`, so this is not compatible
+with the `no_std` context. Unfortunately, even though CPU feature detection
+uses an instruction rather than syscalls on x86_64, the CPU feature detection
+check requires `std`, because the corresponding operation on some other
+architectures relies on operating system support.
+
+Only some operations are multiversioned: Decoding to UTF-16, encoding from
+UTF-16 to UTF-8, and various operations in the `mem` module. Notably, if
+you don't use the `mem` module and don't use UTF-16 as the in-memory Unicode
+representation, the `std` feature won't be useful.
+
+This does _not_ enable run-time AVX2+BMI1 checking on 32-bit x86, on the
+assumption that AVX2+BMI1 is less likely to available and, therefore, the
+code size and performance overhead of multiversioning is less likely to be
+justified.
+
+This feature does not affect multiversioning UTF-8 validation, which uses a
+separate mechanism.
+
+Used by Firefox.
 
 ### `simd-accel`
 
-Enables SIMD acceleration using the nightly-dependent `packed_simd_2` crate.
+Enables SIMD acceleration using the nightly-dependent `core::simd` part of
+the standard library.
 
 This is an opt-in feature, because enabling this feature _opts out_ of Rust's
 guarantees of future compilers compiling old code (aka. "stability story").
 
-Currently, this has not been tested to be an improvement except for these
-targets:
+The `simd-accel` feature has been tested with these target architectures:
 
 * x86_64
-* i686
 * aarch64
 * thumbv7neon
+* i686
+
+With other little-endian target architectures, the code should compute correct
+results, but performance has not been tuned. With big-endian architectures,
+`core::simd` isn't actually used for now.
+
+When `simd-accel` is enabled, this crate benefits from AVX2+BMI1. When targeting
+x86_64, if you know that the binaries will only be run on x86-64-v3 or higher,
+it's beneficial to compile with x86-64-v3 (or higher) statically enabled. If the
+binaries need to also run on x86-64-v2 or x86-64-v1 CPUs and linking `std` is OK,
+it's beneficial to enable the `std` feature (see above) in addition to the
+`simd-accel` feature to enable run-time detection of AVX2+BMI1.
+
+As of 2026, the crate is developed on Zen 3 and M3 Pro. The configurations that
+get the most attention are aarch64 build target running on M3 Pro, x86_64 build
+target with run-time AVX2+BMI1 detection enabled running on Zen 3, and
+`-C target_cpu=x86-64-v3` running on Zen 3.
+
+Occasional performance checks are made on Skylake. Performance may regress
+on x86-64-v1 and x86-64-v2.
+
+i686 gets the code shape for x86_64 (without multiversioning for AVX2+BMI1)
+with minimal checks that it compiles and runs, but the testing is on x86_64
+hardware.
+
+For thumbv7neon, testing is Raspberry Pi 4 using the 32-bit version of
+Raspberry Pi OS.
 
 If you use nightly Rust, you use targets whose first component is one of the
 above, and you are prepared _to have to revise your configuration when updating
 Rust_, you should enable this feature. Otherwise, please _do not_ enable this
 feature.
-
-_Note!_ If you are compiling for a target that does not have 128-bit SIMD
-enabled as part of the target definition and you are enabling 128-bit SIMD
-using `-C target_feature`, you need to enable the `core_arch` Cargo feature
-for `packed_simd_2` to compile a crates.io snapshot of `core_arch` instead of
-using the standard-library copy of `core::arch`, because the `core::arch`
-module of the pre-compiled standard library has been compiled with the
-assumption that the CPU doesn't have 128-bit SIMD. At present this applies
-mainly to 32-bit ARM targets whose first component does not include the
-substring `neon`.
-
-The encoding_rs side of things has not been properly set up for POWER,
-PowerPC, MIPS, etc., SIMD at this time, so even if you were to follow
-the advice from the previous paragraph, you probably shouldn't use
-the `simd-accel` option on the less mainstream architectures at this
-time.
 
 Used by Firefox.
 
@@ -357,56 +479,13 @@ Does _not_ affect decode speed.
 
 Not used by Firefox.
 
-## Performance goals
-
-For decoding to UTF-16, the goal is to perform at least as well as Gecko's old
-uconv. For decoding to UTF-8, the goal is to perform at least as well as
-rust-encoding. These goals have been achieved.
-
-Encoding to UTF-8 should be fast. (UTF-8 to UTF-8 encode should be equivalent
-to `memcpy` and UTF-16 to UTF-8 should be fast.)
-
-Speed is a non-goal when encoding to legacy encodings. By default, encoding to
-legacy encodings should not be optimized for speed at the expense of code size
-as long as form submission and URL parsing in Gecko don't become noticeably
-too slow in real-world use.
-
-In the interest of binary size, by default, encoding_rs does not have
-encode-specific data tables beyond 32 bits of encode-specific data for each
-single-byte encoding. Therefore, encoders search the decode-optimized data
-tables. This is a linear search in most cases. As a result, by default, encode
-to legacy encodings varies from slow to extremely slow relative to other
-libraries. Still, with realistic work loads, this seemed fast enough not to be
-user-visibly slow on Raspberry Pi 3 (which stood in for a phone for testing)
-in the Web-exposed encoder use cases.
-
-See the cargo features above for optionally making CJK legacy encode fast.
-
-A framework for measuring performance is [available separately][2].
-
-[2]: https://github.com/hsivonen/encoding_bench/
-
-## Rust Version Compatibility
-
-It is a goal to support the latest stable Rust, the latest nightly Rust and
-the version of Rust that's used for Firefox Nightly.
-
-At this time, there is no firm commitment to support a version older than
-what's required by Firefox, and there is no commitment to treat MSRV changes
-as semver-breaking, because this crate depends on `cfg-if`, which doesn't
-appear to treat MSRV changes as semver-breaking, so it would be useless for
-this crate to treat MSRV changes as semver-breaking.
-
-As of 2021-02-04, MSRV appears to be Rust 1.36.0 for using the crate and
-1.42.0 for doc tests to pass without errors about the global allocator.
-
 ## Compatibility with rust-encoding
 
 A compatibility layer that implements the rust-encoding API on top of
 encoding_rs is
 [provided as a separate crate](https://github.com/hsivonen/encoding_rs_compat)
 (cannot be uploaded to crates.io). The compatibility layer was originally
-written with the assuption that Firefox would need it, but it is not currently
+written with the assumption that Firefox would need it, but it is not currently
 used in Firefox.
 
 ## Regenerating Generated Code
@@ -420,10 +499,9 @@ To regenerate the generated code:
    next to the `encoding_rs` directory.
  * Clone [`https://github.com/whatwg/encoding`](https://github.com/whatwg/encoding)
    next to the `encoding_rs` directory.
- * Checkout revision `be3337450e7df1c49dca7872153c4c4670dd8256` of the `encoding` repo.
+ * Checkout revision `1d519bf8e5555cef64cf3a712485f41cd1a6a990` of the `encoding` repo.
    (Note: `f381389` was the revision of `encoding` used from before the `encoding` repo
-   license change. So far, only output changed since then has been updated to
-   the new license legend.)
+   license change.)
  * With the `encoding_rs` directory as the working directory, run
    `python generate-encoding-data.py`.
 
@@ -461,10 +539,51 @@ To regenerate the generated code:
       adapted to Rust in rust-encoding.~
 - [x] Add actually fast CJK encode options.
 - [ ] ~Investigate [Bob Steagall's lookup table acceleration for UTF-8](https://github.com/BobSteagall/CppNow2018/blob/master/FastConversionFromUTF-8/Fast%20Conversion%20From%20UTF-8%20with%20C%2B%2B%2C%20DFAs%2C%20and%20SSE%20Intrinsics%20-%20Bob%20Steagall%20-%20C%2B%2BNow%202018.pdf).~
-- [ ] Provide a build mode that works without `alloc` (with lesser API surface).
-- [ ] Migrate to `std::simd` once it is stable and declare 1.0.
+- [x] Provide a build mode that works without `alloc` (with lesser API surface).
+- [x] Migrate to `std::simd` ~once it is stable and declare 1.0.~
+- [x] Migrate `unsafe` slice access by larger types than `u8`/`u16` to ~`align_to`~ `as_chunks`.
 
 ## Release Notes
+
+# 0.8.40
+
+* Increase MSRV to 1.88. (For `as_chunks` on slice.)
+* Fix correctness of buffer boundary handling in two-byte legacy decoders. (Applicable to streaming decode.)
+* Make decoder methods that write to `String` panic-safe so that the `String` no longer exposes uninitalized memory when user code tries to reuse a decoder that has reached the end of the stream previously, catches the panic, and uses the `String` afterwards. (Applicable when compiled with panic unwinding and the caller uses the API in an unintended way.)
+* Major rewrite of the ASCII acceleration internals to fix correctness in the non-SIMD case, to reduce `unsafe`, to remove code path divergence based on buffer alignment, and to improve performance.
+* Use the `simdutf8` crate for UTF-8 validation on aarch64, when compiled with Wasm SIMD enabled, and on x86/x86_64 when SSE 4.2 or, even better, AVX2 is available (works even without the `simd-accel` or `std` features).
+* On x86_64 with the `simd-accel` feature enabled, added function multiversioning to use AVX2+BMI1 when available (requires also the new `std` feature).
+* Bound check optimization.
+* Documentation tweaks.
+* Address compiler warnings and Clippy lints.
+
+# 0.8.36 though 0.8.39
+
+* Reserved version numbers.
+
+### 0.8.35
+
+* Implement changes for GB18030-2022. (Intentionally not treated as a semver break in practice even if this could be argued to be a breaking change in theory.)
+
+### 0.8.34
+
+* Use the `portable_simd` nightly feature of the standard library instead of the `packed_simd` crate. Only affects the `simd-accel` optional nightly feature.
+* Internal documentation improvements and minor code improvements around `unsafe`.
+* Added `rust-version` to `Cargo.toml`.
+
+### 0.8.33
+
+* Use `packed_simd` instead of `packed_simd_2` again now that updates are back under the `packed_simd` name. Only affects the `simd-accel` optional nightly feature.
+
+### 0.8.32
+
+* Removed `build.rs`. (This removal should resolve false positives reported by some antivirus products. This may break some build configurations that have opted out of Rust's guarantees against future build breakage.)
+* Internal change to what API is used for reinterpreting the lane configuration of SIMD vectors.
+* Documentation improvements.
+
+### 0.8.31
+
+* Use SPDX with parentheses now that crates.io supports parentheses.
 
 ### 0.8.30
 

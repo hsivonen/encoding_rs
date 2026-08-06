@@ -1,24 +1,24 @@
 [package]
 name = "encoding_rs"
 description = "A Gecko-oriented implementation of the Encoding Standard"
-version = "0.8.30"
-edition = '2018'
+version = "0.8.35"
+edition = '2024'
 authors = ["Henri Sivonen <hsivonen@hsivonen.fi>"]
-license-file = "COPYRIGHT"
+license = "(Apache-2.0 OR MIT) AND BSD-3-Clause"
+include = ["src/**/*.rs", "/data", "Cargo.toml", "COPYRIGHT", "LICENSE*", "README.md"]
 readme = "README.md"
 documentation = "https://docs.rs/encoding_rs/"
 homepage = "https://docs.rs/encoding_rs/"
 repository = "https://github.com/hsivonen/encoding_rs"
 keywords = ["encoding", "web", "unicode", "charset"]
 categories = ["text-processing", "encoding", "web-programming", "internationalization"]
-
-[badges]
-travis-ci = { repository = "hsivonen/encoding_rs" }
+rust-version = "1.88"
 
 [features]
 default = ["alloc"]
 alloc = []
-simd-accel = ["packed_simd", "packed_simd/into_bits"]
+std = ["multiversion/std"]
+simd-accel = ["any_all_workaround", "rustversion"]
 less-slow-kanji-encode = []
 less-slow-big5-hanzi-encode = []
 less-slow-gb-hanzi-encode = []
@@ -35,8 +35,22 @@ fast-legacy-encode = ["fast-hangul-encode",
 
 [dependencies]
 cfg-if = "1.0"
-packed_simd = { version = "0.3.4", package = "packed_simd_2", optional = true }
 serde = { version = "1.0", optional = true }
+any_all_workaround = { version = "0.1.0" , optional = true }
+rustversion = { version = "1.0.19", optional = true }
+multiversion_no_op = "1.0.0"
+
+# This should only be included if both the `simd-accel` and `std` features are
+# enabled, but Cargo explicitly does not allow combining feature conditions and
+# target conditions.
+[target.'cfg(all(target_arch = "x86_64", not(all(target_feature = "avx2", target_feature = "bmi1"))))'.dependencies]
+multiversion = { version = "0.8.0", default-features = false }
+
+[target.'cfg(any(target_arch = "x86_64", target_arch = "x86", target_arch = "aarch64", all(target_arch = "wasm32", target_feature = "simd128")))'.dependencies]
+simdutf8 = { version = "0.1.5", default-features = false, features = ["aarch64_neon", "public_imp"] }
+
+[target.'cfg(any(target_arch = "x86_64", target_arch = "x86"))'.dependencies]
+core_detect = "1"
 
 [dev-dependencies]
 serde_derive = "1.0"
@@ -45,3 +59,6 @@ serde_json = "1.0"
 
 [profile.release]
 lto = true
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(fuzzing)'] }

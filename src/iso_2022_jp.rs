@@ -96,7 +96,7 @@ impl Iso2022JpDecoder {
     }
 
     decoder_functions!(
-        {
+        preamble = {
             if self.pending_prepended {
                 // lead was set in EscapeStart and "prepended"
                 // in Escape.
@@ -127,8 +127,8 @@ impl Iso2022JpDecoder {
                 }
             }
         },
-        {},
-        {
+        loop_preamble = {},
+        eof = {
             match self.decoder_state {
                 Iso2022JpDecoderState::TrailByte | Iso2022JpDecoderState::EscapeStart => {
                     self.decoder_state = self.output_state;
@@ -142,7 +142,7 @@ impl Iso2022JpDecoder {
                 _ => {}
             }
         },
-        {
+        body = {
             match self.decoder_state {
                 Iso2022JpDecoderState::Ascii => {
                     if b == 0x1Bu8 {
@@ -353,14 +353,14 @@ impl Iso2022JpDecoder {
                 }
             }
         },
-        self,
-        src_consumed,
-        dest,
-        source,
-        b,
-        destination_handle,
-        unread_handle,
-        check_space_bmp
+        self = self,
+        src_consumed = src_consumed,
+        dest = dest,
+        source = source,
+        byte = b,
+        destination_handle = destination_handle,
+        unread_handle = unread_handle,
+        destination_check = check_space_bmp
     );
 }
 
@@ -373,10 +373,7 @@ fn is_kanji_mapped(bmp: u16) -> bool {
 }
 
 #[cfg(not(feature = "fast-kanji-encode"))]
-#[cfg_attr(
-    feature = "cargo-clippy",
-    allow(if_let_redundant_pattern_matching, clippy::if_same_then_else)
-)]
+#[allow(clippy::redundant_pattern_matching, clippy::if_same_then_else)]
 #[inline(always)]
 fn is_kanji_mapped(bmp: u16) -> bool {
     0x4EDD == bmp
@@ -387,10 +384,7 @@ fn is_kanji_mapped(bmp: u16) -> bool {
         || matches!(position(&IBM_KANJI[..], bmp), Some(_))
 }
 
-#[cfg_attr(
-    feature = "cargo-clippy",
-    allow(if_let_redundant_pattern_matching, clippy::if_same_then_else)
-)]
+#[allow(clippy::redundant_pattern_matching, clippy::if_same_then_else)]
 fn is_mapped_for_two_byte_encode(bmp: u16) -> bool {
     // The code below uses else after return to
     // keep the same structure as in EUC-JP.
@@ -505,7 +499,7 @@ impl Iso2022JpEncoder {
     }
 
     encoder_functions!(
-        {
+        eof = {
             match self.state {
                 Iso2022JpEncoderState::Ascii => {}
                 _ => match dest.check_space_three() {
@@ -519,7 +513,7 @@ impl Iso2022JpEncoder {
                 },
             }
         },
-        {
+        body = {
             match self.state {
                 Iso2022JpEncoderState::Ascii => {
                     if c == '\u{0E}' || c == '\u{0F}' || c == '\u{1B}' {
@@ -722,14 +716,14 @@ impl Iso2022JpEncoder {
                 }
             }
         },
-        self,
-        src_consumed,
-        source,
-        dest,
-        c,
-        destination_handle,
-        unread_handle,
-        check_space_three
+        self = self,
+        src_consumed = src_consumed,
+        source = source,
+        dest = dest,
+        c = c,
+        destination_handle = destination_handle,
+        unread_handle = unread_handle,
+        destination_check = check_space_three
     );
 }
 
@@ -960,27 +954,6 @@ mod tests {
             encode_iso_2022_jp("\u{58FA}\u{00A5}", b"\x1B$B\x54\x64\x1B(J\x5C\x1B(B");
             encode_iso_2022_jp("\u{58FA}a", b"\x1B$B\x54\x64\x1B(Ba");
         }
-    }
-
-    #[test]
-    #[cfg_attr(miri, ignore)] // Miri is too slow
-    fn test_iso_2022_jp_decode_all() {
-        let input = include_bytes!("test_data/iso_2022_jp_in.txt");
-        let expectation = include_str!("test_data/iso_2022_jp_in_ref.txt");
-        let (cow, had_errors) = ISO_2022_JP.decode_without_bom_handling(input);
-        assert!(had_errors, "Should have had errors.");
-        assert_eq!(&cow[..], expectation);
-    }
-
-    #[test]
-    #[cfg_attr(miri, ignore)] // Miri is too slow
-    fn test_iso_2022_jp_encode_all() {
-        let input = include_str!("test_data/iso_2022_jp_out.txt");
-        let expectation = include_bytes!("test_data/iso_2022_jp_out_ref.txt");
-        let (cow, encoding, had_errors) = ISO_2022_JP.encode(input);
-        assert!(!had_errors, "Should not have had errors.");
-        assert_eq!(encoding, ISO_2022_JP);
-        assert_eq!(&cow[..], &expectation[..]);
     }
 
     #[test]

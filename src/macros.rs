@@ -9,7 +9,7 @@
 
 macro_rules! decoder_function {
     ($preamble:block,
-     $loop_preable:block,
+     $loop_preamble:block,
      $eof:block,
      $body:block,
      $slf:ident,
@@ -23,6 +23,7 @@ macro_rules! decoder_function {
      $name:ident,
      $code_unit:ty,
      $dest_struct:ident) => (
+    #[inline(always)]
     pub fn $name(&mut $slf,
                  src: &[u8],
                  dst: &mut [$code_unit],
@@ -38,7 +39,7 @@ macro_rules! decoder_function {
             }
             loop {
                 {
-                    $loop_preable
+                    $loop_preamble
                 }
                 match $source.check_available() {
                     Space::Full($src_consumed) => {
@@ -72,22 +73,22 @@ macro_rules! decoder_function {
 
 macro_rules! decoder_functions {
     (
-        $preamble:block,
-        $loop_preable:block,
-        $eof:block,
-        $body:block,
-        $slf:ident,
-        $src_consumed:ident,
-        $dest:ident,
-        $source:ident,
-        $b:ident,
-        $destination_handle:ident,
-        $unread_handle:ident,
-        $destination_check:ident
+        preamble = $preamble:block,
+        loop_preamble = $loop_preamble:block,
+        eof = $eof:block,
+        body = $body:block,
+        self = $slf:ident,
+        src_consumed = $src_consumed:ident,
+        dest = $dest:ident,
+        source = $source:ident,
+        byte = $b:ident,
+        destination_handle = $destination_handle:ident,
+        unread_handle = $unread_handle:ident,
+        destination_check = $destination_check:ident
     ) => {
         decoder_function!(
             $preamble,
-            $loop_preable,
+            $loop_preamble,
             $eof,
             $body,
             $slf,
@@ -104,7 +105,7 @@ macro_rules! decoder_functions {
         );
         decoder_function!(
             $preamble,
-            $loop_preable,
+            $loop_preamble,
             $eof,
             $body,
             $slf,
@@ -139,6 +140,7 @@ macro_rules! ascii_compatible_two_byte_decoder_function {
      $code_unit:ty,
      $dest_struct:ident,
      $ascii_punctuation:expr) => (
+    #[inline(always)]
     pub fn $name(&mut $slf,
                  src: &[u8],
                  dst: &mut [$code_unit],
@@ -149,13 +151,13 @@ macro_rules! ascii_compatible_two_byte_decoder_function {
         let dest = match $slf.lead {
             Some(lead) => {
                 let $lead_minus_offset = lead;
-                $slf.lead = None;
                 // Since we don't have `goto` we could use to jump into the trail
                 // handling part of the main loop, we need to repeat trail handling
                 // here.
                 match $source.check_available() {
                     Space::Full(src_consumed_prolog) => {
                         if last {
+                            $slf.lead = None;
                             return (DecoderResult::Malformed(1, 0),
                                     src_consumed_prolog,
                                     dest_prolog.written());
@@ -166,10 +168,11 @@ macro_rules! ascii_compatible_two_byte_decoder_function {
                         match dest_prolog.$destination_check() {
                             Space::Full(dst_written_prolog) => {
                                 return (DecoderResult::OutputFull,
-                                        source_handle_prolog.consumed(),
-                                        dst_written_prolog);
+                                    source_handle_prolog.consumed(),
+                                    dst_written_prolog);
                             }
                             Space::Available($handle) => {
+                                $slf.lead = None;
                                 let ($byte, $unread_handle_trail) = source_handle_prolog.read();
                                 // Start non-boilerplate
                                 $trail
@@ -258,8 +261,9 @@ macro_rules! ascii_compatible_two_byte_decoder_function {
                                                             }
                                                             Space::Available(destination_handle_again) => {
                                                                 {
-                                                                    let (b_again, _unread_handle_again) =
+                                                                    let (b_again, unread_handle_again) =
                                                                         source_handle_again.read();
+                                                                    unread_handle_again.commit();
                                                                     b = b_again;
                                                                     destination_handle = destination_handle_again;
                                                                     continue 'innermost;
@@ -285,19 +289,19 @@ macro_rules! ascii_compatible_two_byte_decoder_function {
 
 macro_rules! ascii_compatible_two_byte_decoder_functions {
     (
-        $lead:block,
-        $trail:block,
-        $slf:ident,
-        $non_ascii:ident,
-        $byte:ident,
-        $lead_minus_offset:ident,
-        $unread_handle_trail:ident,
-        $source:ident,
-        $handle:ident,
-        $outermost:tt,
-        $copy_ascii:ident,
-        $destination_check:ident,
-        $ascii_punctuation:expr
+        lead = $lead:block,
+        trail = $trail:block,
+        self = $slf:ident,
+        non_ascii = $non_ascii:ident,
+        byte = $byte:ident,
+        lead_minus_offset = $lead_minus_offset:ident,
+        unread_handle_trail = $unread_handle_trail:ident,
+        source = $source:ident,
+        handle = $handle:ident,
+        outermost = $outermost:tt,
+        copy_ascii = $copy_ascii:ident,
+        destination_check = $destination_check:ident,
+        ascii_punctuation = $ascii_punctuation:expr
     ) => {
         ascii_compatible_two_byte_decoder_function!(
             $lead,
@@ -361,7 +365,8 @@ macro_rules! gb18030_decoder_function {
      $name:ident,
      $code_unit:ty,
      $dest_struct:ident) => (
-    #[cfg_attr(feature = "cargo-clippy", allow(clippy::never_loop))]
+    #[inline(always)]
+    #[allow(clippy::never_loop)]
     pub fn $name(&mut $slf,
                  src: &[u8],
                  dst: &mut [$code_unit],
@@ -570,7 +575,8 @@ macro_rules! gb18030_decoder_function {
                                                 dst_written);
                                     }
                                     Space::Available(destination_handle) => {
-                                        let (b, _) = source_handle.read();
+                                        let (b, unread_handle) = source_handle.read();
+                                        unread_handle.commit();
                                         loop {
                                             if b > 127 {
                                                 $non_ascii = b;
@@ -686,7 +692,8 @@ macro_rules! euc_jp_decoder_function {
      $name:ident,
      $code_unit:ty,
      $dest_struct:ident) => (
-    #[cfg_attr(feature = "cargo-clippy", allow(clippy::never_loop))]
+    #[inline(always)]
+    #[allow(clippy::never_loop)]
     pub fn $name(&mut $slf,
                  src: &[u8],
                  dst: &mut [$code_unit],
@@ -874,7 +881,8 @@ macro_rules! euc_jp_decoder_function {
                                                 dst_written);
                                     }
                                     Space::Available(destination_handle) => {
-                                        let (b, _) = source_handle.read();
+                                        let (b, unread_handle) = source_handle.read();
+                                        unread_handle.commit();
                                         loop {
                                             if b > 127 {
                                                 $non_ascii = b;
@@ -1010,16 +1018,16 @@ macro_rules! encoder_function {
 
 macro_rules! encoder_functions {
     (
-        $eof:block,
-        $body:block,
-        $slf:ident,
-        $src_consumed:ident,
-        $source:ident,
-        $dest:ident,
-        $c:ident,
-        $destination_handle:ident,
-        $unread_handle:ident,
-        $destination_check:ident
+        eof = $eof:block,
+        body = $body:block,
+        self = $slf:ident,
+        src_consumed = $src_consumed:ident,
+        source = $source:ident,
+        dest = $dest:ident,
+        c = $c:ident,
+        destination_handle = $destination_handle:ident,
+        unread_handle = $unread_handle:ident,
+        destination_check = $destination_check:ident
     ) => {
         encoder_function!(
             $eof,
@@ -1139,8 +1147,9 @@ macro_rules! ascii_compatible_encoder_function {
                                                             }
                                                             Space::Available(destination_handle_again) => {
                                                                 {
-                                                                    let (c_again, _unread_handle_again) =
+                                                                    let (c_again, unread_handle_again) =
                                                                         source_handle_again.read_enum();
+                                                                    unread_handle_again.commit();
                                                                     c = c_again;
                                                                     destination_handle = destination_handle_again;
                                                                     continue 'innermost;

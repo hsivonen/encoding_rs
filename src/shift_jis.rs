@@ -49,7 +49,7 @@ impl ShiftJisDecoder {
     }
 
     ascii_compatible_two_byte_decoder_functions!(
-        {
+        lead = {
            // If lead is between 0x81 and 0x9F, inclusive,
            // subtract offset 0x81. Else if lead is
            // between 0xE0 and 0xFC, inclusive, subtract
@@ -80,7 +80,7 @@ impl ShiftJisDecoder {
             }
             non_ascii_minus_offset
         },
-        {
+        trail = {
             // If trail is between 0x40 and 0x7E, inclusive,
             // subtract offset 0x40. Else if trail is
             // between 0x80 and 0xFC, inclusive, subtract
@@ -158,17 +158,17 @@ impl ShiftJisDecoder {
                 }
             }
         },
-        self,
-        non_ascii,
-        byte,
-        lead_minus_offset,
-        unread_handle_trail,
-        source,
-        handle,
-        'outermost,
-        copy_ascii_from_check_space_bmp,
-        check_space_bmp,
-        false);
+        self = self,
+        non_ascii = non_ascii,
+        byte = byte,
+        lead_minus_offset = lead_minus_offset,
+        unread_handle_trail = unread_handle_trail,
+        source = source,
+        handle = handle,
+        outermost = 'outermost,
+        copy_ascii = copy_ascii_from_check_space_bmp,
+        destination_check = check_space_bmp,
+        ascii_punctuation = false);
 }
 
 #[cfg(feature = "fast-kanji-encode")]
@@ -382,27 +382,6 @@ mod tests {
         encode_shift_jis("\u{FF02}", b"\xFA\x57");
         encode_shift_jis("\u{2170}", b"\xFA\x40");
         encode_shift_jis("\u{9ED1}", b"\xFC\x4B");
-    }
-
-    #[test]
-    #[cfg_attr(miri, ignore)] // Miri is too slow
-    fn test_shift_jis_decode_all() {
-        let input = include_bytes!("test_data/shift_jis_in.txt");
-        let expectation = include_str!("test_data/shift_jis_in_ref.txt");
-        let (cow, had_errors) = SHIFT_JIS.decode_without_bom_handling(input);
-        assert!(had_errors, "Should have had errors.");
-        assert_eq!(&cow[..], expectation);
-    }
-
-    #[test]
-    #[cfg_attr(miri, ignore)] // Miri is too slow
-    fn test_shift_jis_encode_all() {
-        let input = include_str!("test_data/shift_jis_out.txt");
-        let expectation = include_bytes!("test_data/shift_jis_out_ref.txt");
-        let (cow, encoding, had_errors) = SHIFT_JIS.encode(input);
-        assert!(!had_errors, "Should not have had errors.");
-        assert_eq!(encoding, SHIFT_JIS);
-        assert_eq!(&cow[..], &expectation[..]);
     }
 
     #[test]
