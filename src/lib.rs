@@ -863,7 +863,7 @@ pub static BIG5_INIT: Encoding = Encoding {
 /// to make the referent of `pub const FOO: &'static Encoding`
 /// unique cross-crate, so don't take the address of this
 /// `static`.
-pub static BIG5: &Encoding = &BIG5_INIT;
+pub static BIG5: &'static Encoding = &BIG5_INIT;
 
 /// The initializer for the [EUC-JP](static.EUC_JP.html) encoding.
 ///
@@ -903,7 +903,7 @@ pub static EUC_JP_INIT: Encoding = Encoding {
 /// to make the referent of `pub const FOO: &'static Encoding`
 /// unique cross-crate, so don't take the address of this
 /// `static`.
-pub static EUC_JP: &Encoding = &EUC_JP_INIT;
+pub static EUC_JP: &'static Encoding = &EUC_JP_INIT;
 
 /// The initializer for the [EUC-KR](static.EUC_KR.html) encoding.
 ///
@@ -939,7 +939,7 @@ pub static EUC_KR_INIT: Encoding = Encoding {
 /// to make the referent of `pub const FOO: &'static Encoding`
 /// unique cross-crate, so don't take the address of this
 /// `static`.
-pub static EUC_KR: &Encoding = &EUC_KR_INIT;
+pub static EUC_KR: &'static Encoding = &EUC_KR_INIT;
 
 /// The initializer for the [GBK](static.GBK.html) encoding.
 ///
@@ -982,7 +982,7 @@ pub static GBK_INIT: Encoding = Encoding {
 /// to make the referent of `pub const FOO: &'static Encoding`
 /// unique cross-crate, so don't take the address of this
 /// `static`.
-pub static GBK: &Encoding = &GBK_INIT;
+pub static GBK: &'static Encoding = &GBK_INIT;
 
 /// The initializer for the [IBM866](static.IBM866.html) encoding.
 ///
@@ -1016,7 +1016,7 @@ pub static IBM866_INIT: Encoding = Encoding {
 /// to make the referent of `pub const FOO: &'static Encoding`
 /// unique cross-crate, so don't take the address of this
 /// `static`.
-pub static IBM866: &Encoding = &IBM866_INIT;
+pub static IBM866: &'static Encoding = &IBM866_INIT;
 
 /// The initializer for the [ISO-2022-JP](static.ISO_2022_JP.html) encoding.
 ///
@@ -1052,7 +1052,7 @@ pub static ISO_2022_JP_INIT: Encoding = Encoding {
 /// to make the referent of `pub const FOO: &'static Encoding`
 /// unique cross-crate, so don't take the address of this
 /// `static`.
-pub static ISO_2022_JP: &Encoding = &ISO_2022_JP_INIT;
+pub static ISO_2022_JP: &'static Encoding = &ISO_2022_JP_INIT;
 
 /// The initializer for the [ISO-8859-10](static.ISO_8859_10.html) encoding.
 ///
@@ -1086,7 +1086,7 @@ pub static ISO_8859_10_INIT: Encoding = Encoding {
 /// to make the referent of `pub const FOO: &'static Encoding`
 /// unique cross-crate, so don't take the address of this
 /// `static`.
-pub static ISO_8859_10: &Encoding = &ISO_8859_10_INIT;
+pub static ISO_8859_10: &'static Encoding = &ISO_8859_10_INIT;
 
 /// The initializer for the [ISO-8859-13](static.ISO_8859_13.html) encoding.
 ///
@@ -1120,7 +1120,7 @@ pub static ISO_8859_13_INIT: Encoding = Encoding {
 /// to make the referent of `pub const FOO: &'static Encoding`
 /// unique cross-crate, so don't take the address of this
 /// `static`.
-pub static ISO_8859_13: &Encoding = &ISO_8859_13_INIT;
+pub static ISO_8859_13: &'static Encoding = &ISO_8859_13_INIT;
 
 /// The initializer for the [ISO-8859-14](static.ISO_8859_14.html) encoding.
 ///
@@ -1154,7 +1154,7 @@ pub static ISO_8859_14_INIT: Encoding = Encoding {
 /// to make the referent of `pub const FOO: &'static Encoding`
 /// unique cross-crate, so don't take the address of this
 /// `static`.
-pub static ISO_8859_14: &Encoding = &ISO_8859_14_INIT;
+pub static ISO_8859_14: &'static Encoding = &ISO_8859_14_INIT;
 
 /// The initializer for the [ISO-8859-15](static.ISO_8859_15.html) encoding.
 ///
@@ -1187,7 +1187,7 @@ pub static ISO_8859_15_INIT: Encoding = Encoding {
 /// to make the referent of `pub const FOO: &'static Encoding`
 /// unique cross-crate, so don't take the address of this
 /// `static`.
-pub static ISO_8859_15: &Encoding = &ISO_8859_15_INIT;
+pub static ISO_8859_15: &'static Encoding = &ISO_8859_15_INIT;
 
 /// The initializer for the [ISO-8859-16](static.ISO_8859_16.html) encoding.
 ///
@@ -1221,7 +1221,7 @@ pub static ISO_8859_16_INIT: Encoding = Encoding {
 /// to make the referent of `pub const FOO: &'static Encoding`
 /// unique cross-crate, so don't take the address of this
 /// `static`.
-pub static ISO_8859_16: &Encoding = &ISO_8859_16_INIT;
+pub static ISO_8859_16: &'static Encoding = &ISO_8859_16_INIT;
 
 /// The initializer for the [ISO-8859-2](static.ISO_8859_2.html) encoding.
 ///
@@ -1253,7 +1253,7 @@ pub static ISO_8859_2_INIT: Encoding = Encoding {
 /// to make the referent of `pub const FOO: &'static Encoding`
 /// unique cross-crate, so don't take the address of this
 /// `static`.
-pub static ISO_8859_2: &Encoding = &ISO_8859_2_INIT;
+pub static ISO_8859_2: &'static Encoding = &ISO_8859_2_INIT;
 
 /// The initializer for the [ISO-8859-3](static.ISO_8859_3.html) encoding.
 ///
@@ -1285,7 +1285,7 @@ pub static ISO_8859_3_INIT: Encoding = Encoding {
 /// to make the referent of `pub const FOO: &'static Encoding`
 /// unique cross-crate, so don't take the address of this
 /// `static`.
-pub static ISO_8859_3: &Encoding = &ISO_8859_3_INIT;
+pub static ISO_8859_3: &'static Encoding = &ISO_8859_3_INIT;
 
 /// The initializer for the [ISO-8859-4](static.ISO_8859_4.html) encoding.
 ///
@@ -1317,7 +1317,7 @@ pub static ISO_8859_4_INIT: Encoding = Encoding {
 /// to make the referent of `pub const FOO: &'static Encoding`
 /// unique cross-crate, so don't take the address of this
 /// `static`.
-pub static ISO_8859_4: &Encoding = &ISO_8859_4_INIT;
+pub static ISO_8859_4: &'static Encoding = &ISO_8859_4_INIT;
 
 /// The initializer for the [ISO-8859-5](static.ISO_8859_5.html) encoding.
 ///
@@ -1349,7 +1349,7 @@ pub static ISO_8859_5_INIT: Encoding = Encoding {
 /// to make the referent of `pub const FOO: &'static Encoding`
 /// unique cross-crate, so don't take the address of this
 /// `static`.
-pub static ISO_8859_5: &Encoding = &ISO_8859_5_INIT;
+pub static ISO_8859_5: &'static Encoding = &ISO_8859_5_INIT;
 
 /// The initializer for the [ISO-8859-6](static.ISO_8859_6.html) encoding.
 ///
@@ -1382,7 +1382,7 @@ pub static ISO_8859_6_INIT: Encoding = Encoding {
 /// to make the referent of `pub const FOO: &'static Encoding`
 /// unique cross-crate, so don't take the address of this
 /// `static`.
-pub static ISO_8859_6: &Encoding = &ISO_8859_6_INIT;
+pub static ISO_8859_6: &'static Encoding = &ISO_8859_6_INIT;
 
 /// The initializer for the [ISO-8859-7](static.ISO_8859_7.html) encoding.
 ///
@@ -1419,7 +1419,7 @@ pub static ISO_8859_7_INIT: Encoding = Encoding {
 /// to make the referent of `pub const FOO: &'static Encoding`
 /// unique cross-crate, so don't take the address of this
 /// `static`.
-pub static ISO_8859_7: &Encoding = &ISO_8859_7_INIT;
+pub static ISO_8859_7: &'static Encoding = &ISO_8859_7_INIT;
 
 /// The initializer for the [ISO-8859-8](static.ISO_8859_8.html) encoding.
 ///
@@ -1454,7 +1454,7 @@ pub static ISO_8859_8_INIT: Encoding = Encoding {
 /// to make the referent of `pub const FOO: &'static Encoding`
 /// unique cross-crate, so don't take the address of this
 /// `static`.
-pub static ISO_8859_8: &Encoding = &ISO_8859_8_INIT;
+pub static ISO_8859_8: &'static Encoding = &ISO_8859_8_INIT;
 
 /// The initializer for the [ISO-8859-8-I](static.ISO_8859_8_I.html) encoding.
 ///
@@ -1489,7 +1489,7 @@ pub static ISO_8859_8_I_INIT: Encoding = Encoding {
 /// to make the referent of `pub const FOO: &'static Encoding`
 /// unique cross-crate, so don't take the address of this
 /// `static`.
-pub static ISO_8859_8_I: &Encoding = &ISO_8859_8_I_INIT;
+pub static ISO_8859_8_I: &'static Encoding = &ISO_8859_8_I_INIT;
 
 /// The initializer for the [KOI8-R](static.KOI8_R.html) encoding.
 ///
@@ -1521,7 +1521,7 @@ pub static KOI8_R_INIT: Encoding = Encoding {
 /// to make the referent of `pub const FOO: &'static Encoding`
 /// unique cross-crate, so don't take the address of this
 /// `static`.
-pub static KOI8_R: &Encoding = &KOI8_R_INIT;
+pub static KOI8_R: &'static Encoding = &KOI8_R_INIT;
 
 /// The initializer for the [KOI8-U](static.KOI8_U.html) encoding.
 ///
@@ -1553,7 +1553,7 @@ pub static KOI8_U_INIT: Encoding = Encoding {
 /// to make the referent of `pub const FOO: &'static Encoding`
 /// unique cross-crate, so don't take the address of this
 /// `static`.
-pub static KOI8_U: &Encoding = &KOI8_U_INIT;
+pub static KOI8_U: &'static Encoding = &KOI8_U_INIT;
 
 /// The initializer for the [Shift_JIS](static.SHIFT_JIS.html) encoding.
 ///
@@ -1587,7 +1587,7 @@ pub static SHIFT_JIS_INIT: Encoding = Encoding {
 /// to make the referent of `pub const FOO: &'static Encoding`
 /// unique cross-crate, so don't take the address of this
 /// `static`.
-pub static SHIFT_JIS: &Encoding = &SHIFT_JIS_INIT;
+pub static SHIFT_JIS: &'static Encoding = &SHIFT_JIS_INIT;
 
 /// The initializer for the [UTF-16BE](static.UTF_16BE.html) encoding.
 ///
@@ -1621,7 +1621,7 @@ pub static UTF_16BE_INIT: Encoding = Encoding {
 /// to make the referent of `pub const FOO: &'static Encoding`
 /// unique cross-crate, so don't take the address of this
 /// `static`.
-pub static UTF_16BE: &Encoding = &UTF_16BE_INIT;
+pub static UTF_16BE: &'static Encoding = &UTF_16BE_INIT;
 
 /// The initializer for the [UTF-16LE](static.UTF_16LE.html) encoding.
 ///
@@ -1655,7 +1655,7 @@ pub static UTF_16LE_INIT: Encoding = Encoding {
 /// to make the referent of `pub const FOO: &'static Encoding`
 /// unique cross-crate, so don't take the address of this
 /// `static`.
-pub static UTF_16LE: &Encoding = &UTF_16LE_INIT;
+pub static UTF_16LE: &'static Encoding = &UTF_16LE_INIT;
 
 /// The initializer for the [UTF-8](static.UTF_8.html) encoding.
 ///
@@ -1686,7 +1686,7 @@ pub static UTF_8_INIT: Encoding = Encoding {
 /// to make the referent of `pub const FOO: &'static Encoding`
 /// unique cross-crate, so don't take the address of this
 /// `static`.
-pub static UTF_8: &Encoding = &UTF_8_INIT;
+pub static UTF_8: &'static Encoding = &UTF_8_INIT;
 
 /// The initializer for the [gb18030](static.GB18030.html) encoding.
 ///
@@ -1722,7 +1722,7 @@ pub static GB18030_INIT: Encoding = Encoding {
 /// to make the referent of `pub const FOO: &'static Encoding`
 /// unique cross-crate, so don't take the address of this
 /// `static`.
-pub static GB18030: &Encoding = &GB18030_INIT;
+pub static GB18030: &'static Encoding = &GB18030_INIT;
 
 /// The initializer for the [macintosh](static.MACINTOSH.html) encoding.
 ///
@@ -1755,7 +1755,7 @@ pub static MACINTOSH_INIT: Encoding = Encoding {
 /// to make the referent of `pub const FOO: &'static Encoding`
 /// unique cross-crate, so don't take the address of this
 /// `static`.
-pub static MACINTOSH: &Encoding = &MACINTOSH_INIT;
+pub static MACINTOSH: &'static Encoding = &MACINTOSH_INIT;
 
 /// The initializer for the [replacement](static.REPLACEMENT.html) encoding.
 ///
@@ -1791,7 +1791,7 @@ pub static REPLACEMENT_INIT: Encoding = Encoding {
 /// to make the referent of `pub const FOO: &'static Encoding`
 /// unique cross-crate, so don't take the address of this
 /// `static`.
-pub static REPLACEMENT: &Encoding = &REPLACEMENT_INIT;
+pub static REPLACEMENT: &'static Encoding = &REPLACEMENT_INIT;
 
 /// The initializer for the [windows-1250](static.WINDOWS_1250.html) encoding.
 ///
@@ -1823,7 +1823,7 @@ pub static WINDOWS_1250_INIT: Encoding = Encoding {
 /// to make the referent of `pub const FOO: &'static Encoding`
 /// unique cross-crate, so don't take the address of this
 /// `static`.
-pub static WINDOWS_1250: &Encoding = &WINDOWS_1250_INIT;
+pub static WINDOWS_1250: &'static Encoding = &WINDOWS_1250_INIT;
 
 /// The initializer for the [windows-1251](static.WINDOWS_1251.html) encoding.
 ///
@@ -1855,7 +1855,7 @@ pub static WINDOWS_1251_INIT: Encoding = Encoding {
 /// to make the referent of `pub const FOO: &'static Encoding`
 /// unique cross-crate, so don't take the address of this
 /// `static`.
-pub static WINDOWS_1251: &Encoding = &WINDOWS_1251_INIT;
+pub static WINDOWS_1251: &'static Encoding = &WINDOWS_1251_INIT;
 
 /// The initializer for the [windows-1252](static.WINDOWS_1252.html) encoding.
 ///
@@ -1888,7 +1888,7 @@ pub static WINDOWS_1252_INIT: Encoding = Encoding {
 /// to make the referent of `pub const FOO: &'static Encoding`
 /// unique cross-crate, so don't take the address of this
 /// `static`.
-pub static WINDOWS_1252: &Encoding = &WINDOWS_1252_INIT;
+pub static WINDOWS_1252: &'static Encoding = &WINDOWS_1252_INIT;
 
 /// The initializer for the [windows-1253](static.WINDOWS_1253.html) encoding.
 ///
@@ -1922,7 +1922,7 @@ pub static WINDOWS_1253_INIT: Encoding = Encoding {
 /// to make the referent of `pub const FOO: &'static Encoding`
 /// unique cross-crate, so don't take the address of this
 /// `static`.
-pub static WINDOWS_1253: &Encoding = &WINDOWS_1253_INIT;
+pub static WINDOWS_1253: &'static Encoding = &WINDOWS_1253_INIT;
 
 /// The initializer for the [windows-1254](static.WINDOWS_1254.html) encoding.
 ///
@@ -1955,7 +1955,7 @@ pub static WINDOWS_1254_INIT: Encoding = Encoding {
 /// to make the referent of `pub const FOO: &'static Encoding`
 /// unique cross-crate, so don't take the address of this
 /// `static`.
-pub static WINDOWS_1254: &Encoding = &WINDOWS_1254_INIT;
+pub static WINDOWS_1254: &'static Encoding = &WINDOWS_1254_INIT;
 
 /// The initializer for the [windows-1255](static.WINDOWS_1255.html) encoding.
 ///
@@ -1989,7 +1989,7 @@ pub static WINDOWS_1255_INIT: Encoding = Encoding {
 /// to make the referent of `pub const FOO: &'static Encoding`
 /// unique cross-crate, so don't take the address of this
 /// `static`.
-pub static WINDOWS_1255: &Encoding = &WINDOWS_1255_INIT;
+pub static WINDOWS_1255: &'static Encoding = &WINDOWS_1255_INIT;
 
 /// The initializer for the [windows-1256](static.WINDOWS_1256.html) encoding.
 ///
@@ -2021,7 +2021,7 @@ pub static WINDOWS_1256_INIT: Encoding = Encoding {
 /// to make the referent of `pub const FOO: &'static Encoding`
 /// unique cross-crate, so don't take the address of this
 /// `static`.
-pub static WINDOWS_1256: &Encoding = &WINDOWS_1256_INIT;
+pub static WINDOWS_1256: &'static Encoding = &WINDOWS_1256_INIT;
 
 /// The initializer for the [windows-1257](static.WINDOWS_1257.html) encoding.
 ///
@@ -2054,7 +2054,7 @@ pub static WINDOWS_1257_INIT: Encoding = Encoding {
 /// to make the referent of `pub const FOO: &'static Encoding`
 /// unique cross-crate, so don't take the address of this
 /// `static`.
-pub static WINDOWS_1257: &Encoding = &WINDOWS_1257_INIT;
+pub static WINDOWS_1257: &'static Encoding = &WINDOWS_1257_INIT;
 
 /// The initializer for the [windows-1258](static.WINDOWS_1258.html) encoding.
 ///
@@ -2091,7 +2091,7 @@ pub static WINDOWS_1258_INIT: Encoding = Encoding {
 /// to make the referent of `pub const FOO: &'static Encoding`
 /// unique cross-crate, so don't take the address of this
 /// `static`.
-pub static WINDOWS_1258: &Encoding = &WINDOWS_1258_INIT;
+pub static WINDOWS_1258: &'static Encoding = &WINDOWS_1258_INIT;
 
 /// The initializer for the [windows-874](static.WINDOWS_874.html) encoding.
 ///
@@ -2124,7 +2124,7 @@ pub static WINDOWS_874_INIT: Encoding = Encoding {
 /// to make the referent of `pub const FOO: &'static Encoding`
 /// unique cross-crate, so don't take the address of this
 /// `static`.
-pub static WINDOWS_874: &Encoding = &WINDOWS_874_INIT;
+pub static WINDOWS_874: &'static Encoding = &WINDOWS_874_INIT;
 
 /// The initializer for the [x-mac-cyrillic](static.X_MAC_CYRILLIC.html) encoding.
 ///
@@ -2156,7 +2156,7 @@ pub static X_MAC_CYRILLIC_INIT: Encoding = Encoding {
 /// to make the referent of `pub const FOO: &'static Encoding`
 /// unique cross-crate, so don't take the address of this
 /// `static`.
-pub static X_MAC_CYRILLIC: &Encoding = &X_MAC_CYRILLIC_INIT;
+pub static X_MAC_CYRILLIC: &'static Encoding = &X_MAC_CYRILLIC_INIT;
 
 /// The initializer for the [x-user-defined](static.X_USER_DEFINED.html) encoding.
 ///
@@ -2188,9 +2188,9 @@ pub static X_USER_DEFINED_INIT: Encoding = Encoding {
 /// to make the referent of `pub const FOO: &'static Encoding`
 /// unique cross-crate, so don't take the address of this
 /// `static`.
-pub static X_USER_DEFINED: &Encoding = &X_USER_DEFINED_INIT;
+pub static X_USER_DEFINED: &'static Encoding = &X_USER_DEFINED_INIT;
 
-static LABELS_SORTED: [&str; 228] = [
+static LABELS_SORTED: [&'static str; 228] = [
     "l1",
     "l2",
     "l3",
@@ -2421,7 +2421,7 @@ static LABELS_SORTED: [&str; 228] = [
     "cseucpkdfmtjapanese",
 ];
 
-static ENCODINGS_IN_LABEL_SORT: [&Encoding; 228] = [
+static ENCODINGS_IN_LABEL_SORT: [&'static Encoding; 228] = [
     &WINDOWS_1252_INIT,
     &ISO_8859_2_INIT,
     &ISO_8859_3_INIT,
@@ -3462,7 +3462,7 @@ impl Encoding {
 impl PartialEq for Encoding {
     #[inline]
     fn eq(&self, other: &Encoding) -> bool {
-        core::ptr::eq(self, other)
+        ::core::ptr::eq(self, other)
     }
 }
 
