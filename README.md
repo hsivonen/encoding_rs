@@ -486,7 +486,7 @@ used in Firefox.
 
 To regenerate the generated code:
 
- * Have Python 2 installed.
+ * Have Python 3 installed.
  * Clone [`https://github.com/hsivonen/encoding_c`](https://github.com/hsivonen/encoding_c)
    next to the `encoding_rs` directory.
  * Clone [`https://github.com/hsivonen/codepage`](https://github.com/hsivonen/codepage)
@@ -497,7 +497,7 @@ To regenerate the generated code:
    (Note: `f381389` was the revision of `encoding` used from before the `encoding` repo
    license change.)
  * With the `encoding_rs` directory as the working directory, run
-   `python generate-encoding-data.py`.
+   `python3 generate-encoding-data.py`.
 
 ## Roadmap
 
