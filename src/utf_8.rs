@@ -893,6 +893,7 @@ pub fn convert_utf16_to_utf8_partial_tail(src: &[u16], dst: &mut [u8]) -> (usize
         // Got surrogate
         if unit_minus_surrogate_start <= (0xDBFF - 0xD800) {
             // Got high surrogate
+            #[allow(clippy::branches_sharing_code)]
             if read >= src.len() {
                 // Unpaired high surrogate
                 unit = 0xFFFD;

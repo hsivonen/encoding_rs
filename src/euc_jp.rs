@@ -24,10 +24,7 @@ enum EucJpPending {
 
 impl EucJpPending {
     fn is_none(&self) -> bool {
-        match *self {
-            EucJpPending::None => true,
-            _ => false,
-        }
+        matches!(*self, EucJpPending::None)
     }
 
     fn count(&self) -> usize {
