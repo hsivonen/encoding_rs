@@ -1795,8 +1795,7 @@ cfg_if! {
             {
                 return None;
             }
-            for i in 0..STRIDE {
-                let c = stride[i];
+            for (i, c) in stride.iter().enumerate() {
                 if c & 0xF800 == 0xD800 {
                     return Some(i);
                 }
