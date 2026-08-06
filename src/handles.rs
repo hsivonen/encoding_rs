@@ -307,14 +307,17 @@ fn convert_unaligned_utf16_to_utf8<E: Endian>(
             if non_ascii_minus_surrogate_start > (0xDFFF - 0xD800) {
                 if non_ascii < 0x800 {
                     dst[dst_pos] = ((non_ascii >> 6) | 0xC0) as u8;
+                    dst_pos += 1;
+                    dst[dst_pos] = ((non_ascii & 0x3F) | 0x80) as u8;
+                    dst_pos += 1;
                 } else {
                     dst[dst_pos] = ((non_ascii >> 12) | 0xE0) as u8;
                     dst_pos += 1;
                     dst[dst_pos] = (((non_ascii & 0xFC0) >> 6) | 0x80) as u8;
+                    dst_pos += 1;
+                    dst[dst_pos] = ((non_ascii & 0x3F) | 0x80) as u8;
+                    dst_pos += 1;
                 }
-                dst_pos += 1;
-                dst[dst_pos] = ((non_ascii & 0x3F) | 0x80) as u8;
-                dst_pos += 1;
             } else if non_ascii_minus_surrogate_start <= (0xDBFF - 0xD800) {
                 // high surrogate
                 if src_pos < src_len {
