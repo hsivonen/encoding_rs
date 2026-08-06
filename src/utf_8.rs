@@ -339,7 +339,7 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
             let src_remaining = &src[read..];
             let dst_remaining = &mut dst[written..];
             let length = ::core::cmp::min(src_remaining.len(), dst_remaining.len());
-            match { ascii_to_basic_latin(src_remaining, dst_remaining) } {
+            match ascii_to_basic_latin(src_remaining, dst_remaining) {
                 None => {
                     read += length;
                     written += length;
@@ -720,7 +720,7 @@ pub fn convert_utf16_to_utf8_partial_inner(src: &[u16], dst: &mut [u8]) -> (usiz
             } else {
                 src_remaining.len()
             };
-            match { basic_latin_to_ascii(src_remaining, dst_remaining) } {
+            match basic_latin_to_ascii(src_remaining, dst_remaining) {
                 None => {
                     read += length;
                     written += length;
@@ -970,7 +970,7 @@ impl Utf8Encoder {
         let bytes = src.as_bytes();
         let mut to_write = bytes.len();
         if to_write <= dst.len() {
-            (&mut dst[..to_write]).copy_from_slice(bytes);
+            dst[..to_write].copy_from_slice(bytes);
             return (EncoderResult::InputEmpty, to_write, to_write);
         }
         to_write = dst.len();
@@ -978,7 +978,7 @@ impl Utf8Encoder {
         while (bytes[to_write] & 0xC0) == 0x80 {
             to_write -= 1;
         }
-        (&mut dst[..to_write]).copy_from_slice(&bytes[..to_write]);
+        dst[..to_write].copy_from_slice(&bytes[..to_write]);
         (EncoderResult::OutputFull, to_write, to_write)
     }
 }

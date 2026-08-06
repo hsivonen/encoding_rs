@@ -1213,7 +1213,7 @@ pub fn convert_str_to_utf16(src: &str, dst: &mut [u16]) -> usize {
             let src_remaining = &bytes[read..];
             let dst_remaining = &mut dst[written..];
             let length = src_remaining.len();
-            match { ascii_to_basic_latin(src_remaining, dst_remaining) } {
+            match ascii_to_basic_latin(src_remaining, dst_remaining) {
                 None => {
                     written += length;
                     return written;

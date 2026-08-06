@@ -298,10 +298,10 @@ fn gbk_encode_non_unified(bmp: u16) -> Option<(usize, usize)> {
     // Try ideographic punctuation first as it's the most likely case.
     // Throwing in the check for full-width currencies and tilde is probably
     // more size-efficient here than elsewhere.
-    if in_inclusive_range16(bmp, 0x2014, 0x3017) || in_inclusive_range16(bmp, 0xFF04, 0xFFE1) {
-        if let Some(pos) = position(&GB2312_SYMBOLS[..], bmp) {
-            return Some((0xA1, pos + 0xA1));
-        }
+    if (in_inclusive_range16(bmp, 0x2014, 0x3017) || in_inclusive_range16(bmp, 0xFF04, 0xFFE1))
+        && let Some(pos) = position(&GB2312_SYMBOLS[..], bmp)
+    {
+        return Some((0xA1, pos + 0xA1));
     }
     // Ext A
     if in_range16(bmp, 0x3400, 0x4E00) {
@@ -386,15 +386,14 @@ fn gbk_encode_non_unified(bmp: u16) -> Option<(usize, usize)> {
         return Some((other_lead + (0x81 + 0x20), other_trail + offset));
     }
     // CJK Radicals Supplement, PUA, and U+9FBx ideographs in GBK_BOTTOM
-    if in_inclusive_range16(bmp, 0x2E81, 0x2ECA)
+    if (in_inclusive_range16(bmp, 0x2E81, 0x2ECA)
         || in_inclusive_range16(bmp, 0x9FB4, 0x9FBB)
-        || in_inclusive_range16(bmp, 0xE816, 0xE855)
+        || in_inclusive_range16(bmp, 0xE816, 0xE855))
+        && let Some(pos) = position(&GBK_BOTTOM[21..], bmp)
     {
-        if let Some(pos) = position(&GBK_BOTTOM[21..], bmp) {
-            let trail = pos + 16;
-            let offset = if trail < 0x3F { 0x40 } else { 0x41 };
-            return Some((0xFE, trail + offset));
-        }
+        let trail = pos + 16;
+        let offset = if trail < 0x3F { 0x40 } else { 0x41 };
+        return Some((0xFE, trail + offset));
     }
     // GB2312 bottom PUA
     let bmp_minus_gb2312_bottom_pua = bmp.wrapping_sub(0xE234);

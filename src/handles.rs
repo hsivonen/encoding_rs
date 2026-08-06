@@ -671,7 +671,7 @@ impl<'a> Utf16Destination<'a> {
             };
             // Safety: This function is documented as needing valid pointers for src/dest and len, which
             // is true since we've passed the minumum length of the two
-            match { ascii_to_basic_latin(src_remaining, dst_remaining) } {
+            match ascii_to_basic_latin(src_remaining, dst_remaining) {
                 None => {
                     source.pos += length;
                     self.pos += length;
@@ -707,7 +707,7 @@ impl<'a> Utf16Destination<'a> {
             };
             // Safety: This function is documented as needing valid pointers for src/dest and len, which
             // is true since we've passed the minumum length of the two
-            match { ascii_to_basic_latin(src_remaining, dst_remaining) } {
+            match ascii_to_basic_latin(src_remaining, dst_remaining) {
                 None => {
                     source.pos += length;
                     self.pos += length;
@@ -1027,7 +1027,7 @@ impl<'a> Utf8Destination<'a> {
             } else {
                 (DecoderResult::InputEmpty, src_remaining.len())
             };
-            match { ascii_to_ascii(src_remaining, dst_remaining) } {
+            match ascii_to_ascii(src_remaining, dst_remaining) {
                 None => {
                     source.pos += length;
                     self.pos += length;
@@ -1065,7 +1065,7 @@ impl<'a> Utf8Destination<'a> {
             } else {
                 (DecoderResult::InputEmpty, src_remaining.len())
             };
-            match { ascii_to_ascii(src_remaining, dst_remaining) } {
+            match ascii_to_ascii(src_remaining, dst_remaining) {
                 None => {
                     source.pos += length;
                     self.pos += length;
@@ -1097,7 +1097,7 @@ impl<'a> Utf8Destination<'a> {
         // Validate first, then memcpy to let memcpy do its thing even for
         // non-ASCII. (And potentially do something better than SSE2 for ASCII.)
         let valid_len = utf8_valid_up_to(&src_remaining[..min_len]);
-        (&mut dst_remaining[..valid_len]).copy_from_slice(&src_remaining[..valid_len]);
+        dst_remaining[..valid_len].copy_from_slice(&src_remaining[..valid_len]);
         source.pos += valid_len;
         self.pos += valid_len;
     }
@@ -1242,7 +1242,7 @@ impl<'a> Utf16Source<'a> {
             } else {
                 (EncoderResult::InputEmpty, src_remaining.len())
             };
-            match { basic_latin_to_ascii(src_remaining, dst_remaining) } {
+            match basic_latin_to_ascii(src_remaining, dst_remaining) {
                 None => {
                     self.pos += length;
                     dest.advance(length);
@@ -1309,7 +1309,7 @@ impl<'a> Utf16Source<'a> {
             } else {
                 (EncoderResult::InputEmpty, src_remaining.len())
             };
-            match { basic_latin_to_ascii(src_remaining, dst_remaining) } {
+            match basic_latin_to_ascii(src_remaining, dst_remaining) {
                 None => {
                     self.pos += length;
                     dest.advance(length);
@@ -1530,7 +1530,7 @@ impl<'a> Utf8Source<'a> {
             } else {
                 (EncoderResult::InputEmpty, src_remaining.len())
             };
-            match { ascii_to_ascii(src_remaining, dst_remaining) } {
+            match ascii_to_ascii(src_remaining, dst_remaining) {
                 None => {
                     self.pos += length;
                     dest.advance(length);
@@ -1578,7 +1578,7 @@ impl<'a> Utf8Source<'a> {
             } else {
                 (EncoderResult::InputEmpty, src_remaining.len())
             };
-            match { ascii_to_ascii(src_remaining, dst_remaining) } {
+            match ascii_to_ascii(src_remaining, dst_remaining) {
                 None => {
                     self.pos += length;
                     dest.advance(length);
@@ -1632,7 +1632,7 @@ impl<'a> Utf8Source<'a> {
             } else {
                 (EncoderResult::InputEmpty, src_remaining.len())
             };
-            match { ascii_to_ascii(src_remaining, dst_remaining) } {
+            match ascii_to_ascii(src_remaining, dst_remaining) {
                 None => {
                     self.pos += length;
                     dest.advance(length);
@@ -1901,7 +1901,7 @@ impl<'a> ByteDestination<'a> {
     }
     #[inline(always)]
     pub fn remaining(&mut self) -> &mut [u8] {
-        &mut self.slice
+        self.slice
     }
     #[inline(always)]
     pub fn check_space_one<'b>(&'b mut self) -> Space<ByteOneHandle<'b, 'a>> {

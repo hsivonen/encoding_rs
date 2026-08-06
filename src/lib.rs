@@ -3800,22 +3800,20 @@ impl Decoder {
                 return self.variant.max_utf8_buffer_length(byte_length);
             }
             DecoderLifeCycle::AtStart => {
-                if let Some(utf8_bom) = checked_add(3, byte_length.checked_mul(3)) {
-                    if let Some(utf16_bom) = checked_add(
+                if let Some(utf8_bom) = checked_add(3, byte_length.checked_mul(3))
+                    && let Some(utf16_bom) = checked_add(
                         1,
                         checked_mul(3, checked_div(byte_length.checked_add(1), 2)),
-                    ) {
-                        let utf_bom = core::cmp::max(utf8_bom, utf16_bom);
-                        let encoding = self.encoding();
-                        if encoding == UTF_8 || encoding == UTF_16LE || encoding == UTF_16BE {
-                            // No need to consider the internal state of the underlying decoder,
-                            // because it is at start, because no data has reached it yet.
-                            return Some(utf_bom);
-                        } else if let Some(non_bom) =
-                            self.variant.max_utf8_buffer_length(byte_length)
-                        {
-                            return Some(core::cmp::max(utf_bom, non_bom));
-                        }
+                    )
+                {
+                    let utf_bom = core::cmp::max(utf8_bom, utf16_bom);
+                    let encoding = self.encoding();
+                    if encoding == UTF_8 || encoding == UTF_16LE || encoding == UTF_16BE {
+                        // No need to consider the internal state of the underlying decoder,
+                        // because it is at start, because no data has reached it yet.
+                        return Some(utf_bom);
+                    } else if let Some(non_bom) = self.variant.max_utf8_buffer_length(byte_length) {
+                        return Some(core::cmp::max(utf_bom, non_bom));
                     }
                 }
             }
@@ -3825,15 +3823,15 @@ impl Decoder {
                 // decoders, but only after the decoder has been queried
                 // for max length, so the decoder's own logic for adding
                 // one for a pending lead cannot work.
-                if let Some(sum) = byte_length.checked_add(2) {
-                    if let Some(utf8_bom) = checked_add(3, sum.checked_mul(3)) {
-                        if self.encoding() == UTF_8 {
-                            // No need to consider the internal state of the underlying decoder,
-                            // because it is at start, because no data has reached it yet.
-                            return Some(utf8_bom);
-                        } else if let Some(non_bom) = self.variant.max_utf8_buffer_length(sum) {
-                            return Some(core::cmp::max(utf8_bom, non_bom));
-                        }
+                if let Some(sum) = byte_length.checked_add(2)
+                    && let Some(utf8_bom) = checked_add(3, sum.checked_mul(3))
+                {
+                    if self.encoding() == UTF_8 {
+                        // No need to consider the internal state of the underlying decoder,
+                        // because it is at start, because no data has reached it yet.
+                        return Some(utf8_bom);
+                    } else if let Some(non_bom) = self.variant.max_utf8_buffer_length(sum) {
+                        return Some(core::cmp::max(utf8_bom, non_bom));
                     }
                 }
             }
@@ -3848,18 +3846,17 @@ impl Decoder {
                 // decoders, but only after the decoder has been queried
                 // for max length, so the decoder's own logic for adding
                 // one for a pending lead cannot work.
-                if let Some(sum) = byte_length.checked_add(2) {
-                    if let Some(utf16_bom) =
+                if let Some(sum) = byte_length.checked_add(2)
+                    && let Some(utf16_bom) =
                         checked_add(1, checked_mul(3, checked_div(sum.checked_add(1), 2)))
-                    {
-                        let encoding = self.encoding();
-                        if encoding == UTF_16LE || encoding == UTF_16BE {
-                            // No need to consider the internal state of the underlying decoder,
-                            // because it is at start, because no data has reached it yet.
-                            return Some(utf16_bom);
-                        } else if let Some(non_bom) = self.variant.max_utf8_buffer_length(sum) {
-                            return Some(core::cmp::max(utf16_bom, non_bom));
-                        }
+                {
+                    let encoding = self.encoding();
+                    if encoding == UTF_16LE || encoding == UTF_16BE {
+                        // No need to consider the internal state of the underlying decoder,
+                        // because it is at start, because no data has reached it yet.
+                        return Some(utf16_bom);
+                    } else if let Some(non_bom) = self.variant.max_utf8_buffer_length(sum) {
+                        return Some(core::cmp::max(utf16_bom, non_bom));
                     }
                 }
             }
@@ -3892,23 +3889,23 @@ impl Decoder {
                     .max_utf8_buffer_length_without_replacement(byte_length);
             }
             DecoderLifeCycle::AtStart => {
-                if let Some(utf8_bom) = byte_length.checked_add(3) {
-                    if let Some(utf16_bom) = checked_add(
+                if let Some(utf8_bom) = byte_length.checked_add(3)
+                    && let Some(utf16_bom) = checked_add(
                         1,
                         checked_mul(3, checked_div(byte_length.checked_add(1), 2)),
-                    ) {
-                        let utf_bom = core::cmp::max(utf8_bom, utf16_bom);
-                        let encoding = self.encoding();
-                        if encoding == UTF_8 || encoding == UTF_16LE || encoding == UTF_16BE {
-                            // No need to consider the internal state of the underlying decoder,
-                            // because it is at start, because no data has reached it yet.
-                            return Some(utf_bom);
-                        } else if let Some(non_bom) = self
-                            .variant
-                            .max_utf8_buffer_length_without_replacement(byte_length)
-                        {
-                            return Some(core::cmp::max(utf_bom, non_bom));
-                        }
+                    )
+                {
+                    let utf_bom = core::cmp::max(utf8_bom, utf16_bom);
+                    let encoding = self.encoding();
+                    if encoding == UTF_8 || encoding == UTF_16LE || encoding == UTF_16BE {
+                        // No need to consider the internal state of the underlying decoder,
+                        // because it is at start, because no data has reached it yet.
+                        return Some(utf_bom);
+                    } else if let Some(non_bom) = self
+                        .variant
+                        .max_utf8_buffer_length_without_replacement(byte_length)
+                    {
+                        return Some(core::cmp::max(utf_bom, non_bom));
                     }
                 }
             }
@@ -3918,17 +3915,17 @@ impl Decoder {
                 // decoders, but only after the decoder has been queried
                 // for max length, so the decoder's own logic for adding
                 // one for a pending lead cannot work.
-                if let Some(sum) = byte_length.checked_add(2) {
-                    if let Some(utf8_bom) = sum.checked_add(3) {
-                        if self.encoding() == UTF_8 {
-                            // No need to consider the internal state of the underlying decoder,
-                            // because it is at start, because no data has reached it yet.
-                            return Some(utf8_bom);
-                        } else if let Some(non_bom) =
-                            self.variant.max_utf8_buffer_length_without_replacement(sum)
-                        {
-                            return Some(core::cmp::max(utf8_bom, non_bom));
-                        }
+                if let Some(sum) = byte_length.checked_add(2)
+                    && let Some(utf8_bom) = sum.checked_add(3)
+                {
+                    if self.encoding() == UTF_8 {
+                        // No need to consider the internal state of the underlying decoder,
+                        // because it is at start, because no data has reached it yet.
+                        return Some(utf8_bom);
+                    } else if let Some(non_bom) =
+                        self.variant.max_utf8_buffer_length_without_replacement(sum)
+                    {
+                        return Some(core::cmp::max(utf8_bom, non_bom));
                     }
                 }
             }
@@ -3943,20 +3940,19 @@ impl Decoder {
                 // decoders, but only after the decoder has been queried
                 // for max length, so the decoder's own logic for adding
                 // one for a pending lead cannot work.
-                if let Some(sum) = byte_length.checked_add(2) {
-                    if let Some(utf16_bom) =
+                if let Some(sum) = byte_length.checked_add(2)
+                    && let Some(utf16_bom) =
                         checked_add(1, checked_mul(3, checked_div(sum.checked_add(1), 2)))
+                {
+                    let encoding = self.encoding();
+                    if encoding == UTF_16LE || encoding == UTF_16BE {
+                        // No need to consider the internal state of the underlying decoder,
+                        // because it is at start, because no data has reached it yet.
+                        return Some(utf16_bom);
+                    } else if let Some(non_bom) =
+                        self.variant.max_utf8_buffer_length_without_replacement(sum)
                     {
-                        let encoding = self.encoding();
-                        if encoding == UTF_16LE || encoding == UTF_16BE {
-                            // No need to consider the internal state of the underlying decoder,
-                            // because it is at start, because no data has reached it yet.
-                            return Some(utf16_bom);
-                        } else if let Some(non_bom) =
-                            self.variant.max_utf8_buffer_length_without_replacement(sum)
-                        {
-                            return Some(core::cmp::max(utf16_bom, non_bom));
-                        }
+                        return Some(core::cmp::max(utf16_bom, non_bom));
                     }
                 }
             }
@@ -4273,21 +4269,19 @@ impl Decoder {
                 return self.variant.max_utf16_buffer_length(byte_length);
             }
             DecoderLifeCycle::AtStart => {
-                if let Some(utf8_bom) = byte_length.checked_add(1) {
-                    if let Some(utf16_bom) =
+                if let Some(utf8_bom) = byte_length.checked_add(1)
+                    && let Some(utf16_bom) =
                         checked_add(1, checked_div(byte_length.checked_add(1), 2))
+                {
+                    let utf_bom = core::cmp::max(utf8_bom, utf16_bom);
+                    let encoding = self.encoding();
+                    if encoding == UTF_8 || encoding == UTF_16LE || encoding == UTF_16BE {
+                        // No need to consider the internal state of the underlying decoder,
+                        // because it is at start, because no data has reached it yet.
+                        return Some(utf_bom);
+                    } else if let Some(non_bom) = self.variant.max_utf16_buffer_length(byte_length)
                     {
-                        let utf_bom = core::cmp::max(utf8_bom, utf16_bom);
-                        let encoding = self.encoding();
-                        if encoding == UTF_8 || encoding == UTF_16LE || encoding == UTF_16BE {
-                            // No need to consider the internal state of the underlying decoder,
-                            // because it is at start, because no data has reached it yet.
-                            return Some(utf_bom);
-                        } else if let Some(non_bom) =
-                            self.variant.max_utf16_buffer_length(byte_length)
-                        {
-                            return Some(core::cmp::max(utf_bom, non_bom));
-                        }
+                        return Some(core::cmp::max(utf_bom, non_bom));
                     }
                 }
             }
@@ -4297,15 +4291,15 @@ impl Decoder {
                 // decoders, but only after the decoder has been queried
                 // for max length, so the decoder's own logic for adding
                 // one for a pending lead cannot work.
-                if let Some(sum) = byte_length.checked_add(2) {
-                    if let Some(utf8_bom) = sum.checked_add(1) {
-                        if self.encoding() == UTF_8 {
-                            // No need to consider the internal state of the underlying decoder,
-                            // because it is at start, because no data has reached it yet.
-                            return Some(utf8_bom);
-                        } else if let Some(non_bom) = self.variant.max_utf16_buffer_length(sum) {
-                            return Some(core::cmp::max(utf8_bom, non_bom));
-                        }
+                if let Some(sum) = byte_length.checked_add(2)
+                    && let Some(utf8_bom) = sum.checked_add(1)
+                {
+                    if self.encoding() == UTF_8 {
+                        // No need to consider the internal state of the underlying decoder,
+                        // because it is at start, because no data has reached it yet.
+                        return Some(utf8_bom);
+                    } else if let Some(non_bom) = self.variant.max_utf16_buffer_length(sum) {
+                        return Some(core::cmp::max(utf8_bom, non_bom));
                     }
                 }
             }
@@ -4320,16 +4314,16 @@ impl Decoder {
                 // decoders, but only after the decoder has been queried
                 // for max length, so the decoder's own logic for adding
                 // one for a pending lead cannot work.
-                if let Some(sum) = byte_length.checked_add(2) {
-                    if let Some(utf16_bom) = checked_add(1, checked_div(sum.checked_add(1), 2)) {
-                        let encoding = self.encoding();
-                        if encoding == UTF_16LE || encoding == UTF_16BE {
-                            // No need to consider the internal state of the underlying decoder,
-                            // because it is at start, because no data has reached it yet.
-                            return Some(utf16_bom);
-                        } else if let Some(non_bom) = self.variant.max_utf16_buffer_length(sum) {
-                            return Some(core::cmp::max(utf16_bom, non_bom));
-                        }
+                if let Some(sum) = byte_length.checked_add(2)
+                    && let Some(utf16_bom) = checked_add(1, checked_div(sum.checked_add(1), 2))
+                {
+                    let encoding = self.encoding();
+                    if encoding == UTF_16LE || encoding == UTF_16BE {
+                        // No need to consider the internal state of the underlying decoder,
+                        // because it is at start, because no data has reached it yet.
+                        return Some(utf16_bom);
+                    } else if let Some(non_bom) = self.variant.max_utf16_buffer_length(sum) {
+                        return Some(core::cmp::max(utf16_bom, non_bom));
                     }
                 }
             }

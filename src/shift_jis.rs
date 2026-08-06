@@ -188,10 +188,9 @@ fn encode_kanji(bmp: u16) -> Option<(u8, u8)> {
         23
     } else if let Some(pos) = jis0208_level2_and_additional_kanji_encode(bmp) {
         4418 + pos
-    } else if let Some(pos) = position(&IBM_KANJI[..], bmp) {
-        10744 + pos
     } else {
-        return None;
+        let pos = position(&IBM_KANJI[..], bmp)?;
+        10744 + pos
     };
     let lead = pointer / 188;
     let lead_offset = if lead < 0x1F { 0x81usize } else { 0xC1usize };
