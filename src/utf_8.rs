@@ -836,7 +836,7 @@ pub fn convert_utf16_to_utf8_partial_inner(src: &[u16], dst: &mut [u8]) -> (usiz
                     dst[written] = unit as u8;
                     read += 1;
                     written += 1;
-                    // A punctuation check was slower in 2018 but makes in 2026.
+                    // A punctuation check was slower in 2018 but makes sense in 2026.
                     if unit < 0x3C {
                         continue 'punctuation;
                     }
