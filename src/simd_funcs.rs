@@ -417,16 +417,103 @@ pub(crate) fn ascii_to_basic_latin_stride(
     validate_ascii_simd(src_simd)
 }
 
-#[inline(always)]
-pub(crate) fn basic_latin_to_ascii_stride(
-    src_stride: &[u16; STRIDE],
-    dst_stride: &mut [u8; STRIDE],
-) -> Option<(u16, usize)> {
-    let (src_first, src_second) = split_u16_stride(src_stride);
-    let first_simd: u16x8 = (*src_first).into();
-    let second_simd: u16x8 = (*src_second).into();
-    pack_simd_to(first_simd, second_simd, dst_stride);
-    validate_basic_latin_simd(first_simd, second_simd)
+cfg_if! {
+    if #[cfg(target_feature = "sse2")] {
+
+        #[inline(always)]
+        pub(crate) fn basic_latin_to_ascii_stride(
+            src_stride: &[u16; STRIDE],
+            dst_stride: &mut [u8; STRIDE],
+        ) -> Option<(u16, usize)> {
+            let wide: u16x16 = (*src_stride).into();
+            let bytes: u8x32 = wide.to_ne_bytes();
+            let packed: u8x16 = simd_swizzle!(bytes, [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30]);
+            *dst_stride = packed.to_array();
+            if let Some(pos) = wide.simd_gt(u16x16::splat(0x7F)).first_set() {
+                Some((wide[pos], pos))
+            } else {
+                None
+            }
+        }
+
+        #[inline(always)]
+        pub(crate) fn basic_latin_to_ascii_double_stride(
+            src_double_stride: &[[u16; STRIDE]; 2],
+            dst_double_stride: &mut [[u8; STRIDE]; 2],
+        ) -> Option<(u16, usize)> {
+            let first_wide: u16x16 = src_double_stride[0].into();
+            let second_wide: u16x16 = src_double_stride[1].into();
+
+
+            let first_bytes: u8x32 = first_wide.to_ne_bytes();
+            let first_packed: u8x16 = simd_swizzle!(first_bytes, [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30]);
+            dst_double_stride[0] = first_packed.to_array();
+
+            if (first_wide | second_wide).simd_lt(u16x16::splat(0x80)).all() {
+                let second_bytes: u8x32 = second_wide.to_ne_bytes();
+                let second_packed: u8x16 = simd_swizzle!(second_bytes, [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30]);
+                dst_double_stride[1] = second_packed.to_array();
+
+                return None;
+            }
+
+            if let Some(pos) = first_wide.simd_gt(u16x16::splat(0x7F)).first_set() {
+                return Some((first_wide[pos], pos))
+            }
+
+            let second_bytes: u8x32 = second_wide.to_ne_bytes();
+            let second_packed: u8x16 = simd_swizzle!(second_bytes, [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30]);
+            dst_double_stride[1] = second_packed.to_array();
+
+            if let Some(pos) = second_wide.simd_gt(u16x16::splat(0x7F)).first_set() {
+                return Some((second_wide[pos], STRIDE + pos))
+            }
+
+            debug_assert!(false);
+            None
+        }
+
+    } else {
+        #[inline(always)]
+        pub(crate) fn basic_latin_to_ascii_stride(
+            src_stride: &[u16; STRIDE],
+            dst_stride: &mut [u8; STRIDE],
+        ) -> Option<(u16, usize)> {
+            let (src_first, src_second) = split_u16_stride(src_stride);
+            let first_simd: u16x8 = (*src_first).into();
+            let second_simd: u16x8 = (*src_second).into();
+            pack_simd_to(first_simd, second_simd, dst_stride);
+            validate_basic_latin_simd(first_simd, second_simd)
+        }
+
+        #[inline(always)]
+        pub(crate) fn basic_latin_to_ascii_double_stride(
+            src_double_stride: &[[u16; STRIDE]; 2],
+            dst_double_stride: &mut [[u8; STRIDE]; 2],
+        ) -> Option<(u16, usize)> {
+            let (src_first, src_second) = split_u16_stride(&src_double_stride[0]);
+            let first_simd: u16x8 = (*src_first).into();
+            let second_simd: u16x8 = (*src_second).into();
+            let (src_third, src_fourth) = split_u16_stride(&src_double_stride[1]);
+            let third_simd: u16x8 = (*src_third).into();
+            let fourth_simd: u16x8 = (*src_fourth).into();
+            pack_simd_to(first_simd, second_simd, &mut dst_double_stride[0]);
+            if simd_is_basic_latin(first_simd | second_simd | third_simd | fourth_simd) {
+                pack_simd_to(third_simd, fourth_simd, &mut dst_double_stride[1]);
+                return None;
+            }
+            if let Some((c, pos)) = validate_basic_latin_simd(first_simd, second_simd) {
+                return Some((c, pos));
+            }
+            pack_simd_to(third_simd, fourth_simd, &mut dst_double_stride[1]);
+            if let Some((c, pos)) = validate_basic_latin_simd(third_simd, fourth_simd) {
+                return Some((c, STRIDE + pos));
+            }
+            debug_assert!(false);
+            None
+        }
+
+    }
 }
 
 #[allow(dead_code)]
@@ -478,33 +565,6 @@ pub(crate) fn ascii_to_basic_latin_double_stride(
     }
     unpack_simd_to(second_simd, &mut dst_double_stride[1]);
     if let Some((c, pos)) = validate_ascii_simd(second_simd) {
-        return Some((c, STRIDE + pos));
-    }
-    debug_assert!(false);
-    None
-}
-
-#[inline(always)]
-pub(crate) fn basic_latin_to_ascii_double_stride(
-    src_double_stride: &[[u16; STRIDE]; 2],
-    dst_double_stride: &mut [[u8; STRIDE]; 2],
-) -> Option<(u16, usize)> {
-    let (src_first, src_second) = split_u16_stride(&src_double_stride[0]);
-    let first_simd: u16x8 = (*src_first).into();
-    let second_simd: u16x8 = (*src_second).into();
-    let (src_third, src_fourth) = split_u16_stride(&src_double_stride[1]);
-    let third_simd: u16x8 = (*src_third).into();
-    let fourth_simd: u16x8 = (*src_fourth).into();
-    pack_simd_to(first_simd, second_simd, &mut dst_double_stride[0]);
-    if simd_is_basic_latin(first_simd | second_simd | third_simd | fourth_simd) {
-        pack_simd_to(third_simd, fourth_simd, &mut dst_double_stride[1]);
-        return None;
-    }
-    if let Some((c, pos)) = validate_basic_latin_simd(first_simd, second_simd) {
-        return Some((c, pos));
-    }
-    pack_simd_to(third_simd, fourth_simd, &mut dst_double_stride[1]);
-    if let Some((c, pos)) = validate_basic_latin_simd(third_simd, fourth_simd) {
         return Some((c, STRIDE + pos));
     }
     debug_assert!(false);
