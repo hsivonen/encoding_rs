@@ -817,29 +817,33 @@ pub fn convert_utf16_to_utf8_partial_inner(src: &[u16], dst: &mut [u8]) -> (usiz
                 }
                 break;
             }
-            // Now see if the next unit is Basic Latin
-            // read > src.len() is impossible, but using
-            // >= instead of == allows the compiler to elide a bound check.
-            if read >= src.len() {
-                debug_assert_eq!(read, src.len());
-                return (read, written);
-            }
-            unit = src[read];
-            if unlikely(unit < 0x80) {
-                // written > dst.len() is impossible, but using
+            'punctuation: loop {
+                // Now see if the next unit is Basic Latin
+                // read > src.len() is impossible, but using
                 // >= instead of == allows the compiler to elide a bound check.
-                if written >= dst.len() {
-                    debug_assert_eq!(written, dst.len());
+                if read >= src.len() {
+                    debug_assert_eq!(read, src.len());
                     return (read, written);
                 }
-                dst[written] = unit as u8;
-                read += 1;
-                written += 1;
-                // Mysteriously, adding a punctuation check here makes
-                // the expected benificiary cases *slower*!
-                continue 'outer;
+                unit = src[read];
+                if unlikely(unit < 0x80) {
+                    // written > dst.len() is impossible, but using
+                    // >= instead of == allows the compiler to elide a bound check.
+                    if written >= dst.len() {
+                        debug_assert_eq!(written, dst.len());
+                        return (read, written);
+                    }
+                    dst[written] = unit as u8;
+                    read += 1;
+                    written += 1;
+                    // A punctuation check was slower in 2018 but makes in 2026.
+                    if unit < 0x3C {
+                        continue 'punctuation;
+                    }
+                    continue 'outer;
+                }
+                continue 'inner;
             }
-            continue 'inner;
         }
     }
 }
