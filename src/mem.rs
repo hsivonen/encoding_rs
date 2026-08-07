@@ -1331,14 +1331,16 @@ pub fn convert_utf8_to_utf16_without_replacement(src: &[u8], dst: &mut [u16]) ->
 ///
 /// # Safety
 ///
-/// If you want to convert into a `&mut str`, use
-/// `convert_utf16_to_str_partial()` instead of using this function
-/// together with the `unsafe` method `as_bytes_mut()` on `&mut str`.
+/// This function may write garbage to bytes in the destination
+/// after the reported number of written bytes, so if you want to
+/// convert into a `&mut str`, use `convert_utf16_to_str_partial()`
+/// instead of using this function together with the `unsafe`
+/// method `as_bytes_mut()` on `&mut str`.
 #[inline(always)]
 pub fn convert_utf16_to_utf8_partial(src: &[u16], dst: &mut [u8]) -> (usize, usize) {
     // The two functions called below are marked `inline(never)` to make
     // transitions from the hot part (first function) into the cold part
-    // (second function) go through a return and another call to discouge
+    // (second function) go through a return and another call to discourage
     // the CPU from speculating from the hot code into the cold code.
     // Letting the transitions be mere intra-function jumps, even to
     // basic blocks out-of-lined to the end of the function would wipe
@@ -1392,6 +1394,13 @@ pub fn convert_utf16_to_utf8(src: &[u16], dst: &mut [u8]) -> usize {
 /// if the input starts with or ends with an unpaired surrogate, those are
 /// replaced with the REPLACEMENT CHARACTER.
 pub fn convert_utf16_to_str_partial(src: &[u16], dst: &mut str) -> (usize, usize) {
+    // TODO: This function does not need to be panic-safe against user code.
+    // However, if there is a bug inside the crate so that something inside
+    // the implementation panics after bytes have been written, the code is
+    // compiled with unwinding enabled, and the caller catches the panic,
+    // the caller could end up holding `dst` that is in an invalid state.
+    // https://github.com/hsivonen/encoding_rs/issues/133
+
     let bytes: &mut [u8] = unsafe { dst.as_bytes_mut() };
     let (read, written) = convert_utf16_to_utf8_partial(src, bytes);
     let len = bytes.len();
