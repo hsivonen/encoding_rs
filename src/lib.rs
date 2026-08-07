@@ -3493,7 +3493,7 @@ impl core::fmt::Debug for Encoding {
     fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
         f.debug_struct("Encoding")
             .field("name", &self.name)
-            .finish()
+            .finish_non_exhaustive()
     }
 }
 
@@ -4430,7 +4430,7 @@ impl core::fmt::Debug for Decoder {
         f.debug_struct("Decoder")
             .field("encoding", self.encoding)
             .field("life_cycle", &self.life_cycle)
-            .finish()
+            .finish_non_exhaustive()
     }
 }
 
@@ -4955,7 +4955,7 @@ impl core::fmt::Debug for Encoder {
     fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
         f.debug_struct("Encoder")
             .field("encoding", self.encoding)
-            .finish()
+            .finish_non_exhaustive()
     }
 }
 
