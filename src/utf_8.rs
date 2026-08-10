@@ -463,21 +463,26 @@ pub fn convert_utf8_to_utf16_up_to_invalid(src: &[u8], dst: &mut [u16]) -> (usiz
                 read += 4;
                 written += 2;
 
-                // Next lead
-                if written == dst.len() {
-                    break 'outer;
-                }
-                if likely(read + 4 <= src.len()) {
-                    byte = unsafe { *(src.get_unchecked(read)) };
-                    if byte < 0x80 {
-                        unsafe { *(dst.get_unchecked_mut(written)) = u16::from(byte) };
-                        read += 1;
-                        written += 1;
-                        continue 'outer;
+                'punctuation: loop {
+                    // Next lead
+                    if written == dst.len() {
+                        break 'outer;
                     }
-                    continue 'inner;
+                    if likely(read + 4 <= src.len()) {
+                        byte = unsafe { *(src.get_unchecked(read)) };
+                        if byte < 0x80 {
+                            unsafe { *(dst.get_unchecked_mut(written)) = u16::from(byte) };
+                            read += 1;
+                            written += 1;
+                            if byte < 0x3C {
+                                continue 'punctuation;
+                            }
+                            continue 'outer;
+                        }
+                        continue 'inner;
+                    }
+                    break 'inner;
                 }
-                break 'inner;
             }
         }
         // We can't have a complete 4-byte sequence, but we could still have
