@@ -417,18 +417,46 @@ pub(crate) fn ascii_to_basic_latin_stride(
     validate_ascii_simd(src_simd)
 }
 
-// Negative results: Trying to widen to `u16x16` reads for AVX2
-// did not help. See the `wide` git branch.
-#[inline(always)]
-pub(crate) fn basic_latin_to_ascii_stride(
-    src_stride: &[u16; STRIDE],
-    dst_stride: &mut [u8; STRIDE],
-) -> Option<(u16, usize)> {
-    let (src_first, src_second) = split_u16_stride(src_stride);
-    let first_simd: u16x8 = (*src_first).into();
-    let second_simd: u16x8 = (*src_second).into();
-    pack_simd_to(first_simd, second_simd, dst_stride);
-    validate_basic_latin_simd(first_simd, second_simd)
+cfg_if! {
+    if #[cfg(target_arch = "aarch64")]{
+
+        #[inline(always)]
+        pub(crate) fn basic_latin_to_ascii_stride(
+            src_stride: &[u16; STRIDE],
+            dst_stride: &mut [u8; STRIDE],
+        ) -> Option<(u16, usize)> {
+            let (src_first, src_second) = split_u16_stride(src_stride);
+            let first_simd: u16x8 = (*src_first).into();
+            let second_simd: u16x8 = (*src_second).into();
+
+            let (low, high) = first_simd.to_ne_bytes().deinterleave(second_simd.to_ne_bytes());
+
+            *dst_stride = low.to_array();
+
+            if let Some(pos) = (low.simd_gt(u8x16::splat(0x7F)) | high.simd_ne(u8x16::splat(0))).first_set() {
+                Some((src_stride[pos], pos))
+            } else {
+                None
+            }
+        }
+
+    } else {
+
+        // Negative results: Trying to widen to `u16x16` reads for AVX2
+        // did not help. See the `wide` git branch.
+        #[inline(always)]
+        pub(crate) fn basic_latin_to_ascii_stride(
+            src_stride: &[u16; STRIDE],
+            dst_stride: &mut [u8; STRIDE],
+        ) -> Option<(u16, usize)> {
+            let (src_first, src_second) = split_u16_stride(src_stride);
+            let first_simd: u16x8 = (*src_first).into();
+            let second_simd: u16x8 = (*src_second).into();
+            pack_simd_to(first_simd, second_simd, dst_stride);
+            validate_basic_latin_simd(first_simd, second_simd)
+        }
+
+    }
 }
 
 #[allow(dead_code)]
@@ -486,33 +514,79 @@ pub(crate) fn ascii_to_basic_latin_double_stride(
     None
 }
 
-// Negative results: Trying to widen to `u16x16` reads for AVX2
-// did not help. See the `wide` git branch.
-#[inline(always)]
-pub(crate) fn basic_latin_to_ascii_double_stride(
-    src_double_stride: &[[u16; STRIDE]; 2],
-    dst_double_stride: &mut [[u8; STRIDE]; 2],
-) -> Option<(u16, usize)> {
-    let (src_first, src_second) = split_u16_stride(&src_double_stride[0]);
-    let first_simd: u16x8 = (*src_first).into();
-    let second_simd: u16x8 = (*src_second).into();
-    let (src_third, src_fourth) = split_u16_stride(&src_double_stride[1]);
-    let third_simd: u16x8 = (*src_third).into();
-    let fourth_simd: u16x8 = (*src_fourth).into();
-    pack_simd_to(first_simd, second_simd, &mut dst_double_stride[0]);
-    if simd_is_basic_latin(first_simd | second_simd | third_simd | fourth_simd) {
-        pack_simd_to(third_simd, fourth_simd, &mut dst_double_stride[1]);
-        return None;
+cfg_if! {
+    if #[cfg(target_arch = "aarch64")]{
+
+        // Negative results: Trying to widen to `u16x16` reads for AVX2
+        // did not help. See the `wide` git branch.
+        #[inline(always)]
+        pub(crate) fn basic_latin_to_ascii_double_stride(
+            src_double_stride: &[[u16; STRIDE]; 2],
+            dst_double_stride: &mut [[u8; STRIDE]; 2],
+        ) -> Option<(u16, usize)> {
+            let (src_first, src_second) = split_u16_stride(&src_double_stride[0]);
+            let first_simd: u16x8 = (*src_first).into();
+            let second_simd: u16x8 = (*src_second).into();
+            let (src_third, src_fourth) = split_u16_stride(&src_double_stride[1]);
+            let third_simd: u16x8 = (*src_third).into();
+            let fourth_simd: u16x8 = (*src_fourth).into();
+
+            let (low_first, high_first) = first_simd.to_ne_bytes().deinterleave(second_simd.to_ne_bytes());
+
+            dst_double_stride[0] = low_first.to_array();
+
+            if simd_is_basic_latin(first_simd | second_simd | third_simd | fourth_simd) {
+                pack_simd_to(third_simd, fourth_simd, &mut dst_double_stride[1]);
+                return None;
+            }
+
+            if let Some(pos) = (low_first.simd_gt(u8x16::splat(0x7F)) | high_first.simd_ne(u8x16::splat(0))).first_set() {
+                return Some((src_double_stride[0][pos], pos));
+            }
+
+            let (low_second, high_second) = third_simd.to_ne_bytes().deinterleave(fourth_simd.to_ne_bytes());
+
+            dst_double_stride[1] = low_second.to_array();
+
+            if let Some(pos) = (low_second.simd_gt(u8x16::splat(0x7F)) | high_second.simd_ne(u8x16::splat(0))).first_set() {
+                return Some((src_double_stride[1][pos], STRIDE + pos));
+            }
+
+            debug_assert!(false);
+            None
+        }
+
+    } else {
+        // Negative results: Trying to widen to `u16x16` reads for AVX2
+        // did not help. See the `wide` git branch.
+        #[inline(always)]
+        pub(crate) fn basic_latin_to_ascii_double_stride(
+            src_double_stride: &[[u16; STRIDE]; 2],
+            dst_double_stride: &mut [[u8; STRIDE]; 2],
+        ) -> Option<(u16, usize)> {
+            let (src_first, src_second) = split_u16_stride(&src_double_stride[0]);
+            let first_simd: u16x8 = (*src_first).into();
+            let second_simd: u16x8 = (*src_second).into();
+            let (src_third, src_fourth) = split_u16_stride(&src_double_stride[1]);
+            let third_simd: u16x8 = (*src_third).into();
+            let fourth_simd: u16x8 = (*src_fourth).into();
+            pack_simd_to(first_simd, second_simd, &mut dst_double_stride[0]);
+            if simd_is_basic_latin(first_simd | second_simd | third_simd | fourth_simd) {
+                pack_simd_to(third_simd, fourth_simd, &mut dst_double_stride[1]);
+                return None;
+            }
+            if let Some((c, pos)) = validate_basic_latin_simd(first_simd, second_simd) {
+                return Some((c, pos));
+            }
+            pack_simd_to(third_simd, fourth_simd, &mut dst_double_stride[1]);
+            if let Some((c, pos)) = validate_basic_latin_simd(third_simd, fourth_simd) {
+                return Some((c, STRIDE + pos));
+            }
+            debug_assert!(false);
+            None
+        }
+
     }
-    if let Some((c, pos)) = validate_basic_latin_simd(first_simd, second_simd) {
-        return Some((c, pos));
-    }
-    pack_simd_to(third_simd, fourth_simd, &mut dst_double_stride[1]);
-    if let Some((c, pos)) = validate_basic_latin_simd(third_simd, fourth_simd) {
-        return Some((c, STRIDE + pos));
-    }
-    debug_assert!(false);
-    None
 }
 
 #[allow(dead_code)]
