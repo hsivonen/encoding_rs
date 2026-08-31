@@ -132,6 +132,11 @@ compatible Rust versions.
 Currently, the MSRV is 1.88 with or without `simd-accel`, which is older
 than Firefox's MSRV.
 
+Note that starting with Rust 1.96, there's a [bug](https://github.com/rust-lang/stdarch/issues/2208)
+that causes extra instructions to be emitted for converting from UTF-16 to UTF-8 or
+from UTF-16 to Latin1 on x86_64 and x86 with `simd-accel` enabled, so it makes sense
+to avoid Rust versions from 1.96 until the fix for the bug.
+
 ## Integration with `std::io`
 
 Notably, the above feature list doesn't include the capability to wrap
@@ -339,6 +344,11 @@ If you use nightly Rust, you use targets whose first component is one of the
 above, and you are prepared _to have to revise your configuration when updating
 Rust_, you should enable this feature. Otherwise, please _do not_ enable this
 feature.
+
+Note that starting with Rust 1.96, there's a [bug](https://github.com/rust-lang/stdarch/issues/2208)
+that causes extra instructions to be emitted for converting from UTF-16 to UTF-8 or
+from UTF-16 to Latin1 on x86_64 and x86, so it makes sense to avoid Rust versions
+from 1.96 until the fix for the bug.
 
 Used by Firefox.
 
@@ -553,7 +563,7 @@ To regenerate the generated code:
 * Make decoder methods that write to `String` panic-safe so that the `String` no longer exposes uninitalized memory when user code tries to reuse a decoder that has reached the end of the stream previously, catches the panic, and uses the `String` afterwards. (Applicable when compiled with panic unwinding and the caller uses the API in an unintended way.)
 * Major rewrite of the ASCII acceleration internals to fix correctness in the non-SIMD case, to reduce `unsafe`, to remove code path divergence based on buffer alignment, and to improve performance.
 * Use the `simdutf8` crate for UTF-8 validation on aarch64, when compiled with Wasm SIMD enabled, and on x86/x86_64 when SSE 4.2 or, even better, AVX2 is available (works even without the `simd-accel` or `std` features).
-* On x86_64 with the `simd-accel` feature enabled, added function multiversioning to use AVX2+BMI1 when available (requires also the new `std` feature).
+* On x86_64 and x86 with the `simd-accel` feature enabled, added function multiversioning to use AVX2+BMI1 when available (requires also the new `std` feature).
 * Bound check optimization.
 * Documentation tweaks.
 * Address compiler warnings and Clippy lints.
