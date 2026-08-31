@@ -568,6 +568,8 @@ To regenerate the generated code:
 * Documentation tweaks.
 * Address compiler warnings and Clippy lints.
 
+Thanks to everyone who reported bugs and contributed fixes to this release!
+
 ### 0.8.36 though 0.8.39
 
 * Reserved version numbers.
