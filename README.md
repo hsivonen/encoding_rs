@@ -244,7 +244,10 @@ Due to function multiversioning for AVX2+BMI1 on x86_64 with the `simd-accel` an
 features (see below), on x86 and x86_64 targets, this crate has the usual proc macro dependencies
 in its dependency tree. Cargo does not allow combining `feature` conditions with
 target-related conditions, so the dependencies are there even when the
-`simd-accel` and `std` features are not enabled.
+`simd-accel` and `std` features are not enabled. (Flipping things the other way round
+and making the inclusion of the crates dependent on `simd-accel` or `std` would mean
+non-x86/x86_64 builds would pay for what they don't use, and even x86/x86_64 builds
+wouldn't have the opt-opt below.)
 
 You can, however, avoid these by changing the available set of `target_feature`s by
 specifying `RUSTFLAGS='-C target_cpu=x86-64-v3'`.
