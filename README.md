@@ -560,6 +560,7 @@ To regenerate the generated code:
 * Bound check optimization.
 * Documentation tweaks.
 * Address compiler warnings and Clippy lints.
+* Defense-in-depth in functions that write to `&mut str` in case there exists a crate-internal bug that panics.
 
 Thanks to everyone who reported bugs and contributed fixes to this release!
 
