@@ -46,7 +46,7 @@ scopeguard = { version = "1", default-features = false }
 # enabled, but Cargo explicitly does not allow combining feature conditions and
 # target conditions.
 [target.'cfg(all(any(target_arch = "x86_64", target_arch = "x86"), not(all(target_feature = "avx2", target_feature = "bmi1"))))'.dependencies]
-multiversion = { version = "0.8.0", default-features = false }
+multiversion = { version = ">=0.8.0,<0.10.0", default-features = false }
 
 [target.'cfg(any(target_arch = "x86_64", target_arch = "x86", target_arch = "aarch64", all(target_arch = "wasm32", target_feature = "simd128")))'.dependencies]
 simdutf8 = { version = "0.1.5", default-features = false, features = ["aarch64_neon", "public_imp"] }
