@@ -440,6 +440,7 @@ fn split_u16_stride(stride: &[u16; STRIDE]) -> (&[u16; HALF_STRIDE], &[u16; HALF
     (&chunks[0], &chunks[1])
 }
 
+#[allow(dead_code)]
 #[inline(always)]
 fn split_u16_stride_mut(
     stride: &mut [u16; STRIDE],
