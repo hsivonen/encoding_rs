@@ -5202,9 +5202,7 @@ cfg_if! {
         target_arch = "riscv32",
         target_arch = "riscv64",
         target_arch = "loongarch64",
-        target_arch = "s390x",
-        target_arch = "powerpc",
-        target_arch = "powerpc64")))] {
+        target_arch = "s390x")))] {
         #[inline(always)]
         unsafe fn pointer_escapes(ptr: *mut MaybeUninit<u8>) {
             // SAFETY:
