@@ -728,6 +728,22 @@
     all(feature = "simd-accel", target_endian = "little"),
     feature(portable_simd)
 )]
+// These are for working around
+// https://github.com/rust-lang/stdarch/issues/2208
+// https://github.com/rust-lang/rust/issues/159464
+// https://github.com/rust-lang/rust/pull/161558
+#![cfg_attr(
+    all(slow_mm_packus_epi16, feature = "simd-accel", target_feature = "sse2"),
+    feature(link_llvm_intrinsics)
+)]
+#![cfg_attr(
+    all(slow_mm_packus_epi16, feature = "simd-accel", target_feature = "sse2"),
+    feature(abi_unadjusted)
+)]
+#![cfg_attr(
+    all(slow_mm_packus_epi16, feature = "simd-accel", target_feature = "sse2"),
+    feature(simd_ffi)
+)]
 
 #[cfg(feature = "alloc")]
 #[cfg_attr(test, macro_use)]

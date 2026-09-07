@@ -5,7 +5,7 @@ version = "0.8.35"
 edition = '2024'
 authors = ["Henri Sivonen <hsivonen@hsivonen.fi>"]
 license = "(Apache-2.0 OR MIT) AND BSD-3-Clause"
-include = ["src/**/*.rs", "/data", "Cargo.toml", "COPYRIGHT", "LICENSE*", "README.md"]
+include = ["build.rs", "src/**/*.rs", "/data", "Cargo.toml", "COPYRIGHT", "LICENSE*", "README.md"]
 readme = "README.md"
 documentation = "https://docs.rs/encoding_rs/"
 homepage = "https://docs.rs/encoding_rs/"
@@ -13,6 +13,7 @@ repository = "https://github.com/hsivonen/encoding_rs"
 keywords = ["encoding", "web", "unicode", "charset"]
 categories = ["text-processing", "encoding", "web-programming", "internationalization"]
 rust-version = "1.88"
+build = "build.rs"
 
 [features]
 default = ["alloc"]
@@ -57,6 +58,9 @@ core_detect = "1"
 serde_derive = "1.0"
 bincode = "1.0"
 serde_json = "1.0"
+
+[build-dependencies]
+rustversion = "1.0.19"
 
 [profile.release]
 lto = true

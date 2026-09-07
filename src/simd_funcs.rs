@@ -54,12 +54,38 @@ cfg_if! {
         #[allow(unused)]
         use core::arch::x86_64::__m128i;
         use core::arch::x86_64::_mm_movemask_epi8;
+        #[rustversion::any(before(1.96), since(1.99))]
         use core::arch::x86_64::_mm_packus_epi16;
     } else if #[cfg(all(target_feature = "sse2", target_arch = "x86"))] {
         #[allow(unused)]
         use core::arch::x86::__m128i;
         use core::arch::x86::_mm_movemask_epi8;
+        #[rustversion::any(before(1.96), since(1.99))]
         use core::arch::x86::_mm_packus_epi16;
+    } else {
+
+    }
+}
+
+cfg_if! {
+    if #[cfg(target_feature = "sse2")] {
+        // See:
+        //
+        // https://github.com/rust-lang/stdarch/issues/2208
+        // https://github.com/rust-lang/rust/issues/159464
+        // https://github.com/rust-lang/rust/pull/161558
+        #[rustversion::all(since(1.96), before(1.99))]
+        unsafe fn _mm_packus_epi16(a: __m128i, b: __m128i) -> __m128i {
+            unsafe { packus(core::simd::i16x8::from(a), core::simd::i16x8::from(b)).into() }
+        }
+
+        #[rustversion::all(since(1.96), before(1.99))]
+        #[allow(improper_ctypes)]
+        unsafe extern "unadjusted" {
+            #[link_name = "llvm.x86.sse2.packuswb.128"]
+            fn packus(a: core::simd::i16x8, b: core::simd::i16x8) -> u8x16;
+        }
+
     } else {
 
     }
