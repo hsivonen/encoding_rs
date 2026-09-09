@@ -249,6 +249,11 @@ specifying `RUSTFLAGS='-C target_cpu=x86-64-v3'`.
 
 This issue does not apply to non-x86/x86_64 targets.
 
+Furthermore, `multiversion` 0.9.0 brings `syn` 3 into the dependency graph while
+`multiversion` 0.8.0 brings `syn` 2 into the dependency graph. If you don't already
+have `syn` 3 but do have `syn` 2 in your dependency graph, you can downgrade
+`multiversion` to 0.8.0 to avoid two versions of `syn`.
+
 ## Optional features
 
 There are multiple optional features.
@@ -548,6 +553,11 @@ To regenerate the generated code:
 - [x] Migrate `unsafe` slice access by larger types than `u8`/`u16` to ~`align_to`~ `as_chunks`.
 
 ## Release Notes
+
+### 0.8.41
+
+* Increase the version of the `multiversion` dependency to 0.9.0 while accepting also 0.8.0 to allow for downgrading
+  depending on how crate users with to deduplicate `syn` 2 vs. 3.
 
 ### 0.8.40
 
