@@ -69,7 +69,7 @@
 //! [Apache license, Version 2.0](https://www.apache.org/licenses/LICENSE-2.0)
 //! or the [MIT license](https://opensource.org/licenses/MIT), at your option.
 //! See the
-//! [`COPYRIGHT`](https://github.com/hsivonen/encoding_rs/blob/master/COPYRIGHT)
+//! [`COPYRIGHT`](https://github.com/hsivonen/encoding_rs/blob/main/COPYRIGHT)
 //! file for details.
 //! The [repository is on GitHub](https://github.com/hsivonen/encoding_rs). The
 //! [crate is available on crates.io](https://crates.io/crates/encoding_rs).
@@ -335,7 +335,7 @@
 //! and `Encoder` objects are not used at all.
 //!
 //! [1]: https://github.com/hsivonen/encoding_c
-//! [2]: https://github.com/hsivonen/encoding_c/blob/master/include/encoding_rs_cpp.h
+//! [2]: https://github.com/hsivonen/encoding_c/blob/main/include/encoding_rs_cpp.h
 //! [3]: https://github.com/Microsoft/GSL/
 //! [4]: https://searchfox.org/mozilla-central/source/intl/Encoding.h
 //!

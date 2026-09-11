@@ -179,7 +179,7 @@ characters. Vietnamese tone marks can be decomposed using the
 TL;DR: `(Apache-2.0 OR MIT) AND BSD-3-Clause` for the code and data combination.
 
 Please see the file named
-[COPYRIGHT](https://github.com/hsivonen/encoding_rs/blob/master/COPYRIGHT).
+[COPYRIGHT](https://github.com/hsivonen/encoding_rs/blob/main/COPYRIGHT).
 
 The non-test code that isn't generated from the WHATWG data in this crate is
 under Apache-2.0 OR MIT. Test code is under CC0.
@@ -202,7 +202,7 @@ design and internals of the crate.
 
 An FFI layer for encoding_rs is available as a
 [separate crate](https://github.com/hsivonen/encoding_c). The crate comes
-with a [demo C++ wrapper](https://github.com/hsivonen/encoding_c/blob/master/include/encoding_rs_cpp.h)
+with a [demo C++ wrapper](https://github.com/hsivonen/encoding_c/blob/main/include/encoding_rs_cpp.h)
 using the C++ standard library and [GSL](https://github.com/Microsoft/GSL/) types.
 
 The bindings for the `mem` module are in the
