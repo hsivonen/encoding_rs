@@ -18,8 +18,8 @@ build = "build.rs"
 [features]
 default = ["alloc"]
 alloc = []
-std = ["multiversion/std"]
-simd-accel = ["any_all_workaround", "rustversion"]
+std = ["multiversion?/std"]
+simd-accel = ["any_all_workaround", "rustversion", "dep:multiversion"]
 less-slow-kanji-encode = []
 less-slow-big5-hanzi-encode = []
 less-slow-gb-hanzi-encode = []
@@ -42,11 +42,8 @@ rustversion = { version = "1.0.19", optional = true }
 multiversion_no_op = "1.0.0"
 scopeguard = { version = "1", default-features = false }
 
-# This should only be included if both the `simd-accel` and `std` features are
-# enabled, but Cargo explicitly does not allow combining feature conditions and
-# target conditions.
 [target.'cfg(all(any(target_arch = "x86_64", target_arch = "x86"), not(all(target_feature = "avx2", target_feature = "bmi1"))))'.dependencies]
-multiversion = { version = ">=0.8.0,<0.10.0", default-features = false }
+multiversion = { version = ">=0.8.0,<0.10.0", default-features = false, optional = true }
 
 [target.'cfg(any(target_arch = "x86_64", target_arch = "x86", target_arch = "aarch64", all(target_arch = "wasm32", target_feature = "simd128")))'.dependencies]
 simdutf8 = { version = "0.1.5", default-features = false, features = ["aarch64_neon", "public_imp"] }
