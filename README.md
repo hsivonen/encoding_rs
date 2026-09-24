@@ -235,14 +235,14 @@ x86 and x86_64 in a way that does require `std`, because the
 
 ## Build times
 
-Due to function multiversioning for AVX2+BMI1 on x86_64 with the `simd-accel` and `std`
-features (see below), on x86 and x86_64 targets, this crate has the usual proc macro dependencies
-in its dependency tree. They are compiled only when the `simd-accel` feature is enabled.
-(Cargo cannot condition a dependency on both `simd-accel` and `std`,
-so `simd-accel` without `std` compiles them without using them.)
+On x86 and x86_64 targets (only), if the `std` Cargo feature is specified without the
+`simd-accel` Cargo feature, the usual proc macro dependencies end up in the dependency
+graph but aren't actually used, so it doesn't make sense to enable the `std` feature
+without also enabling the `simd-accel` feature.
 
-You can, however, avoid these by changing the available set of `target_feature`s by
-specifying `RUSTFLAGS='-C target_cpu=x86-64-v3'`.
+If your binary is only going to be deployed to x86-64-v3 or higher, you can avoid the
+proc macro dependencies while still getting the performance benefits by enabling
+`simd-accel` (with or without `std`) and specifying `RUSTFLAGS='-C target_cpu=x86-64-v3'`.
 
 This issue does not apply to non-x86/x86_64 targets.
 
@@ -275,7 +275,8 @@ When used together with `simd-accel` (see below), enables run-time detection
 of AVX2+BMI1 on x86 and x86_64 when the compilation target does not include these
 target features statically.
 
-This feature has no effect on SIMD capabilities in other scenarios.
+This feature has no effect on SIMD capabilities in other scenarios. This feature
+is not useful without the `simd-accel` feature.
 
 This feature has the side effect of linking `std`, so this is not compatible
 with the `no_std` context. Unfortunately, even though CPU feature detection
@@ -550,6 +551,10 @@ To regenerate the generated code:
 - [x] Migrate `unsafe` slice access by larger types than `u8`/`u16` to ~`align_to`~ `as_chunks`.
 
 ## Release Notes
+
+### 0.8.42
+
+* Include the `multiversion` dependency in the dependency graph only if the `std` feature has been enabled and the architecture is either x86 or x86_64. (For the `multiversion` dependency to actually _do_ something, the `simd-accel` feature needs to be enabled in addition to enabling the `std` feature.)
 
 ### 0.8.41
 
