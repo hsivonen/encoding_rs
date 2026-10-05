@@ -5865,6 +5865,41 @@ mod tests {
     }
 
     #[test]
+    fn test_short_buffer_after_non_bom_bytes() {
+        // EF BB at the end of one buffer turn out not to be a BOM. Decoding
+        // them as IBM866 or x-user-defined takes more than four bytes of UTF-8,
+        // so with a four-byte buffer the replay must return OutputFull and
+        // resume on the next call.
+        for (encoding, bytes, expect) in [
+            (IBM866, &b"\xEF\xBBab"[..], "\u{044F}\u{2557}ab"),
+            (X_USER_DEFINED, &b"\xEF\xBBab"[..], "\u{F7EF}\u{F7BB}ab"),
+            (X_USER_DEFINED, &b"\xFE\x80"[..], "\u{F7FE}\u{F780}"),
+            (ISO_2022_JP, &b"\xEF\xBBab"[..], "\u{FFFD}\u{FFFD}ab"),
+        ] {
+            for split in 1..bytes.len() {
+                for size in 4..8 {
+                    let mut decoder = encoding.new_decoder();
+                    let mut out = String::new();
+                    for (src, last) in [(&bytes[..split], false), (&bytes[split..], true)] {
+                        let mut src = src;
+                        loop {
+                            let mut dst = [0u8; 8];
+                            let (result, read, written, _) =
+                                decoder.decode_to_utf8(src, &mut dst[..size], last);
+                            out.push_str(core::str::from_utf8(&dst[..written]).unwrap());
+                            src = &src[read..];
+                            if result == CoderResult::InputEmpty {
+                                break;
+                            }
+                        }
+                    }
+                    assert_eq!(out, expect);
+                }
+            }
+        }
+    }
+
+    #[test]
     fn test_utf16_space_with_one_bom_byte_and_a_second_byte_in_same_call() {
         let mut decoder = UTF_16LE.new_decoder();
         let mut dst = [0u16; 12];
