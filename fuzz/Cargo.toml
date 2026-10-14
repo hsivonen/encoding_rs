@@ -34,3 +34,7 @@ path = "fuzzers/fuzz_labels.rs"
 [[bin]]
 name = "fuzz_mem"
 path = "fuzzers/fuzz_mem.rs"
+
+[[bin]]
+name = "fuzz_small_dst"
+path = "fuzzers/fuzz_small_dst.rs"
