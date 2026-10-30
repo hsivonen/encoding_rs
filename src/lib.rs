@@ -5084,7 +5084,11 @@ fn checked_div(opt: Option<usize>, num: usize) -> Option<usize> {
 #[cfg(feature = "alloc")]
 #[inline(always)]
 fn checked_next_power_of_two(opt: Option<usize>) -> Option<usize> {
-    opt.map(|n| n.next_power_of_two())
+    if let Some(n) = opt {
+        n.checked_next_power_of_two()
+    } else {
+        None
+    }
 }
 
 #[cfg(feature = "alloc")]
