@@ -1549,8 +1549,15 @@ pub fn convert_latin1_to_utf8(src: &[u8], dst: &mut [u8]) -> usize {
 /// If the output isn't large enough, not all input is consumed.
 #[inline]
 pub fn convert_latin1_to_str_partial(src: &[u8], dst: &mut str) -> (usize, usize) {
-    let bytes: &mut [u8] = unsafe { dst.as_bytes_mut() };
-    let (read, written) = convert_latin1_to_utf8_partial(src, bytes);
+    // In case of a panic, the `ScopeGuard` zeros the whole slice, which ensures
+    // it's valid UTF-8 in an use-after-panic scenario when unwinding is enabled.
+    // (Relevant only if there's a panic due to a crate-internal bug. Panics
+    // arising from misuse of the public API don't need this guard and end up
+    // zeroing the slice unnecessarily.)
+    let mut bytes = scopeguard::guard(unsafe { dst.as_bytes_mut() }, |bytes| {
+        bytes.iter_mut().for_each(|b| *b = 0)
+    });
+    let (read, written) = convert_latin1_to_utf8_partial(src, &mut bytes);
     let len = bytes.len();
     let mut trail = written;
     let max = ::core::cmp::min(len, trail + MAX_STRIDE_SIZE);
@@ -1562,6 +1569,8 @@ pub fn convert_latin1_to_str_partial(src: &[u8], dst: &mut str) -> (usize, usize
         bytes[trail] = 0;
         trail += 1;
     }
+    // Defuse the zeroing guard.
+    let _ = scopeguard::ScopeGuard::<&mut [u8], _>::into_inner(bytes);
     (read, written)
 }
 

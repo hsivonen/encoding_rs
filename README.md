@@ -561,6 +561,7 @@ To regenerate the generated code:
 * Fix max buffer length queries.
 * Fix a size computation panic on 32-bit targets.
 * Make it possible to enable the `serde` feature without enabling `alloc`.
+* Add a defense-in-depth guard in case of crate-internal bugs to `mem::convert_latin1_to_str_partial`.
 
 ### 0.8.42
 
