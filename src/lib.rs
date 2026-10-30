@@ -3756,10 +3756,9 @@ pub enum DecoderResult {
 /// # Infinite loops
 ///
 /// When converting with a fixed-size output buffer whose size is too small to
-/// accommodate one character or (when applicable) one numeric character
-/// reference of output, an infinite loop ensues. When converting with a
-/// fixed-size output buffer, it generally makes sense to make the buffer
-/// fairly large (e.g. couple of kilobytes).
+/// accommodate one character of output, an infinite loop ensues. When
+/// converting with a fixed-size output buffer, it generally makes sense to
+/// make the buffer fairly large (e.g. couple of kilobytes).
 pub struct Decoder {
     encoding: &'static Encoding,
     variant: VariantDecoder,
@@ -4596,9 +4595,10 @@ impl EncoderResult {
 /// # Infinite loops
 ///
 /// When converting with a fixed-size output buffer whose size is too small to
-/// accommodate one character of output, an infinite loop ensues. When
-/// converting with a fixed-size output buffer, it generally makes sense to
-/// make the buffer fairly large (e.g. couple of kilobytes).
+/// accommodate one character or (when applicable) one numeric character
+/// reference of output, an infinite loop ensues. When converting with a
+/// fixed-size output buffer, it generally makes sense to make the buffer
+/// fairly large (e.g. couple of kilobytes).
 pub struct Encoder {
     encoding: &'static Encoding,
     variant: VariantEncoder,
