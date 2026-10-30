@@ -552,6 +552,11 @@ To regenerate the generated code:
 
 ## Release Notes
 
+### 0.8.44
+
+* Restore the observable behavior of `mem::convert_latin1_to_utf8_partial` with `simd-accel` enabled to the 0.8.35 behavior.
+* As a consequence of the above item, fix a soundness (UB) bug in `mem::convert_latin1_to_str_partial` with `simd-accel` enabled.
+
 ### 0.8.43
 
 * Restore the observable behavior of `mem::convert_utf16_to_utf8_partial` with `simd-accel` enabled to the 0.8.35 behavior.
