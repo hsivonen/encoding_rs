@@ -560,6 +560,7 @@ To regenerate the generated code:
 * Fix decoder behavior when the output buffer is small and bytes that could be part of a BOM have been seen.
 * Fix max buffer length queries.
 * Fix a size computation panic on 32-bit targets.
+* Make it possible to enable the `serde` feature without enabling `alloc`.
 
 ### 0.8.42
 
